@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import LoginPage from "./pages/login";
 import RegisterPage from "./pages/register";
@@ -13,11 +14,27 @@ import TenantPage from "./pages/settings/TenantPage";
 import { useAuth } from "./shared/store/useAuth";
 
 function ProtectedRoute({ children }: { children: JSX.Element }) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
+  
+  // แสดง loading ขณะ check auth
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+  
   return isAuthenticated ? children : <Navigate to="/login" />;
 }
 
 function App() {
+  const { checkAuth } = useAuth();
+
+  useEffect(() => {
+    checkAuth();
+  }, []);
+
   return (
     <BrowserRouter>
       <Routes>

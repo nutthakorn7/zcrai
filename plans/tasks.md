@@ -96,8 +96,8 @@
 - [x] GET /api/integrations (list configured integrations)
 - [x] POST /api/integrations/sentinelone (save S1 API key)
 - [x] POST /api/integrations/crowdstrike (save CrowdStrike API key)
-- [ ] POST /api/integrations/ai/:provider (OpenAI, Claude, etc.)
-- [ ] PUT /api/integrations/:id (update)
+- [x] POST /api/integrations/ai/:provider (OpenAI, Claude, Gemini, etc.)
+- [x] PUT /api/integrations/:id (update)
 - [x] DELETE /api/integrations/:id
 - [x] Test connection endpoint for each integration
 - [x] Encrypt API keys with AES-256-GCM

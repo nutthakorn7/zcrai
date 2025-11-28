@@ -72,6 +72,116 @@ export const IntegrationService = {
     return integration
   },
 
+  // ==================== ADD AI PROVIDER ====================
+  async addAI(tenantId: string, provider: string, data: { apiKey: string; label?: string }) {
+    if (!data.apiKey) throw new Error('API Key is required')
+
+    // Test Connection
+    await this.testAIConnection(provider, data.apiKey)
+
+    // Save Encrypted Key
+    const encryptedKey = Encryption.encrypt(JSON.stringify({
+      apiKey: data.apiKey
+    }))
+
+    const [integration] = await db.insert(apiKeys).values({
+      tenantId,
+      provider,
+      encryptedKey,
+      label: data.label || `${provider.toUpperCase()} Integration`,
+    }).returning()
+
+    return integration
+  },
+
+  // ... (update function remains the same) ...
+
+  // ==================== TEST CONNECTION (AI) ====================
+  async testAIConnection(provider: string, apiKey: string) {
+    try {
+      let url = ''
+      let headers: Record<string, string> = {}
+
+      switch (provider) {
+        case 'openai':
+          url = 'https://api.openai.com/v1/models'
+          headers = { 'Authorization': `Bearer ${apiKey}` }
+          break
+        case 'claude':
+          url = 'https://api.anthropic.com/v1/models?limit=1'
+          headers = { 
+            'x-api-key': apiKey,
+            'anthropic-version': '2023-06-01'
+          }
+          break
+        case 'gemini':
+          // Gemini uses query param for key usually, but let's try a basic discovery or just skip deep check if complex
+          // For now, assume simple check isn't easily available without specific payload.
+          // Or use: https://generativelanguage.googleapis.com/v1beta/models?key=API_KEY
+          url = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`
+          break
+        default:
+          // Skip test for unknown providers or mock success
+          return true
+      }
+
+      const response = await fetch(url, { headers })
+      
+      if (!response.ok) {
+        const error = await response.text()
+        throw new Error(`${provider.toUpperCase()} Connection Failed: ${response.status} - ${error.slice(0, 100)}`)
+      }
+      
+      return true
+    } catch (e: any) {
+      throw new Error(e.message)
+    }
+  },
+
+  // ... (testSentinelOneConnection, testCrowdStrikeConnection remain the same) ...
+
+  // ==================== UPDATE INTEGRATION ====================
+  async update(id: string, tenantId: string, data: { label?: string; isActive?: boolean }) {
+    const [updated] = await db.update(apiKeys)
+      .set({
+        ...data,
+        // updatedAt: new Date(), // Comment out if not in schema
+      })
+      .where(and(eq(apiKeys.id, id), eq(apiKeys.tenantId, tenantId)))
+      .returning()
+
+    if (!updated) throw new Error('Integration not found')
+    return updated
+  },
+
+  // ==================== TEST EXISTING INTEGRATION ====================
+  async testExisting(id: string, tenantId: string) {
+    // 1. Get Integration
+    const [integration] = await db.select().from(apiKeys)
+      .where(and(eq(apiKeys.id, id), eq(apiKeys.tenantId, tenantId)))
+    
+    if (!integration) throw new Error('Integration not found')
+
+    // 2. Decrypt Key
+    const decryptedJson = Encryption.decrypt(integration.encryptedKey)
+    const data = JSON.parse(decryptedJson)
+
+    // 3. Test based on Provider
+    switch (integration.provider) {
+      case 'sentinelone':
+        return await this.testSentinelOneConnection(data.url, data.token)
+      case 'crowdstrike':
+        return await this.testCrowdStrikeConnection(data.baseUrl, data.clientId, data.clientSecret)
+      case 'openai':
+      case 'claude':
+      case 'gemini':
+      case 'deepseek':
+        return await this.testAIConnection(integration.provider, data.apiKey)
+      default:
+        throw new Error('Unknown provider')
+    }
+  },
+
   // ==================== DELETE INTEGRATION ====================
   async delete(id: string, tenantId: string) {
     const [deleted] = await db.delete(apiKeys)

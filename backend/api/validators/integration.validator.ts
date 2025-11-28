@@ -12,3 +12,13 @@ export const AddCrowdStrikeSchema = t.Object({
   baseUrl: t.Optional(t.String()), // default: api.us-2.crowdstrike.com
   label: t.Optional(t.String()),
 })
+
+export const AddAISchema = t.Object({
+  apiKey: t.String(),
+  label: t.Optional(t.String()),
+})
+
+export const UpdateIntegrationSchema = t.Object({
+  label: t.Optional(t.String()),
+  isActive: t.Optional(t.Boolean()),
+})

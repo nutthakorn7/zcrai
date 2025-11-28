@@ -91,6 +91,31 @@ export const authController = new Elysia({ prefix: '/auth' })
     return { message: 'Logged out' }
   })
 
+  // ==================== GET CURRENT USER (ME) ====================
+  .get('/me', async ({ jwt, cookie: { access_token }, set }) => {
+    try {
+      if (!access_token.value || typeof access_token.value !== 'string') {
+        throw new Error('Unauthorized')
+      }
+      
+      const payload = await jwt.verify(access_token.value)
+      if (!payload) throw new Error('Invalid token')
+
+      const user = await AuthService.getUserById(payload.id as string)
+      if (!user) throw new Error('User not found')
+
+      return {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        tenantId: user.tenantId
+      }
+    } catch (e: any) {
+      set.status = 401
+      return { error: e.message }
+    }
+  })
+
   // ==================== REFRESH TOKEN ====================
   .post('/refresh', async ({ jwt, cookie: { access_token, refresh_token }, set, request }) => {
     try {

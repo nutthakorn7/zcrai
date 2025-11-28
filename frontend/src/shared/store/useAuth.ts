@@ -27,7 +27,7 @@ interface AuthState {
 export const useAuth = create<AuthState>((set) => ({
   user: null,
   isAuthenticated: false,
-  isLoading: false,
+  isLoading: true, // เริ่มต้น true รอ checkAuth เสร็จก่อน
 
   login: async (credentials) => {
     set({ isLoading: true });
@@ -66,6 +66,14 @@ export const useAuth = create<AuthState>((set) => ({
   },
   
   checkAuth: async () => {
-      // Implement check session endpoint later
+    set({ isLoading: true });
+    try {
+      const { data } = await api.get<User>('/auth/me');
+      set({ user: data, isAuthenticated: true });
+    } catch {
+      set({ user: null, isAuthenticated: false });
+    } finally {
+      set({ isLoading: false });
+    }
   }
 }));
