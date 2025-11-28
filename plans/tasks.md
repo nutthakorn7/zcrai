@@ -56,9 +56,9 @@
 
 ### 2.5 Auth Frontend
 - [x] Login page (email + password)
-- [ ] Add MFA support to Login page
-- [ ] Forgot password page
-- [ ] Reset password page
+- [x] Add MFA support to Login page
+- [x] Forgot password page
+- [x] Reset password page
 - [x] Session management UI (view/revoke sessions)
 
 ---
@@ -66,47 +66,47 @@
 ## Phase 3: Tenant & User Management (Week 5-6)
 
 ### 3.1 Tenant Management (Super Admin only)
-- [ ] GET /api/tenants (list all)
-- [ ] POST /api/tenants (create)
-- [ ] GET /api/tenants/:id
-- [ ] PUT /api/tenants/:id
-- [ ] DELETE /api/tenants/:id (soft delete)
-- [ ] Tenant settings UI
+- [x] GET /api/tenants (list all)
+- [x] POST /api/tenants (create)
+- [x] GET /api/tenants/:id
+- [x] PUT /api/tenants/:id
+- [x] DELETE /api/tenants/:id (soft delete)
+- [x] Tenant settings UI
 
 ### 3.2 User Management (Tenant Admin)
-- [ ] GET /api/users (list users in tenant)
-- [ ] POST /api/users (invite user)
-- [ ] GET /api/users/:id
-- [ ] PUT /api/users/:id (update role, status)
-- [ ] DELETE /api/users/:id (soft delete)
-- [ ] User management UI
+- [x] GET /api/users (list users in tenant)
+- [x] POST /api/users (invite user)
+- [x] GET /api/users/:id
+- [x] PUT /api/users/:id (update role, status)
+- [x] DELETE /api/users/:id (soft delete)
+- [x] User management UI
 
 ### 3.3 Profile Management (All users)
-- [ ] GET /api/profile
-- [ ] PUT /api/profile
-- [ ] PUT /api/profile/password
-- [ ] PUT /api/profile/mfa
-- [ ] Profile settings UI
+- [x] GET /api/profile
+- [x] PUT /api/profile
+- [x] PUT /api/profile/password
+- [x] PUT /api/profile/mfa (setup, verify, disable)
+- [x] Profile settings UI
 
 ---
 
 ## Phase 4: Integration Config (Week 7-8)
 
 ### 4.1 API Key Management
-- [ ] GET /api/integrations (list configured integrations)
-- [ ] POST /api/integrations/sentinelone (save S1 API key)
-- [ ] POST /api/integrations/crowdstrike (save CrowdStrike API key)
+- [x] GET /api/integrations (list configured integrations)
+- [x] POST /api/integrations/sentinelone (save S1 API key)
+- [x] POST /api/integrations/crowdstrike (save CrowdStrike API key)
 - [ ] POST /api/integrations/ai/:provider (OpenAI, Claude, etc.)
 - [ ] PUT /api/integrations/:id (update)
-- [ ] DELETE /api/integrations/:id
-- [ ] Test connection endpoint for each integration
-- [ ] Encrypt API keys with AES-256-GCM
+- [x] DELETE /api/integrations/:id
+- [x] Test connection endpoint for each integration
+- [x] Encrypt API keys with AES-256-GCM
 
 ### 4.2 Integration UI
-- [ ] Integration settings page
-- [ ] API key input forms (masked display)
-- [ ] Connection test button
-- [ ] Status indicators (connected/disconnected)
+- [x] Integration settings page
+- [x] API key input forms (masked display)
+- [x] Connection test button
+- [x] Status indicators (connected/disconnected)
 
 ---
 

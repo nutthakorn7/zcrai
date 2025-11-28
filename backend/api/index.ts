@@ -2,14 +2,30 @@ import { Elysia } from 'elysia'
 import { swagger } from '@elysiajs/swagger'
 import { cors } from '@elysiajs/cors'
 import { authController } from './controllers/auth.controller'
+import { tenantController } from './controllers/tenant.controller'
+import { userController } from './controllers/user.controller'
+import { profileController } from './controllers/profile.controller'
+import { integrationController } from './controllers/integration.controller'
 
 const app = new Elysia()
-  .use(swagger())
+  .use(swagger({
+    documentation: {
+      info: {
+        title: 'zcrAI API',
+        version: '0.0.1',
+        description: 'SOC Dashboard API',
+      },
+    },
+  }))
   .use(cors({
     origin: process.env.FRONTEND_URL || 'http://localhost:3000',
     credentials: true
   }))
   .use(authController)
+  .use(tenantController)
+  .use(userController)
+  .use(profileController)
+  .use(integrationController)
   .get('/health', () => ({ status: 'ok', timestamp: new Date().toISOString() }))
   .listen(process.env.PORT || 8000)
 

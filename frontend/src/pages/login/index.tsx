@@ -105,10 +105,16 @@ export default function LoginPage() {
             </Button>
           )}
 
-          <div className="text-center mt-4">
-            <Link href="/forgot-password" className="text-sm text-primary">
+          <div className="text-center mt-4 space-y-2">
+            <Link href="/forgot-password" className="text-sm text-default-500 hover:text-primary block">
               Forgot Password?
             </Link>
+            <p className="text-sm text-default-500">
+              New here?{' '}
+              <Link href="/register" className="text-primary">
+                Register Tenant
+              </Link>
+            </p>
           </div>
         </CardBody>
       </Card>

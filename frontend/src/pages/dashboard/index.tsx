@@ -58,8 +58,8 @@ export default function DashboardPage() {
         <Button color="secondary" variant="flat">
           View Reports
         </Button>
-        <Button color="warning" variant="flat" onPress={() => navigate('/settings/mfa')}>
-          🔐 Setup MFA
+        <Button color="default" variant="flat" onPress={() => navigate('/settings')}>
+          ⚙️ Settings
         </Button>
       </div>
     </div>

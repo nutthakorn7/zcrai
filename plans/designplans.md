@@ -6,6 +6,8 @@
 3. zcrAI can utilize various AI providers to analyze various attacks or threats based on Mitre Attack and Cyber ​​Killchain principles.
 4. zcrAI must not be hardcoded. The system uses .env files for configuration. Integration with AI, S1, crwd, or other providers requires users to manually enter their own data in the UI.
 5. zcrAI uses HeroUI for the Dark Mode theme.
+6. zcrAI is a SaaS system that can be used by multiple organizations.
+7. Use only the provided folder, but if you don't have one, you can create one.
 
 ---
 
