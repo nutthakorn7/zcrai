@@ -187,18 +187,19 @@
 ## Phase 7: Conversational UI (CUI) AI Chat bot (Week 15-16)
 
 ### 7.1 AI Chat Backend (CUI Brain)
-- [ ] Setup AI Service (Support OpenAI, Anthropic, Local LLM/Ollama)
-- [ ] Implement Streaming API for Chat (`POST /api/ai/chat`)
-- [ ] Context Management (Attach current page context, selected logs)
+- [x] Setup AI Service (Support OpenAI, Anthropic)
+- [ ] Setup AI Service (Support Local LLM/Ollama)
+- [x] Implement Streaming API for Chat (`POST /api/ai/chat`)
+- [x] Context Management (Attach current page context, selected logs)
+- [x] System Prompts for Security Analyst Persona
 - [ ] Tool calling (Allow AI to query DB: `get_summary`, `search_logs`, `get_threat_intel`)
-- [ ] System Prompts for Security Analyst Persona
 
 ### 7.2 Chat Widget UI
-- [ ] Floating Action Button (FAB) for Chat
-- [ ] Chat Window (Expandable/Collapsible)
-- [ ] Message Bubbles (User vs AI)
-- [ ] Markdown Rendering (Code blocks, Tables, Lists)
-- [ ] Loading/Typing Indicators
+- [x] Floating Action Button (FAB) for Chat
+- [x] Chat Window (Expandable/Collapsible)
+- [x] Message Bubbles (User vs AI)
+- [x] Markdown Rendering (Code blocks, Tables, Lists)
+- [x] Loading/Typing Indicators
 - [ ] "Analyze This Page" context button
 
 ### 7.3 Advanced AI Features

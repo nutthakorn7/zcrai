@@ -160,25 +160,45 @@ export function ChatWidget() {
           <Divider />
           
           {/* Input Area */}
-          <div className="p-3 bg-content2 flex gap-2">
-            <Input
-              placeholder="Ask about security alerts..."
-              value={input}
-              onValueChange={setInput}
-              onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-              isDisabled={isLoading}
-              size="sm"
-              classNames={{ inputWrapper: "bg-content1" }}
-            />
-            <Button 
-              isIconOnly 
-              color="primary" 
-              size="sm" 
-              onPress={handleSend}
-              isLoading={isLoading}
-            >
-              ➤
-            </Button>
+          <div className="p-3 bg-content2 flex flex-col gap-2">
+            {/* Context Actions */}
+            <div className="flex gap-2">
+              <Button 
+                size="sm" 
+                variant="flat" 
+                color="secondary" 
+                className="text-xs h-7"
+                startContent={<span className="text-sm">✨</span>}
+                onPress={() => {
+                  setInput("Please analyze the current page context and identify any security issues or anomalies. Provide recommendations if necessary.")
+                  // Optional: Auto send? For now let user confirm.
+                  // handleSend() 
+                }}
+              >
+                Analyze Page
+              </Button>
+            </div>
+
+            <div className="flex gap-2">
+              <Input
+                placeholder="Ask about security alerts..."
+                value={input}
+                onValueChange={setInput}
+                onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                isDisabled={isLoading}
+                size="sm"
+                classNames={{ inputWrapper: "bg-content1" }}
+              />
+              <Button 
+                isIconOnly 
+                color="primary" 
+                size="sm" 
+                onPress={handleSend}
+                isLoading={isLoading}
+              >
+                ➤
+              </Button>
+            </div>
           </div>
         </Card>
       )}
