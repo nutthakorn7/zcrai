@@ -10,14 +10,83 @@ export const IntegrationService = {
       id: apiKeys.id,
       provider: apiKeys.provider,
       label: apiKeys.label,
-      keyId: apiKeys.keyId, // for CS Client ID
+      keyId: apiKeys.keyId,
+      encryptedKey: apiKeys.encryptedKey,
       lastUsedAt: apiKeys.lastUsedAt,
+      lastSyncStatus: apiKeys.lastSyncStatus,
+      lastSyncError: apiKeys.lastSyncError,
+      lastSyncAt: apiKeys.lastSyncAt,
       createdAt: apiKeys.createdAt,
     })
     .from(apiKeys)
     .where(eq(apiKeys.tenantId, tenantId))
 
-    return keys
+    // เพิ่ม hasApiKey และ sync status fields
+    return keys.map(key => ({
+      id: key.id,
+      provider: key.provider,
+      label: key.label,
+      keyId: key.keyId,
+      lastUsedAt: key.lastUsedAt,
+      lastSyncStatus: key.lastSyncStatus,   // 'success' | 'error' | null
+      lastSyncError: key.lastSyncError,     // Error message
+      lastSyncAt: key.lastSyncAt,           // Last sync timestamp
+      createdAt: key.createdAt,
+      hasApiKey: !!key.encryptedKey && key.encryptedKey.length > 0,
+    }))
+  },
+
+  // ==================== LIST FOR COLLECTOR (พร้อม Decrypted Config) ====================
+  async listForCollector(type?: string) {
+    let query = db.select().from(apiKeys)
+    
+    // กรองตาม type ถ้ามี
+    const results = type 
+      ? await query.where(eq(apiKeys.provider, type))
+      : await query
+
+    // Decrypt config และแปลง format สำหรับ Collector
+    return results.map(integration => {
+      let config = {}
+      try {
+        const decrypted = Encryption.decrypt(integration.encryptedKey)
+        const parsed = JSON.parse(decrypted)
+
+        // แปลง format ตาม provider
+        switch (integration.provider) {
+          case 'sentinelone':
+            config = {
+              baseUrl: parsed.url,
+              apiToken: parsed.token
+            }
+            break
+          case 'crowdstrike':
+            config = {
+              baseUrl: parsed.baseUrl,
+              clientId: parsed.clientId,
+              clientSecret: parsed.clientSecret
+            }
+            break
+          default:
+            config = parsed
+        }
+      } catch (e) {
+        config = { error: 'Failed to decrypt' }
+      }
+
+      return {
+        id: integration.id,
+        tenantId: integration.tenantId,
+        type: integration.provider === 'sentinelone' || integration.provider === 'crowdstrike' 
+          ? integration.provider 
+          : 'ai',
+        provider: integration.provider,
+        config: JSON.stringify(config),
+        status: 'active',
+        lastSyncAt: integration.lastUsedAt?.toISOString() || null,
+        lastSyncStatus: integration.lastSyncStatus || null // pending, success, error
+      }
+    })
   },
 
   // ==================== ADD SENTINELONE ====================
@@ -27,10 +96,30 @@ export const IntegrationService = {
     if (baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0, -1)
     if (baseUrl.endsWith('/web/api/v2.1/threats')) baseUrl = baseUrl.replace('/web/api/v2.1/threats', '')
     
-    // Test Connection
+    // เช็ค URL ซ้ำ - ดึง integrations ที่มีอยู่แล้วและเช็คว่า URL ซ้ำไหม
+    const existingKeys = await db.select().from(apiKeys)
+      .where(and(eq(apiKeys.tenantId, tenantId), eq(apiKeys.provider, 'sentinelone')))
+    
+    for (const existing of existingKeys) {
+      try {
+        // เช็ค Label ซ้ำ
+        if (existing.label === data.label) {
+          throw new Error('Label already exists. Please choose a different name.')
+        }
+
+        const config = JSON.parse(Encryption.decrypt(existing.encryptedKey))
+        if (config.url === baseUrl) {
+          throw new Error('SentinelOne URL already exists for this tenant')
+        }
+      } catch (e: any) {
+        if (e.message.includes('already exists')) throw e
+      }
+    }
+    
+    // Test Connection ก่อน Save
     await this.testSentinelOneConnection(baseUrl, data.token)
 
-    // Save Encrypted Token
+    // Save Encrypted Token + mark ว่าต้อง Full Sync (lastSyncAt = null)
     const encryptedKey = Encryption.encrypt(JSON.stringify({
       url: baseUrl,
       token: data.token
@@ -41,7 +130,11 @@ export const IntegrationService = {
       provider: 'sentinelone',
       encryptedKey,
       label: data.label || 'SentinelOne Integration',
+      lastSyncStatus: 'pending', // Mark ว่ายังไม่เคย sync
     }).returning()
+
+    // Trigger Collector ให้ sync ทันที
+    this.triggerCollectorSync('sentinelone')
 
     return integration
   },
@@ -51,10 +144,25 @@ export const IntegrationService = {
     let baseUrl = data.baseUrl || 'https://api.us-2.crowdstrike.com'
     if (baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0, -1)
 
-    // Test Connection
+    // เช็ค Client ID ซ้ำ
+    const existingKeys = await db.select().from(apiKeys)
+      .where(and(eq(apiKeys.tenantId, tenantId), eq(apiKeys.provider, 'crowdstrike')))
+    
+    for (const existing of existingKeys) {
+      // เช็ค Label ซ้ำ
+      if (existing.label === data.label) {
+        throw new Error('Label already exists. Please choose a different name.')
+      }
+
+      if (existing.keyId === data.clientId) {
+        throw new Error('CrowdStrike Client ID already exists for this tenant')
+      }
+    }
+
+    // Test Connection ก่อน Save
     await this.testCrowdStrikeConnection(baseUrl, data.clientId, data.clientSecret)
 
-    // Save Encrypted Credentials
+    // Save Encrypted Credentials + mark ว่าต้อง Full Sync
     const encryptedKey = Encryption.encrypt(JSON.stringify({
       baseUrl,
       clientId: data.clientId,
@@ -67,7 +175,11 @@ export const IntegrationService = {
       encryptedKey,
       keyId: data.clientId,
       label: data.label || 'CrowdStrike Integration',
+      lastSyncStatus: 'pending', // Mark ว่ายังไม่เคย sync
     }).returning()
+
+    // Trigger Collector ให้ sync ทันที
+    this.triggerCollectorSync('crowdstrike')
 
     return integration
   },
@@ -75,6 +187,16 @@ export const IntegrationService = {
   // ==================== ADD AI PROVIDER ====================
   async addAI(tenantId: string, provider: string, data: { apiKey: string; label?: string }) {
     if (!data.apiKey) throw new Error('API Key is required')
+
+    // เช็ค Label ซ้ำ
+    const existingKeys = await db.select().from(apiKeys)
+      .where(and(eq(apiKeys.tenantId, tenantId), eq(apiKeys.provider, provider)))
+    
+    for (const existing of existingKeys) {
+      if (existing.label === data.label) {
+        throw new Error('Label already exists. Please choose a different name.')
+      }
+    }
 
     // Test Connection
     await this.testAIConnection(provider, data.apiKey)
@@ -90,6 +212,9 @@ export const IntegrationService = {
       encryptedKey,
       label: data.label || `${provider.toUpperCase()} Integration`,
     }).returning()
+
+    // Trigger Collector ให้ sync ทันที
+    this.triggerCollectorSync('ai')
 
     return integration
   },
@@ -166,19 +291,33 @@ export const IntegrationService = {
     const decryptedJson = Encryption.decrypt(integration.encryptedKey)
     const data = JSON.parse(decryptedJson)
 
-    // 3. Test based on Provider
-    switch (integration.provider) {
-      case 'sentinelone':
-        return await this.testSentinelOneConnection(data.url, data.token)
-      case 'crowdstrike':
-        return await this.testCrowdStrikeConnection(data.baseUrl, data.clientId, data.clientSecret)
-      case 'openai':
-      case 'claude':
-      case 'gemini':
-      case 'deepseek':
-        return await this.testAIConnection(integration.provider, data.apiKey)
-      default:
-        throw new Error('Unknown provider')
+    // 3. Test based on Provider และอัพเดท sync status
+    try {
+      let result = false
+      switch (integration.provider) {
+        case 'sentinelone':
+          result = await this.testSentinelOneConnection(data.url, data.token)
+          break
+        case 'crowdstrike':
+          result = await this.testCrowdStrikeConnection(data.baseUrl, data.clientId, data.clientSecret)
+          break
+        case 'openai':
+        case 'claude':
+        case 'gemini':
+        case 'deepseek':
+          result = await this.testAIConnection(integration.provider, data.apiKey)
+          break
+        default:
+          throw new Error('Unknown provider')
+      }
+
+      // Test สำเร็จ → อัพเดท status เป็น success
+      await this.updateSyncStatus(tenantId, integration.provider, 'success')
+      return result
+    } catch (error: any) {
+      // Test ล้มเหลว → อัพเดท status เป็น error พร้อม error message
+      await this.updateSyncStatus(tenantId, integration.provider, 'error', error.message)
+      throw error
     }
   },
 
@@ -247,6 +386,33 @@ export const IntegrationService = {
       return true
     } catch (e: any) {
       throw new Error(`CrowdStrike Connection Error: ${e.message}`)
+    }
+  },
+
+  // ==================== UPDATE SYNC STATUS (สำหรับ Collector) ====================
+  async updateSyncStatus(tenantId: string, provider: string, status: 'success' | 'error', error?: string) {
+    await db.update(apiKeys)
+      .set({
+        lastSyncStatus: status,
+        lastSyncError: status === 'error' ? error?.slice(0, 500) : null, // จำกัด 500 chars
+        lastSyncAt: new Date(),
+      })
+      .where(and(eq(apiKeys.tenantId, tenantId), eq(apiKeys.provider, provider)))
+  },
+
+  // ==================== TRIGGER COLLECTOR SYNC ====================
+  async triggerCollectorSync(provider: string) {
+    try {
+      const collectorUrl = process.env.COLLECTOR_URL || 'http://localhost:8001'
+      // provider: 'sentinelone', 'crowdstrike', 'all'
+      const source = provider === 'all' ? 'all' : provider
+      
+      await fetch(`${collectorUrl}/collect/${source}`, {
+        method: 'POST'
+      })
+    } catch (e) {
+      console.error('Failed to trigger collector:', e)
+      // ไม่ throw error เพราะไม่ควรขัดขวาง flow หลัก
     }
   }
 }

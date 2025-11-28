@@ -20,6 +20,11 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   # ClickHouse - Security Logs
   clickhouse:
@@ -28,12 +33,17 @@ services:
     ports:
       - "8123:8123" # HTTP
       - "9000:9000" # Native
+    environment:
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: clickhouse
+      CLICKHOUSE_DB: zcr
     ulimits:
       nofile:
         soft: 262144
         hard: 262144
     volumes:
       - clickhouse_data:/var/lib/clickhouse
+      - ./collector/infra/db/clickhouse:/docker-entrypoint-initdb.d:ro
     networks:
       - zcrai-net
     healthcheck:
@@ -41,6 +51,11 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   # Redis - Session & Cache
   redis:
@@ -58,19 +73,59 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
-  # Vector - Log Aggregator
+  # Vector - Log Pipeline
   vector:
     image: timberio/vector:0.51.1-alpine
     container_name: zcrai-vector
     ports:
-      - "8686:8686" # API
+      - "8686:8686" # HTTP Source
     volumes:
-      - ./backend/collector/vector.toml:/etc/vector/vector.toml:ro
+      - ./collector/infra/vector/vector.toml:/etc/vector/vector.toml:ro
+    command: ["--config", "/etc/vector/vector.toml"]
     networks:
       - zcrai-net
     depends_on:
-      - clickhouse
+      clickhouse:
+        condition: service_healthy
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    profiles:
+      - collector
+
+  # Golang Collector Service
+  collector:
+    build:
+      context: ./collector
+      dockerfile: Dockerfile
+    container_name: zcrai-collector
+    ports:
+      - "8001:8001"
+    environment:
+      ENV: development
+      PORT: 8001
+      ELYSIA_URL: http://host.docker.internal:8000
+      VECTOR_URL: http://vector:8686
+      POLL_INTERVAL: 5m
+      LOOKBACK_DAYS: 7
+      COLLECTOR_API_KEY: ${COLLECTOR_API_KEY:-dev_collector_key_change_in_production}
+    networks:
+      - zcrai-net
+    depends_on:
+      - vector
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     profiles:
       - collector
 

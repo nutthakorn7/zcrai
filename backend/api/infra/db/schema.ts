@@ -52,6 +52,9 @@ export const apiKeys = pgTable('api_keys', {
   keyId: text('key_id'),
   label: text('label'),
   lastUsedAt: timestamp('last_used_at'),
+  lastSyncStatus: text('last_sync_status'), // 'success' | 'error' | null
+  lastSyncError: text('last_sync_error'),   // Error message ถ้า sync fail
+  lastSyncAt: timestamp('last_sync_at'),    // เวลาที่ sync ล่าสุด
   createdAt: timestamp('created_at').defaultNow().notNull(),
 })
 

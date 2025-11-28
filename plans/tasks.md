@@ -113,16 +113,16 @@
 ## Phase 5: Data Collection (Week 9-11)
 
 ### 5.1 Golang Collector Service
-- [ ] Setup Fiber project
-- [ ] Implement S1 API client (fetch alerts, threats)
-- [ ] Implement CrowdStrike API client (fetch detections)
-- [ ] Implement scheduled polling (configurable interval)
-- [ ] Error handling + retry logic
+- [x] Setup Fiber project
+- [x] Implement S1 API client (fetch alerts, threats)
+- [x] Implement CrowdStrike API client (fetch detections)
+- [x] Implement scheduled polling (configurable interval)
+- [x] Error handling + retry logic
 
 ### 5.2 Vector Pipeline
-- [ ] Configure Vector sources (receive from Collector)
-- [ ] Create transform rules (normalize to unified schema)
-- [ ] Configure sink to ClickHouse
+- [x] Configure Vector sources (receive from Collector)
+- [x] Create transform rules (normalize to unified schema)
+- [x] Configure sink to ClickHouse
 - [ ] Handle deduplication
 
 ### 5.3 Unified Log Schema

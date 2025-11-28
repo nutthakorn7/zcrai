@@ -8,6 +8,7 @@
 5. zcrAI uses HeroUI for the Dark Mode theme.
 6. zcrAI is a SaaS system that can be used by multiple organizations.
 7. Use only the provided folder, but if you don't have one, you can create one.
+8. Do not use mock data except for Unittest.
 
 ---
 

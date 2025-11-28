@@ -1,0 +1,141 @@
+# Vector Pipeline Configuration
+# รับ events จาก Collector และส่งไป ClickHouse
+
+[api]
+enabled = true
+address = "0.0.0.0:8687"
+
+# ==================== SOURCES ====================
+
+# รับ events จาก Collector via HTTP
+[sources.collector_events]
+type = "http_server"
+address = "0.0.0.0:8686"
+path = "/events"
+encoding = "ndjson"
+
+# ==================== TRANSFORMS ====================
+
+# เพิ่ม timestamp ถ้าไม่มี
+[transforms.add_timestamp]
+type = "remap"
+inputs = ["collector_events"]
+source = '''
+if !exists(.collected_at) {
+  .collected_at = now()
+}
+
+# Parse timestamps first (Collector sends RFC3339 string)
+.timestamp = parse_timestamp!(.timestamp, format: "%+")
+.collected_at = parse_timestamp!(.collected_at, format: "%+")
+
+# Format for ClickHouse (SQL compatible)
+.timestamp = format_timestamp!(.timestamp, format: "%Y-%m-%d %H:%M:%S%.3f")
+.collected_at = format_timestamp!(.collected_at, format: "%Y-%m-%d %H:%M:%S%.3f")
+
+# กำหนด _time สำหรับ ClickHouse
+._time = .timestamp
+'''
+
+# Normalize severity เป็น numeric
+[transforms.normalize_severity]
+type = "remap"
+inputs = ["add_timestamp"]
+source = '''
+.severity_score = if .severity == "critical" { 5 } else if .severity == "high" { 4 } else if .severity == "medium" { 3 } else if .severity == "low" { 2 } else { 1 }
+'''
+
+# Flatten fields for ClickHouse
+[transforms.flatten_fields]
+type = "remap"
+inputs = ["normalize_severity"]
+source = '''
+# Host info
+.host_name = .host.name || ""
+.host_ip = .host.ip || ""
+.host_os = .host.os || ""
+.host_os_version = .host.os_version || ""
+.host_agent_id = .host.agent_id || ""
+.host_site_name = .host.site_name || ""
+.host_group_name = .host.group_name || ""
+
+# User info
+.user_name = .user.name || ""
+.user_domain = .user.domain || ""
+.user_email = .user.email || ""
+
+# Process info
+.process_name = .process.name || ""
+.process_path = .process.path || ""
+.process_cmd = .process.cmd || ""
+.process_pid = .process.pid || 0
+.process_ppid = .process.ppid || 0
+.process_sha256 = .process.sha256 || ""
+
+# File info
+.file_name = .file.name || ""
+.file_path = .file.path || ""
+.file_hash = .file.hash || ""
+.file_sha256 = .file.sha256 || ""
+.file_md5 = .file.md5 || ""
+.file_size = .file.size || 0
+
+# Network info
+.network_src_ip = .network.src_ip || ""
+.network_dst_ip = .network.dst_ip || ""
+.network_src_port = .network.src_port || 0
+.network_dst_port = .network.dst_port || 0
+.network_protocol = .network.protocol || ""
+.network_direction = .network.direction || ""
+.network_bytes_sent = .network.bytes_sent || 0
+.network_bytes_recv = .network.bytes_recv || 0
+
+# Serialize raw and metadata to JSON string
+.raw = encode_json(.raw)
+.metadata = encode_json(.metadata)
+
+# Remove nested objects to avoid schema conflicts (optional, but good practice)
+del(.host)
+del(.user)
+del(.process)
+del(.file)
+del(.network)
+'''
+
+# ==================== SINKS ====================
+
+# ส่งไป ClickHouse
+[sinks.clickhouse]
+type = "clickhouse"
+inputs = ["flatten_fields"]
+endpoint = "http://clickhouse:8123"
+database = "zcr"
+table = "security_events"
+compression = "gzip"
+skip_unknown_fields = true
+
+[sinks.clickhouse.auth]
+strategy = "basic"
+user = "default"
+password = "clickhouse"
+
+# Batch settings
+[sinks.clickhouse.batch]
+max_bytes = 10485760  # 10MB
+max_events = 10000
+timeout_secs = 5
+
+# Retry settings
+[sinks.clickhouse.request]
+retry_attempts = 5
+retry_initial_backoff_secs = 1
+retry_max_duration_secs = 60
+
+# Console output for debugging (disable in production)
+[sinks.console_debug]
+type = "console"
+inputs = ["flatten_fields"]
+target = "stdout"
+
+[sinks.console_debug.encoding]
+codec = "json"

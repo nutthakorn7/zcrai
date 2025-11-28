@@ -7,6 +7,10 @@ interface Integration {
   provider: string;
   label: string;
   createdAt: string;
+  hasApiKey: boolean;
+  lastSyncStatus: 'success' | 'error' | 'pending' | null;
+  lastSyncError: string | null;
+  lastSyncAt: string | null;
 }
 
 export default function IntegrationPage() {
@@ -174,10 +178,20 @@ export default function IntegrationPage() {
                   <Chip size="sm" color={getProviderColor(int.provider) as any}>
                     {int.provider}
                   </Chip>
-                  {/* Visual Indicator for Active Status (Assumed active if present) */}
-                  <Chip size="sm" variant="dot" color="success" className="border-none pl-1">
-                    Connected
-                  </Chip>
+                  {/* Visual Indicator - แสดงสถานะตาม lastSyncStatus */}
+                  {!int.hasApiKey ? (
+                    <Chip size="sm" variant="dot" color="danger" className="border-none pl-1">
+                      Missing API Key
+                    </Chip>
+                  ) : int.lastSyncStatus === 'error' ? (
+                    <Chip size="sm" variant="dot" color="warning" className="border-none pl-1" title={int.lastSyncError || 'Sync failed'}>
+                      Sync Error
+                    </Chip>
+                  ) : (
+                    <Chip size="sm" variant="dot" color="success" className="border-none pl-1" title={int.lastSyncStatus === 'pending' ? 'Syncing...' : 'Synced'}>
+                      Connected
+                    </Chip>
+                  )}
                 </div>
                 <p className="text-small text-default-500">
                   Added on {new Date(int.createdAt).toLocaleDateString()}

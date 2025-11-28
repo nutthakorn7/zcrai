@@ -4,11 +4,57 @@ import { IntegrationService } from '../core/services/integration.service'
 import { tenantAdminOnly } from '../middlewares/auth.middleware'
 import { AddSentinelOneSchema, AddCrowdStrikeSchema, AddAISchema, UpdateIntegrationSchema } from '../validators/integration.validator'
 
+const COLLECTOR_API_KEY = process.env.COLLECTOR_API_KEY || 'dev_collector_key_change_in_production'
+
 export const integrationController = new Elysia({ prefix: '/integrations' })
   .use(jwt({
     name: 'jwt',
     secret: process.env.JWT_SECRET || 'super_secret_dev_key',
   }))
+
+  // ==================== COLLECTOR ENDPOINT (ไม่ต้อง JWT - ใช้ API Key) ====================
+  .get('/collector', async ({ query, headers, set }) => {
+    try {
+      // ตรวจสอบ Collector API Key
+      const collectorKey = headers['x-collector-key']
+      if (collectorKey !== COLLECTOR_API_KEY) {
+        set.status = 401
+        return { error: 'Invalid collector key' }
+      }
+
+      const type = query.type as string | undefined
+      const integrations = await IntegrationService.listForCollector(type)
+      return { integrations }
+    } catch (e: any) {
+      set.status = 500
+      return { error: e.message }
+    }
+  })
+
+  // ==================== COLLECTOR: UPDATE SYNC STATUS ====================
+  .post('/collector/sync-status', async ({ body, headers, set }) => {
+    try {
+      const collectorKey = headers['x-collector-key']
+      if (collectorKey !== COLLECTOR_API_KEY) {
+        set.status = 401
+        return { error: 'Invalid collector key' }
+      }
+
+      const { tenantId, provider, status, error } = body as {
+        tenantId: string
+        provider: string
+        status: 'success' | 'error'
+        error?: string
+      }
+
+      await IntegrationService.updateSyncStatus(tenantId, provider, status, error)
+      return { success: true }
+    } catch (e: any) {
+      set.status = 500
+      return { error: e.message }
+    }
+  })
+
   .use(tenantAdminOnly)
 
   // ==================== LIST INTEGRATIONS ====================
