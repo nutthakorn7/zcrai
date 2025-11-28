@@ -10,6 +10,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/zrd4y/zcrAI/collector/internal/config"
+	"github.com/zrd4y/zcrAI/collector/internal/migration"
 	"github.com/zrd4y/zcrAI/collector/internal/publisher"
 	"github.com/zrd4y/zcrAI/collector/internal/scheduler"
 	"go.uber.org/zap"
@@ -29,6 +30,22 @@ func main() {
 		zap.Duration("pollInterval", cfg.PollInterval),
 		zap.Int("lookbackDays", cfg.LookbackDays),
 	)
+
+	// Run migrations
+	migConfig := migration.Config{
+		Host:          cfg.ClickHouseHost,
+		Port:          cfg.ClickHousePort,
+		Database:      cfg.ClickHouseDB,
+		Username:      cfg.ClickHouseUser,
+		Password:      cfg.ClickHousePassword,
+		MigrationsDir: "infra/db/clickhouse/migrations",
+		Logger:        cfg.Logger,
+	}
+	if err := migration.Run(migConfig); err != nil {
+		cfg.Logger.Error("Failed to run migrations", zap.Error(err))
+		// In production, you might want to exit here.
+		// panic("Failed to run migrations: " + err.Error())
+	}
 
 	// สร้าง publisher
 	pub := publisher.NewPublisher(cfg.VectorURL, cfg.Logger)

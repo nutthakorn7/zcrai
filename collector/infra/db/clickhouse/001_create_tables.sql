@@ -73,7 +73,7 @@ CREATE TABLE IF NOT EXISTS zcr.security_events
     -- Metadata
     metadata String DEFAULT '' -- JSON string of additional metadata
 )
-ENGINE = MergeTree()
+ENGINE = ReplacingMergeTree(collected_at)
 PARTITION BY toYYYYMM(timestamp)
 ORDER BY (tenant_id, timestamp, id)
 TTL toDateTime(timestamp) + INTERVAL 365 DAY

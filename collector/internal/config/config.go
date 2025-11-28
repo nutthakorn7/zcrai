@@ -44,6 +44,13 @@ type Config struct {
 	LookbackDays    int           // ดึงข้อมูลย้อนหลังกี่วัน
 	CollectorAPIKey string        // API Key สำหรับ authenticate กับ Elysia
 	Logger          *zap.Logger
+
+	// ClickHouse Config (for migrations)
+	ClickHouseHost     string
+	ClickHousePort     string
+	ClickHouseUser     string
+	ClickHousePassword string
+	ClickHouseDB       string
 }
 
 var AppConfig *Config
@@ -74,6 +81,12 @@ func Load() (*Config, error) {
 		LookbackDays:    lookbackDays,
 		CollectorAPIKey: os.Getenv("COLLECTOR_API_KEY"),
 		Logger:          logger,
+
+		ClickHouseHost:     getEnv("CLICKHOUSE_HOST", "localhost"),
+		ClickHousePort:     getEnv("CLICKHOUSE_PORT", "9000"),
+		ClickHouseUser:     getEnv("CLICKHOUSE_USER", "default"),
+		ClickHousePassword: getEnv("CLICKHOUSE_PASSWORD", "clickhouse"),
+		ClickHouseDB:       getEnv("CLICKHOUSE_DB", "zcr"),
 	}
 
 	return AppConfig, nil

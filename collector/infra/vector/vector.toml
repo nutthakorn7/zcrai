@@ -16,10 +16,17 @@ encoding = "ndjson"
 
 # ==================== TRANSFORMS ====================
 
+# Deduplicate events based on ID
+[transforms.dedupe_events]
+type = "dedupe"
+inputs = ["collector_events"]
+fields.match = ["id"]
+cache.num_events = 5000
+
 # เพิ่ม timestamp ถ้าไม่มี
 [transforms.add_timestamp]
 type = "remap"
-inputs = ["collector_events"]
+inputs = ["dedupe_events"]
 source = '''
 if !exists(.collected_at) {
   .collected_at = now()

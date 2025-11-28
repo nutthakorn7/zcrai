@@ -123,7 +123,7 @@
 - [x] Configure Vector sources (receive from Collector)
 - [x] Create transform rules (normalize to unified schema)
 - [x] Configure sink to ClickHouse
-- [ ] Handle deduplication
+- [x] Handle deduplication
 
 ### 5.3 Unified Log Schema
 ```
