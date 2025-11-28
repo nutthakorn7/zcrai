@@ -1,10 +1,10 @@
 -- ClickHouse Security Events Schema
 -- Unified log storage สำหรับ SentinelOne, CrowdStrike และอื่นๆ
 
-CREATE DATABASE IF NOT EXISTS zcr;
+CREATE DATABASE IF NOT EXISTS zcrai;
 
 -- Main security events table
-CREATE TABLE IF NOT EXISTS zcr.security_events
+CREATE TABLE IF NOT EXISTS zcrai.security_events
 (
     -- Primary identifiers
     id String,
@@ -80,7 +80,7 @@ TTL toDateTime(timestamp) + INTERVAL 365 DAY
 SETTINGS index_granularity = 8192;
 
 -- Materialized view for dashboard summary (counts by severity per tenant per day)
-CREATE MATERIALIZED VIEW IF NOT EXISTS zcr.security_events_daily_mv
+CREATE MATERIALIZED VIEW IF NOT EXISTS zcrai.security_events_daily_mv
 ENGINE = SummingMergeTree()
 PARTITION BY toYYYYMM(date)
 ORDER BY (tenant_id, date, severity, source)
@@ -91,11 +91,11 @@ SELECT
     severity,
     source,
     count() AS event_count
-FROM zcr.security_events
+FROM zcrai.security_events
 GROUP BY tenant_id, date, severity, source;
 
 -- Materialized view for top hosts
-CREATE MATERIALIZED VIEW IF NOT EXISTS zcr.security_events_top_hosts_mv
+CREATE MATERIALIZED VIEW IF NOT EXISTS zcrai.security_events_top_hosts_mv
 ENGINE = SummingMergeTree()
 PARTITION BY toYYYYMM(date)
 ORDER BY (tenant_id, date, host_name)
@@ -107,12 +107,12 @@ SELECT
     count() AS event_count,
     countIf(severity = 'critical') AS critical_count,
     countIf(severity = 'high') AS high_count
-FROM zcr.security_events
+FROM zcrai.security_events
 WHERE host_name != ''
 GROUP BY tenant_id, date, host_name;
 
 -- Materialized view for MITRE heatmap
-CREATE MATERIALIZED VIEW IF NOT EXISTS zcr.security_events_mitre_mv
+CREATE MATERIALIZED VIEW IF NOT EXISTS zcrai.security_events_mitre_mv
 ENGINE = SummingMergeTree()
 PARTITION BY toYYYYMM(date)
 ORDER BY (tenant_id, date, mitre_tactic, mitre_technique)
@@ -123,6 +123,6 @@ SELECT
     mitre_tactic,
     mitre_technique,
     count() AS event_count
-FROM zcr.security_events
+FROM zcrai.security_events
 WHERE mitre_tactic != '' OR mitre_technique != ''
 GROUP BY tenant_id, date, mitre_tactic, mitre_technique;

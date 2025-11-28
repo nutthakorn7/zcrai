@@ -116,113 +116,123 @@ func (c *CrowdStrikeClient) authenticate() error {
 	return nil
 }
 
-// FetchAlerts ดึง Alerts จาก CrowdStrike Alerts API v2 (ระบุช่วงเวลา + Time Chunking)
-func (c *CrowdStrikeClient) FetchAlerts(startTime, endTime time.Time, onChunkComplete OnChunkComplete) ([]models.UnifiedEvent, error) {
-	c.logger.Info("Fetching CrowdStrike alerts", 
+// FetchAlerts ดึง Alerts จาก CrowdStrike Alerts API v2 แบบ Streaming
+func (c *CrowdStrikeClient) FetchAlerts(startTime, endTime time.Time, onPageEvents OnPageEvents, onChunkComplete OnChunkComplete) (int, error) {
+	c.logger.Info("Fetching CrowdStrike alerts with offset pagination (streaming)", 
 		zap.String("tenantId", c.tenantID),
 		zap.String("from", startTime.Format(time.RFC3339)),
 		zap.String("to", endTime.Format(time.RFC3339)))
 
 	if err := c.authenticate(); err != nil {
-		return nil, err
+		return 0, err
 	}
 
-	var allAlerts []CSAlert
+	totalFetched := 0
 	limit := 500
+	maxOffset := 10000 // CrowdStrike limit
+	pageDelay := 50 * time.Millisecond
 
-	// Time Chunking Loop (ทีละ 24 ชั่วโมง)
-	for currentStart := startTime; currentStart.Before(endTime); currentStart = currentStart.Add(24 * time.Hour) {
-		currentEnd := currentStart.Add(24 * time.Hour)
-		if currentEnd.After(endTime) {
-			currentEnd = endTime
+	// สร้าง Filter สำหรับ full date range
+	filter := fmt.Sprintf("created_timestamp:>='%s'+created_timestamp:<='%s'",
+		startTime.Format(time.RFC3339),
+		endTime.Format(time.RFC3339))
+
+	// Step 1: Query all alert IDs with offset pagination
+	offset := 0
+	page := 1
+
+	for {
+		c.logger.Debug("Fetching alert IDs page", 
+			zap.Int("page", page),
+			zap.Int("offset", offset))
+
+		resp, err := c.client.R().
+			SetHeader("Authorization", "Bearer "+c.accessToken).
+			SetQueryParams(map[string]string{
+				"filter": filter,
+				"limit":  fmt.Sprintf("%d", limit),
+				"offset": fmt.Sprintf("%d", offset),
+				"sort":   "created_timestamp|desc",
+			}).
+			Get(c.baseURL + "/alerts/queries/alerts/v2")
+
+		if err != nil {
+			return totalFetched, fmt.Errorf("failed to query alerts: %w", err)
 		}
 
-		c.logger.Debug("Fetching alerts chunk",
-			zap.String("from", currentStart.Format(time.RFC3339)),
-			zap.String("to", currentEnd.Format(time.RFC3339)))
-
-		// Query alert IDs for this chunk (ใช้ Alerts API v2)
-		var chunkAlertIDs []string
-		offset := 0
-
-		for {
-			// Filter format สำหรับ Alerts API
-			filter := fmt.Sprintf("created_timestamp:>='%s'+created_timestamp:<'%s'",
-				currentStart.Format(time.RFC3339),
-				currentEnd.Format(time.RFC3339))
-
-			resp, err := c.client.R().
-				SetHeader("Authorization", "Bearer "+c.accessToken).
-				SetQueryParams(map[string]string{
-					"filter": filter,
-					"limit":  fmt.Sprintf("%d", limit),
-					"offset": fmt.Sprintf("%d", offset),
-				}).
-				Get(c.baseURL + "/alerts/queries/alerts/v2")
-
-			if err != nil {
-				return nil, fmt.Errorf("failed to query alerts: %w", err)
-			}
-
-			if resp.StatusCode() != 200 {
-				return nil, fmt.Errorf("query failed: status %d, body: %s", resp.StatusCode(), resp.String())
-			}
-
-			var result struct {
-				Resources []string `json:"resources"`
-				Meta      struct {
-					Pagination struct {
-						Total  int `json:"total"`
-						Offset int `json:"offset"`
-					} `json:"pagination"`
-				} `json:"meta"`
-			}
-
-			if err := json.Unmarshal(resp.Body(), &result); err != nil {
-				return nil, fmt.Errorf("failed to parse alert IDs: %w", err)
-			}
-
-			chunkAlertIDs = append(chunkAlertIDs, result.Resources...)
-
-			if len(result.Resources) < limit {
-				break
-			}
-			offset += limit
+		if resp.StatusCode() != 200 {
+			return totalFetched, fmt.Errorf("query failed: status %d, body: %s", resp.StatusCode(), resp.String())
 		}
 
-		// Get alert details (batch 100) ใช้ POST /alerts/entities/alerts/v2
-		batchSize := 100
-		for i := 0; i < len(chunkAlertIDs); i += batchSize {
-			end := i + batchSize
-			if end > len(chunkAlertIDs) {
-				end = len(chunkAlertIDs)
-			}
+		var result struct {
+			Resources []string `json:"resources"`
+			Meta      struct {
+				Pagination struct {
+					Total  int `json:"total"`
+					Offset int `json:"offset"`
+				} `json:"pagination"`
+			} `json:"meta"`
+		}
 
-			batch := chunkAlertIDs[i:end]
-			alerts, err := c.getAlertDetails(batch)
+		if err := json.Unmarshal(resp.Body(), &result); err != nil {
+			return totalFetched, fmt.Errorf("failed to parse alert IDs: %w", err)
+		}
+
+		// ดึง alert details และส่งไป Vector ทันที (Streaming)
+		if len(result.Resources) > 0 {
+			alerts, err := c.getAlertDetails(result.Resources)
 			if err != nil {
 				c.logger.Error("Failed to get alert details", zap.Error(err))
-				continue
+			} else if len(alerts) > 0 {
+				events := make([]models.UnifiedEvent, 0, len(alerts))
+				for _, a := range alerts {
+					event := c.transformAlert(a)
+					events = append(events, event)
+				}
+
+				// ส่ง events ไป Vector ทันที
+				if onPageEvents != nil {
+					if err := onPageEvents(events); err != nil {
+						c.logger.Error("Failed to publish page events", zap.Error(err))
+					}
+				}
+
+				totalFetched += len(events)
 			}
-			allAlerts = append(allAlerts, alerts...)
 		}
 
-		// เรียก callback หลังจบ chunk เพื่อ save checkpoint
-		if onChunkComplete != nil {
-			onChunkComplete(currentEnd)
+		c.logger.Info("Fetched alert IDs page", 
+			zap.Int("page", page),
+			zap.Int("pageCount", len(result.Resources)),
+			zap.Int("totalFetched", totalFetched),
+			zap.Int("totalItems", result.Meta.Pagination.Total))
+
+		// ตรวจสอบว่ามีหน้าถัดไปหรือไม่
+		if len(result.Resources) < limit || len(result.Resources) == 0 {
+			c.logger.Info("Alert IDs pagination complete")
+			break
 		}
+
+		offset += limit
+		page++
+
+		// CrowdStrike มี offset limit
+		if offset >= maxOffset {
+			c.logger.Warn("Reached CrowdStrike max offset limit", zap.Int("maxOffset", maxOffset))
+			break
+		}
+
+		time.Sleep(pageDelay)
 	}
 
-	c.logger.Info("Fetched CrowdStrike alerts", zap.Int("count", len(allAlerts)))
+	c.logger.Info("Fetched CrowdStrike alerts total", zap.Int("count", totalFetched))
 
-	// แปลงเป็น UnifiedEvent
-	events := make([]models.UnifiedEvent, 0, len(allAlerts))
-	for _, a := range allAlerts {
-		event := c.transformAlert(a)
-		events = append(events, event)
+	// เรียก callback หลังจบ
+	if onChunkComplete != nil {
+		onChunkComplete(endTime)
 	}
 
-	return events, nil
+	return totalFetched, nil
 }
 
 // getAlertDetails ดึงรายละเอียด alert จาก composite_ids (ใช้ Alerts API v2)

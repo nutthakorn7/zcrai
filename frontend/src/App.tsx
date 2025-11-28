@@ -5,6 +5,7 @@ import RegisterPage from "./pages/register";
 import ForgotPasswordPage from "./pages/auth/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/auth/ResetPasswordPage";
 import DashboardPage from "./pages/dashboard";
+import LogViewerPage from "./pages/log-viewer";
 import SettingsLayout from "./layouts/SettingsLayout";
 import MFASetupPage from "./pages/settings/MFASetupPage";
 import IntegrationPage from "./pages/settings/IntegrationPage";
@@ -50,6 +51,22 @@ function App() {
           element={
             <ProtectedRoute>
               <DashboardPage />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/dashboard" 
+          element={
+            <ProtectedRoute>
+              <DashboardPage />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/logs" 
+          element={
+            <ProtectedRoute>
+              <LogViewerPage />
             </ProtectedRoute>
           } 
         />

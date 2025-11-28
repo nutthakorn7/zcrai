@@ -6,6 +6,8 @@ import { tenantController } from './controllers/tenant.controller'
 import { userController } from './controllers/user.controller'
 import { profileController } from './controllers/profile.controller'
 import { integrationController } from './controllers/integration.controller'
+import { dashboardController } from './controllers/dashboard.controller'
+import { logsController } from './controllers/logs.controller'
 
 const app = new Elysia()
   .use(swagger({
@@ -26,6 +28,8 @@ const app = new Elysia()
   .use(userController)
   .use(profileController)
   .use(integrationController)
+  .use(dashboardController)
+  .use(logsController)
   .get('/health', () => ({ status: 'ok', timestamp: new Date().toISOString() }))
   .listen(process.env.PORT || 8000)
 

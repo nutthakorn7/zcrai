@@ -9,6 +9,7 @@ import (
 	"github.com/zrd4y/zcrAI/collector/internal/config"
 	"github.com/zrd4y/zcrAI/collector/internal/publisher"
 	"github.com/zrd4y/zcrAI/collector/internal/state"
+	"github.com/zrd4y/zcrAI/collector/pkg/models"
 	"go.uber.org/zap"
 )
 
@@ -197,7 +198,7 @@ func (s *Scheduler) collectSentinelOne(forceFullSync bool) error {
 		// สร้าง client
 		s1Client := client.NewS1Client(integration.TenantID, cfg, s.logger)
 
-		// Callback สำหรับ save checkpoint หลังจบแต่ละ chunk
+		// Callback สำหรับ save checkpoint หลังจบ sync
 		onChunkComplete := func(chunkEndTime time.Time) {
 			s.state.UpdateCheckpoint(integration.TenantID, chunkEndTime)
 			if err := s.state.Save(s.statePath); err != nil {
@@ -205,52 +206,45 @@ func (s *Scheduler) collectSentinelOne(forceFullSync bool) error {
 			}
 		}
 
-		// ดึง Threats
-		threats, err := s1Client.FetchThreats(startTime, endTime, onChunkComplete)
+		// Callback สำหรับส่ง events ไป Vector ทันทีแต่ละ page (Streaming)
+		onPageEvents := func(events []models.UnifiedEvent) error {
+			return s.publisher.PublishBatch(events, 500)
+		}
+
+		// ดึง Threats (Streaming)
+		threatCount, err := s1Client.FetchThreats(startTime, endTime, onPageEvents, onChunkComplete)
 		if err != nil {
 			s.logger.Error("Failed to fetch S1 threats",
 				zap.String("tenantId", integration.TenantID),
 				zap.Error(err))
-			// อัพเดท sync status เป็น error
 			s.config.UpdateSyncStatus(integration.TenantID, "sentinelone", "error", err.Error())
 			continue
 		}
 
-		// ดึง Activities (critical activities)
-		activities, err := s1Client.FetchActivities(startTime, endTime, nil, onChunkComplete)
+		// ดึง Activities (Streaming)
+		activityCount, err := s1Client.FetchActivities(startTime, endTime, nil, onPageEvents, onChunkComplete)
 		if err != nil {
 			s.logger.Error("Failed to fetch S1 activities",
 				zap.String("tenantId", integration.TenantID),
 				zap.Error(err))
 		}
 
-		// รวม events
-		allEvents := append(threats, activities...)
+		totalEvents := threatCount + activityCount
 
-		// ส่งไป Vector
-		if err := s.publisher.PublishBatch(allEvents, 500); err != nil {
-			s.logger.Error("Failed to publish S1 events",
-				zap.String("tenantId", integration.TenantID),
-				zap.Error(err))
-			// อัพเดท sync status เป็น error
-			s.config.UpdateSyncStatus(integration.TenantID, "sentinelone", "error", err.Error())
-		} else {
-			// Update State
-			if isFullSync {
-				s.state.SetFullSync(integration.TenantID)
-			}
-			s.state.UpdateCheckpoint(integration.TenantID, endTime)
-			
-			if err := s.state.Save(s.statePath); err != nil {
-				s.logger.Error("Failed to save state", zap.Error(err))
-			}
-			// อัพเดท sync status เป็น success
-			s.config.UpdateSyncStatus(integration.TenantID, "sentinelone", "success", "")
+		// Update State
+		if isFullSync {
+			s.state.SetFullSync(integration.TenantID)
 		}
+		s.state.UpdateCheckpoint(integration.TenantID, endTime)
+		
+		if err := s.state.Save(s.statePath); err != nil {
+			s.logger.Error("Failed to save state", zap.Error(err))
+		}
+		s.config.UpdateSyncStatus(integration.TenantID, "sentinelone", "success", "")
 
 		s.logger.Info("S1 collection completed",
 			zap.String("tenantId", integration.TenantID),
-			zap.Int("events", len(allEvents)))
+			zap.Int("events", totalEvents))
 	}
 
 	return nil
@@ -307,7 +301,7 @@ func (s *Scheduler) collectCrowdStrike(forceFullSync bool) error {
 		// สร้าง client
 		csClient := client.NewCrowdStrikeClient(integration.TenantID, cfg, s.logger)
 
-		// Callback สำหรับ save checkpoint หลังจบแต่ละ chunk
+		// Callback สำหรับ save checkpoint หลังจบ sync
 		onChunkComplete := func(chunkEndTime time.Time) {
 			s.state.UpdateCheckpoint(integration.TenantID+"_cs", chunkEndTime)
 			if err := s.state.Save(s.statePath); err != nil {
@@ -315,37 +309,31 @@ func (s *Scheduler) collectCrowdStrike(forceFullSync bool) error {
 			}
 		}
 
-		// ดึง Alerts (ใช้ Alerts API v2 แทน Detects API ที่ถูก decommission)
-		alerts, err := csClient.FetchAlerts(startTime, endTime, onChunkComplete)
+		// Callback สำหรับส่ง events ไป Vector ทันทีแต่ละ page (Streaming)
+		onPageEvents := func(events []models.UnifiedEvent) error {
+			return s.publisher.PublishBatch(events, 500)
+		}
+
+		// ดึง Alerts (Streaming)
+		alertCount, err := csClient.FetchAlerts(startTime, endTime, onPageEvents, onChunkComplete)
 		if err != nil {
 			s.logger.Error("Failed to fetch CrowdStrike alerts",
 				zap.String("tenantId", integration.TenantID),
 				zap.Error(err))
-			// อัพเดท sync status เป็น error
 			s.config.UpdateSyncStatus(integration.TenantID, "crowdstrike", "error", err.Error())
 			continue
 		}
 
-		// ส่งไป Vector
-		if err := s.publisher.PublishBatch(alerts, 500); err != nil {
-			s.logger.Error("Failed to publish CrowdStrike events",
-				zap.String("tenantId", integration.TenantID),
-				zap.Error(err))
-			// อัพเดท sync status เป็น error
-			s.config.UpdateSyncStatus(integration.TenantID, "crowdstrike", "error", err.Error())
-		} else {
-			// อัพเดท checkpoint สุดท้าย
-			s.state.UpdateCheckpoint(integration.TenantID+"_cs", endTime)
-			if err := s.state.Save(s.statePath); err != nil {
-				s.logger.Error("Failed to save state", zap.Error(err))
-			}
-			// อัพเดท sync status เป็น success
-			s.config.UpdateSyncStatus(integration.TenantID, "crowdstrike", "success", "")
+		// อัพเดท checkpoint สุดท้าย
+		s.state.UpdateCheckpoint(integration.TenantID+"_cs", endTime)
+		if err := s.state.Save(s.statePath); err != nil {
+			s.logger.Error("Failed to save state", zap.Error(err))
 		}
+		s.config.UpdateSyncStatus(integration.TenantID, "crowdstrike", "success", "")
 
 		s.logger.Info("CrowdStrike collection completed",
 			zap.String("tenantId", integration.TenantID),
-			zap.Int("alerts", len(alerts)))
+			zap.Int("alerts", alertCount))
 	}
 
 	return nil

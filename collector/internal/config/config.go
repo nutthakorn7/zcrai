@@ -86,7 +86,7 @@ func Load() (*Config, error) {
 		ClickHousePort:     getEnv("CLICKHOUSE_PORT", "9000"),
 		ClickHouseUser:     getEnv("CLICKHOUSE_USER", "default"),
 		ClickHousePassword: getEnv("CLICKHOUSE_PASSWORD", "clickhouse"),
-		ClickHouseDB:       getEnv("CLICKHOUSE_DB", "zcr"),
+		ClickHouseDB:       getEnv("CLICKHOUSE_DB", "zcrai"),
 	}
 
 	return AppConfig, nil

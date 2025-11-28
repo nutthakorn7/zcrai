@@ -124,119 +124,155 @@ func NewS1Client(tenantID string, cfg *config.S1Config, logger *zap.Logger) *S1C
 	}
 }
 
-// OnChunkComplete callback สำหรับอัพเดท checkpoint หลังจบแต่ละ chunk
+// OnChunkComplete callback สำหรับอัพเดท checkpoint หลังจบแต่ละ page
 type OnChunkComplete func(chunkEndTime time.Time)
 
-// FetchThreats ดึง Threats จาก S1 API (ระบุช่วงเวลา)
-func (c *S1Client) FetchThreats(startTime, endTime time.Time, onChunkComplete OnChunkComplete) ([]models.UnifiedEvent, error) {
-	c.logger.Info("Fetching S1 threats", 
+// OnPageEvents callback สำหรับส่ง events ไป Vector ทันทีแต่ละ page
+type OnPageEvents func(events []models.UnifiedEvent) error
+
+// FetchThreats ดึง Threats จาก S1 API ใช้ Cursor Pagination แบบ Streaming
+func (c *S1Client) FetchThreats(startTime, endTime time.Time, onPageEvents OnPageEvents, onChunkComplete OnChunkComplete) (int, error) {
+	c.logger.Info("Fetching S1 threats with cursor pagination (streaming)", 
 		zap.String("tenantId", c.tenantID), 
 		zap.String("from", startTime.Format(time.RFC3339)),
 		zap.String("to", endTime.Format(time.RFC3339)))
 
-	var allThreats []S1Threat
+	totalFetched := 0
 	limit := 1000
+	pageDelay := 50 * time.Millisecond
 
-	// Time Chunking Loop
-	for currentStart := startTime; currentStart.Before(endTime); currentStart = currentStart.Add(24 * time.Hour) {
-		currentEnd := currentStart.Add(24 * time.Hour)
-		if currentEnd.After(endTime) {
-			currentEnd = endTime
+	cursor := ""
+	page := 1
+
+	for {
+		// สร้าง request params
+		params := map[string]string{
+			"limit":          fmt.Sprintf("%d", limit),
+			"sortBy":         "createdAt",
+			"sortOrder":      "desc",
+			"createdAt__gte": startTime.Format("2006-01-02T15:04:05.000Z"),
+			"createdAt__lte": endTime.Format("2006-01-02T15:04:05.000Z"),
+		}
+		if cursor != "" {
+			params["cursor"] = cursor
 		}
 
-		c.logger.Debug("Fetching threats chunk",
-			zap.String("from", currentStart.Format(time.RFC3339)),
-			zap.String("to", currentEnd.Format(time.RFC3339)))
+		c.logger.Debug("Fetching threats page", 
+			zap.Int("page", page),
+			zap.Bool("hasCursor", cursor != ""))
 
-		cursor := ""
-		for {
-			resp, err := c.client.R().
-				SetHeader("Authorization", "ApiToken "+c.apiToken).
-				SetQueryParams(map[string]string{
-					"createdAt__gte": currentStart.Format(time.RFC3339),
-					"createdAt__lt":  currentEnd.Format(time.RFC3339),
-					"limit":          fmt.Sprintf("%d", limit),
-					"cursor":         cursor,
-				}).
-				Get(c.baseURL + "/web/api/v2.1/threats")
+		resp, err := c.client.R().
+			SetHeader("Authorization", "ApiToken "+c.apiToken).
+			SetQueryParams(params).
+			Get(c.baseURL + "/web/api/v2.1/threats")
 
-			if err != nil {
-				return nil, fmt.Errorf("failed to fetch threats: %w", err)
-			}
+		if err != nil {
+			return totalFetched, fmt.Errorf("failed to fetch threats: %w", err)
+		}
 
-			if resp.StatusCode() != 200 {
-				return nil, fmt.Errorf("S1 API error: status %d, body: %s", resp.StatusCode(), resp.String())
-			}
+		if resp.StatusCode() != 200 {
+			return totalFetched, fmt.Errorf("S1 API error: status %d, body: %s", resp.StatusCode(), resp.String())
+		}
 
-			var result struct {
-				Data       []S1ThreatResponse `json:"data"`
-				Pagination struct {
-					NextCursor string `json:"nextCursor"`
-				} `json:"pagination"`
-			}
+		var result struct {
+			Data       []S1ThreatResponse `json:"data"`
+			Pagination struct {
+				NextCursor string `json:"nextCursor"`
+				TotalItems int    `json:"totalItems"`
+			} `json:"pagination"`
+		}
 
-			if err := json.Unmarshal(resp.Body(), &result); err != nil {
-				return nil, fmt.Errorf("failed to parse threats: %w", err)
-			}
+		if err := json.Unmarshal(resp.Body(), &result); err != nil {
+			return totalFetched, fmt.Errorf("failed to parse threats: %w", err)
+		}
 
-			// แปลง S1ThreatResponse เป็น S1Threat
+		// แปลง response เป็น UnifiedEvent และส่งไป Vector ทันที
+		if len(result.Data) > 0 {
+			events := make([]models.UnifiedEvent, 0, len(result.Data))
 			for _, r := range result.Data {
-				var tactic, technique string
-				if len(r.ThreatInfo.Indicators) > 0 {
-					if len(r.ThreatInfo.Indicators[0].Tactics) > 0 {
-						tactic = r.ThreatInfo.Indicators[0].Tactics[0]
-					}
-					if len(r.ThreatInfo.Indicators[0].Techniques) > 0 {
-						technique = r.ThreatInfo.Indicators[0].Techniques[0]
-					}
+				threat := c.parseThreatResponse(r)
+				event := c.transformThreat(threat)
+				events = append(events, event)
+			}
+
+			// ส่ง events ไป Vector ทันที (Streaming)
+			if onPageEvents != nil {
+				if err := onPageEvents(events); err != nil {
+					c.logger.Error("Failed to publish page events", zap.Error(err))
 				}
-				allThreats = append(allThreats, S1Threat{
-					ID:                r.ID,
-					AgentID:           r.AgentRealtimeInfo.AgentID,
-					AgentComputerName: r.AgentRealtimeInfo.AgentComputerName,
-					AgentOsName:       r.AgentRealtimeInfo.AgentOsName,
-					AgentOsType:       r.AgentRealtimeInfo.AgentOsType,
-					AgentIP:           r.AgentDetectionInfo.AgentIpV4,
-					SiteName:          r.AgentDetectionInfo.SiteName,
-					GroupName:         r.AgentDetectionInfo.GroupName,
-					Classification:    r.ThreatInfo.Classification,
-					ConfidenceLevel:   r.ThreatInfo.ConfidenceLevel,
-					ThreatName:        r.ThreatInfo.ThreatName,
-					FilePath:          r.ThreatInfo.FilePath,
-					FileHash:          r.ThreatInfo.FileContentHash,
-					MitigationStatus:  r.ThreatInfo.MitigationStatus,
-					AnalystVerdict:    r.ThreatInfo.AnalystVerdict,
-					MitreTactic:       tactic,
-					MitreTechnique:    technique,
-					CreatedAt:         r.ThreatInfo.CreatedAt,
-					Username:          r.ThreatInfo.ProcessUser,
-					InitiatedBy:       r.ThreatInfo.InitiatedBy,
-				})
 			}
 
-			// ถ้าไม่มี next cursor แสดงว่าหมดแล้ว
-			if result.Pagination.NextCursor == "" {
-				break
-			}
-			cursor = result.Pagination.NextCursor
+			totalFetched += len(events)
 		}
 
-		// เรียก callback หลังจบ chunk เพื่อ save checkpoint
-		if onChunkComplete != nil {
-			onChunkComplete(currentEnd)
+		c.logger.Info("Fetched threats page", 
+			zap.Int("page", page),
+			zap.Int("pageCount", len(result.Data)),
+			zap.Int("totalFetched", totalFetched))
+
+		// แสดง totalItems เฉพาะ page แรก
+		if page == 1 && result.Pagination.TotalItems > 0 {
+			c.logger.Info("S1 API reports total threats", zap.Int("totalItems", result.Pagination.TotalItems))
+		}
+
+		// ตรวจสอบว่ามีหน้าถัดไปหรือไม่
+		if result.Pagination.NextCursor == "" || len(result.Data) == 0 {
+			c.logger.Info("Pagination complete, no more pages")
+			break
+		}
+
+		cursor = result.Pagination.NextCursor
+		page++
+
+		// delay เพื่อไม่ hit rate limit
+		time.Sleep(pageDelay)
+	}
+
+	c.logger.Info("Fetched S1 threats total", zap.Int("count", totalFetched))
+
+	// เรียก callback เมื่อ sync เสร็จสมบูรณ์เท่านั้น
+	if onChunkComplete != nil {
+		onChunkComplete(endTime)
+	}
+
+	return totalFetched, nil
+}
+
+// parseThreatResponse แปลง S1ThreatResponse เป็น S1Threat
+func (c *S1Client) parseThreatResponse(r S1ThreatResponse) S1Threat {
+	var tactic, technique string
+	if len(r.ThreatInfo.Indicators) > 0 {
+		ind := r.ThreatInfo.Indicators[0]
+		if len(ind.Tactics) > 0 {
+			tactic = ind.Tactics[0]
+		}
+		if len(ind.Techniques) > 0 {
+			technique = ind.Techniques[0]
 		}
 	}
 
-	c.logger.Info("Fetched S1 threats", zap.Int("count", len(allThreats)))
-
-	// แปลงเป็น UnifiedEvent
-	events := make([]models.UnifiedEvent, 0, len(allThreats))
-	for _, t := range allThreats {
-		event := c.transformThreat(t)
-		events = append(events, event)
+	return S1Threat{
+		ID:                r.ID,
+		AgentID:           r.AgentRealtimeInfo.AgentID,
+		AgentComputerName: r.AgentRealtimeInfo.AgentComputerName,
+		AgentOsName:       r.AgentRealtimeInfo.AgentOsName,
+		AgentOsType:       r.AgentRealtimeInfo.AgentOsType,
+		AgentIP:           r.AgentDetectionInfo.AgentIpV4,
+		SiteName:          r.AgentDetectionInfo.SiteName,
+		GroupName:         r.AgentDetectionInfo.GroupName,
+		Classification:    r.ThreatInfo.Classification,
+		ConfidenceLevel:   r.ThreatInfo.ConfidenceLevel,
+		ThreatName:        r.ThreatInfo.ThreatName,
+		FilePath:          r.ThreatInfo.FilePath,
+		FileHash:          r.ThreatInfo.FileContentHash,
+		MitigationStatus:  r.ThreatInfo.MitigationStatus,
+		AnalystVerdict:    r.ThreatInfo.AnalystVerdict,
+		MitreTactic:       tactic,
+		MitreTechnique:    technique,
+		CreatedAt:         r.ThreatInfo.CreatedAt,
+		Username:          r.ThreatInfo.ProcessUser,
+		InitiatedBy:       r.ThreatInfo.InitiatedBy,
 	}
-
-	return events, nil
 }
 
 // transformThreat แปลง S1Threat เป็น UnifiedEvent
@@ -283,89 +319,118 @@ func (c *S1Client) transformThreat(t S1Threat) models.UnifiedEvent {
 	}
 }
 
-// FetchActivities ดึง Activities จาก S1 API (แบ่งช่วงเวลาดึงเพื่อป้องกัน Timeout)
-func (c *S1Client) FetchActivities(startTime, endTime time.Time, activityTypes []int, onChunkComplete OnChunkComplete) ([]models.UnifiedEvent, error) {
-	c.logger.Info("Fetching S1 activities", 
+// FetchActivities ดึง Activities จาก S1 API ใช้ Cursor Pagination แบบ Streaming
+func (c *S1Client) FetchActivities(startTime, endTime time.Time, activityTypes []int, onPageEvents OnPageEvents, onChunkComplete OnChunkComplete) (int, error) {
+	c.logger.Info("Fetching S1 activities with cursor pagination (streaming)", 
 		zap.String("tenantId", c.tenantID),
 		zap.String("from", startTime.Format(time.RFC3339)),
 		zap.String("to", endTime.Format(time.RFC3339)))
 
-	var allActivities []S1Activity
+	totalFetched := 0
 	limit := 1000
+	pageDelay := 50 * time.Millisecond
 
-	// Loop แบ่งช่วงเวลาทีละ 24 ชั่วโมง (Time Chunking)
-	for currentStart := startTime; currentStart.Before(endTime); currentStart = currentStart.Add(24 * time.Hour) {
-		currentEnd := currentStart.Add(24 * time.Hour)
-		if currentEnd.After(endTime) {
-			currentEnd = endTime
+	cursor := ""
+	page := 1
+
+	for {
+		// สร้าง request params
+		params := map[string]string{
+			"limit":          fmt.Sprintf("%d", limit),
+			"sortBy":         "createdAt",
+			"sortOrder":      "desc",
+			"createdAt__gte": startTime.Format("2006-01-02T15:04:05.000Z"),
+			"createdAt__lte": endTime.Format("2006-01-02T15:04:05.000Z"),
+		}
+		if cursor != "" {
+			params["cursor"] = cursor
 		}
 
-		c.logger.Debug("Fetching activities chunk", 
-			zap.String("from", currentStart.Format(time.RFC3339)),
-			zap.String("to", currentEnd.Format(time.RFC3339)))
+		req := c.client.R().
+			SetHeader("Authorization", "ApiToken "+c.apiToken).
+			SetQueryParams(params)
 
-		cursor := ""
-		for {
-			req := c.client.R().
-				SetHeader("Authorization", "ApiToken "+c.apiToken).
-				SetQueryParams(map[string]string{
-					"createdAt__gte": currentStart.Format(time.RFC3339),
-					"createdAt__lt":  currentEnd.Format(time.RFC3339),
-					"limit":          fmt.Sprintf("%d", limit),
-					"cursor":         cursor,
-				})
-
-			// ถ้ามี activity types ที่ต้องการกรอง
-			if len(activityTypes) > 0 {
-				typesJSON, _ := json.Marshal(activityTypes)
-				req.SetQueryParam("activityTypes", string(typesJSON))
-			}
-
-			resp, err := req.Get(c.baseURL + "/web/api/v2.1/activities")
-
-			if err != nil {
-				return nil, fmt.Errorf("failed to fetch activities: %w", err)
-			}
-
-			if resp.StatusCode() != 200 {
-				return nil, fmt.Errorf("S1 API error: status %d, body: %s", resp.StatusCode(), resp.String())
-			}
-
-			var result struct {
-				Data       []S1Activity `json:"data"`
-				Pagination struct {
-					NextCursor string `json:"nextCursor"`
-				} `json:"pagination"`
-			}
-
-			if err := json.Unmarshal(resp.Body(), &result); err != nil {
-				return nil, fmt.Errorf("failed to parse activities: %w", err)
-			}
-
-			allActivities = append(allActivities, result.Data...)
-
-			if result.Pagination.NextCursor == "" {
-				break
-			}
-			cursor = result.Pagination.NextCursor
+		// ถ้ามี activity types ที่ต้องการกรอง
+		if len(activityTypes) > 0 {
+			typesJSON, _ := json.Marshal(activityTypes)
+			req.SetQueryParam("activityTypes", string(typesJSON))
 		}
 
-		// เรียก callback หลังจบ chunk เพื่อ save checkpoint
-		if onChunkComplete != nil {
-			onChunkComplete(currentEnd)
+		c.logger.Debug("Fetching activities page", 
+			zap.Int("page", page),
+			zap.Bool("hasCursor", cursor != ""))
+
+		resp, err := req.Get(c.baseURL + "/web/api/v2.1/activities")
+
+		if err != nil {
+			return totalFetched, fmt.Errorf("failed to fetch activities: %w", err)
 		}
+
+		if resp.StatusCode() != 200 {
+			return totalFetched, fmt.Errorf("S1 API error: status %d, body: %s", resp.StatusCode(), resp.String())
+		}
+
+		var result struct {
+			Data       []S1Activity `json:"data"`
+			Pagination struct {
+				NextCursor string `json:"nextCursor"`
+				TotalItems int    `json:"totalItems"`
+			} `json:"pagination"`
+		}
+
+		if err := json.Unmarshal(resp.Body(), &result); err != nil {
+			return totalFetched, fmt.Errorf("failed to parse activities: %w", err)
+		}
+
+		// แปลง response เป็น UnifiedEvent และส่งไป Vector ทันที
+		if len(result.Data) > 0 {
+			events := make([]models.UnifiedEvent, 0, len(result.Data))
+			for _, a := range result.Data {
+				event := c.transformActivity(a)
+				events = append(events, event)
+			}
+
+			// ส่ง events ไป Vector ทันที (Streaming)
+			if onPageEvents != nil {
+				if err := onPageEvents(events); err != nil {
+					c.logger.Error("Failed to publish page events", zap.Error(err))
+				}
+			}
+
+			totalFetched += len(events)
+		}
+
+		c.logger.Info("Fetched activities page", 
+			zap.Int("page", page),
+			zap.Int("pageCount", len(result.Data)),
+			zap.Int("totalFetched", totalFetched))
+
+		// แสดง totalItems เฉพาะ page แรก
+		if page == 1 && result.Pagination.TotalItems > 0 {
+			c.logger.Info("S1 API reports total activities", zap.Int("totalItems", result.Pagination.TotalItems))
+		}
+
+		// ตรวจสอบว่ามีหน้าถัดไปหรือไม่
+		if result.Pagination.NextCursor == "" || len(result.Data) == 0 {
+			c.logger.Info("Activities pagination complete")
+			break
+		}
+
+		cursor = result.Pagination.NextCursor
+		page++
+
+		// delay เพื่อไม่ hit rate limit
+		time.Sleep(pageDelay)
 	}
 
-	c.logger.Info("Fetched S1 activities", zap.Int("count", len(allActivities)))
+	c.logger.Info("Fetched S1 activities total", zap.Int("count", totalFetched))
 
-	// แปลงเป็น UnifiedEvent
-	events := make([]models.UnifiedEvent, 0, len(allActivities))
-	for _, a := range allActivities {
-		event := c.transformActivity(a)
-		events = append(events, event)
+	// เรียก callback เมื่อ sync เสร็จสมบูรณ์เท่านั้น
+	if onChunkComplete != nil {
+		onChunkComplete(endTime)
 	}
 
-	return events, nil
+	return totalFetched, nil
 }
 
 // transformActivity แปลง S1Activity เป็น UnifiedEvent

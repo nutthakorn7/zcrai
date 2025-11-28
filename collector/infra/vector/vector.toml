@@ -116,7 +116,7 @@ del(.network)
 type = "clickhouse"
 inputs = ["flatten_fields"]
 endpoint = "http://clickhouse:8123"
-database = "zcr"
+database = "zcrai"
 table = "security_events"
 compression = "gzip"
 skip_unknown_fields = true
