@@ -3,12 +3,35 @@ import { jwt } from '@elysiajs/jwt'
 import { DashboardService } from '../core/services/dashboard.service'
 import { tenantAdminOnly } from '../middlewares/auth.middleware'
 
+import { SchedulerService } from '../core/services/scheduler.service'
+
 export const dashboardController = new Elysia({ prefix: '/dashboard' })
   .use(jwt({
     name: 'jwt',
     secret: process.env.JWT_SECRET || 'super_secret_dev_key',
   }))
   .use(tenantAdminOnly)
+
+  // ==================== OPTIMIZE DB (Manual Trigger) ====================
+  .post('/optimize', async ({ jwt, cookie: { access_token }, set, query }) => {
+    try {
+      const payload = await jwt.verify(access_token.value)
+      if (!payload) throw new Error('Unauthorized')
+
+      if (query.full === 'true') {
+        // Trigger full repopulation
+        SchedulerService.repopulateMVs()
+        return { message: 'Full optimization (MV repopulation) started in background' }
+      } else {
+        // Trigger deduplication
+        SchedulerService.optimizeDB()
+        return { message: 'Optimization started in background' }
+      }
+    } catch (e: any) {
+      set.status = 400
+      return { error: e.message }
+    }
+  })
 
   // ==================== SUMMARY ====================
   .get('/summary', async ({ jwt, cookie: { access_token }, query, set }) => {
@@ -95,6 +118,62 @@ export const dashboardController = new Elysia({ prefix: '/dashboard' })
 
       const days = parseInt(query.days as string) || 7
       return await DashboardService.getSourcesBreakdown(payload.tenantId as string, days)
+    } catch (e: any) {
+      set.status = 400
+      return { error: e.message }
+    }
+  })
+
+  // ==================== INTEGRATIONS BREAKDOWN ====================
+  .get('/integrations', async ({ jwt, cookie: { access_token }, query, set }) => {
+    try {
+      const payload = await jwt.verify(access_token.value)
+      if (!payload) throw new Error('Unauthorized')
+
+      const days = parseInt(query.days as string) || 7
+      return await DashboardService.getIntegrationBreakdown(payload.tenantId as string, days)
+    } catch (e: any) {
+      set.status = 400
+      return { error: e.message }
+    }
+  })
+
+  // ==================== S1 SITES BREAKDOWN ====================
+  .get('/sites', async ({ jwt, cookie: { access_token }, query, set }) => {
+    try {
+      const payload = await jwt.verify(access_token.value)
+      if (!payload) throw new Error('Unauthorized')
+
+      const days = parseInt(query.days as string) || 7
+      return await DashboardService.getSiteBreakdown(payload.tenantId as string, days)
+    } catch (e: any) {
+      set.status = 400
+      return { error: e.message }
+    }
+  })
+
+  // ==================== SUMMARY BY INTEGRATION ====================
+  .get('/summary/integration/:integrationId', async ({ jwt, cookie: { access_token }, params, query, set }) => {
+    try {
+      const payload = await jwt.verify(access_token.value)
+      if (!payload) throw new Error('Unauthorized')
+
+      const days = parseInt(query.days as string) || 7
+      return await DashboardService.getSummaryByIntegration(payload.tenantId as string, params.integrationId, days)
+    } catch (e: any) {
+      set.status = 400
+      return { error: e.message }
+    }
+  })
+
+  // ==================== SUMMARY BY SITE ====================
+  .get('/summary/site/:siteName', async ({ jwt, cookie: { access_token }, params, query, set }) => {
+    try {
+      const payload = await jwt.verify(access_token.value)
+      if (!payload) throw new Error('Unauthorized')
+
+      const days = parseInt(query.days as string) || 7
+      return await DashboardService.getSummaryBySite(payload.tenantId as string, decodeURIComponent(params.siteName), days)
     } catch (e: any) {
       set.status = 400
       return { error: e.message }

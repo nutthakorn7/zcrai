@@ -147,32 +147,40 @@
 
 ---
 
-## Phase 6: Dashboard & Log Viewer (Week 12-14)
+## Phase 6: Dashboard & Log Viewer (Week 12-14) ✅ COMPLETED
 
 ### 6.1 Dashboard API
-- [ ] GET /api/dashboard/summary (counts by severity)
-- [ ] GET /api/dashboard/timeline (events over time)
-- [ ] GET /api/dashboard/top-hosts
-- [ ] GET /api/dashboard/top-users
-- [ ] GET /api/dashboard/mitre-heatmap
+- [x] GET /api/dashboard/summary (counts by severity)
+- [x] GET /api/dashboard/timeline (events over time)
+- [x] GET /api/dashboard/top-hosts
+- [x] GET /api/dashboard/top-users
+- [x] GET /api/dashboard/mitre-heatmap
+- [x] GET /api/dashboard/sources (sources breakdown)
+- [x] GET /api/dashboard/integrations (integration breakdown)
+- [x] GET /api/dashboard/sites (S1 site breakdown)
 
 ### 6.2 Log Viewer API
-- [ ] GET /api/logs (paginated, filtered, sorted)
-- [ ] GET /api/logs/:id (single log detail)
-- [ ] Search with filters (time range, severity, source, host, etc.)
+- [x] GET /api/logs (paginated, filtered, sorted)
+- [x] GET /api/logs/:id (single log detail)
+- [x] GET /api/logs/filters (filter options)
+- [x] Search with filters (time range, severity, source, host, integration, site)
 
 ### 6.3 Dashboard UI
-- [ ] Overview cards (Critical, High, Medium, Low counts)
-- [ ] Timeline chart (events per hour/day)
-- [ ] Top affected hosts table
-- [ ] Top affected users table
-- [ ] MITRE ATT&CK heatmap visualization
+- [x] Overview cards (Critical, High, Medium, Low counts)
+- [x] Timeline chart (Stacked Area Chart with Recharts)
+- [x] Top affected hosts table
+- [x] Top affected users table
+- [x] Sources pie chart
+- [x] Integrations table
+- [x] S1 Sites table
+- [x] MITRE ATT&CK bar chart
+- [x] Time range selector (1/7/30/90 days)
 
 ### 6.4 Log Viewer UI
-- [ ] Log list with virtual scrolling
-- [ ] Advanced filter panel
-- [ ] Log detail drawer/modal
-- [ ] Export to CSV
+- [x] Log list with pagination
+- [x] Advanced filter panel (severity, source, integration, S1 account, S1 site)
+- [x] Log detail modal (with integration/site info)
+- [x] Export to CSV
 
 ---
 

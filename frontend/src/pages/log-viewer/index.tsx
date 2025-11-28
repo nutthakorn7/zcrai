@@ -133,14 +133,48 @@ export default function LogViewerPage() {
     setPagination(prev => ({ ...prev, page }));
   };
 
+  // Export to CSV function
+  const handleExportCSV = () => {
+    if (logs.length === 0) return;
+    
+    const headers = ['ID', 'Timestamp', 'Severity', 'Source', 'Integration', 'Title', 'Host', 'Site', 'User', 'MITRE Tactic', 'MITRE Technique'];
+    const csvContent = [
+      headers.join(','),
+      ...logs.map(log => [
+        log.id,
+        log.timestamp,
+        log.severity,
+        log.source,
+        log.integration_name || '',
+        `"${(log.title || '').replace(/"/g, '""')}"`,
+        log.host_name || '',
+        log.host_site_name || '',
+        log.user_name || '',
+        log.mitre_tactic || '',
+        log.mitre_technique || '',
+      ].join(','))
+    ].join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `logs_export_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+  };
+
   return (
     <div className="p-8 min-h-screen dark bg-background text-foreground">
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Log Viewer</h1>
-        <Button variant="flat" onPress={() => navigate('/dashboard')}>
-          ← Back to Dashboard
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="flat" color="success" onPress={handleExportCSV} isDisabled={logs.length === 0}>
+            📥 Export CSV
+          </Button>
+          <Button variant="flat" onPress={() => navigate('/dashboard')}>
+            ← Back to Dashboard
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -252,7 +286,7 @@ export default function LogViewerPage() {
                 {logs.map((log) => (
                   <TableRow key={log.id} className="cursor-pointer hover:bg-default-100">
                     <TableCell className="text-xs whitespace-nowrap">
-                      {new Date(log.timestamp).toLocaleString()}
+                      {new Date(log.timestamp).toLocaleString('en-US')}
                     </TableCell>
                     <TableCell>
                       <Chip size="sm" color={severityColors[log.severity] || "default"}>

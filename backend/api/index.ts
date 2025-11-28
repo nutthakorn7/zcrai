@@ -8,6 +8,10 @@ import { profileController } from './controllers/profile.controller'
 import { integrationController } from './controllers/integration.controller'
 import { dashboardController } from './controllers/dashboard.controller'
 import { logsController } from './controllers/logs.controller'
+import { SchedulerService } from './core/services/scheduler.service'
+
+// Initialize background jobs
+SchedulerService.init()
 
 const app = new Elysia()
   .use(swagger({
