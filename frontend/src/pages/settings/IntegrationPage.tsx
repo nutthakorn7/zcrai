@@ -27,6 +27,17 @@ export default function IntegrationPage() {
 
   // AI Provider Select
   const [aiProvider, setAiProvider] = useState('openai');
+  const [aiModel, setAiModel] = useState('');
+  const [aiBaseUrl, setAiBaseUrl] = useState('');
+  const [useCustomModel, setUseCustomModel] = useState(false);
+
+  // Popular Models
+  const POPULAR_MODELS: Record<string, string[]> = {
+    openai: ['gpt-4o', 'gpt-4-turbo', 'gpt-3.5-turbo'],
+    claude: ['claude-sonnet-4-5', 'claude-opus-4-5', 'claude-haiku-4-5'],
+    gemini: ['gemini-1.5-pro', 'gemini-1.5-flash'],
+    deepseek: ['deepseek-chat', 'deepseek-coder'],
+  };
 
   // Form State
   const [s1Url, setS1Url] = useState('');
@@ -83,6 +94,8 @@ export default function IntegrationPage() {
           await api.post(`/integrations/ai/${aiProvider}`, {
             apiKey: aiKey,
             label: label || aiProvider.toUpperCase(),
+            model: aiModel || undefined,
+            baseUrl: aiBaseUrl || undefined,
           });
         }
       } else {
@@ -288,7 +301,12 @@ export default function IntegrationPage() {
                         <Select 
                           label="Provider" 
                           selectedKeys={[aiProvider]} 
-                          onChange={(e) => setAiProvider(e.target.value)}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setAiProvider(val);
+                            setAiModel(''); // Reset model when provider changes
+                            setUseCustomModel(false);
+                          }}
                         >
                           <SelectItem key="openai">OpenAI</SelectItem>
                           <SelectItem key="claude">Claude (Anthropic)</SelectItem>
@@ -301,6 +319,63 @@ export default function IntegrationPage() {
                           value={aiKey}
                           onValueChange={setAiKey}
                           type="password"
+                        />
+                        
+                        {/* Model Selection */}
+                        {!useCustomModel ? (
+                          <Select
+                            label="Model"
+                            placeholder="Select a model"
+                            selectedKeys={aiModel ? [aiModel] : []}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              if (val === 'custom') {
+                                setUseCustomModel(true);
+                                setAiModel('');
+                              } else {
+                                setAiModel(val);
+                              }
+                            }}
+                          >
+                            {(POPULAR_MODELS[aiProvider] || []).map((m: string) => (
+                              <SelectItem key={m} textValue={m}>
+                                {m}
+                              </SelectItem>
+                            ))}
+                            <SelectItem key="custom" className="text-primary" textValue="Custom Model">
+                              Type Custom Model...
+                            </SelectItem>
+                          </Select>
+                        ) : (
+                          <div className="flex gap-2">
+                            <Input
+                              label="Custom Model Name"
+                              placeholder="e.g. llama-3-70b"
+                              value={aiModel}
+                              onValueChange={setAiModel}
+                              className="flex-1"
+                            />
+                            <Button 
+                              isIconOnly 
+                              variant="flat" 
+                              color="danger" 
+                              className="mt-2" // Align with input
+                              onPress={() => {
+                                setUseCustomModel(false);
+                                setAiModel('');
+                              }}
+                            >
+                              ✕
+                            </Button>
+                          </div>
+                        )}
+
+                        <Input
+                          label="Base URL (Optional)"
+                          placeholder="https://api.openai.com/v1"
+                          description="Leave empty for default. Use for Local LLM or proxies."
+                          value={aiBaseUrl}
+                          onValueChange={setAiBaseUrl}
                         />
                       </>
                     )}

@@ -184,25 +184,28 @@
 
 ---
 
-## Phase 7: AI Analysis (Week 15-16)
+## Phase 7: Conversational UI (CUI) AI Chat bot (Week 15-16)
 
-### 7.1 AI Integration Backend
-- [ ] POST /api/ai/analyze (analyze single log/alert)
-- [ ] POST /api/ai/summarize (summarize multiple logs)
-- [ ] Support multiple providers (OpenAI, Claude, local LLM)
-- [ ] Rate limiting per tenant
+### 7.1 AI Chat Backend (CUI Brain)
+- [ ] Setup AI Service (Support OpenAI, Anthropic, Local LLM/Ollama)
+- [ ] Implement Streaming API for Chat (`POST /api/ai/chat`)
+- [ ] Context Management (Attach current page context, selected logs)
+- [ ] Tool calling (Allow AI to query DB: `get_summary`, `search_logs`, `get_threat_intel`)
+- [ ] System Prompts for Security Analyst Persona
 
-### 7.2 AI Prompts
-- [ ] Threat analysis prompt (MITRE ATT&CK mapping)
-- [ ] Cyber Kill Chain mapping prompt
-- [ ] Remediation recommendation prompt
-- [ ] Summary/report generation prompt
+### 7.2 Chat Widget UI
+- [ ] Floating Action Button (FAB) for Chat
+- [ ] Chat Window (Expandable/Collapsible)
+- [ ] Message Bubbles (User vs AI)
+- [ ] Markdown Rendering (Code blocks, Tables, Lists)
+- [ ] Loading/Typing Indicators
+- [ ] "Analyze This Page" context button
 
-### 7.3 AI UI
-- [ ] "Analyze with AI" button on log detail
-- [ ] AI response panel (formatted markdown)
-- [ ] Copy/Export AI analysis
-- [ ] AI usage quota display
+### 7.3 Advanced AI Features
+- [ ] Threat Analysis & Remediation suggestions
+- [ ] Automated Query Generation (Natural Language to SQL/Filters)
+- [ ] Incident Summarization
+- [ ] Voice Input (Speech-to-Text) - Optional
 
 ---
 

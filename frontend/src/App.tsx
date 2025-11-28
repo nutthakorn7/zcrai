@@ -13,6 +13,7 @@ import UserPage from "./pages/settings/UserPage";
 import ProfilePage from "./pages/settings/ProfilePage";
 import TenantPage from "./pages/settings/TenantPage";
 import { useAuth } from "./shared/store/useAuth";
+import { ChatWidget } from "./components/ChatWidget";
 
 function ProtectedRoute({ children }: { children: JSX.Element }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -26,7 +27,12 @@ function ProtectedRoute({ children }: { children: JSX.Element }) {
     );
   }
   
-  return isAuthenticated ? children : <Navigate to="/login" />;
+  return isAuthenticated ? (
+    <>
+      {children}
+      <ChatWidget />
+    </>
+  ) : <Navigate to="/login" />;
 }
 
 function App() {

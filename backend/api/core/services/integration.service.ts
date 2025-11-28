@@ -185,7 +185,7 @@ export const IntegrationService = {
   },
 
   // ==================== ADD AI PROVIDER ====================
-  async addAI(tenantId: string, provider: string, data: { apiKey: string; label?: string }) {
+  async addAI(tenantId: string, provider: string, data: { apiKey: string; model?: string; label?: string; baseUrl?: string }) {
     if (!data.apiKey) throw new Error('API Key is required')
 
     // เช็ค Label ซ้ำ
@@ -199,11 +199,13 @@ export const IntegrationService = {
     }
 
     // Test Connection
-    await this.testAIConnection(provider, data.apiKey)
+    await this.testAIConnection(provider, data.apiKey, data.model)
 
-    // Save Encrypted Key
+    // Save Encrypted Key & Config
     const encryptedKey = Encryption.encrypt(JSON.stringify({
-      apiKey: data.apiKey
+      apiKey: data.apiKey,
+      model: data.model,
+      baseUrl: data.baseUrl
     }))
 
     const [integration] = await db.insert(apiKeys).values({
@@ -222,7 +224,7 @@ export const IntegrationService = {
   // ... (update function remains the same) ...
 
   // ==================== TEST CONNECTION (AI) ====================
-  async testAIConnection(provider: string, apiKey: string) {
+  async testAIConnection(provider: string, apiKey: string, model?: string) {
     try {
       let url = ''
       let headers: Record<string, string> = {}
@@ -386,6 +388,41 @@ export const IntegrationService = {
       return true
     } catch (e: any) {
       throw new Error(`CrowdStrike Connection Error: ${e.message}`)
+    }
+  },
+
+  // ==================== GET AI CONFIG ====================
+  async getAIConfig(tenantId: string) {
+    // Prioritize Claude/Anthropic first, then OpenAI
+    // Or allow user to select default in future
+    const providers = ['claude', 'anthropic', 'openai', 'gpt', 'gemini', 'deepseek']
+    
+    const keys = await db.select().from(apiKeys)
+      .where(and(
+        eq(apiKeys.tenantId, tenantId)
+      ))
+
+    // Filter only AI providers
+    const aiKeys = keys.filter(k => providers.includes(k.provider.toLowerCase()))
+    
+    if (aiKeys.length === 0) return null
+
+    // Sort by last updated or created desc to get latest
+    aiKeys.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+    
+    const selected = aiKeys[0]
+
+    try {
+      const decrypted = Encryption.decrypt(selected.encryptedKey)
+      const config = JSON.parse(decrypted)
+      return {
+        provider: selected.provider.toLowerCase(),
+        apiKey: config.apiKey,
+        ...config // include other fields if any
+      }
+    } catch (e) {
+      console.error('Failed to decrypt AI key:', e)
+      return null
     }
   },
 

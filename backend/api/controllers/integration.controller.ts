@@ -101,22 +101,27 @@ export const integrationController = new Elysia({ prefix: '/integrations' })
   }, { body: AddCrowdStrikeSchema })
 
   // ==================== ADD AI PROVIDER ====================
-  .post('/ai/:provider', async ({ params, body, jwt, cookie: { access_token }, set }) => {
+  .post('/ai/:provider', async ({ jwt, cookie: { access_token }, params, body, set }) => {
     try {
       const payload = await jwt.verify(access_token.value)
       if (!payload) throw new Error('Unauthorized')
 
-      const validProviders = ['openai', 'claude', 'gemini', 'deepseek']
-      if (!validProviders.includes(params.provider)) throw new Error('Invalid AI provider')
+      const { apiKey, model, baseUrl, label } = body as AddAIBody
+      const provider = params.provider.toLowerCase()
 
-      const integration = await IntegrationService.addAI(payload.tenantId as string, params.provider, body)
-      set.status = 201
-      return { message: `${params.provider.toUpperCase()} integration added successfully`, integration }
+      if (!apiKey) throw new Error('API Key is required')
+
+      return await IntegrationService.addAI(payload.tenantId as string, provider, {
+        apiKey,
+        model,
+        baseUrl,
+        label
+      })
     } catch (e: any) {
       set.status = 400
       return { error: e.message }
     }
-  }, { body: AddAISchema })
+  })
 
   // ==================== UPDATE INTEGRATION ====================
   .put('/:id', async ({ params, body, jwt, cookie: { access_token }, set }) => {

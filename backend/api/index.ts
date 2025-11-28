@@ -8,6 +8,7 @@ import { profileController } from './controllers/profile.controller'
 import { integrationController } from './controllers/integration.controller'
 import { dashboardController } from './controllers/dashboard.controller'
 import { logsController } from './controllers/logs.controller'
+import { aiController } from './controllers/ai.controller'
 import { SchedulerService } from './core/services/scheduler.service'
 
 // Initialize background jobs
@@ -25,7 +26,8 @@ const app = new Elysia()
   }))
   .use(cors({
     origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-    credentials: true
+    credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization'], // Explicitly allow Authorization header
   }))
   .use(authController)
   .use(tenantController)
@@ -34,6 +36,7 @@ const app = new Elysia()
   .use(integrationController)
   .use(dashboardController)
   .use(logsController)
+  .use(aiController)
   .get('/health', () => ({ status: 'ok', timestamp: new Date().toISOString() }))
   .listen(process.env.PORT || 8000)
 
