@@ -1,0 +1,84 @@
+version: '3.8'
+
+services:
+  # PostgreSQL - User & Tenant Data
+  postgres:
+    image: postgres:16-alpine
+    container_name: zcrai-postgres
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-zcrai}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - zcrai-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ClickHouse - Security Logs
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.8-alpine
+    container_name: zcrai-clickhouse
+    ports:
+      - "8123:8123" # HTTP
+      - "9000:9000" # Native
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+    networks:
+      - zcrai-net
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8123/ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Redis - Session & Cache
+  redis:
+    image: redis:7-alpine
+    container_name: zcrai-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    networks:
+      - zcrai-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # Vector - Log Aggregator
+  vector:
+    image: timberio/vector:0.51.1-alpine
+    container_name: zcrai-vector
+    ports:
+      - "8686:8686" # API
+    volumes:
+      - ./backend/collector/vector.toml:/etc/vector/vector.toml:ro
+    networks:
+      - zcrai-net
+    depends_on:
+      - clickhouse
+    profiles:
+      - collector
+
+volumes:
+  postgres_data:
+  clickhouse_data:
+  redis_data:
+
+networks:
+  zcrai-net:
+    driver: bridge

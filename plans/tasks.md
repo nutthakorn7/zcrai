@@ -3,62 +3,63 @@
 ## Phase 1: Foundation (Week 1-2)
 
 ### 1.1 Project Setup
-- [ ] Initialize monorepo structure
-- [ ] Setup Docker Compose (PostgreSQL, ClickHouse, Redis)
-- [ ] Setup Elysia backend project with Bun
-- [ ] Setup React + Vite frontend project
-- [ ] Configure ESLint, Prettier, TypeScript
-- [ ] Setup Vitest for backend/frontend
+- [x] Initialize monorepo structure
+- [x] Setup Docker Compose (PostgreSQL, ClickHouse, Redis)
+- [x] Setup Elysia backend project with Bun
+- [x] Setup React + Vite frontend project
+- [x] Configure ESLint, Prettier, TypeScript
+- [x] Setup Vitest for backend/frontend
 
 ### 1.2 Database Schema (PostgreSQL)
-- [ ] Design ERD diagram
-- [ ] Create tables: tenants, users, roles, permissions
-- [ ] Create tables: user_sessions, refresh_tokens
-- [ ] Create tables: api_keys (encrypted), audit_logs
-- [ ] Setup Drizzle ORM + migrations
-- [ ] Implement Row-Level Security (RLS) for tenant isolation
+- [x] Design ERD diagram
+- [x] Create tables: tenants, users, roles, permissions
+- [x] Create tables: user_sessions, refresh_tokens
+- [x] Create tables: api_keys (encrypted), audit_logs
+- [x] Setup Drizzle ORM + migrations
+- [x] Implement Row-Level Security (RLS) for tenant isolation
 
 ### 1.3 Database Schema (ClickHouse)
 - [ ] Design schema for security logs
 - [ ] Create tables: security_events, normalized_logs
 - [ ] Create tables: cases, case_history
-- [ ] Setup retention policies (90 days default)
+- [ ] Setup retention policies (1 years default)
 
 ---
 
 ## Phase 2: Authentication & Authorization (Week 3-4)
 
 ### 2.1 Auth Backend (Elysia)
-- [ ] POST /api/auth/register (Super Admin creates tenant + admin)
-- [ ] POST /api/auth/login (email + password)
-- [ ] POST /api/auth/logout
-- [ ] POST /api/auth/refresh (token rotation)
-- [ ] POST /api/auth/forgot-password
-- [ ] POST /api/auth/reset-password
+- [x] POST /api/auth/register (Super Admin creates tenant + admin)
+- [x] POST /api/auth/login (email + password)
+- [x] POST /api/auth/logout
+- [x] POST /api/auth/refresh (token rotation)
+- [x] POST /api/auth/forgot-password
+- [x] POST /api/auth/reset-password
 
 ### 2.2 Session Management
-- [ ] Implement HttpOnly Cookie (access_token, refresh_token)
-- [ ] Implement Redis session store
-- [ ] Implement token rotation + reuse detection
-- [ ] Implement account lockout (5 failed attempts)
+- [x] Implement HttpOnly Cookie (access_token, refresh_token)
+- [x] Implement Redis session store
+- [x] Implement token rotation + reuse detection
+- [x] Implement account lockout (5 failed attempts)
 
 ### 2.3 MFA
-- [ ] POST /api/auth/mfa/setup (generate TOTP secret)
-- [ ] POST /api/auth/mfa/verify (verify TOTP code)
-- [ ] POST /api/auth/mfa/disable
-- [ ] Generate backup codes
+- [x] POST /api/auth/mfa/setup (generate TOTP secret)
+- [x] POST /api/auth/mfa/verify (verify TOTP code)
+- [x] POST /api/auth/mfa/disable
+- [x] Generate backup codes
 
 ### 2.4 RBAC Middleware
-- [ ] Create permission middleware
-- [ ] Implement role checks (Super Admin, Tenant Admin, SOC, Customer)
-- [ ] Implement tenant isolation middleware
-- [ ] Create audit logging middleware
+- [x] Create permission middleware
+- [x] Implement role checks (Super Admin, Tenant Admin, SOC, Customer)
+- [x] Implement tenant isolation middleware
+- [x] Create audit logging middleware
 
 ### 2.5 Auth Frontend
-- [ ] Login page (email + password + MFA)
+- [x] Login page (email + password)
+- [ ] Add MFA support to Login page
 - [ ] Forgot password page
 - [ ] Reset password page
-- [ ] Session management UI (view/revoke sessions)
+- [x] Session management UI (view/revoke sessions)
 
 ---
 

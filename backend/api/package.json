@@ -1,0 +1,31 @@
+{
+  "name": "zcrai-backend",
+  "version": "0.0.1",
+  "module": "index.ts",
+  "type": "module",
+  "scripts": {
+    "dev": "bun run --watch index.ts",
+    "start": "bun run index.ts",
+    "test": "bun test",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate"
+  },
+  "dependencies": {
+    "@elysiajs/cors": "latest",
+    "@elysiajs/jwt": "latest",
+    "@elysiajs/swagger": "latest",
+    "drizzle-orm": "latest",
+    "elysia": "latest",
+    "ioredis": "^5.8.2",
+    "nanoid": "^5.1.6",
+    "otpauth": "^9.4.1",
+    "postgres": "latest",
+    "qrcode": "^1.5.4",
+    "redis": "latest"
+  },
+  "devDependencies": {
+    "@types/qrcode": "^1.5.6",
+    "bun-types": "latest",
+    "drizzle-kit": "latest"
+  }
+}
