@@ -15,6 +15,7 @@ import (
 type Integration struct {
 	ID             string `json:"id"`
 	TenantID       string `json:"tenantId"`
+	Name           string `json:"name"`           // ชื่อ Integration สำหรับแสดงผล
 	Type           string `json:"type"`           // sentinelone, crowdstrike, ai
 	Provider       string `json:"provider"`       // s1, crowdstrike, openai, claude
 	Config         string `json:"config"`         // JSON string (decrypted)

@@ -10,13 +10,26 @@ export const logsController = new Elysia({ prefix: '/logs' })
   }))
   .use(tenantAdminOnly)
 
+  // ==================== GET FILTER OPTIONS (ต้องอยู่ก่อน /:id) ====================
+  .get('/filters', async ({ jwt, cookie: { access_token }, set }) => {
+    try {
+      const payload = await jwt.verify(access_token.value)
+      if (!payload) throw new Error('Unauthorized')
+
+      return await LogsService.getFilterOptions(payload.tenantId as string)
+    } catch (e: any) {
+      set.status = 400
+      return { error: e.message }
+    }
+  })
+
   // ==================== LIST LOGS ====================
   .get('/', async ({ jwt, cookie: { access_token }, query, set }) => {
     try {
       const payload = await jwt.verify(access_token.value)
       if (!payload) throw new Error('Unauthorized')
 
-      // Parse query params
+      // Parse query params - รวม filters ใหม่สำหรับ Integration และ S1 Tenant
       const filters = {
         startDate: query.startDate as string | undefined,
         endDate: query.endDate as string | undefined,
@@ -26,6 +39,10 @@ export const logsController = new Elysia({ prefix: '/logs' })
         user: query.user as string | undefined,
         search: query.search as string | undefined,
         eventType: query.eventType as string | undefined,
+        // New filters
+        integrationId: query.integration_id as string | undefined,
+        accountName: query.account_name as string | undefined,
+        siteName: query.site_name as string | undefined,
       }
 
       const pagination = {
@@ -54,19 +71,6 @@ export const logsController = new Elysia({ prefix: '/logs' })
         return { error: 'Log not found' }
       }
       return log
-    } catch (e: any) {
-      set.status = 400
-      return { error: e.message }
-    }
-  })
-
-  // ==================== GET FILTER OPTIONS ====================
-  .get('/filters/options', async ({ jwt, cookie: { access_token }, set }) => {
-    try {
-      const payload = await jwt.verify(access_token.value)
-      if (!payload) throw new Error('Unauthorized')
-
-      return await LogsService.getFilterOptions(payload.tenantId as string)
     } catch (e: any) {
       set.status = 400
       return { error: e.message }

@@ -57,13 +57,21 @@ source = '''
 type = "remap"
 inputs = ["normalize_severity"]
 source = '''
+# Integration info (zcrAI)
+.integration_id = .integration_id || ""
+.integration_name = .integration_name || ""
+
 # Host info
 .host_name = .host.name || ""
 .host_ip = .host.ip || ""
 .host_os = .host.os || ""
 .host_os_version = .host.os_version || ""
 .host_agent_id = .host.agent_id || ""
+.host_account_id = .host.account_id || ""
+.host_account_name = .host.account_name || ""
+.host_site_id = .host.site_id || ""
 .host_site_name = .host.site_name || ""
+.host_group_id = .host.group_id || ""
 .host_group_name = .host.group_name || ""
 
 # User info

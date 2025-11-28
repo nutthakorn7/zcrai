@@ -4,35 +4,41 @@ import "time"
 
 // UnifiedEvent โครงสร้าง Unified Log Schema
 type UnifiedEvent struct {
-	ID             string            `json:"id"`
-	TenantID       string            `json:"tenant_id"`
-	Source         string            `json:"source"` // sentinelone, crowdstrike
-	Timestamp      time.Time         `json:"timestamp"`
-	Severity       string            `json:"severity"` // critical, high, medium, low, info
-	EventType      string            `json:"event_type"`
-	Title          string            `json:"title"`
-	Description    string            `json:"description"`
-	MitreTactic    string            `json:"mitre_tactic,omitempty"`
-	MitreTechnique string            `json:"mitre_technique,omitempty"`
-	Host           HostInfo          `json:"host"`
-	User           UserInfo          `json:"user,omitempty"`
-	Process        ProcessInfo       `json:"process,omitempty"`
-	File           FileInfo          `json:"file,omitempty"`
-	Network        NetworkInfo       `json:"network,omitempty"`
-	Raw            map[string]any    `json:"raw"` // Original payload
-	Metadata       map[string]string `json:"metadata,omitempty"`
-	CollectedAt    time.Time         `json:"collected_at"`
+	ID              string            `json:"id"`
+	TenantID        string            `json:"tenant_id"`
+	IntegrationID   string            `json:"integration_id"`   // zcrAI Integration ID ที่เก็บ config
+	IntegrationName string            `json:"integration_name"` // ชื่อ Integration สำหรับแสดงผล
+	Source          string            `json:"source"`           // sentinelone, crowdstrike
+	Timestamp       time.Time         `json:"timestamp"`
+	Severity        string            `json:"severity"` // critical, high, medium, low, info
+	EventType       string            `json:"event_type"`
+	Title           string            `json:"title"`
+	Description     string            `json:"description"`
+	MitreTactic     string            `json:"mitre_tactic,omitempty"`
+	MitreTechnique  string            `json:"mitre_technique,omitempty"`
+	Host            HostInfo          `json:"host"`
+	User            UserInfo          `json:"user,omitempty"`
+	Process         ProcessInfo       `json:"process,omitempty"`
+	File            FileInfo          `json:"file,omitempty"`
+	Network         NetworkInfo       `json:"network,omitempty"`
+	Raw             map[string]any    `json:"raw"` // Original payload
+	Metadata        map[string]string `json:"metadata,omitempty"`
+	CollectedAt     time.Time         `json:"collected_at"`
 }
 
 // HostInfo ข้อมูล Host
 type HostInfo struct {
-	Name       string `json:"name,omitempty"`
-	IP         string `json:"ip,omitempty"`
-	OS         string `json:"os,omitempty"`
-	OSVersion  string `json:"os_version,omitempty"`
-	AgentID    string `json:"agent_id,omitempty"`
-	SiteName   string `json:"site_name,omitempty"`
-	GroupName  string `json:"group_name,omitempty"`
+	Name        string `json:"name,omitempty"`
+	IP          string `json:"ip,omitempty"`
+	OS          string `json:"os,omitempty"`
+	OSVersion   string `json:"os_version,omitempty"`
+	AgentID     string `json:"agent_id,omitempty"`
+	AccountID   string `json:"account_id,omitempty"`   // S1 Account ID
+	AccountName string `json:"account_name,omitempty"` // S1 Account Name
+	SiteID      string `json:"site_id,omitempty"`      // S1 Site ID
+	SiteName    string `json:"site_name,omitempty"`
+	GroupID     string `json:"group_id,omitempty"` // S1 Group ID
+	GroupName   string `json:"group_name,omitempty"`
 }
 
 // UserInfo ข้อมูล User

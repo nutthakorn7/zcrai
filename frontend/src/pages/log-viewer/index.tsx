@@ -22,6 +22,21 @@ interface LogEntry {
   mitre_technique: string;
   process_name: string;
   file_name: string;
+  // Integration info
+  integration_id: string;
+  integration_name: string;
+  // S1 Tenant info
+  host_account_id: string;
+  host_account_name: string;
+  host_site_id: string;
+  host_site_name: string;
+  host_group_name: string;
+}
+
+interface FilterOptions {
+  integrations: { id: string; name: string }[];
+  accounts: { id: string; name: string }[];
+  sites: { id: string; name: string }[];
 }
 
 interface PaginationInfo {
@@ -44,18 +59,35 @@ export default function LogViewerPage() {
   const [loading, setLoading] = useState(true);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [pagination, setPagination] = useState<PaginationInfo>({ page: 1, limit: 20, total: 0, totalPages: 1 });
+  const [filterOptions, setFilterOptions] = useState<FilterOptions>({ integrations: [], accounts: [], sites: [] });
   
   // Filters
   const [search, setSearch] = useState("");
   const [severity, setSeverity] = useState<string>("");
   const [source, setSource] = useState<string>("");
+  const [integrationId, setIntegrationId] = useState<string>("");
+  const [accountName, setAccountName] = useState<string>("");
+  const [siteName, setSiteName] = useState<string>("");
   
   // Detail Modal
   const [selectedLog, setSelectedLog] = useState<LogEntry | null>(null);
 
   useEffect(() => {
+    loadFilterOptions();
+  }, []);
+
+  useEffect(() => {
     loadLogs();
   }, [pagination.page]);
+
+  const loadFilterOptions = async () => {
+    try {
+      const res = await api.get('/logs/filters');
+      setFilterOptions(res.data);
+    } catch (e) {
+      console.error('Failed to load filter options:', e);
+    }
+  };
 
   const loadLogs = async () => {
     setLoading(true);
@@ -67,6 +99,9 @@ export default function LogViewerPage() {
       if (search) params.append('search', search);
       if (severity) params.append('severity', severity);
       if (source) params.append('source', source);
+      if (integrationId) params.append('integration_id', integrationId);
+      if (accountName) params.append('account_name', accountName);
+      if (siteName) params.append('site_name', siteName);
 
       const res = await api.get(`/logs?${params.toString()}`);
       setLogs(res.data.data);
@@ -81,6 +116,17 @@ export default function LogViewerPage() {
   const handleSearch = () => {
     setPagination(prev => ({ ...prev, page: 1 }));
     loadLogs();
+  };
+
+  const handleClear = () => {
+    setSearch("");
+    setSeverity("");
+    setSource("");
+    setIntegrationId("");
+    setAccountName("");
+    setSiteName("");
+    setPagination(prev => ({ ...prev, page: 1 }));
+    setTimeout(() => loadLogs(), 0);
   };
 
   const handlePageChange = (page: number) => {
@@ -113,7 +159,7 @@ export default function LogViewerPage() {
               placeholder="All"
               selectedKeys={severity ? [severity] : []}
               onSelectionChange={(keys) => setSeverity(Array.from(keys)[0] as string || "")}
-              className="w-40"
+              className="w-36"
             >
               <SelectItem key="critical">Critical</SelectItem>
               <SelectItem key="high">High</SelectItem>
@@ -126,15 +172,52 @@ export default function LogViewerPage() {
               placeholder="All"
               selectedKeys={source ? [source] : []}
               onSelectionChange={(keys) => setSource(Array.from(keys)[0] as string || "")}
-              className="w-40"
+              className="w-36"
             >
               <SelectItem key="sentinelone">SentinelOne</SelectItem>
               <SelectItem key="crowdstrike">CrowdStrike</SelectItem>
             </Select>
+            <Select
+              label="Integration"
+              placeholder="All"
+              selectedKeys={integrationId ? [integrationId] : []}
+              onSelectionChange={(keys) => setIntegrationId(Array.from(keys)[0] as string || "")}
+              className="w-44"
+            >
+              {filterOptions.integrations.map((i) => (
+                <SelectItem key={i.id}>{i.name || i.id.slice(0, 8)}</SelectItem>
+              ))}
+            </Select>
+            {source === 'sentinelone' && (
+              <>
+                <Select
+                  label="S1 Account"
+                  placeholder="All"
+                  selectedKeys={accountName ? [accountName] : []}
+                  onSelectionChange={(keys) => setAccountName(Array.from(keys)[0] as string || "")}
+                  className="w-44"
+                >
+                  {filterOptions.accounts.map((a) => (
+                    <SelectItem key={a.name}>{a.name}</SelectItem>
+                  ))}
+                </Select>
+                <Select
+                  label="S1 Site"
+                  placeholder="All"
+                  selectedKeys={siteName ? [siteName] : []}
+                  onSelectionChange={(keys) => setSiteName(Array.from(keys)[0] as string || "")}
+                  className="w-44"
+                >
+                  {filterOptions.sites.map((s) => (
+                    <SelectItem key={s.name}>{s.name}</SelectItem>
+                  ))}
+                </Select>
+              </>
+            )}
             <Button color="primary" onPress={handleSearch}>
               🔍 Search
             </Button>
-            <Button variant="flat" onPress={() => { setSearch(""); setSeverity(""); setSource(""); handleSearch(); }}>
+            <Button variant="flat" onPress={handleClear}>
               Clear
             </Button>
           </div>
@@ -159,8 +242,10 @@ export default function LogViewerPage() {
                 <TableColumn>Time</TableColumn>
                 <TableColumn>Severity</TableColumn>
                 <TableColumn>Source</TableColumn>
+                <TableColumn>Integration</TableColumn>
                 <TableColumn>Title</TableColumn>
                 <TableColumn>Host</TableColumn>
+                <TableColumn>Site</TableColumn>
                 <TableColumn>Actions</TableColumn>
               </TableHeader>
               <TableBody emptyContent="No logs found">
@@ -174,9 +259,11 @@ export default function LogViewerPage() {
                         {log.severity}
                       </Chip>
                     </TableCell>
-                    <TableCell className="capitalize">{log.source}</TableCell>
-                    <TableCell className="max-w-md truncate">{log.title}</TableCell>
-                    <TableCell>{log.host_name || '-'}</TableCell>
+                    <TableCell className="capitalize text-xs">{log.source}</TableCell>
+                    <TableCell className="text-xs">{log.integration_name || '-'}</TableCell>
+                    <TableCell className="max-w-xs truncate text-sm">{log.title}</TableCell>
+                    <TableCell className="text-xs">{log.host_name || '-'}</TableCell>
+                    <TableCell className="text-xs">{log.host_site_name || '-'}</TableCell>
                     <TableCell>
                       <Button size="sm" variant="light" onPress={() => setSelectedLog(log)}>
                         View
@@ -218,6 +305,10 @@ export default function LogViewerPage() {
               <div><strong>Source:</strong> {selectedLog?.source}</div>
               <div><strong>Time:</strong> {selectedLog?.timestamp}</div>
               <div><strong>Type:</strong> {selectedLog?.event_type}</div>
+              <div><strong>Integration:</strong> {selectedLog?.integration_name || '-'}</div>
+              <div><strong>Account:</strong> {selectedLog?.host_account_name || '-'}</div>
+              <div><strong>Site:</strong> {selectedLog?.host_site_name || '-'}</div>
+              <div><strong>Group:</strong> {selectedLog?.host_group_name || '-'}</div>
               <div><strong>Host:</strong> {selectedLog?.host_name || '-'}</div>
               <div><strong>IP:</strong> {selectedLog?.host_ip || '-'}</div>
               <div><strong>User:</strong> {selectedLog?.user_name || '-'}</div>

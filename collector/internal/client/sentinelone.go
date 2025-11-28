@@ -13,11 +13,13 @@ import (
 
 // S1Client SentinelOne API Client
 type S1Client struct {
-	baseURL  string
-	apiToken string
-	tenantID string
-	client   *resty.Client
-	logger   *zap.Logger
+	baseURL         string
+	apiToken        string
+	tenantID        string
+	integrationID   string // zcrAI Integration ID
+	integrationName string // ชื่อ Integration สำหรับแสดงผล
+	client          *resty.Client
+	logger          *zap.Logger
 }
 
 // S1Threat โครงสร้าง Threat จาก S1 API
@@ -76,7 +78,11 @@ type S1Threat struct {
 	AgentOsName       string
 	AgentOsType       string
 	AgentIP           string
+	AccountID         string // S1 Account ID
+	AccountName       string // S1 Account Name
+	SiteID            string // S1 Site ID
 	SiteName          string
+	GroupID           string // S1 Group ID
 	GroupName         string
 	Classification    string
 	ConfidenceLevel   string
@@ -109,18 +115,20 @@ type S1Activity struct {
 }
 
 // NewS1Client สร้าง S1Client ใหม่
-func NewS1Client(tenantID string, cfg *config.S1Config, logger *zap.Logger) *S1Client {
+func NewS1Client(tenantID, integrationID, integrationName string, cfg *config.S1Config, logger *zap.Logger) *S1Client {
 	client := resty.New().
 		SetTimeout(120 * time.Second).
 		SetRetryCount(3).
 		SetRetryWaitTime(5 * time.Second)
 
 	return &S1Client{
-		baseURL:  cfg.BaseURL,
-		apiToken: cfg.APIToken,
-		tenantID: tenantID,
-		client:   client,
-		logger:   logger,
+		baseURL:         cfg.BaseURL,
+		apiToken:        cfg.APIToken,
+		tenantID:        tenantID,
+		integrationID:   integrationID,
+		integrationName: integrationName,
+		client:          client,
+		logger:          logger,
 	}
 }
 
@@ -258,7 +266,11 @@ func (c *S1Client) parseThreatResponse(r S1ThreatResponse) S1Threat {
 		AgentOsName:       r.AgentRealtimeInfo.AgentOsName,
 		AgentOsType:       r.AgentRealtimeInfo.AgentOsType,
 		AgentIP:           r.AgentDetectionInfo.AgentIpV4,
+		AccountID:         r.AgentDetectionInfo.AccountID,
+		AccountName:       r.AgentDetectionInfo.AccountName,
+		SiteID:            r.AgentDetectionInfo.SiteID,
 		SiteName:          r.AgentDetectionInfo.SiteName,
+		GroupID:           r.AgentDetectionInfo.GroupID,
 		GroupName:         r.AgentDetectionInfo.GroupName,
 		Classification:    r.ThreatInfo.Classification,
 		ConfidenceLevel:   r.ThreatInfo.ConfidenceLevel,
@@ -284,23 +296,29 @@ func (c *S1Client) transformThreat(t S1Threat) models.UnifiedEvent {
 	json.Unmarshal(raw, &rawMap)
 
 	return models.UnifiedEvent{
-		ID:             t.ID,
-		TenantID:       c.tenantID,
-		Source:         "sentinelone",
-		Timestamp:      timestamp,
-		Severity:       models.S1ThreatSeverity(t.ConfidenceLevel),
-		EventType:      "threat",
-		Title:          t.ThreatName,
-		Description:    fmt.Sprintf("%s - %s", t.Classification, t.MitigationStatus),
-		MitreTactic:    t.MitreTactic,
-		MitreTechnique: t.MitreTechnique,
+		ID:              t.ID,
+		TenantID:        c.tenantID,
+		IntegrationID:   c.integrationID,
+		IntegrationName: c.integrationName,
+		Source:          "sentinelone",
+		Timestamp:       timestamp,
+		Severity:        models.S1ThreatSeverity(t.ConfidenceLevel),
+		EventType:       "threat",
+		Title:           t.ThreatName,
+		Description:     fmt.Sprintf("%s - %s", t.Classification, t.MitigationStatus),
+		MitreTactic:     t.MitreTactic,
+		MitreTechnique:  t.MitreTechnique,
 		Host: models.HostInfo{
-			Name:      t.AgentComputerName,
-			IP:        t.AgentIP,
-			OS:        t.AgentOsName,
-			AgentID:   t.AgentID,
-			SiteName:  t.SiteName,
-			GroupName: t.GroupName,
+			Name:        t.AgentComputerName,
+			IP:          t.AgentIP,
+			OS:          t.AgentOsName,
+			AgentID:     t.AgentID,
+			AccountID:   t.AccountID,
+			AccountName: t.AccountName,
+			SiteID:      t.SiteID,
+			SiteName:    t.SiteName,
+			GroupID:     t.GroupID,
+			GroupName:   t.GroupName,
 		},
 		User: models.UserInfo{
 			Name: t.Username,
@@ -442,18 +460,21 @@ func (c *S1Client) transformActivity(a S1Activity) models.UnifiedEvent {
 	json.Unmarshal(raw, &rawMap)
 
 	return models.UnifiedEvent{
-		ID:          a.ID,
-		TenantID:    c.tenantID,
-		Source:      "sentinelone",
-		Timestamp:   timestamp,
-		Severity:    "info",
-		EventType:   "activity",
-		Title:       a.PrimaryDescription,
-		Description: a.SecondaryDescription,
+		ID:              a.ID,
+		TenantID:        c.tenantID,
+		IntegrationID:   c.integrationID,
+		IntegrationName: c.integrationName,
+		Source:          "sentinelone",
+		Timestamp:       timestamp,
+		Severity:        "info",
+		EventType:       "activity",
+		Title:           a.PrimaryDescription,
+		Description:     a.SecondaryDescription,
 		Host: models.HostInfo{
-			Name:      a.ComputerName,
-			SiteName:  a.SiteName,
-			GroupName: a.GroupName,
+			Name:        a.ComputerName,
+			AccountName: a.AccountName,
+			SiteName:    a.SiteName,
+			GroupName:   a.GroupName,
 		},
 		Raw:         rawMap,
 		CollectedAt: time.Now().UTC(),

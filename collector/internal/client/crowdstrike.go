@@ -14,15 +14,17 @@ import (
 
 // CrowdStrikeClient CrowdStrike Falcon API Client
 type CrowdStrikeClient struct {
-	baseURL      string
-	clientID     string
-	clientSecret string
-	tenantID     string
-	client       *resty.Client
-	logger       *zap.Logger
-	accessToken  string
-	tokenExpiry  time.Time
-	mu           sync.Mutex
+	baseURL         string
+	clientID        string
+	clientSecret    string
+	tenantID        string
+	integrationID   string
+	integrationName string
+	client          *resty.Client
+	logger          *zap.Logger
+	accessToken     string
+	tokenExpiry     time.Time
+	mu              sync.Mutex
 }
 
 // CSAlert โครงสร้าง Alert จาก CrowdStrike Alerts API v2
@@ -58,19 +60,21 @@ type CSAlert struct {
 }
 
 // NewCrowdStrikeClient สร้าง CrowdStrike Client ใหม่
-func NewCrowdStrikeClient(tenantID string, cfg *config.CrowdStrikeConfig, logger *zap.Logger) *CrowdStrikeClient {
+func NewCrowdStrikeClient(tenantID, integrationID, integrationName string, cfg *config.CrowdStrikeConfig, logger *zap.Logger) *CrowdStrikeClient {
 	client := resty.New().
 		SetTimeout(120 * time.Second).
 		SetRetryCount(3).
 		SetRetryWaitTime(5 * time.Second)
 
 	return &CrowdStrikeClient{
-		baseURL:      cfg.BaseURL,
-		clientID:     cfg.ClientID,
-		clientSecret: cfg.ClientSecret,
-		tenantID:     tenantID,
-		client:       client,
-		logger:       logger,
+		baseURL:         cfg.BaseURL,
+		clientID:        cfg.ClientID,
+		clientSecret:    cfg.ClientSecret,
+		tenantID:        tenantID,
+		integrationID:   integrationID,
+		integrationName: integrationName,
+		client:          client,
+		logger:          logger,
 	}
 }
 
@@ -278,16 +282,18 @@ func (c *CrowdStrikeClient) transformAlert(a CSAlert) models.UnifiedEvent {
 	json.Unmarshal(raw, &rawMap)
 
 	return models.UnifiedEvent{
-		ID:             a.CompositeID,
-		TenantID:       c.tenantID,
-		Source:         "crowdstrike",
-		Timestamp:      timestamp,
-		Severity:       csSeverity(a.Severity),
-		EventType:      "alert",
-		Title:          a.SeverityName,
-		Description:    a.PatternDisposDesc,
-		MitreTactic:    a.Tactic,
-		MitreTechnique: a.Technique,
+		ID:              a.CompositeID,
+		TenantID:        c.tenantID,
+		IntegrationID:   c.integrationID,
+		IntegrationName: c.integrationName,
+		Source:          "crowdstrike",
+		Timestamp:       timestamp,
+		Severity:        csSeverity(a.Severity),
+		EventType:       "alert",
+		Title:           a.SeverityName,
+		Description:     a.PatternDisposDesc,
+		MitreTactic:     a.Tactic,
+		MitreTechnique:  a.Technique,
 		Host: models.HostInfo{
 			Name:    a.Hostname,
 			IP:      a.LocalIP,

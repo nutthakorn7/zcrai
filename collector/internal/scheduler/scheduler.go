@@ -1,6 +1,7 @@
 package scheduler
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -195,8 +196,12 @@ func (s *Scheduler) collectSentinelOne(forceFullSync bool) error {
 			continue
 		}
 
-		// สร้าง client
-		s1Client := client.NewS1Client(integration.TenantID, cfg, s.logger)
+		// สร้าง client พร้อม Integration info
+		integrationName := integration.Name
+		if integrationName == "" {
+			integrationName = fmt.Sprintf("%s-%s", integration.Provider, integration.ID[:8])
+		}
+		s1Client := client.NewS1Client(integration.TenantID, integration.ID, integrationName, cfg, s.logger)
 
 		// Callback สำหรับ save checkpoint หลังจบ sync
 		onChunkComplete := func(chunkEndTime time.Time) {
@@ -298,8 +303,12 @@ func (s *Scheduler) collectCrowdStrike(forceFullSync bool) error {
 			zap.Time("from", startTime),
 			zap.Time("to", endTime))
 
-		// สร้าง client
-		csClient := client.NewCrowdStrikeClient(integration.TenantID, cfg, s.logger)
+		// สร้าง client พร้อม Integration info
+		integrationName := integration.Name
+		if integrationName == "" {
+			integrationName = fmt.Sprintf("%s-%s", integration.Provider, integration.ID[:8])
+		}
+		csClient := client.NewCrowdStrikeClient(integration.TenantID, integration.ID, integrationName, cfg, s.logger)
 
 		// Callback สำหรับ save checkpoint หลังจบ sync
 		onChunkComplete := func(chunkEndTime time.Time) {
