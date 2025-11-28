@@ -6,6 +6,7 @@ import {
 import { useAuth } from "../../shared/store/useAuth";
 import { useNavigate } from "react-router-dom";
 import { api } from "../../shared/api/api";
+import { usePageContext } from "../../contexts/PageContext";
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar, Legend, PieChart, Pie, Cell
@@ -76,6 +77,7 @@ const COLORS = ['#ef4444', '#f59e0b', '#6366f1', '#22c55e', '#64748b'];
 export default function DashboardPage() {
   const { logout, user } = useAuth();
   const navigate = useNavigate();
+  const { setPageContext } = usePageContext();
   
   const [loading, setLoading] = useState(true);
   const [days, setDays] = useState(7);
@@ -113,6 +115,30 @@ export default function DashboardPage() {
       setMitreData(mitreRes.data);
       setIntegrations(intRes.data);
       setSites(sitesRes.data);
+      
+      // Update Page Context for AI Assistant
+      setPageContext({
+        pageName: 'Dashboard',
+        pageDescription: 'Security monitoring dashboard showing alerts and events summary',
+        data: {
+          stats: {
+            totalEvents: summaryRes.data?.total || 0,
+            criticalAlerts: summaryRes.data?.critical || 0,
+            highAlerts: summaryRes.data?.high || 0,
+            mediumAlerts: summaryRes.data?.medium || 0,
+            lowAlerts: summaryRes.data?.low || 0,
+          },
+          topThreats: hostsRes.data?.slice(0, 5).map((h: TopHost) => ({
+            name: h.host_name,
+            count: parseInt(h.count),
+            critical: parseInt(h.critical),
+            high: parseInt(h.high)
+          })),
+          topUsers: usersRes.data?.slice(0, 5),
+          sources: sourcesRes.data,
+          timeRange: `${days} days`,
+        }
+      });
     } catch (e) {
       console.error('Failed to load dashboard:', e);
     } finally {

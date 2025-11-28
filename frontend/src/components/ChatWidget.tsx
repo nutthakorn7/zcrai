@@ -3,6 +3,7 @@ import { Button, Input, Card, CardBody, CardHeader, Divider } from '@heroui/reac
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import clsx from 'clsx'
+import { usePageContext } from '../contexts/PageContext'
 
 interface Message {
   role: 'user' | 'assistant' | 'system'
@@ -17,6 +18,7 @@ export function ChatWidget() {
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const { getContextSummary, pageContext } = usePageContext()
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -44,6 +46,9 @@ export function ChatWidget() {
         .filter(m => m.role !== 'system') // Remove system messages (errors)
         .map(m => ({ role: m.role, content: m.content }))
       
+      // Get rich context from current page
+      const pageContextSummary = getContextSummary()
+      
       const response = await fetch(`${apiUrl}/ai/chat`, {
         method: 'POST',
         headers: {
@@ -52,7 +57,7 @@ export function ChatWidget() {
         credentials: 'include', // Send cookies for authentication
         body: JSON.stringify({
           messages: chatHistory,
-          context: `Current URL: ${window.location.pathname}`
+          context: pageContextSummary
         })
       })
 
@@ -94,7 +99,10 @@ export function ChatWidget() {
           <CardHeader className="flex justify-between items-center p-4 bg-content2">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
-              <span className="font-bold">zcrAI Assistant</span>
+              <div>
+                <span className="font-bold">zcrAI Assistant</span>
+                <p className="text-[10px] text-gray-500">📍 {pageContext.pageName}</p>
+              </div>
             </div>
             <Button isIconOnly variant="light" size="sm" onPress={() => setIsOpen(false)}>
               ✕

@@ -14,6 +14,7 @@ import ProfilePage from "./pages/settings/ProfilePage";
 import TenantPage from "./pages/settings/TenantPage";
 import { useAuth } from "./shared/store/useAuth";
 import { ChatWidget } from "./components/ChatWidget";
+import { PageContextProvider } from "./contexts/PageContext";
 
 function ProtectedRoute({ children }: { children: JSX.Element }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -43,8 +44,9 @@ function App() {
   }, []);
 
   return (
-    <BrowserRouter>
-      <Routes>
+    <PageContextProvider>
+      <BrowserRouter>
+        <Routes>
         {/* Public Routes */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
@@ -94,7 +96,8 @@ function App() {
           <Route path="tenants" element={<TenantPage />} />
         </Route>
       </Routes>
-    </BrowserRouter>
+      </BrowserRouter>
+    </PageContextProvider>
   );
 }
 

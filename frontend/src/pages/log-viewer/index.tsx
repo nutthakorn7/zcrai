@@ -6,6 +6,7 @@ import {
 } from "@heroui/react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../../shared/api/api";
+import { usePageContext } from "../../contexts/PageContext";
 
 interface LogEntry {
   id: string;
@@ -56,6 +57,7 @@ const severityColors: Record<string, "danger" | "warning" | "secondary" | "prima
 
 export default function LogViewerPage() {
   const navigate = useNavigate();
+  const { setPageContext } = usePageContext();
   const [loading, setLoading] = useState(true);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [pagination, setPagination] = useState<PaginationInfo>({ page: 1, limit: 20, total: 0, totalPages: 1 });
@@ -106,6 +108,58 @@ export default function LogViewerPage() {
       const res = await api.get(`/logs?${params.toString()}`);
       setLogs(res.data.data);
       setPagination(res.data.pagination);
+      
+      // Update Page Context for AI Assistant
+      const activeFilters = [];
+      if (search) activeFilters.push(`search: ${search}`);
+      if (severity) activeFilters.push(`severity: ${severity}`);
+      if (source) activeFilters.push(`source: ${source}`);
+      if (integrationId) activeFilters.push(`integration: ${integrationId}`);
+      if (accountName) activeFilters.push(`account: ${accountName}`);
+      if (siteName) activeFilters.push(`site: ${siteName}`);
+      
+      // Calculate severity breakdown from visible logs
+      const logsData = res.data.data || [];
+      const severityBreakdown = logsData.reduce((acc: Record<string, number>, log: LogEntry) => {
+        acc[log.severity] = (acc[log.severity] || 0) + 1;
+        return acc;
+      }, {});
+      
+      // Get unique sources, hosts, users from visible logs
+      const uniqueSources = [...new Set(logsData.map((l: LogEntry) => l.source))];
+      const uniqueHosts = [...new Set(logsData.map((l: LogEntry) => l.host_name).filter(Boolean))];
+      const uniqueUsers = [...new Set(logsData.map((l: LogEntry) => l.user_name).filter(Boolean))];
+      
+      setPageContext({
+        pageName: 'Log Viewer',
+        pageDescription: 'Security event logs viewer with filtering and search capabilities',
+        data: {
+          totalLogs: res.data.pagination?.total || 0,
+          currentPage: res.data.pagination?.page || 1,
+          totalPages: res.data.pagination?.totalPages || 1,
+          logsPerPage: res.data.pagination?.limit || 20,
+          currentFilter: activeFilters.length > 0 ? activeFilters.join(', ') : 'None',
+          severityBreakdown: severityBreakdown,
+          uniqueSources: uniqueSources.slice(0, 10),
+          uniqueHosts: uniqueHosts.slice(0, 10),
+          uniqueUsers: uniqueUsers.slice(0, 10),
+          logs: logsData.slice(0, 20).map((log: LogEntry) => ({
+            severity: log.severity,
+            type: log.event_type,
+            title: log.title?.slice(0, 100),
+            description: log.description?.slice(0, 150),
+            source: log.source,
+            host: log.host_name,
+            ip: log.host_ip,
+            user: log.user_name,
+            timestamp: log.timestamp,
+            mitre_tactic: log.mitre_tactic,
+            mitre_technique: log.mitre_technique,
+            integration: log.integration_name,
+            site: log.host_site_name,
+          })),
+        }
+      });
     } catch (e) {
       console.error('Failed to load logs:', e);
     } finally {

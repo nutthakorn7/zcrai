@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Card, CardBody, Button, Input, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure, Chip, Select, SelectItem } from "@heroui/react";
 import { api } from "../../shared/api/api";
+import { usePageContext } from "../../contexts/PageContext";
 
 interface Integration {
   id: string;
@@ -17,6 +18,7 @@ export default function IntegrationPage() {
   const [integrations, setIntegrations] = useState<Integration[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
+  const { setPageContext } = usePageContext();
   
   // Mode: 'add' | 'edit'
   const [mode, setMode] = useState<'add' | 'edit'>('add');
@@ -51,6 +53,28 @@ export default function IntegrationPage() {
     try {
       const { data } = await api.get('/integrations');
       setIntegrations(data);
+      
+      // Update Page Context for AI Assistant
+      const securityIntegrations = data.filter((i: Integration) => i.provider === 'sentinelone' || i.provider === 'crowdstrike');
+      const aiProviders = data.filter((i: Integration) => ['openai', 'claude', 'gemini', 'deepseek'].includes(i.provider));
+      
+      setPageContext({
+        pageName: 'Integrations',
+        pageDescription: 'Integration settings page for security tools and AI providers',
+        data: {
+          integrations: securityIntegrations.map((i: Integration) => ({
+            name: i.label || i.provider,
+            type: i.provider,
+            status: i.lastSyncStatus || 'pending',
+            lastSync: i.lastSyncAt,
+          })),
+          aiProviders: aiProviders.map((i: Integration) => ({
+            provider: i.provider,
+            label: i.label,
+          })),
+          totalIntegrations: data.length,
+        }
+      });
     } catch (error) {
       console.error('Failed to fetch integrations');
     }
