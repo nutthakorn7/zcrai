@@ -1,0 +1,1 @@
+FE config such as API_BASE_URL, feature flags

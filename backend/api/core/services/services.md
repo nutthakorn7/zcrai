@@ -1,0 +1,1 @@
+Services เช่น AuthService / ScanEngineService

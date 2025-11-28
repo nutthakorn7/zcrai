@@ -1,0 +1,1 @@
+global state (Zustand, Jotai, Redux)

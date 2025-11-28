@@ -1,0 +1,165 @@
+{
+	"info": {
+		"_postman_id": "4dd0127e-4ad9-48e5-b5c1-63111722249e",
+		"name": "CrowdStrike OAuth2 Token Collection",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "34440498",
+		"_collection_link": "https://www.postman.com/winter-flare-304971/crowdstrike/collection/ygcqk82/crowdstrike-oauth2-token-collection?action=share&source=collection_link&creator=34440498"
+	},
+	"item": [
+		{
+			"name": "Get OAuth2 Token",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/x-www-form-urlencoded"
+					}
+				],
+				"body": {
+					"mode": "urlencoded",
+					"urlencoded": [
+						{
+							"key": "client_id",
+							"value": "******",
+							"type": "text"
+						},
+						{
+							"key": "client_secret",
+							"value": "******",
+							"type": "text"
+						}
+					]
+				},
+				"url": {
+					"raw": "https://api.us-2.crowdstrike.com/oauth2/token",
+					"protocol": "https",
+					"host": [
+						"api",
+						"us-2",
+						"crowdstrike",
+						"com"
+					],
+					"path": [
+						"oauth2",
+						"token"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Uninstall Token",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					},
+					{
+						"key": "Accept",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "device_id",
+							"value": "BD76088E6B4E412A8A0D07BCCE8E3C49",
+							"type": "text"
+						},
+						{
+							"key": "audit_message",
+							"value": "Test",
+							"type": "text"
+						}
+					]
+				},
+				"url": {
+					"raw": "https://api.us-2.crowdstrike.com/policy/combined/reveal-uninstall-token/v1",
+					"protocol": "https",
+					"host": [
+						"api",
+						"us-2",
+						"crowdstrike",
+						"com"
+					],
+					"path": [
+						"policy",
+						"combined",
+						"reveal-uninstall-token",
+						"v1"
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"auth": {
+		"type": "oauth2",
+		"oauth2": [
+			{
+				"key": "clientSecret",
+				"value": "{{vault:CS_ClientSecret}}",
+				"type": "string"
+			},
+			{
+				"key": "clientId",
+				"value": "{{vault:CS_ClientID}}",
+				"type": "string"
+			},
+			{
+				"key": "accessTokenUrl",
+				"value": "https://api.us-2.crowdstrike.com/oauth2/token",
+				"type": "string"
+			},
+			{
+				"key": "grant_type",
+				"value": "client_credentials",
+				"type": "string"
+			},
+			{
+				"key": "client_id",
+				"value": "******",
+				"type": "string"
+			},
+			{
+				"key": "client_secret",
+				"value": "******",
+				"type": "string"
+			},
+			{
+				"key": "addTokenTo",
+				"value": "header",
+				"type": "string"
+			}
+		]
+	},
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		}
+	]
+}

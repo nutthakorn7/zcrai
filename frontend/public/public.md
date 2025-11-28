@@ -1,0 +1,1 @@
+static assets (favicon, logo)

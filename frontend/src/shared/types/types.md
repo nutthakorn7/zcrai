@@ -1,0 +1,1 @@
+global TS types (LogEvent, User, Alert, etc.)
