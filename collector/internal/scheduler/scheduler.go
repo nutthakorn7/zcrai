@@ -132,30 +132,35 @@ func (s *Scheduler) CancelSync(integrationID string) {
 	}
 }
 
-// TriggerReload บอก scheduler ให้ reload config และ sync ใหม่ทันที (เรียกเมื่อ Integration ถูก update)
+// TriggerReload บอก scheduler ให้ reload config และ sync ใหม่หลังรอ 30 วินาที
 func (s *Scheduler) TriggerReload(integrationID string) {
-	s.logger.Info("🔄 [TriggerReload] Integration updated - triggering immediate resync",
+	s.logger.Info("🔄 [TriggerReload] Integration updated - will resync with new config in 30 seconds",
 		zap.String("integrationId", integrationID))
 
-	// ⭐ Cancel current sync ถ้ากำลังทำงานอยู่
+	// ⭐ Cancel current sync ถ้ากำลังทำงานอยู่ เพื่อหยุดการใช้ config เก่า
 	s.syncMu.Lock()
 	if cancel, ok := s.syncContexts[integrationID]; ok {
-		s.logger.Info("🛑 [TriggerReload] Cancelling current sync",
+		s.logger.Info("🛑 [TriggerReload] Cancelling current sync (old config)",
 			zap.String("integrationId", integrationID))
 		cancel()
 		delete(s.syncContexts, integrationID)
 	}
 	s.syncMu.Unlock()
 
-	// ⭐ Trigger immediate resync in background
+	// ⭐ รอ 30 วินาทีพร้อม progress countdown
 	go func() {
-		s.logger.Info("🚀 [TriggerReload] Starting immediate collection with new config",
+		totalWait := 30
+		for i := totalWait; i > 0; i-- {
+			s.logger.Info("⏳ [TriggerReload] Countdown to resync",
+				zap.String("integrationId", integrationID),
+				zap.Int("secondsRemaining", i))
+			time.Sleep(1 * time.Second)
+		}
+
+		s.logger.Info("🚀 [TriggerReload] Starting collection with new config",
 			zap.String("integrationId", integrationID))
 
-		// รอสักครู่ให้ cancel เสร็จก่อน
-		time.Sleep(500 * time.Millisecond)
-
-		// รัน collection ใหม่ทันที (จะดึง config ใหม่จาก API)
+		// รัน collection ใหม่ (จะดึง config ใหม่จาก API)
 		if err := s.collectSentinelOne(false); err != nil {
 			s.logger.Error("❌ [TriggerReload] S1 collection failed", zap.Error(err))
 		} else {
