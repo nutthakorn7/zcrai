@@ -55,6 +55,67 @@ export const integrationController = new Elysia({ prefix: '/integrations' })
     }
   })
 
+  // ==================== COLLECTOR: GET STATE ====================
+  .get('/collector/state', async ({ query, headers, set }) => {
+    try {
+      const collectorKey = headers['x-collector-key']
+      if (collectorKey !== COLLECTOR_API_KEY) {
+        set.status = 401
+        return { error: 'Invalid collector key' }
+      }
+
+      const tenantId = query.tenantId as string
+      const provider = query.provider as string
+      const urlHash = query.urlHash as string
+
+      if (!tenantId || !provider || !urlHash) {
+        set.status = 400
+        return { error: 'tenantId, provider, and urlHash are required' }
+      }
+
+      const state = await IntegrationService.getCollectorState(tenantId, provider, urlHash)
+      return { state }
+    } catch (e: any) {
+      set.status = 500
+      return { error: e.message }
+    }
+  })
+
+  // ==================== COLLECTOR: UPDATE STATE ====================
+  .post('/collector/state', async ({ body, headers, set }) => {
+    try {
+      const collectorKey = headers['x-collector-key']
+      if (collectorKey !== COLLECTOR_API_KEY) {
+        set.status = 401
+        return { error: 'Invalid collector key' }
+      }
+
+      const { tenantId, provider, urlHash, checkpoint, fullSyncComplete, eventCount } = body as {
+        tenantId: string
+        provider: string
+        urlHash: string
+        checkpoint?: string // ISO timestamp
+        fullSyncComplete?: boolean
+        eventCount?: { threats?: number; activities?: number; alerts?: number }
+      }
+
+      if (!tenantId || !provider || !urlHash) {
+        set.status = 400
+        return { error: 'tenantId, provider, and urlHash are required' }
+      }
+
+      await IntegrationService.updateCollectorState(tenantId, provider, urlHash, {
+        checkpoint: checkpoint ? new Date(checkpoint) : undefined,
+        fullSyncComplete,
+        eventCount,
+      })
+      return { success: true }
+    } catch (e: any) {
+      set.status = 500
+      return { error: e.message }
+    }
+  })
+
   .use(tenantAdminOnly)
 
   // ==================== LIST INTEGRATIONS ====================
@@ -142,6 +203,18 @@ export const integrationController = new Elysia({ prefix: '/integrations' })
     try {
       const payload = await jwt.verify(access_token.value)
       if (!payload) throw new Error('Unauthorized')
+
+      // ⭐ เรียก Collector API เพื่อ cancel sync ก่อนลบ
+      const collectorUrl = process.env.COLLECTOR_URL || 'http://localhost:8001'
+      try {
+        await fetch(`${collectorUrl}/sync/${params.id}`, {
+          method: 'DELETE',
+          headers: { 'x-collector-key': COLLECTOR_API_KEY },
+        })
+      } catch (e) {
+        // ไม่ต้อง fail ถ้า collector ไม่ตอบ - ยังลบ integration ได้
+        console.warn('Failed to notify collector about integration deletion:', e)
+      }
 
       await IntegrationService.delete(params.id, payload.tenantId as string)
       return { message: 'Integration deleted successfully' }

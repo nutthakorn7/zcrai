@@ -1,6 +1,9 @@
 package crowdstrike
 
 import (
+	"context"
+	"crypto/md5"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"sync"
@@ -84,6 +87,12 @@ func NewCrowdStrikeClient(tenantID, integrationID, integrationName string, cfg *
 	}
 }
 
+// GetURLHash สร้าง hash ของ baseURL + clientID (unique ต่อ integration)
+func (c *CrowdStrikeClient) GetURLHash() string {
+	hash := md5.Sum([]byte(c.baseURL + c.clientID))
+	return hex.EncodeToString(hash[:])
+}
+
 // authenticate ขอ OAuth2 token จาก CrowdStrike
 func (c *CrowdStrikeClient) authenticate() error {
 	c.mu.Lock()
@@ -127,7 +136,8 @@ func (c *CrowdStrikeClient) authenticate() error {
 }
 
 // FetchAlerts ดึง Alerts จาก CrowdStrike Alerts API v2 แบบ Streaming
-func (c *CrowdStrikeClient) FetchAlerts(startTime, endTime time.Time, onPageEvents OnPageEvents, onChunkComplete OnChunkComplete) (int, error) {
+// ctx ใช้สำหรับ cancel sync เมื่อ Integration ถูกลบ
+func (c *CrowdStrikeClient) FetchAlerts(ctx context.Context, startTime, endTime time.Time, onPageEvents OnPageEvents, onChunkComplete OnChunkComplete) (int, error) {
 	c.logger.Info("Fetching CrowdStrike alerts with offset pagination (streaming)",
 		zap.String("tenantId", c.tenantID),
 		zap.String("from", startTime.Format(time.RFC3339)),
@@ -152,6 +162,18 @@ func (c *CrowdStrikeClient) FetchAlerts(startTime, endTime time.Time, onPageEven
 	page := 1
 
 	for {
+		// ⭐ Check context ก่อนทำ request (กรณี Integration ถูกลบระหว่าง sync)
+		select {
+		case <-ctx.Done():
+			c.logger.Warn("Context cancelled, stopping CrowdStrike alerts fetch",
+				zap.String("integrationId", c.integrationID),
+				zap.Int("fetchedSoFar", totalFetched),
+				zap.Error(ctx.Err()))
+			return totalFetched, ctx.Err()
+		default:
+			// continue
+		}
+
 		c.logger.Debug("Fetching alert IDs page",
 			zap.Int("page", page),
 			zap.Int("offset", offset))
@@ -286,6 +308,8 @@ func (c *CrowdStrikeClient) transformAlert(a CSAlert) models.UnifiedEvent {
 	raw, _ := json.Marshal(a)
 	var rawMap map[string]any
 	json.Unmarshal(raw, &rawMap)
+	// ⭐ เพิ่ม url_hash สำหรับเช็ค data completeness
+	rawMap["url_hash"] = c.GetURLHash()
 
 	return models.UnifiedEvent{
 		ID:              a.CompositeID,

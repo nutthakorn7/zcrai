@@ -1,5 +1,5 @@
 import { db } from '../../infra/db'
-import { apiKeys } from '../../infra/db/schema'
+import { apiKeys, collectorStates } from '../../infra/db/schema'
 import { eq, and } from 'drizzle-orm'
 import { Encryption } from '../../utils/encryption'
 
@@ -52,19 +52,29 @@ export const IntegrationService = {
         const decrypted = Encryption.decrypt(integration.encryptedKey)
         const parsed = JSON.parse(decrypted)
 
-        // แปลง format ตาม provider
+        // แปลง format ตาม provider + ส่ง fetchSettings ไป Collector
         switch (integration.provider) {
           case 'sentinelone':
             config = {
               baseUrl: parsed.url,
-              apiToken: parsed.token
+              apiToken: parsed.token,
+              fetchSettings: parsed.fetchSettings || {
+                threats: { enabled: true, days: 365 },
+                activities: { enabled: true, days: 120 },
+                alerts: { enabled: true, days: 365 },
+              },
             }
             break
           case 'crowdstrike':
             config = {
               baseUrl: parsed.baseUrl,
               clientId: parsed.clientId,
-              clientSecret: parsed.clientSecret
+              clientSecret: parsed.clientSecret,
+              fetchSettings: parsed.fetchSettings || {
+                alerts: { enabled: true, days: 365 },
+                detections: { enabled: true, days: 365 },
+                incidents: { enabled: true, days: 365 },
+              },
             }
             break
           default:
@@ -90,11 +100,27 @@ export const IntegrationService = {
   },
 
   // ==================== ADD SENTINELONE ====================
-  async addSentinelOne(tenantId: string, data: { url: string; token: string; label?: string }) {
+  async addSentinelOne(tenantId: string, data: { 
+    url: string; 
+    token: string; 
+    label?: string;
+    fetchSettings?: {
+      threats?: { enabled: boolean; days: number };
+      activities?: { enabled: boolean; days: number };
+      alerts?: { enabled: boolean; days: number };
+    };
+  }) {
     // Validate URL
     let baseUrl = data.url
     if (baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0, -1)
     if (baseUrl.endsWith('/web/api/v2.1/threats')) baseUrl = baseUrl.replace('/web/api/v2.1/threats', '')
+    
+    // ⭐ Default fetch settings (Best Practice)
+    const fetchSettings = {
+      threats: { enabled: true, days: 365, ...(data.fetchSettings?.threats || {}) },
+      activities: { enabled: true, days: 120, ...(data.fetchSettings?.activities || {}) },
+      alerts: { enabled: true, days: 365, ...(data.fetchSettings?.alerts || {}) },
+    }
     
     // เช็ค URL ซ้ำ - ถ้าซ้ำให้ UPDATE แทน INSERT
     const existingKeys = await db.select().from(apiKeys)
@@ -125,10 +151,11 @@ export const IntegrationService = {
     // Test Connection ก่อน Save/Update
     await this.testSentinelOneConnection(baseUrl, data.token)
 
-    // Save Encrypted Token
+    // Save Encrypted Token + fetchSettings
     const encryptedKey = Encryption.encrypt(JSON.stringify({
       url: baseUrl,
-      token: data.token
+      token: data.token,
+      fetchSettings,  // ⭐ เก็บ fetch settings ด้วย
     }))
 
     let integration
@@ -163,9 +190,26 @@ export const IntegrationService = {
   },
 
   // ==================== ADD CROWDSTRIKE ====================
-  async addCrowdStrike(tenantId: string, data: { clientId: string; clientSecret: string; baseUrl?: string; label?: string }) {
+  async addCrowdStrike(tenantId: string, data: { 
+    clientId: string; 
+    clientSecret: string; 
+    baseUrl?: string; 
+    label?: string;
+    fetchSettings?: {
+      alerts?: { enabled: boolean; days: number };
+      detections?: { enabled: boolean; days: number };
+      incidents?: { enabled: boolean; days: number };
+    };
+  }) {
     let baseUrl = data.baseUrl || 'https://api.us-2.crowdstrike.com'
     if (baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0, -1)
+    
+    // ⭐ Default fetch settings (Best Practice)
+    const fetchSettings = {
+      alerts: { enabled: true, days: 365, ...(data.fetchSettings?.alerts || {}) },
+      detections: { enabled: true, days: 365, ...(data.fetchSettings?.detections || {}) },
+      incidents: { enabled: true, days: 365, ...(data.fetchSettings?.incidents || {}) },
+    }
 
     // เช็ค Client ID ซ้ำ - ถ้าซ้ำให้ UPDATE แทน INSERT
     const existingKeys = await db.select().from(apiKeys)
@@ -191,11 +235,12 @@ export const IntegrationService = {
     // Test Connection ก่อน Save/Update
     await this.testCrowdStrikeConnection(baseUrl, data.clientId, data.clientSecret)
 
-    // Save Encrypted Credentials
+    // Save Encrypted Credentials + fetchSettings
     const encryptedKey = Encryption.encrypt(JSON.stringify({
       baseUrl,
       clientId: data.clientId,
-      clientSecret: data.clientSecret
+      clientSecret: data.clientSecret,
+      fetchSettings,  // ⭐ เก็บ fetch settings ด้วย
     }))
 
     let integration
@@ -496,6 +541,66 @@ export const IntegrationService = {
     } catch (e) {
       console.error('Failed to trigger collector:', e)
       // ไม่ throw error เพราะไม่ควรขัดขวาง flow หลัก
+    }
+  },
+
+  // ดึง state ของ collector จาก PostgreSQL
+  async getCollectorState(tenantId: string, provider: string, urlHash: string) {
+    const [state] = await db
+      .select()
+      .from(collectorStates)
+      .where(
+        and(
+          eq(collectorStates.tenantId, tenantId),
+          eq(collectorStates.provider, provider),
+          eq(collectorStates.urlHash, urlHash)
+        )
+      )
+      .limit(1)
+    
+    return state || null
+  },
+
+  // อัพเดท state ของ collector (upsert)
+  async updateCollectorState(
+    tenantId: string, 
+    provider: string, 
+    urlHash: string, 
+    data: {
+      checkpoint?: Date | null,
+      fullSyncAt?: Date | null,
+      fullSyncComplete?: boolean,
+      eventCount?: Record<string, number>
+    }
+  ) {
+    const existing = await this.getCollectorState(tenantId, provider, urlHash)
+    
+    if (existing) {
+      // Update existing
+      const [updated] = await db
+        .update(collectorStates)
+        .set({
+          ...data,
+          updatedAt: new Date()
+        })
+        .where(eq(collectorStates.id, existing.id))
+        .returning()
+      return updated
+    } else {
+      // Insert new
+      const [created] = await db
+        .insert(collectorStates)
+        .values({
+          tenantId,
+          provider,
+          urlHash,
+          checkpoint: data.checkpoint || null,
+          fullSyncAt: data.fullSyncAt || null,
+          fullSyncComplete: data.fullSyncComplete || false,
+          eventCount: data.eventCount || {}
+        })
+        .returning()
+      return created
     }
   }
 }

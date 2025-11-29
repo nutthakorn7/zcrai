@@ -1,6 +1,9 @@
 package sentinelone
 
 import (
+	"context"
+	"crypto/md5"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -132,6 +135,12 @@ func NewS1Client(tenantID, integrationID, integrationName string, cfg *config.S1
 	}
 }
 
+// GetURLHash สร้าง hash ของ base URL สำหรับใช้เช็คว่าเป็น URL เดิมหรือไม่
+func (c *S1Client) GetURLHash() string {
+	hash := md5.Sum([]byte(c.baseURL))
+	return hex.EncodeToString(hash[:])
+}
+
 // OnChunkComplete callback สำหรับอัพเดท checkpoint หลังจบแต่ละ page
 type OnChunkComplete func(chunkEndTime time.Time)
 
@@ -139,7 +148,8 @@ type OnChunkComplete func(chunkEndTime time.Time)
 type OnPageEvents func(events []models.UnifiedEvent) error
 
 // FetchThreats ดึง Threats จาก S1 API ใช้ Cursor Pagination แบบ Streaming
-func (c *S1Client) FetchThreats(startTime, endTime time.Time, onPageEvents OnPageEvents, onChunkComplete OnChunkComplete) (int, error) {
+// ctx ใช้สำหรับ cancel sync เมื่อ Integration ถูกลบ
+func (c *S1Client) FetchThreats(ctx context.Context, startTime, endTime time.Time, onPageEvents OnPageEvents, onChunkComplete OnChunkComplete) (int, error) {
 	c.logger.Info("Fetching S1 threats with cursor pagination (streaming)",
 		zap.String("tenantId", c.tenantID),
 		zap.String("from", startTime.Format(time.RFC3339)),
@@ -153,6 +163,18 @@ func (c *S1Client) FetchThreats(startTime, endTime time.Time, onPageEvents OnPag
 	page := 1
 
 	for {
+		// ⭐ Check context ก่อนทำ request (กรณี Integration ถูกลบระหว่าง sync)
+		select {
+		case <-ctx.Done():
+			c.logger.Warn("Context cancelled, stopping threats fetch",
+				zap.String("integrationId", c.integrationID),
+				zap.Int("fetchedSoFar", totalFetched),
+				zap.Error(ctx.Err()))
+			return totalFetched, ctx.Err()
+		default:
+			// continue
+		}
+
 		// สร้าง request params
 		params := map[string]string{
 			"limit":          fmt.Sprintf("%d", limit),
@@ -294,6 +316,8 @@ func (c *S1Client) transformThreat(t S1Threat) models.UnifiedEvent {
 	raw, _ := json.Marshal(t)
 	var rawMap map[string]any
 	json.Unmarshal(raw, &rawMap)
+	// ⭐ เพิ่ม url_hash สำหรับเช็ค data completeness
+	rawMap["url_hash"] = c.GetURLHash()
 
 	return models.UnifiedEvent{
 		ID:              t.ID,
@@ -338,7 +362,8 @@ func (c *S1Client) transformThreat(t S1Threat) models.UnifiedEvent {
 }
 
 // FetchActivities ดึง Activities จาก S1 API ใช้ Cursor Pagination แบบ Streaming
-func (c *S1Client) FetchActivities(startTime, endTime time.Time, activityTypes []int, onPageEvents OnPageEvents, onChunkComplete OnChunkComplete) (int, error) {
+// ctx ใช้สำหรับ cancel sync เมื่อ Integration ถูกลบ
+func (c *S1Client) FetchActivities(ctx context.Context, startTime, endTime time.Time, activityTypes []int, onPageEvents OnPageEvents, onChunkComplete OnChunkComplete) (int, error) {
 	c.logger.Info("Fetching S1 activities with cursor pagination (streaming)",
 		zap.String("tenantId", c.tenantID),
 		zap.String("from", startTime.Format(time.RFC3339)),
@@ -352,6 +377,18 @@ func (c *S1Client) FetchActivities(startTime, endTime time.Time, activityTypes [
 	page := 1
 
 	for {
+		// ⭐ Check context ก่อนทำ request
+		select {
+		case <-ctx.Done():
+			c.logger.Warn("Context cancelled, stopping activities fetch",
+				zap.String("integrationId", c.integrationID),
+				zap.Int("fetchedSoFar", totalFetched),
+				zap.Error(ctx.Err()))
+			return totalFetched, ctx.Err()
+		default:
+			// continue
+		}
+
 		// สร้าง request params
 		params := map[string]string{
 			"limit":          fmt.Sprintf("%d", limit),
@@ -458,6 +495,8 @@ func (c *S1Client) transformActivity(a S1Activity) models.UnifiedEvent {
 	raw, _ := json.Marshal(a)
 	var rawMap map[string]any
 	json.Unmarshal(raw, &rawMap)
+	// ⭐ เพิ่ม url_hash สำหรับเช็ค data completeness
+	rawMap["url_hash"] = c.GetURLHash()
 
 	return models.UnifiedEvent{
 		ID:              a.ID,

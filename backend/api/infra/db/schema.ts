@@ -69,3 +69,17 @@ export const auditLogs = pgTable('audit_logs', {
   ipAddress: text('ip_address'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 })
+
+// Collector States - เก็บ state ของ Collector (checkpoint, full sync status)
+export const collectorStates = pgTable('collector_states', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  tenantId: uuid('tenant_id').references(() => tenants.id).notNull(),
+  provider: text('provider').notNull(), // 'sentinelone', 'crowdstrike'
+  urlHash: text('url_hash').notNull(),  // MD5 hash ของ base URL
+  checkpoint: timestamp('checkpoint'),   // timestamp ล่าสุดที่ sync
+  fullSyncAt: timestamp('full_sync_at'), // เวลาที่ทำ full sync ครั้งล่าสุด
+  fullSyncComplete: boolean('full_sync_complete').default(false).notNull(),
+  eventCount: jsonb('event_count'),      // { threats: 1000, activities: 500 }
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+})

@@ -1,7 +1,36 @@
 import { useEffect, useState } from 'react';
-import { Card, CardBody, Button, Input, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure, Chip, Select, SelectItem } from "@heroui/react";
+import { Card, CardBody, Button, Input, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure, Chip, Select, SelectItem, Switch, Divider } from "@heroui/react";
 import { api } from "../../shared/api/api";
 import { usePageContext } from "../../contexts/PageContext";
+
+// ⭐ Type สำหรับ Fetch Settings
+interface FetchSettingItem {
+  enabled: boolean;
+  days: number;
+}
+
+interface S1FetchSettings {
+  threats: FetchSettingItem;
+  activities: FetchSettingItem;
+  alerts: FetchSettingItem;
+}
+
+interface CSFetchSettings {
+  alerts: FetchSettingItem;
+  detections: FetchSettingItem;
+  incidents: FetchSettingItem;
+}
+
+// Day options สำหรับ Select
+const DAY_OPTIONS = [
+  { value: 7, label: '7 days' },
+  { value: 30, label: '30 days' },
+  { value: 60, label: '60 days' },
+  { value: 90, label: '90 days' },
+  { value: 120, label: '120 days (Recommended for Activities)' },
+  { value: 180, label: '180 days' },
+  { value: 365, label: '365 days (Full Year)' },
+];
 
 interface Integration {
   id: string;
@@ -43,10 +72,24 @@ export default function IntegrationPage() {
   // Form State
   const [s1Url, setS1Url] = useState('');
   const [s1Token, setS1Token] = useState('');
+  const [csBaseUrl, setCsBaseUrl] = useState('https://api.us-2.crowdstrike.com');
   const [csClientId, setCsClientId] = useState('');
   const [csSecret, setCsSecret] = useState('');
   const [aiKey, setAiKey] = useState('');
   const [label, setLabel] = useState('');
+
+  // ⭐ Fetch Settings State
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [s1FetchSettings, setS1FetchSettings] = useState<S1FetchSettings>({
+    threats: { enabled: true, days: 365 },
+    activities: { enabled: true, days: 120 },
+    alerts: { enabled: true, days: 365 },
+  });
+  const [csFetchSettings, setCsFetchSettings] = useState<CSFetchSettings>({
+    alerts: { enabled: true, days: 365 },
+    detections: { enabled: true, days: 365 },
+    incidents: { enabled: true, days: 365 },
+  });
 
   const fetchIntegrations = async () => {
     try {
@@ -106,12 +149,15 @@ export default function IntegrationPage() {
             url: s1Url,
             token: s1Token,
             label: label || 'SentinelOne',
+            fetchSettings: s1FetchSettings, // ⭐ ส่ง fetch settings
           });
         } else if (modalType === 'cs') {
           await api.post('/integrations/crowdstrike', {
+            baseUrl: csBaseUrl,
             clientId: csClientId,
             clientSecret: csSecret,
             label: label || 'CrowdStrike',
+            fetchSettings: csFetchSettings, // ⭐ ส่ง fetch settings
           });
         } else if (modalType === 'ai') {
           await api.post(`/integrations/ai/${aiProvider}`, {
@@ -168,12 +214,25 @@ export default function IntegrationPage() {
   const resetForm = () => {
     setS1Url('');
     setS1Token('');
+    setCsBaseUrl('https://api.us-2.crowdstrike.com');
     setCsClientId('');
     setCsSecret('');
     setAiKey('');
     setLabel('');
     setAiProvider('openai');
     setSelectedIntegration(null);
+    // ⭐ Reset fetch settings
+    setShowAdvanced(false);
+    setS1FetchSettings({
+      threats: { enabled: true, days: 365 },
+      activities: { enabled: true, days: 120 },
+      alerts: { enabled: true, days: 365 },
+    });
+    setCsFetchSettings({
+      alerts: { enabled: true, days: 365 },
+      detections: { enabled: true, days: 365 },
+      incidents: { enabled: true, days: 365 },
+    });
   };
 
   const getProviderColor = (provider: string) => {
@@ -298,11 +357,124 @@ export default function IntegrationPage() {
                           onValueChange={setS1Token}
                           type="password"
                         />
+                        
+                        {/* ⭐ Advanced Settings - SentinelOne */}
+                        <Divider className="my-2" />
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-default-600">Data Retention Settings</span>
+                          <Switch 
+                            size="sm"
+                            isSelected={showAdvanced} 
+                            onValueChange={setShowAdvanced}
+                          >
+                            Customize
+                          </Switch>
+                        </div>
+                        
+                        {showAdvanced && (
+                          <div className="space-y-3 p-3 bg-default-100 rounded-lg">
+                            {/* Threats */}
+                            <div className="flex items-center gap-3">
+                              <Switch 
+                                size="sm"
+                                isSelected={s1FetchSettings.threats.enabled}
+                                onValueChange={(v) => setS1FetchSettings(prev => ({
+                                  ...prev, 
+                                  threats: { ...prev.threats, enabled: v }
+                                }))}
+                              />
+                              <span className="text-sm w-24">Threats</span>
+                              <Select
+                                size="sm"
+                                className="flex-1"
+                                selectedKeys={[String(s1FetchSettings.threats.days)]}
+                                onChange={(e) => setS1FetchSettings(prev => ({
+                                  ...prev,
+                                  threats: { ...prev.threats, days: Number(e.target.value) }
+                                }))}
+                                isDisabled={!s1FetchSettings.threats.enabled}
+                              >
+                                {DAY_OPTIONS.map(opt => (
+                                  <SelectItem key={String(opt.value)}>{opt.label}</SelectItem>
+                                ))}
+                              </Select>
+                            </div>
+                            
+                            {/* Activities */}
+                            <div className="flex items-center gap-3">
+                              <Switch 
+                                size="sm"
+                                isSelected={s1FetchSettings.activities.enabled}
+                                onValueChange={(v) => setS1FetchSettings(prev => ({
+                                  ...prev, 
+                                  activities: { ...prev.activities, enabled: v }
+                                }))}
+                              />
+                              <span className="text-sm w-24">Activities</span>
+                              <Select
+                                size="sm"
+                                className="flex-1"
+                                selectedKeys={[String(s1FetchSettings.activities.days)]}
+                                onChange={(e) => setS1FetchSettings(prev => ({
+                                  ...prev,
+                                  activities: { ...prev.activities, days: Number(e.target.value) }
+                                }))}
+                                isDisabled={!s1FetchSettings.activities.enabled}
+                              >
+                                {DAY_OPTIONS.map(opt => (
+                                  <SelectItem key={String(opt.value)}>{opt.label}</SelectItem>
+                                ))}
+                              </Select>
+                            </div>
+                            
+                            {/* Alerts */}
+                            <div className="flex items-center gap-3">
+                              <Switch 
+                                size="sm"
+                                isSelected={s1FetchSettings.alerts.enabled}
+                                onValueChange={(v) => setS1FetchSettings(prev => ({
+                                  ...prev, 
+                                  alerts: { ...prev.alerts, enabled: v }
+                                }))}
+                              />
+                              <span className="text-sm w-24">Alerts</span>
+                              <Select
+                                size="sm"
+                                className="flex-1"
+                                selectedKeys={[String(s1FetchSettings.alerts.days)]}
+                                onChange={(e) => setS1FetchSettings(prev => ({
+                                  ...prev,
+                                  alerts: { ...prev.alerts, days: Number(e.target.value) }
+                                }))}
+                                isDisabled={!s1FetchSettings.alerts.enabled}
+                              >
+                                {DAY_OPTIONS.map(opt => (
+                                  <SelectItem key={String(opt.value)}>{opt.label}</SelectItem>
+                                ))}
+                              </Select>
+                            </div>
+                            
+                            <p className="text-xs text-default-400">
+                              💡 Activities have large volume, recommend 120 days | Threats/Alerts recommend 365 days
+                            </p>
+                          </div>
+                        )}
                       </>
                     )}
 
                     {modalType === 'cs' && (
                       <>
+                        <Select
+                          label="Region"
+                          selectedKeys={[csBaseUrl]}
+                          onChange={(e) => setCsBaseUrl(e.target.value)}
+                          description="Select your CrowdStrike cloud region"
+                        >
+                          <SelectItem key="https://api.us-1.crowdstrike.com">US-1 (api.us-1.crowdstrike.com)</SelectItem>
+                          <SelectItem key="https://api.us-2.crowdstrike.com">US-2 (api.us-2.crowdstrike.com)</SelectItem>
+                          <SelectItem key="https://api.eu-1.crowdstrike.com">EU-1 (api.eu-1.crowdstrike.com)</SelectItem>
+                          <SelectItem key="https://api.laggar.gcw.crowdstrike.com">US-GOV-1 (GovCloud)</SelectItem>
+                        </Select>
                         <Input
                           label="Client ID"
                           placeholder="Enter Client ID"
@@ -316,6 +488,108 @@ export default function IntegrationPage() {
                           onValueChange={setCsSecret}
                           type="password"
                         />
+                        
+                        {/* ⭐ Advanced Settings - CrowdStrike */}
+                        <Divider className="my-2" />
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-default-600">Data Retention Settings</span>
+                          <Switch 
+                            size="sm"
+                            isSelected={showAdvanced} 
+                            onValueChange={setShowAdvanced}
+                          >
+                            Customize
+                          </Switch>
+                        </div>
+                        
+                        {showAdvanced && (
+                          <div className="space-y-3 p-3 bg-default-100 rounded-lg">
+                            {/* Alerts */}
+                            <div className="flex items-center gap-3">
+                              <Switch 
+                                size="sm"
+                                isSelected={csFetchSettings.alerts.enabled}
+                                onValueChange={(v) => setCsFetchSettings(prev => ({
+                                  ...prev, 
+                                  alerts: { ...prev.alerts, enabled: v }
+                                }))}
+                              />
+                              <span className="text-sm w-24">Alerts</span>
+                              <Select
+                                size="sm"
+                                className="flex-1"
+                                selectedKeys={[String(csFetchSettings.alerts.days)]}
+                                onChange={(e) => setCsFetchSettings(prev => ({
+                                  ...prev,
+                                  alerts: { ...prev.alerts, days: Number(e.target.value) }
+                                }))}
+                                isDisabled={!csFetchSettings.alerts.enabled}
+                              >
+                                {DAY_OPTIONS.map(opt => (
+                                  <SelectItem key={String(opt.value)}>{opt.label}</SelectItem>
+                                ))}
+                              </Select>
+                            </div>
+                            
+                            {/* Detections */}
+                            <div className="flex items-center gap-3">
+                              <Switch 
+                                size="sm"
+                                isSelected={csFetchSettings.detections.enabled}
+                                onValueChange={(v) => setCsFetchSettings(prev => ({
+                                  ...prev, 
+                                  detections: { ...prev.detections, enabled: v }
+                                }))}
+                              />
+                              <span className="text-sm w-24">Detections</span>
+                              <Select
+                                size="sm"
+                                className="flex-1"
+                                selectedKeys={[String(csFetchSettings.detections.days)]}
+                                onChange={(e) => setCsFetchSettings(prev => ({
+                                  ...prev,
+                                  detections: { ...prev.detections, days: Number(e.target.value) }
+                                }))}
+                                isDisabled={!csFetchSettings.detections.enabled}
+                              >
+                                {DAY_OPTIONS.map(opt => (
+                                  <SelectItem key={String(opt.value)}>{opt.label}</SelectItem>
+                                ))}
+                              </Select>
+                            </div>
+                            
+                            {/* Incidents */}
+                            <div className="flex items-center gap-3">
+                              <Switch 
+                                size="sm"
+                                isSelected={csFetchSettings.incidents.enabled}
+                                onValueChange={(v) => setCsFetchSettings(prev => ({
+                                  ...prev, 
+                                  incidents: { ...prev.incidents, enabled: v }
+                                }))}
+                              />
+                              <span className="text-sm w-24">Incidents</span>
+                              <Select
+                                size="sm"
+                                className="flex-1"
+                                selectedKeys={[String(csFetchSettings.incidents.days)]}
+                                onChange={(e) => setCsFetchSettings(prev => ({
+                                  ...prev,
+                                  incidents: { ...prev.incidents, days: Number(e.target.value) }
+                                }))}
+                                isDisabled={!csFetchSettings.incidents.enabled}
+                              >
+                                {DAY_OPTIONS.map(opt => (
+                                  <SelectItem key={String(opt.value)}>{opt.label}</SelectItem>
+                                ))}
+                              </Select>
+                            </div>
+                            
+                            <p className="text-xs text-default-400">
+                              💡 Alerts/Detections/Incidents are critical data, recommend 365 days
+                            </p>
+                          </div>
+                        )}
                       </>
                     )}
 
