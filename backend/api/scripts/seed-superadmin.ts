@@ -4,7 +4,7 @@
  */
 
 import { db } from '../infra/db'
-import { users } from '../infra/db/schema'
+import { users, tenants } from '../infra/db/schema'
 import { eq } from 'drizzle-orm'
 
 const SUPERADMIN_EMAIL = process.env.SUPERADMIN_EMAIL || 'superadmin@zcr.ai'
@@ -13,34 +13,60 @@ const SUPERADMIN_PASSWORD = process.env.SUPERADMIN_PASSWORD || 'SuperAdmin@123!'
 async function seedSuperAdmin() {
   console.log('🔐 Seeding Super Admin...')
 
-  // Check if superadmin already exists
-  const [existing] = await db.select()
-    .from(users)
-    .where(eq(users.email, SUPERADMIN_EMAIL))
+  const email = SUPERADMIN_EMAIL
+  const password = SUPERADMIN_PASSWORD
 
-  if (existing) {
-    console.log('✅ Super Admin already exists:', SUPERADMIN_EMAIL)
-    return
+  // 1. Check/Create System Tenant
+  let tenantId: string | undefined
+  const [existingTenant] = await db.select().from(tenants).where(eq(tenants.name, 'System Admin'))
+  
+  if (existingTenant) {
+    tenantId = existingTenant.id
+    console.log('✅ System Admin tenant found:', tenantId)
+  } else {
+    const [newTenant] = await db.insert(tenants).values({
+      name: 'System Admin',
+      status: 'active'
+    }).returning()
+    tenantId = newTenant.id
+    console.log('✅ System Admin tenant created:', tenantId)
   }
 
-  // Hash password
-  const passwordHash = await Bun.password.hash(SUPERADMIN_PASSWORD, {
+  // 2. Check/Create Super Admin User
+  const [existing] = await db.select()
+    .from(users)
+    .where(eq(users.email, email))
+
+  const passwordHash = await Bun.password.hash(password, {
     algorithm: 'bcrypt',
     cost: 10,
   })
 
-  // Create superadmin (no tenantId)
-  const [superadmin] = await db.insert(users).values({
-    email: SUPERADMIN_EMAIL,
-    passwordHash,
-    role: 'superadmin',
-    tenantId: null as any, // Super admin has no tenant
-    status: 'active',
-  }).returning()
+  if (existing) {
+    if (existing.role === 'superadmin') {
+       await db.update(users)
+        .set({ 
+          passwordHash,
+          tenantId: tenantId 
+        })
+        .where(eq(users.email, email))
+       console.log('✅ Super Admin updated:', email)
+    } else {
+        console.log('⚠️ User exists but is not superadmin:', email)
+    }
+  } else {
+    const [superadmin] = await db.insert(users).values({
+        email,
+        passwordHash,
+        role: 'superadmin',
+        tenantId: tenantId,
+        status: 'active',
+      }).returning()
+      console.log('✅ Super Admin created:', superadmin.email)
+  }
 
-  console.log('✅ Super Admin created:', superadmin.email)
-  console.log('📧 Email:', SUPERADMIN_EMAIL)
-  console.log('🔑 Password:', SUPERADMIN_PASSWORD)
+  console.log('📧 Email:', email)
+  console.log('🔑 Password:', password)
   console.log('')
   console.log('⚠️  Please change the password after first login!')
 }

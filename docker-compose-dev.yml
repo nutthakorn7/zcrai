@@ -1,4 +1,3 @@
-
 services:
   # PostgreSQL - User & Tenant Data
   postgres:
@@ -70,7 +69,10 @@ services:
       CLICKHOUSE_USER: default
       CLICKHOUSE_PASSWORD: clickhouse
     entrypoint: ["/bin/sh", "-c"]
-    command: ["cp /migrate.sh /tmp/migrate.sh && chmod +x /tmp/migrate.sh && /tmp/migrate.sh"]
+    command:
+      [
+        "cp /migrate.sh /tmp/migrate.sh && chmod +x /tmp/migrate.sh && /tmp/migrate.sh",
+      ]
     networks:
       - zcrai-net
     depends_on:
