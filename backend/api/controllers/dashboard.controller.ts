@@ -72,7 +72,19 @@ export const dashboardController = new Elysia({ prefix: '/dashboard' })
 
       const tenantId = getEffectiveTenantId(payload, selected_tenant)
       const { startDate, endDate } = parseDateRange(query)
-      return await DashboardService.getSummary(tenantId, startDate, endDate)
+      
+      // Parse sources from comma-separated string or array
+      let sources: string[] | undefined = undefined
+      if (query.sources) {
+        sources = typeof query.sources === 'string' 
+          ? query.sources.split(',').filter(Boolean)
+          : Array.isArray(query.sources) ? query.sources : undefined
+      } else if (query.source) {
+        // Fallback for backward compatibility
+        sources = [query.source as string]
+      }
+
+      return await DashboardService.getSummary(tenantId, startDate, endDate, sources)
     } catch (e: any) {
       set.status = 400
       return { error: e.message }
@@ -88,7 +100,17 @@ export const dashboardController = new Elysia({ prefix: '/dashboard' })
       const tenantId = getEffectiveTenantId(payload, selected_tenant)
       const { startDate, endDate } = parseDateRange(query)
       const interval = (query.interval as 'hour' | 'day') || 'day'
-      return await DashboardService.getTimeline(tenantId, startDate, endDate, interval)
+      
+      let sources: string[] | undefined = undefined
+      if (query.sources) {
+        sources = typeof query.sources === 'string' 
+          ? query.sources.split(',').filter(Boolean)
+          : Array.isArray(query.sources) ? query.sources : undefined
+      } else if (query.source) {
+        sources = [query.source as string]
+      }
+
+      return await DashboardService.getTimeline(tenantId, startDate, endDate, interval, sources)
     } catch (e: any) {
       set.status = 400
       return { error: e.message }
@@ -104,7 +126,17 @@ export const dashboardController = new Elysia({ prefix: '/dashboard' })
       const tenantId = getEffectiveTenantId(payload, selected_tenant)
       const { startDate, endDate } = parseDateRange(query)
       const limit = parseInt(query.limit as string) || 10
-      return await DashboardService.getTopHosts(tenantId, startDate, endDate, limit)
+      
+      let sources: string[] | undefined = undefined
+      if (query.sources) {
+        sources = typeof query.sources === 'string' 
+          ? query.sources.split(',').filter(Boolean)
+          : Array.isArray(query.sources) ? query.sources : undefined
+      } else if (query.source) {
+        sources = [query.source as string]
+      }
+
+      return await DashboardService.getTopHosts(tenantId, startDate, endDate, limit, sources)
     } catch (e: any) {
       set.status = 400
       return { error: e.message }
@@ -120,7 +152,17 @@ export const dashboardController = new Elysia({ prefix: '/dashboard' })
       const tenantId = getEffectiveTenantId(payload, selected_tenant)
       const { startDate, endDate } = parseDateRange(query)
       const limit = parseInt(query.limit as string) || 10
-      return await DashboardService.getTopUsers(tenantId, startDate, endDate, limit)
+      
+      let sources: string[] | undefined = undefined
+      if (query.sources) {
+        sources = typeof query.sources === 'string' 
+          ? query.sources.split(',').filter(Boolean)
+          : Array.isArray(query.sources) ? query.sources : undefined
+      } else if (query.source) {
+        sources = [query.source as string]
+      }
+
+      return await DashboardService.getTopUsers(tenantId, startDate, endDate, limit, sources)
     } catch (e: any) {
       set.status = 400
       return { error: e.message }
@@ -135,7 +177,17 @@ export const dashboardController = new Elysia({ prefix: '/dashboard' })
 
       const tenantId = getEffectiveTenantId(payload, selected_tenant)
       const { startDate, endDate } = parseDateRange(query)
-      return await DashboardService.getMitreHeatmap(tenantId, startDate, endDate)
+      
+      let sources: string[] | undefined = undefined
+      if (query.sources) {
+        sources = typeof query.sources === 'string' 
+          ? query.sources.split(',').filter(Boolean)
+          : Array.isArray(query.sources) ? query.sources : undefined
+      } else if (query.source) {
+        sources = [query.source as string]
+      }
+
+      return await DashboardService.getMitreHeatmap(tenantId, startDate, endDate, sources)
     } catch (e: any) {
       set.status = 400
       return { error: e.message }
@@ -150,7 +202,17 @@ export const dashboardController = new Elysia({ prefix: '/dashboard' })
 
       const tenantId = getEffectiveTenantId(payload, selected_tenant)
       const { startDate, endDate } = parseDateRange(query)
-      return await DashboardService.getSourcesBreakdown(tenantId, startDate, endDate)
+      
+      let sources: string[] | undefined = undefined
+      if (query.sources) {
+        sources = typeof query.sources === 'string' 
+          ? query.sources.split(',').filter(Boolean)
+          : Array.isArray(query.sources) ? query.sources : undefined
+      } else if (query.source) {
+        sources = [query.source as string]
+      }
+
+      return await DashboardService.getSourcesBreakdown(tenantId, startDate, endDate, sources)
     } catch (e: any) {
       set.status = 400
       return { error: e.message }
@@ -165,14 +227,24 @@ export const dashboardController = new Elysia({ prefix: '/dashboard' })
 
       const tenantId = getEffectiveTenantId(payload, selected_tenant)
       const { startDate, endDate } = parseDateRange(query)
-      return await DashboardService.getIntegrationBreakdown(tenantId, startDate, endDate)
+      
+      let sources: string[] | undefined = undefined
+      if (query.sources) {
+        sources = typeof query.sources === 'string' 
+          ? query.sources.split(',').filter(Boolean)
+          : Array.isArray(query.sources) ? query.sources : undefined
+      } else if (query.source) {
+        sources = [query.source as string]
+      }
+
+      return await DashboardService.getIntegrationBreakdown(tenantId, startDate, endDate, sources)
     } catch (e: any) {
       set.status = 400
       return { error: e.message }
     }
   })
 
-  // ==================== S1 SITES BREAKDOWN ====================
+  // ==================== SITES BREAKDOWN ====================
   .get('/sites', async ({ jwt, cookie: { access_token, selected_tenant }, query, set }) => {
     try {
       const payload = await jwt.verify(access_token.value)
@@ -180,7 +252,17 @@ export const dashboardController = new Elysia({ prefix: '/dashboard' })
 
       const tenantId = getEffectiveTenantId(payload, selected_tenant)
       const { startDate, endDate } = parseDateRange(query)
-      return await DashboardService.getSiteBreakdown(tenantId, startDate, endDate)
+      
+      let sources: string[] | undefined = undefined
+      if (query.sources) {
+        sources = typeof query.sources === 'string' 
+          ? query.sources.split(',').filter(Boolean)
+          : Array.isArray(query.sources) ? query.sources : undefined
+      } else if (query.source) {
+        sources = [query.source as string]
+      }
+
+      return await DashboardService.getSiteBreakdown(tenantId, startDate, endDate, sources)
     } catch (e: any) {
       set.status = 400
       return { error: e.message }

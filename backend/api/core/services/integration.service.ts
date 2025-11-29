@@ -96,42 +96,65 @@ export const IntegrationService = {
     if (baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0, -1)
     if (baseUrl.endsWith('/web/api/v2.1/threats')) baseUrl = baseUrl.replace('/web/api/v2.1/threats', '')
     
-    // เช็ค URL ซ้ำ - ดึง integrations ที่มีอยู่แล้วและเช็คว่า URL ซ้ำไหม
+    // เช็ค URL ซ้ำ - ถ้าซ้ำให้ UPDATE แทน INSERT
     const existingKeys = await db.select().from(apiKeys)
       .where(and(eq(apiKeys.tenantId, tenantId), eq(apiKeys.provider, 'sentinelone')))
     
+    let existingIntegration = null
     for (const existing of existingKeys) {
       try {
-        // เช็ค Label ซ้ำ
-        if (existing.label === data.label) {
-          throw new Error('Label already exists. Please choose a different name.')
-        }
-
         const config = JSON.parse(Encryption.decrypt(existing.encryptedKey))
         if (config.url === baseUrl) {
-          throw new Error('SentinelOne URL already exists for this tenant')
+          existingIntegration = existing
+          break
         }
       } catch (e: any) {
-        if (e.message.includes('already exists')) throw e
+        // ถ้า decrypt ไม่ได้ ก็ข้ามไป
+      }
+    }
+
+    // ถ้า Label ซ้ำกับ integration อื่น (ไม่ใช่ตัวที่จะ update) → throw error
+    if (data.label) {
+      for (const existing of existingKeys) {
+        if (existing.label === data.label && existing.id !== existingIntegration?.id) {
+          throw new Error('Label already exists. Please choose a different name.')
+        }
       }
     }
     
-    // Test Connection ก่อน Save
+    // Test Connection ก่อน Save/Update
     await this.testSentinelOneConnection(baseUrl, data.token)
 
-    // Save Encrypted Token + mark ว่าต้อง Full Sync (lastSyncAt = null)
+    // Save Encrypted Token
     const encryptedKey = Encryption.encrypt(JSON.stringify({
       url: baseUrl,
       token: data.token
     }))
 
-    const [integration] = await db.insert(apiKeys).values({
-      tenantId,
-      provider: 'sentinelone',
-      encryptedKey,
-      label: data.label || 'SentinelOne Integration',
-      lastSyncStatus: 'pending', // Mark ว่ายังไม่เคย sync
-    }).returning()
+    let integration
+    if (existingIntegration) {
+      // URL ซ้ำ → UPDATE API Key
+      const [updated] = await db.update(apiKeys)
+        .set({
+          encryptedKey,
+          label: data.label || existingIntegration.label,
+          lastSyncStatus: 'pending', // Reset sync status
+          lastSyncError: null,
+        })
+        .where(eq(apiKeys.id, existingIntegration.id))
+        .returning()
+      integration = updated
+    } else {
+      // URL ใหม่ → INSERT
+      const [inserted] = await db.insert(apiKeys).values({
+        tenantId,
+        provider: 'sentinelone',
+        encryptedKey,
+        label: data.label || 'SentinelOne Integration',
+        lastSyncStatus: 'pending',
+      }).returning()
+      integration = inserted
+    }
 
     // Trigger Collector ให้ sync ทันที
     this.triggerCollectorSync('sentinelone')
@@ -144,39 +167,62 @@ export const IntegrationService = {
     let baseUrl = data.baseUrl || 'https://api.us-2.crowdstrike.com'
     if (baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0, -1)
 
-    // เช็ค Client ID ซ้ำ
+    // เช็ค Client ID ซ้ำ - ถ้าซ้ำให้ UPDATE แทน INSERT
     const existingKeys = await db.select().from(apiKeys)
       .where(and(eq(apiKeys.tenantId, tenantId), eq(apiKeys.provider, 'crowdstrike')))
     
+    let existingIntegration = null
     for (const existing of existingKeys) {
-      // เช็ค Label ซ้ำ
-      if (existing.label === data.label) {
-        throw new Error('Label already exists. Please choose a different name.')
-      }
-
       if (existing.keyId === data.clientId) {
-        throw new Error('CrowdStrike Client ID already exists for this tenant')
+        existingIntegration = existing
+        break
       }
     }
 
-    // Test Connection ก่อน Save
+    // ถ้า Label ซ้ำกับ integration อื่น (ไม่ใช่ตัวที่จะ update) → throw error
+    if (data.label) {
+      for (const existing of existingKeys) {
+        if (existing.label === data.label && existing.id !== existingIntegration?.id) {
+          throw new Error('Label already exists. Please choose a different name.')
+        }
+      }
+    }
+
+    // Test Connection ก่อน Save/Update
     await this.testCrowdStrikeConnection(baseUrl, data.clientId, data.clientSecret)
 
-    // Save Encrypted Credentials + mark ว่าต้อง Full Sync
+    // Save Encrypted Credentials
     const encryptedKey = Encryption.encrypt(JSON.stringify({
       baseUrl,
       clientId: data.clientId,
       clientSecret: data.clientSecret
     }))
 
-    const [integration] = await db.insert(apiKeys).values({
-      tenantId,
-      provider: 'crowdstrike',
-      encryptedKey,
-      keyId: data.clientId,
-      label: data.label || 'CrowdStrike Integration',
-      lastSyncStatus: 'pending', // Mark ว่ายังไม่เคย sync
-    }).returning()
+    let integration
+    if (existingIntegration) {
+      // Client ID ซ้ำ → UPDATE credentials
+      const [updated] = await db.update(apiKeys)
+        .set({
+          encryptedKey,
+          label: data.label || existingIntegration.label,
+          lastSyncStatus: 'pending', // Reset sync status
+          lastSyncError: null,
+        })
+        .where(eq(apiKeys.id, existingIntegration.id))
+        .returning()
+      integration = updated
+    } else {
+      // Client ID ใหม่ → INSERT
+      const [inserted] = await db.insert(apiKeys).values({
+        tenantId,
+        provider: 'crowdstrike',
+        encryptedKey,
+        keyId: data.clientId,
+        label: data.label || 'CrowdStrike Integration',
+        lastSyncStatus: 'pending',
+      }).returning()
+      integration = inserted
+    }
 
     // Trigger Collector ให้ sync ทันที
     this.triggerCollectorSync('crowdstrike')

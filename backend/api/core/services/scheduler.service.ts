@@ -42,11 +42,11 @@ export const SchedulerService = {
       },
       {
         name: 'zcrai.security_events_top_hosts_mv',
-        query: `INSERT INTO zcrai.security_events_top_hosts_mv SELECT tenant_id, toDate(timestamp) AS date, host_name, count() AS event_count, countIf(severity = 'critical') AS critical_count, countIf(severity = 'high') AS high_count FROM zcrai.security_events WHERE host_name != '' GROUP BY tenant_id, date, host_name`
+        query: `INSERT INTO zcrai.security_events_top_hosts_mv SELECT tenant_id, toDate(timestamp) AS date, source, host_name, count() AS event_count, countIf(severity = 'critical') AS critical_count, countIf(severity = 'high') AS high_count FROM zcrai.security_events WHERE host_name != '' GROUP BY tenant_id, date, source, host_name`
       },
       {
         name: 'zcrai.security_events_mitre_mv',
-        query: `INSERT INTO zcrai.security_events_mitre_mv SELECT tenant_id, toDate(timestamp) AS date, mitre_tactic, mitre_technique, count() AS event_count FROM zcrai.security_events WHERE mitre_tactic != '' OR mitre_technique != '' GROUP BY tenant_id, date, mitre_tactic, mitre_technique`
+        query: `INSERT INTO zcrai.security_events_mitre_mv SELECT tenant_id, toDate(timestamp) AS date, source, mitre_tactic, mitre_technique, count() AS event_count FROM zcrai.security_events WHERE mitre_tactic != '' OR mitre_technique != '' GROUP BY tenant_id, date, source, mitre_tactic, mitre_technique`
       },
       {
         name: 'zcrai.security_events_integration_mv',

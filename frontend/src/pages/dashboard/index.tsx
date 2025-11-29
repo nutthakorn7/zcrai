@@ -185,61 +185,73 @@ export default function DashboardPage() {
     const end = endDate.toISOString().split('T')[0];
     let dateParams = `startDate=${start}&endDate=${end}`;
     
-    if (selectedProvider !== 'all') {
-      dateParams += `&source=${selectedProvider}`;
-    }
-    
     try {
+      // 1. Fetch Active Integrations first to determine valid sources
+      const activeIntRes = await api.get('/integrations');
+      const activeIntegrations = activeIntRes.data || [];
+      
+      const activeProviders = activeIntegrations
+        .map((i: any) => i.provider.toLowerCase())
+        .filter((p: string) => ['sentinelone', 'crowdstrike'].includes(p));
+        
+      const uniqueActiveProviders = Array.from(new Set(activeProviders)) as string[];
+      setAvailableProviders(uniqueActiveProviders);
+
+      // 2. Determine sources query param
+      // If 'all' is selected, we filter by ALL ACTIVE providers to hide historical data of removed integrations.
+      // If a specific provider is selected, we filter by that provider.
+      let targetSources = uniqueActiveProviders;
+      if (selectedProvider !== 'all') {
+        targetSources = [selectedProvider];
+      }
+
+      // If no active providers and 'all' is selected, we should probably fetch nothing or handle empty state.
+      // But if we send empty sources param to backend (if implemented correctly), it might return everything (bad) or nothing.
+      // My backend implementation: if (sources && sources.length > 0) ... else no filter.
+      // So if we send NO param, it returns ALL history.
+      // If we want to return NOTHING, we should maybe pass a dummy source or handle in backend.
+      // However, if targetSources is empty, let's just not fetch or pass a dummy 'none'.
+      
+      if (targetSources.length > 0) {
+        dateParams += `&sources=${targetSources.join(',')}`;
+      } else if (selectedProvider === 'all') {
+        // No active providers: force empty result by passing a non-existent source
+        dateParams += `&sources=none`; 
+      } else {
+         // Selected provider is not active? Should unlikely happen if UI is correct, 
+         // but if it happens, just pass it to get (likely empty) data.
+         dateParams += `&sources=${selectedProvider}`;
+      }
+
       const [summaryRes, hostsRes, usersRes, sourcesRes, timelineRes, mitreRes, intRes, sitesRes] = await Promise.all([
         api.get(`/dashboard/summary?${dateParams}`),
         api.get(`/dashboard/top-hosts?${dateParams}&limit=20`),
         api.get(`/dashboard/top-users?${dateParams}&limit=20`),
-        api.get(`/dashboard/sources?${dateParams}`), // This gives us available sources
+        api.get(`/dashboard/sources?${dateParams}`),
         api.get(`/dashboard/timeline?${dateParams}&interval=day`),
         api.get(`/dashboard/mitre-heatmap?${dateParams}`),
         api.get(`/dashboard/integrations?${dateParams}`),
         api.get(`/dashboard/sites?${dateParams}`),
       ]);
 
-      // 1. Determine Available Providers from Sources API
-      const sources = sourcesRes.data || [];
-      const providers = sources.map((s: any) => s.source.toLowerCase());
-      setAvailableProviders(providers);
-
-      // 2. Set Data
+      // 3. Set Data
       setSummary(summaryRes.data);
       
-      // Note: Top Hosts/Users currently don't return 'source' field, so we cannot accurately filter them client-side.
-      // Ideally backend should handle this. For now, we just display what we get if filter is 'all', 
-      // or if backend filtering works. Since backend filtering IS implemented for dashboard endpoints via params (if supported),
-      // we assume backend returns filtered data. IF NOT, we might see mixed data.
       setTopHosts(hostsRes.data.slice(0, 5));
       setTopUsers(usersRes.data.slice(0, 5));
       
-      // Filter Sources Pie Chart (Client-side double check)
-      const filteredSources = selectedProvider === 'all' 
-        ? sourcesRes.data 
-        : sourcesRes.data.filter((s: any) => s.source.toLowerCase().includes(selectedProvider));
-      setSources(filteredSources);
-
+      setSources(sourcesRes.data);
       setTimeline(timelineRes.data);
       setMitreData(mitreRes.data);
       
-      // Filter Integrations (Client-side double check)
-      const filteredIntegrations = selectedProvider === 'all'
-        ? intRes.data
-        : intRes.data.filter((i: any) => i.source.toLowerCase().includes(selectedProvider));
+      // Filter integrations to show only active ones
+      const activeIntegrationIds = new Set(activeIntegrations.map((i: any) => i.id));
+      const filteredIntegrations = intRes.data.filter((i: IntegrationData) => 
+        activeIntegrationIds.has(i.integration_id)
+      );
       setIntegrations(filteredIntegrations);
-
-      // Filter Sites (Client-side double check)
-      let filteredSites = sitesRes.data;
-      if (selectedProvider !== 'all' && selectedProvider !== 'sentinelone') {
-         // If filter is NOT all AND NOT sentinelone (e.g. crowdstrike), clear sites usually
-         // But if we have other providers with sites, logic might differ. 
-         // Assuming only S1 has sites concept here.
-         filteredSites = [];
-      }
-      setSites(filteredSites);
+      
+      setSites(sitesRes.data);
       
       setPageContext({
         pageName: 'Dashboard',
@@ -320,7 +332,7 @@ export default function DashboardPage() {
             {(availableProviders.includes('sentinelone') || selectedProvider === 'sentinelone') && (
               <>
                 <div className="w-px bg-white/5 my-1 mx-1" />
-                <HerouiTooltip content="SentinelOne Only">
+                <HerouiTooltip content="SentinelOne">
                   <button
                     onClick={() => setSelectedProvider('sentinelone')}
                     className={`p-2 rounded-md transition-all ${selectedProvider === 'sentinelone' ? 'bg-[#2C2E3A] shadow-sm' : 'opacity-50 hover:opacity-100'}`}
@@ -335,7 +347,7 @@ export default function DashboardPage() {
             {(availableProviders.includes('crowdstrike') || selectedProvider === 'crowdstrike') && (
               <>
                 <div className="w-px bg-white/5 my-1 mx-1" />
-                <HerouiTooltip content="CrowdStrike Only">
+                <HerouiTooltip content="CrowdStrike">
                   <button
                     onClick={() => setSelectedProvider('crowdstrike')}
                     className={`p-2 rounded-md transition-all ${selectedProvider === 'crowdstrike' ? 'bg-[#2C2E3A] shadow-sm' : 'opacity-50 hover:opacity-100'}`}

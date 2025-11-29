@@ -80,7 +80,7 @@ func Load() (*Config, error) {
 		VectorURL:       getEnv("VECTOR_URL", "http://localhost:8686"),
 		PollInterval:    pollInterval,
 		LookbackDays:    lookbackDays,
-		CollectorAPIKey: os.Getenv("COLLECTOR_API_KEY"),
+		CollectorAPIKey: getEnv("COLLECTOR_API_KEY", "dev_collector_key_change_in_production"),
 		Logger:          logger,
 
 		ClickHouseHost:     getEnv("CLICKHOUSE_HOST", "localhost"),

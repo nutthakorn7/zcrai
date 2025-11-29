@@ -1,4 +1,3 @@
-version: '3.8'
 
 services:
   # PostgreSQL - User & Tenant Data
@@ -47,10 +46,37 @@ services:
     networks:
       - zcrai-net
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8123/ping"]
+      test: ["CMD", "clickhouse-client", "--query", "SELECT 1"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 15s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ClickHouse Migration Runner - รัน migrations อัตโนมัติ
+  clickhouse-migrate:
+    image: clickhouse/clickhouse-server:24.8-alpine
+    container_name: zcrai-clickhouse-migrate
+    volumes:
+      - ./collector/infra/db/clickhouse/migrations:/migrations:ro
+      - ./collector/infra/db/clickhouse/migrate.sh:/migrate.sh:ro
+    environment:
+      CLICKHOUSE_HOST: clickhouse
+      CLICKHOUSE_PORT: 9000
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: clickhouse
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["cp /migrate.sh /tmp/migrate.sh && chmod +x /tmp/migrate.sh && /tmp/migrate.sh"]
+    networks:
+      - zcrai-net
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    restart: "no"
     logging:
       driver: "json-file"
       options:
@@ -98,8 +124,6 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-    profiles:
-      - collector
 
   # Golang Collector Service
   # collector:

@@ -1,8 +1,22 @@
 import { query } from '../../infra/clickhouse/client'
 
+// Helper: ตรวจสอบว่า sources เป็น empty หรือมี 'none' (แปลว่าไม่มี active integration)
+const isEmptySources = (sources?: string[]): boolean => {
+  if (!sources || sources.length === 0) return false // ไม่ได้ส่ง sources = แสดงทั้งหมด
+  if (sources.length === 1 && sources[0] === 'none') return true // ส่ง 'none' = ไม่มี active integration
+  return false
+}
+
+// Empty result templates
+const emptyCount = { critical: 0, high: 0, medium: 0, low: 0, info: 0, total: 0 }
+
 export const DashboardService = {
   // ==================== SUMMARY (Counts by Severity) ====================
-  async getSummary(tenantId: string, startDate: string, endDate: string) {
+  async getSummary(tenantId: string, startDate: string, endDate: string, sources?: string[]) {
+    // ถ้าไม่มี active integration ให้ return empty result
+    if (isEmptySources(sources)) return { ...emptyCount }
+    
+    const sourceFilter = (sources && sources.length > 0) ? `AND source IN {sources:Array(String)}` : ''
     const sql = `
       SELECT 
         severity,
@@ -11,9 +25,10 @@ export const DashboardService = {
       WHERE tenant_id = {tenantId:String}
         AND date >= {startDate:String}
         AND date <= {endDate:String}
+        ${sourceFilter}
       GROUP BY severity
     `
-    const rows = await query<{ severity: string; count: string }>(sql, { tenantId, startDate, endDate })
+    const rows = await query<{ severity: string; count: string }>(sql, { tenantId, startDate, endDate, sources })
     
     // แปลงเป็น object
     const result: Record<string, number> = {
@@ -35,8 +50,12 @@ export const DashboardService = {
   },
 
   // ==================== TIMELINE (Events Over Time) ====================
-  async getTimeline(tenantId: string, startDate: string, endDate: string, interval: 'hour' | 'day' = 'day') {
+  async getTimeline(tenantId: string, startDate: string, endDate: string, interval: 'hour' | 'day' = 'day', sources?: string[]) {
+    // ถ้าไม่มี active integration ให้ return empty array
+    if (isEmptySources(sources)) return []
+    
     const dateFunc = interval === 'hour' ? 'toStartOfHour' : 'toDate'
+    const sourceFilter = (sources && sources.length > 0) ? `AND source IN {sources:Array(String)}` : ''
     
     const sql = `
       SELECT 
@@ -50,6 +69,7 @@ export const DashboardService = {
       WHERE tenant_id = {tenantId:String}
         AND toDate(timestamp) >= {startDate:String}
         AND toDate(timestamp) <= {endDate:String}
+        ${sourceFilter}
       GROUP BY time
       ORDER BY time
     `
@@ -60,11 +80,13 @@ export const DashboardService = {
       high: string
       medium: string
       low: string
-    }>(sql, { tenantId, startDate, endDate })
+    }>(sql, { tenantId, startDate, endDate, sources })
   },
 
   // ==================== TOP HOSTS ====================
-  async getTopHosts(tenantId: string, startDate: string, endDate: string, limit: number = 10) {
+  async getTopHosts(tenantId: string, startDate: string, endDate: string, limit: number = 10, sources?: string[]) {
+    if (isEmptySources(sources)) return []
+    const sourceFilter = (sources && sources.length > 0) ? `AND source IN {sources:Array(String)}` : ''
     const sql = `
       SELECT 
         host_name,
@@ -76,6 +98,7 @@ export const DashboardService = {
         AND date >= {startDate:String}
         AND date <= {endDate:String}
         AND host_name != ''
+        ${sourceFilter}
       GROUP BY host_name
       ORDER BY count DESC
       LIMIT {limit:UInt32}
@@ -85,11 +108,13 @@ export const DashboardService = {
       count: string
       critical: string
       high: string
-    }>(sql, { tenantId, startDate, endDate, limit })
+    }>(sql, { tenantId, startDate, endDate, limit, sources })
   },
 
   // ==================== TOP USERS ====================
-  async getTopUsers(tenantId: string, startDate: string, endDate: string, limit: number = 10) {
+  async getTopUsers(tenantId: string, startDate: string, endDate: string, limit: number = 10, sources?: string[]) {
+    if (isEmptySources(sources)) return []
+    const sourceFilter = (sources && sources.length > 0) ? `AND source IN {sources:Array(String)}` : ''
     const sql = `
       SELECT 
         user_name,
@@ -101,6 +126,7 @@ export const DashboardService = {
         AND toDate(timestamp) >= {startDate:String}
         AND toDate(timestamp) <= {endDate:String}
         AND user_name != ''
+        ${sourceFilter}
       GROUP BY user_name
       ORDER BY count DESC
       LIMIT {limit:UInt32}
@@ -110,11 +136,13 @@ export const DashboardService = {
       count: string
       critical: string
       high: string
-    }>(sql, { tenantId, startDate, endDate, limit })
+    }>(sql, { tenantId, startDate, endDate, limit, sources })
   },
 
   // ==================== MITRE HEATMAP ====================
-  async getMitreHeatmap(tenantId: string, startDate: string, endDate: string) {
+  async getMitreHeatmap(tenantId: string, startDate: string, endDate: string, sources?: string[]) {
+    if (isEmptySources(sources)) return []
+    const sourceFilter = (sources && sources.length > 0) ? `AND source IN {sources:Array(String)}` : ''
     const sql = `
       SELECT 
         mitre_tactic,
@@ -125,6 +153,7 @@ export const DashboardService = {
         AND date >= {startDate:String}
         AND date <= {endDate:String}
         AND (mitre_tactic != '' OR mitre_technique != '')
+        ${sourceFilter}
       GROUP BY mitre_tactic, mitre_technique
       ORDER BY count DESC
     `
@@ -132,11 +161,13 @@ export const DashboardService = {
       mitre_tactic: string
       mitre_technique: string
       count: string
-    }>(sql, { tenantId, startDate, endDate })
+    }>(sql, { tenantId, startDate, endDate, sources })
   },
 
   // ==================== SOURCES BREAKDOWN ====================
-  async getSourcesBreakdown(tenantId: string, startDate: string, endDate: string) {
+  async getSourcesBreakdown(tenantId: string, startDate: string, endDate: string, sources?: string[]) {
+    if (isEmptySources(sources)) return []
+    const sourceFilter = (sources && sources.length > 0) ? `AND source IN {sources:Array(String)}` : ''
     const sql = `
       SELECT 
         source,
@@ -145,13 +176,16 @@ export const DashboardService = {
       WHERE tenant_id = {tenantId:String}
         AND date >= {startDate:String}
         AND date <= {endDate:String}
+        ${sourceFilter}
       GROUP BY source
     `
-    return await query<{ source: string; count: string }>(sql, { tenantId, startDate, endDate })
+    return await query<{ source: string; count: string }>(sql, { tenantId, startDate, endDate, sources })
   },
 
   // ==================== INTEGRATION BREAKDOWN ====================
-  async getIntegrationBreakdown(tenantId: string, startDate: string, endDate: string) {
+  async getIntegrationBreakdown(tenantId: string, startDate: string, endDate: string, sources?: string[]) {
+    if (isEmptySources(sources)) return []
+    const sourceFilter = (sources && sources.length > 0) ? `AND source IN {sources:Array(String)}` : ''
     const sql = `
       SELECT 
         integration_id,
@@ -165,6 +199,7 @@ export const DashboardService = {
         AND toDate(timestamp) >= {startDate:String}
         AND toDate(timestamp) <= {endDate:String}
         AND integration_id != ''
+        ${sourceFilter}
       GROUP BY integration_id, integration_name, source
       ORDER BY count DESC
     `
@@ -175,11 +210,24 @@ export const DashboardService = {
       count: string
       critical: string
       high: string
-    }>(sql, { tenantId, startDate, endDate })
+    }>(sql, { tenantId, startDate, endDate, sources })
   },
 
-  // ==================== S1 SITE BREAKDOWN ====================
-  async getSiteBreakdown(tenantId: string, startDate: string, endDate: string) {
+  // ==================== SITE BREAKDOWN (Dynamic Source Filter) ====================
+  async getSiteBreakdown(tenantId: string, startDate: string, endDate: string, sources?: string[]) {
+    // ถ้าไม่มี active integration ให้ return empty
+    if (isEmptySources(sources)) return []
+    
+    // Sites are primarily for SentinelOne. 
+    // If 'sources' is provided and doesn't include 'sentinelone', return empty.
+    if (sources && sources.length > 0 && !sources.includes('sentinelone')) {
+      return []
+    }
+    
+    // We still only fetch sites for sentinelone source explicitly in the query for safety/speed
+    // even if 'crowdstrike' is in the list, it won't match site query logic usually unless generalized
+    // For now, we stick to S1 sites but allow it only if S1 is allowed.
+    
     const sql = `
       SELECT 
         host_account_name,
