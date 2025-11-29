@@ -3,6 +3,17 @@ import { jwt } from '@elysiajs/jwt'
 import { LogsService } from '../core/services/logs.service'
 import { tenantAdminOnly } from '../middlewares/auth.middleware'
 
+// Helper: Get effective tenantId (supports superadmin impersonation)
+const getEffectiveTenantId = (payload: any, selectedTenant: any): string => {
+  if (payload.role === 'superadmin' && selectedTenant?.value) {
+    return selectedTenant.value
+  }
+  if (!payload.tenantId) {
+    throw new Error('No tenant selected. Super Admin must select a tenant first.')
+  }
+  return payload.tenantId as string
+}
+
 export const logsController = new Elysia({ prefix: '/logs' })
   .use(jwt({
     name: 'jwt',
@@ -10,13 +21,14 @@ export const logsController = new Elysia({ prefix: '/logs' })
   }))
   .use(tenantAdminOnly)
 
-  // ==================== GET FILTER OPTIONS (ต้องอยู่ก่อน /:id) ====================
-  .get('/filters', async ({ jwt, cookie: { access_token }, set }) => {
+  // ==================== GET FILTER OPTIONS ====================
+  .get('/filters', async ({ jwt, cookie: { access_token, selected_tenant }, set }) => {
     try {
       const payload = await jwt.verify(access_token.value)
       if (!payload) throw new Error('Unauthorized')
 
-      return await LogsService.getFilterOptions(payload.tenantId as string)
+      const tenantId = getEffectiveTenantId(payload, selected_tenant)
+      return await LogsService.getFilterOptions(tenantId)
     } catch (e: any) {
       set.status = 400
       return { error: e.message }
@@ -24,12 +36,13 @@ export const logsController = new Elysia({ prefix: '/logs' })
   })
 
   // ==================== LIST LOGS ====================
-  .get('/', async ({ jwt, cookie: { access_token }, query, set }) => {
+  .get('/', async ({ jwt, cookie: { access_token, selected_tenant }, query, set }) => {
     try {
       const payload = await jwt.verify(access_token.value)
       if (!payload) throw new Error('Unauthorized')
 
-      // Parse query params - รวม filters ใหม่สำหรับ Integration และ S1 Tenant
+      const tenantId = getEffectiveTenantId(payload, selected_tenant)
+
       const filters = {
         startDate: query.startDate as string | undefined,
         endDate: query.endDate as string | undefined,
@@ -39,7 +52,6 @@ export const logsController = new Elysia({ prefix: '/logs' })
         user: query.user as string | undefined,
         search: query.search as string | undefined,
         eventType: query.eventType as string | undefined,
-        // New filters
         integrationId: query.integration_id as string | undefined,
         accountName: query.account_name as string | undefined,
         siteName: query.site_name as string | undefined,
@@ -47,12 +59,12 @@ export const logsController = new Elysia({ prefix: '/logs' })
 
       const pagination = {
         page: parseInt(query.page as string) || 1,
-        limit: Math.min(parseInt(query.limit as string) || 50, 100), // Max 100
+        limit: Math.min(parseInt(query.limit as string) || 50, 100),
         sortBy: (query.sortBy as string) || 'timestamp',
         sortOrder: ((query.sortOrder as string) || 'desc') as 'asc' | 'desc',
       }
 
-      return await LogsService.list(payload.tenantId as string, filters, pagination)
+      return await LogsService.list(tenantId, filters, pagination)
     } catch (e: any) {
       set.status = 400
       return { error: e.message }
@@ -60,12 +72,13 @@ export const logsController = new Elysia({ prefix: '/logs' })
   })
 
   // ==================== GET SINGLE LOG ====================
-  .get('/:id', async ({ jwt, cookie: { access_token }, params, set }) => {
+  .get('/:id', async ({ jwt, cookie: { access_token, selected_tenant }, params, set }) => {
     try {
       const payload = await jwt.verify(access_token.value)
       if (!payload) throw new Error('Unauthorized')
 
-      const log = await LogsService.getById(payload.tenantId as string, params.id)
+      const tenantId = getEffectiveTenantId(payload, selected_tenant)
+      const log = await LogsService.getById(tenantId, params.id)
       if (!log) {
         set.status = 404
         return { error: 'Log not found' }

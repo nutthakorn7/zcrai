@@ -5,6 +5,7 @@ import {
   Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure, Select, SelectItem
 } from "@heroui/react";
 import { api } from "../../shared/api/api";
+import { useAuth } from "../../shared/store/useAuth";
 
 interface User {
   id: string;
@@ -15,6 +16,7 @@ interface User {
 }
 
 export default function UserPage() {
+  const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
   const [isLoading, setIsLoading] = useState(false);
@@ -85,7 +87,15 @@ export default function UserPage() {
                 <TableRow key={user.id}>
                   <TableCell>{user.email}</TableCell>
                   <TableCell>
-                    <Chip size="sm" variant="flat" color={user.role === 'tenant_admin' ? 'secondary' : 'default'}>
+                    <Chip 
+                      size="sm" 
+                      variant="flat" 
+                      color={
+                        user.role === 'superadmin' ? 'danger' :
+                        user.role === 'tenant_admin' ? 'secondary' : 
+                        'default'
+                      }
+                    >
                       {user.role.replace('_', ' ')}
                     </Chip>
                   </TableCell>
@@ -137,6 +147,12 @@ export default function UserPage() {
                   <SelectItem key="soc_analyst" value="soc_analyst">SOC Analyst</SelectItem>
                   <SelectItem key="tenant_admin" value="tenant_admin">Tenant Admin</SelectItem>
                   <SelectItem key="customer" value="customer">Customer (Read-only)</SelectItem>
+                  {/* Only Super Admin can create another Super Admin */}
+                  {currentUser?.role === 'superadmin' && (
+                    <SelectItem key="superadmin" value="superadmin" className="text-danger">
+                      Super Admin (System-wide)
+                    </SelectItem>
+                  )}
                 </Select>
               </ModalBody>
               <ModalFooter>

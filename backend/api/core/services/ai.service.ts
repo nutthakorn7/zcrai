@@ -113,6 +113,28 @@ export const AIService = {
       throw new Error('No AI Provider configured. Please add OpenAI or Claude integration in Settings.')
     }
 
+    // Sanitize messages: Extract only text content, remove tool-related content
+    const sanitizeMessages = (msgs: any[]): Array<{role: 'user' | 'assistant', content: string}> => {
+      return msgs.map(m => {
+        let content = m.content;
+        // If content is an array (Claude format), extract text only
+        if (Array.isArray(content)) {
+          const textParts = content.filter((c: any) => c.type === 'text');
+          content = textParts.map((c: any) => c.text).join('\n') || '';
+        }
+        // If content is object with text property
+        if (typeof content === 'object' && content !== null && 'text' in content) {
+          content = content.text;
+        }
+        return {
+          role: (m.role === 'assistant' ? 'assistant' : 'user') as 'user' | 'assistant',
+          content: String(content || '')
+        };
+      }).filter(m => m.content.trim() !== ''); // Remove empty messages
+    };
+
+    const cleanMessages = sanitizeMessages(messages);
+
     const systemPrompt = `
 You are zcrAI Security Assistant, an expert Cyber Security Analyst and SOC Engineer.
 Your goal is to assist users with security monitoring, threat analysis, and incident response.
@@ -143,10 +165,7 @@ ${context || 'No specific context provided.'}
       const response = await anthropic.messages.create({
         model: aiConfig.model || 'claude-sonnet-4-5',
         max_tokens: 4096,
-        messages: messages.map(m => ({
-          role: m.role === 'assistant' ? 'assistant' : 'user',
-          content: m.content
-        })),
+        messages: cleanMessages,
         system: systemPrompt,
         tools: TOOLS_DEF as any,
         stream: false, // False first to check for tool use
@@ -159,12 +178,9 @@ ${context || 'No specific context provided.'}
           // Execute Tool
           const toolResult = await this.executeTool(toolUse.name, toolUse.input, tenantId);
           
-          // Prepare messages for second turn
+          // Prepare messages for second turn (include tool use and result)
           const newMessages = [
-            ...messages.map(m => ({
-              role: m.role === 'assistant' ? 'assistant' : 'user',
-              content: m.content
-            })),
+            ...cleanMessages,
             { role: 'assistant', content: response.content },
             { 
               role: 'user', 
@@ -202,10 +218,7 @@ ${context || 'No specific context provided.'}
       const stream = await anthropic.messages.create({
         model: aiConfig.model || 'claude-sonnet-4-5',
         max_tokens: 4096,
-        messages: messages.map(m => ({
-          role: m.role === 'assistant' ? 'assistant' : 'user',
-          content: m.content
-        })),
+        messages: cleanMessages,
         system: systemPrompt,
         tools: TOOLS_DEF as any,
         stream: true,
@@ -237,7 +250,7 @@ ${context || 'No specific context provided.'}
         model: aiConfig.model || process.env.AI_MODEL_NAME || 'gpt-3.5-turbo',
         messages: [
           { role: 'system', content: systemPrompt },
-          ...messages
+          ...cleanMessages
         ],
         tools: openaiTools as any,
         stream: false,
@@ -258,7 +271,7 @@ ${context || 'No specific context provided.'}
           model: aiConfig.model || process.env.AI_MODEL_NAME || 'gpt-3.5-turbo',
           messages: [
             { role: 'system', content: systemPrompt },
-            ...messages,
+            ...cleanMessages,
             message,
             {
               role: 'tool',
@@ -277,7 +290,7 @@ ${context || 'No specific context provided.'}
         model: aiConfig.model || process.env.AI_MODEL_NAME || 'gpt-3.5-turbo',
         messages: [
           { role: 'system', content: systemPrompt },
-          ...messages
+          ...cleanMessages
         ],
         stream: true,
         temperature: 0.3,

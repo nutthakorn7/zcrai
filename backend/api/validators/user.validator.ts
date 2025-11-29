@@ -3,6 +3,7 @@ import { t } from 'elysia'
 export const InviteUserSchema = t.Object({
   email: t.String({ format: 'email' }),
   role: t.Union([
+    t.Literal('superadmin'), // Allow superadmin
     t.Literal('tenant_admin'),
     t.Literal('soc_analyst'),
     t.Literal('customer'),
@@ -11,6 +12,7 @@ export const InviteUserSchema = t.Object({
 
 export const UpdateUserSchema = t.Object({
   role: t.Optional(t.Union([
+    t.Literal('superadmin'), // Allow superadmin
     t.Literal('tenant_admin'),
     t.Literal('soc_analyst'),
     t.Literal('customer'),

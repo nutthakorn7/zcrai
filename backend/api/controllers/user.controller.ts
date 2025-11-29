@@ -50,11 +50,16 @@ export const userController = new Elysia({ prefix: '/users' })
       const payload = await jwt.verify(access_token.value)
       if (!payload) throw new Error('Unauthorized')
 
+      // Role validation
+      if (body.role === 'superadmin' && payload.role !== 'superadmin') {
+        throw new Error('Forbidden: Only Super Admin can create another Super Admin')
+      }
+
       const result = await UserService.invite(payload.tenantId as string, body)
       set.status = 201
       return { message: 'User invited successfully', user: result.user }
     } catch (e: any) {
-      set.status = 400
+      set.status = e.message.startsWith('Forbidden') ? 403 : 400
       return { error: e.message }
     }
   }, { body: InviteUserSchema })
@@ -65,10 +70,15 @@ export const userController = new Elysia({ prefix: '/users' })
       const payload = await jwt.verify(access_token.value)
       if (!payload) throw new Error('Unauthorized')
 
+      // Role validation
+      if (body.role === 'superadmin' && payload.role !== 'superadmin') {
+        throw new Error('Forbidden: Only Super Admin can assign Super Admin role')
+      }
+
       const user = await UserService.update(params.id, payload.tenantId as string, body)
       return { message: 'User updated successfully', user }
     } catch (e: any) {
-      set.status = 400
+      set.status = e.message.startsWith('Forbidden') ? 403 : 400
       return { error: e.message }
     }
   }, { body: UpdateUserSchema })

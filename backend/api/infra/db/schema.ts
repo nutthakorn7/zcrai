@@ -13,10 +13,10 @@ export const tenants = pgTable('tenants', {
 // Users
 export const users = pgTable('users', {
   id: uuid('id').defaultRandom().primaryKey(),
-  tenantId: uuid('tenant_id').references(() => tenants.id).notNull(),
+  tenantId: uuid('tenant_id').references(() => tenants.id), // Optional for superadmin
   email: text('email').notNull().unique(),
   passwordHash: text('password_hash').notNull(),
-  role: text('role').default('customer').notNull(),
+  role: text('role').default('customer').notNull(), // 'superadmin' | 'admin' | 'analyst' | 'customer'
   mfaEnabled: boolean('mfa_enabled').default(false).notNull(),
   mfaSecret: text('mfa_secret'),
   status: text('status').default('active').notNull(),

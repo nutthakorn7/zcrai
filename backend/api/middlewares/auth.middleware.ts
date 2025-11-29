@@ -12,7 +12,7 @@ interface JWTPayload {
 
 // Role Hierarchy
 const ROLE_HIERARCHY = {
-  super_admin: 4,
+  superadmin: 4,
   tenant_admin: 3,
   soc_analyst: 2,
   customer: 1,
@@ -62,7 +62,7 @@ export const tenantGuard = new Elysia({ name: 'tenantGuard' })
   .derive(({ user }) => {
     return {
       checkTenantAccess: (resourceTenantId: string) => {
-        if (user.role === 'super_admin') return true
+        if (user.role === 'superadmin') return true
         return user.tenantId === resourceTenantId
       },
       tenantId: user.tenantId,
@@ -99,7 +99,7 @@ export const protectedRoute = new Elysia({ name: 'protectedRoute' })
   .use(auditLogger)
 
 // Helpers
-export const superAdminOnly = requireRole('super_admin')
-export const tenantAdminOnly = requireRole('super_admin', 'tenant_admin')
-export const socAnalystOnly = requireRole('super_admin', 'tenant_admin', 'soc_analyst')
-export const anyAuthenticated = requireRole('super_admin', 'tenant_admin', 'soc_analyst', 'customer')
+export const superAdminOnly = requireRole('superadmin')
+export const tenantAdminOnly = requireRole('superadmin', 'tenant_admin')
+export const socAnalystOnly = requireRole('superadmin', 'tenant_admin', 'soc_analyst')
+export const anyAuthenticated = requireRole('superadmin', 'tenant_admin', 'soc_analyst', 'customer')

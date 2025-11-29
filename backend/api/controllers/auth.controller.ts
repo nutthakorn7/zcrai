@@ -16,7 +16,7 @@ export const authController = new Elysia({ prefix: '/auth' })
     jwt({
       name: 'jwt',
       secret: process.env.JWT_SECRET || 'super_secret_dev_key',
-      exp: '15m'
+      exp: '1h' // Session expires after 1 hour of inactivity
     })
   )
 
@@ -58,7 +58,7 @@ export const authController = new Elysia({ prefix: '/auth' })
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'strict',
-        maxAge: 15 * 60,
+        maxAge: 60 * 60, // 1 hour
         path: '/'
       })
 
@@ -141,7 +141,7 @@ export const authController = new Elysia({ prefix: '/auth' })
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'strict',
-        maxAge: 15 * 60,
+        maxAge: 60 * 60, // 1 hour
         path: '/'
       })
 

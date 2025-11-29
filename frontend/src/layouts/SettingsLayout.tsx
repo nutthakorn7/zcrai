@@ -4,8 +4,8 @@ import { useAuth } from "../shared/store/useAuth";
 
 export default function SettingsLayout() {
   const { user } = useAuth();
-  const isTenantAdmin = user?.role === 'tenant_admin' || user?.role === 'super_admin';
-  const isSuperAdmin = user?.role === 'super_admin';
+  const isTenantAdmin = user?.role === 'tenant_admin' || user?.role === 'superadmin';
+  const isSuperAdmin = user?.role === 'superadmin';
 
   return (
     <div className="flex min-h-screen bg-background text-foreground p-8 gap-6">

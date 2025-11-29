@@ -192,7 +192,7 @@
 - [x] Implement Streaming API for Chat (`POST /api/ai/chat`)
 - [x] Context Management (Attach current page context, selected logs)
 - [x] System Prompts for Security Analyst Persona
-- [ ] Tool calling (Allow AI to query DB: `get_summary`, `search_logs`, `get_threat_intel`)
+- [x] Tool calling (Allow AI to query DB: `get_summary`, `search_logs`, `get_integrations`, `get_top_threats`)
 
 ### 7.2 Chat Widget UI
 - [x] Floating Action Button (FAB) for Chat
@@ -200,10 +200,10 @@
 - [x] Message Bubbles (User vs AI)
 - [x] Markdown Rendering (Code blocks, Tables, Lists)
 - [x] Loading/Typing Indicators
-- [ ] "Analyze This Page" context button
+- [x] "Analyze This Page" context button
 
 ### 7.3 Advanced AI Features
-- [ ] Threat Analysis & Remediation suggestions
+- [x] Threat Analysis & Remediation suggestions (via Context + Prompt)
 - [ ] Automated Query Generation (Natural Language to SQL/Filters)
 - [ ] Incident Summarization
 - [ ] Voice Input (Speech-to-Text) - Optional
@@ -277,22 +277,59 @@
 
 ---
 
-## Phase 11: Testing & QA (Week 24-25)
+## Phase 11: Super Admin / SaaS Owner Portal (Week 24-25)
 
-### 11.1 Backend Testing
+### 11.1 Super Admin Role & Auth
+- [x] Add `superadmin` role to RBAC system
+- [x] Create Super Admin user seeding
+- [x] Super Admin JWT with cross-tenant access
+- [x] Protect Super Admin routes with role check
+
+### 11.2 Tenant Management API
+- [x] GET /api/admin/tenants (list all tenants with stats)
+- [x] GET /api/admin/tenants/:id (tenant details)
+- [x] PUT /api/admin/tenants/:id (enable/disable tenant)
+- [ ] GET /api/admin/tenants/:id/users (list users in tenant)
+- [x] GET /api/admin/tenants/:id/stats (usage metrics)
+- [x] POST /api/admin/impersonate/:tenantId (switch to view as tenant)
+
+### 11.3 Cross-Tenant Data Access
+- [x] Super Admin can view all tenants' logs
+- [x] Tenant selector dropdown in header
+- [x] Dashboard stats scoped to selected tenant
+- [x] Log viewer filtered by selected tenant
+- [ ] Integration status per tenant
+
+### 11.4 Super Admin Dashboard UI
+- [x] Tenant overview table (name, users, events, status)
+- [x] Tenant search and filter
+- [x] Tenant detail page (stats, users, integrations)
+- [ ] Usage graphs (events/day per tenant)
+- [ ] System-wide alerts and health status
+
+### 11.5 Billing & Subscription (Optional)
+- [ ] Subscription tier per tenant (Free, Pro, Enterprise)
+- [ ] Usage limits enforcement
+- [ ] Billing history view
+
+---
+
+## Phase 12: Testing & QA (Week 26-27)
+
+### 12.1 Backend Testing
 - [ ] Unit tests (Vitest) - services, utils
 - [ ] Integration tests - API endpoints
 - [ ] Auth flow tests
 - [ ] RBAC permission tests
 
-### 11.2 Frontend Testing
+### 12.2 Frontend Testing
 - [ ] Unit tests (Vitest) - components, hooks
 - [ ] E2E tests (Playwright) - critical flows
 - [ ] Login/Logout flow
 - [ ] Dashboard navigation
 - [ ] Case management flow
 
-### 11.3 Security Testing
+### 12.3 Security Testing
 - [ ] SQL injection tests
 - [ ] XSS tests
 - [ ] CSRF tests
@@ -301,22 +338,22 @@
 
 ---
 
-## Phase 12: Deployment (Week 26)
+## Phase 13: Deployment (Week 28)
 
-### 12.1 Infrastructure
+### 13.1 Infrastructure
 - [ ] Dockerfile for each service
 - [ ] Docker Compose for production
 - [ ] Nginx reverse proxy config
 - [ ] SSL/TLS certificates (Let's Encrypt)
 - [ ] Environment variables setup
 
-### 12.2 CI/CD
+### 13.2 CI/CD
 - [ ] GitHub Actions workflow
 - [ ] Build + Test pipeline
 - [ ] Deploy to staging
 - [ ] Deploy to production
 
-### 12.3 Monitoring
+### 13.3 Monitoring
 - [ ] Health check endpoints
 - [ ] Error logging
 - [ ] Performance monitoring (optional: Prometheus/Grafana)
@@ -337,9 +374,10 @@
 | 8 | Case Management | 3 weeks |
 | 9 | Notifications | 2 weeks |
 | 10 | Reports | 2 weeks |
-| 11 | Testing | 2 weeks |
-| 12 | Deployment | 1 week |
-| **Total** | | **~26 weeks** |
+| 11 | **Super Admin Portal** | 2 weeks |
+| 12 | Testing | 2 weeks |
+| 13 | Deployment | 1 week |
+| **Total** | | **~28 weeks** |
 
 ---
 

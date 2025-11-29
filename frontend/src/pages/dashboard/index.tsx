@@ -182,6 +182,17 @@ export default function DashboardPage() {
           zcrAI Dashboard
         </h1>
         <div className="flex items-center gap-4">
+          {/* Tenant Selector สำหรับ Super Admin */}
+          {user?.role === 'superadmin' && (
+            <Button 
+              size="sm" 
+              variant="flat" 
+              color="secondary"
+              onPress={() => navigate('/admin')}
+            >
+              Admin Panel
+            </Button>
+          )}
           <Select
             label="Time Range"
             selectedKeys={[days.toString()]}
@@ -194,6 +205,12 @@ export default function DashboardPage() {
             <SelectItem key="30">30 Days</SelectItem>
             <SelectItem key="90">90 Days</SelectItem>
           </Select>
+          <Button size="sm" variant="flat" onPress={() => navigate('/logs')}>
+            Log Viewer
+          </Button>
+          <Button size="sm" variant="flat" onPress={() => navigate('/settings')}>
+            Settings
+          </Button>
           <p className="text-sm">Welcome, {user?.email}</p>
           <Button color="danger" variant="light" size="sm" onPress={handleLogout}>
             Logout
