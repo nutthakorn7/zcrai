@@ -115,6 +115,18 @@ export const adminController = new Elysia({ prefix: '/admin' })
     }
   })
 
+  // ==================== GET TENANT USAGE (Events per Day) ====================
+  .get('/tenants/:id/usage', async ({ params, query, jwt, cookie: { access_token }, set }) => {
+    try {
+      await requireSuperAdmin(jwt, access_token)
+      const days = query.days ? parseInt(query.days as string) : 30
+      return await AdminService.getTenantUsage(params.id, days)
+    } catch (e: any) {
+      set.status = e.message === 'Forbidden: Super Admin access required' ? 403 : 401
+      return { error: e.message }
+    }
+  })
+
   // ==================== IMPERSONATE TENANT (Set selected tenant for viewing) ====================
   .post('/impersonate/:tenantId', async ({ params, jwt, cookie: { access_token, selected_tenant }, set }) => {
     try {

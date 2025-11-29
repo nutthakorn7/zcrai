@@ -304,7 +304,7 @@
 - [x] Tenant overview table (name, users, events, status)
 - [x] Tenant search and filter
 - [x] Tenant detail page (stats, users, integrations)
-- [ ] Usage graphs (events/day per tenant)
+- [x] Usage graphs (events/day per tenant)
 - [x] System-wide alerts and health status (DB/Redis/ClickHouse Health Check)
 
 ### 11.5 Billing & Subscription (Optional)

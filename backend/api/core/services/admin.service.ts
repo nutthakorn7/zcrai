@@ -185,6 +185,29 @@ export const AdminService = {
     }
   },
 
+  // ==================== GET TENANT USAGE (Events per Day) ====================
+  async getTenantUsage(tenantId: string, days: number = 30) {
+    try {
+      const result = await query<{ date: string, count: string }>(`
+        SELECT 
+          toDate(timestamp) as date,
+          count() as count
+        FROM security_events 
+        WHERE tenant_id = {tenantId:String}
+          AND timestamp >= now() - INTERVAL {days:UInt32} DAY
+        GROUP BY date
+        ORDER BY date
+      `, { tenantId, days })
+
+      return result.map(r => ({
+        date: r.date,
+        count: parseInt(r.count)
+      }))
+    } catch (e) {
+      return []
+    }
+  },
+
   // ==================== CHECK SYSTEM HEALTH ====================
   async checkHealth() {
     const health = {

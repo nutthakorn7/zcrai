@@ -6,6 +6,7 @@ import {
 } from "@heroui/react"
 import { useNavigate } from "react-router-dom"
 import { api } from "../../shared/api/api"
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 
 interface Tenant {
   id: string
@@ -38,6 +39,11 @@ interface User {
   status: string
 }
 
+interface UsageData {
+  date: string
+  count: number
+}
+
 export default function AdminDashboard() {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
@@ -47,6 +53,7 @@ export default function AdminDashboard() {
   const [search, setSearch] = useState("")
   const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null)
   const [tenantUsers, setTenantUsers] = useState<User[]>([])
+  const [usageData, setUsageData] = useState<UsageData[]>([])
   const [loadingUsers, setLoadingUsers] = useState(false)
   const { isOpen, onOpen, onOpenChange } = useDisclosure()
 
@@ -90,10 +97,14 @@ export default function AdminDashboard() {
     onOpen()
     setLoadingUsers(true)
     try {
-      const res = await api.get(`/admin/tenants/${tenant.id}/users`)
-      setTenantUsers(res.data)
+      const [usersRes, usageRes] = await Promise.all([
+        api.get(`/admin/tenants/${tenant.id}/users`),
+        api.get(`/admin/tenants/${tenant.id}/usage?days=30`)
+      ])
+      setTenantUsers(usersRes.data)
+      setUsageData(usageRes.data)
     } catch (e) {
-      console.error('Failed to load tenant users:', e)
+      console.error('Failed to load tenant details:', e)
     } finally {
       setLoadingUsers(false)
     }
@@ -304,6 +315,43 @@ export default function AdminDashboard() {
                         ))}
                       </TableBody>
                     </Table>
+                  )}
+                </div>
+
+                {/* Usage Chart */}
+                <div className="mt-6">
+                  <h3 className="text-lg font-semibold mb-3">Events (Last 30 Days)</h3>
+                  {usageData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={200}>
+                      <BarChart data={usageData}>
+                        <XAxis 
+                          dataKey="date" 
+                          tick={{ fontSize: 10, fill: '#a1a1aa' }} 
+                          tickFormatter={(v) => new Date(v).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                          axisLine={{ stroke: '#3f3f46' }}
+                          tickLine={{ stroke: '#3f3f46' }}
+                        />
+                        <YAxis 
+                          tick={{ fontSize: 10, fill: '#a1a1aa' }} 
+                          axisLine={{ stroke: '#3f3f46' }}
+                          tickLine={{ stroke: '#3f3f46' }}
+                        />
+                        <Tooltip 
+                          labelFormatter={(v) => new Date(v).toLocaleDateString()}
+                          formatter={(value: number) => [value.toLocaleString(), 'Events']}
+                          contentStyle={{ 
+                            backgroundColor: '#18181b', 
+                            border: '1px solid #3f3f46',
+                            borderRadius: '8px',
+                            color: '#fafafa'
+                          }}
+                          labelStyle={{ color: '#a1a1aa' }}
+                        />
+                        <Bar dataKey="count" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <p className="text-default-500 text-sm">No usage data available</p>
                   )}
                 </div>
               </ModalBody>
