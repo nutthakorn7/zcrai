@@ -41,6 +41,9 @@ interface Integration {
   lastSyncStatus: 'success' | 'error' | 'pending' | null;
   lastSyncError: string | null;
   lastSyncAt: string | null;
+  fetchSettings?: S1FetchSettings | CSFetchSettings | null;  // ⭐ เพิ่ม
+  maskedUrl?: string | null;  // ⭐ เพิ่ม
+  keyId?: string | null;      // ⭐ CrowdStrike Client ID
 }
 
 export default function IntegrationPage() {
@@ -133,10 +136,43 @@ export default function IntegrationPage() {
     onOpen();
   };
 
-  const handleOpenEdit = (int: Integration) => {
+  const handleOpenEdit = async (int: Integration) => {
     setMode('edit');
     setSelectedIntegration(int);
     setLabel(int.label);
+    
+    // ⭐ Load existing config for edit
+    try {
+      const { data } = await api.get(`/integrations/${int.id}/config`);
+      
+      if (int.provider === 'sentinelone') {
+        setModalType('s1');
+        setS1Url(data.url || '');
+        setS1Token(''); // Don't show token, let user re-enter if needed
+        if (data.fetchSettings) {
+          setS1FetchSettings(data.fetchSettings);
+          setShowAdvanced(true);
+        }
+      } else if (int.provider === 'crowdstrike') {
+        setModalType('cs');
+        setCsBaseUrl(data.baseUrl || 'https://api.us-2.crowdstrike.com');
+        setCsClientId(data.clientId || '');
+        setCsSecret(''); // Don't show secret
+        if (data.fetchSettings) {
+          setCsFetchSettings(data.fetchSettings);
+          setShowAdvanced(true);
+        }
+      } else {
+        setModalType('ai');
+        setAiProvider(int.provider);
+        setAiModel(data.model || '');
+        setAiBaseUrl(data.baseUrl || '');
+        setAiKey(''); // Don't show key
+      }
+    } catch (e) {
+      console.error('Failed to load config');
+    }
+    
     onOpen();
   };
 
@@ -168,11 +204,34 @@ export default function IntegrationPage() {
           });
         }
       } else {
-        // Edit Mode
+        // Edit Mode - ⭐ Full Update: URL, Token, fetchSettings
         if (selectedIntegration) {
-          await api.put(`/integrations/${selectedIntegration.id}`, {
-            label: label,
-          });
+          const provider = selectedIntegration.provider;
+          
+          if (provider === 'sentinelone') {
+            await api.put(`/integrations/${selectedIntegration.id}`, {
+              label: label,
+              url: s1Url,
+              token: s1Token || undefined, // undefined = keep existing
+              fetchSettings: s1FetchSettings,
+            });
+          } else if (provider === 'crowdstrike') {
+            await api.put(`/integrations/${selectedIntegration.id}`, {
+              label: label,
+              baseUrl: csBaseUrl,
+              clientId: csClientId,
+              clientSecret: csSecret || undefined, // undefined = keep existing
+              fetchSettings: csFetchSettings,
+            });
+          } else {
+            // AI Provider
+            await api.put(`/integrations/${selectedIntegration.id}`, {
+              label: label,
+              apiKey: aiKey || undefined, // undefined = keep existing
+              model: aiModel || undefined,
+              baseUrl: aiBaseUrl || undefined,
+            });
+          }
         }
       }
 
@@ -267,7 +326,7 @@ export default function IntegrationPage() {
         {integrations.map((int) => (
           <Card key={int.id} className="bg-content1">
             <CardBody className="flex flex-row justify-between items-center">
-              <div>
+              <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
                   <h3 className="text-lg font-semibold">{int.label}</h3>
                   <Chip size="sm" color={getProviderColor(int.provider) as any}>
@@ -288,7 +347,59 @@ export default function IntegrationPage() {
                     </Chip>
                   )}
                 </div>
-                <p className="text-small text-default-500">
+                
+                {/* ⭐ แสดง URL และ Settings */}
+                {int.maskedUrl && (
+                  <p className="text-xs text-default-400 font-mono mb-1">
+                    {int.maskedUrl}
+                  </p>
+                )}
+                
+                {/* ⭐ แสดง Fetch Settings Summary */}
+                {int.fetchSettings && (int.provider === 'sentinelone' || int.provider === 'crowdstrike') && (
+                  <div className="flex gap-2 flex-wrap">
+                    {int.provider === 'sentinelone' && (
+                      <>
+                        {(int.fetchSettings as S1FetchSettings).threats?.enabled && (
+                          <Chip size="sm" variant="flat" color="default" className="text-xs">
+                            Threats: {(int.fetchSettings as S1FetchSettings).threats.days}d
+                          </Chip>
+                        )}
+                        {(int.fetchSettings as S1FetchSettings).activities?.enabled && (
+                          <Chip size="sm" variant="flat" color="default" className="text-xs">
+                            Activities: {(int.fetchSettings as S1FetchSettings).activities.days}d
+                          </Chip>
+                        )}
+                        {(int.fetchSettings as S1FetchSettings).alerts?.enabled && (
+                          <Chip size="sm" variant="flat" color="default" className="text-xs">
+                            Alerts: {(int.fetchSettings as S1FetchSettings).alerts.days}d
+                          </Chip>
+                        )}
+                      </>
+                    )}
+                    {int.provider === 'crowdstrike' && (
+                      <>
+                        {(int.fetchSettings as CSFetchSettings).alerts?.enabled && (
+                          <Chip size="sm" variant="flat" color="default" className="text-xs">
+                            Alerts: {(int.fetchSettings as CSFetchSettings).alerts.days}d
+                          </Chip>
+                        )}
+                        {(int.fetchSettings as CSFetchSettings).detections?.enabled && (
+                          <Chip size="sm" variant="flat" color="default" className="text-xs">
+                            Detections: {(int.fetchSettings as CSFetchSettings).detections.days}d
+                          </Chip>
+                        )}
+                        {(int.fetchSettings as CSFetchSettings).incidents?.enabled && (
+                          <Chip size="sm" variant="flat" color="default" className="text-xs">
+                            Incidents: {(int.fetchSettings as CSFetchSettings).incidents.days}d
+                          </Chip>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+                
+                <p className="text-small text-default-500 mt-1">
                   Added on {new Date(int.createdAt).toLocaleDateString()}
                 </p>
               </div>
@@ -339,9 +450,8 @@ export default function IntegrationPage() {
                   onValueChange={setLabel}
                 />
                 
-                {mode === 'add' && (
-                  <>
-                    {modalType === 's1' && (
+                {/* ⭐ SentinelOne Form - Add & Edit */}
+                {modalType === 's1' && (
                       <>
                         <Input
                           label="Base URL"
@@ -460,9 +570,10 @@ export default function IntegrationPage() {
                           </div>
                         )}
                       </>
-                    )}
+                )}
 
-                    {modalType === 'cs' && (
+                {/* ⭐ CrowdStrike Form - Add & Edit */}
+                {modalType === 'cs' && (
                       <>
                         <Select
                           label="Region"
@@ -591,9 +702,10 @@ export default function IntegrationPage() {
                           </div>
                         )}
                       </>
-                    )}
+                )}
 
-                    {modalType === 'ai' && (
+                {/* ⭐ AI Provider Form - Add & Edit */}
+                {modalType === 'ai' && (
                       <>
                         <Select 
                           label="Provider" 
@@ -674,8 +786,6 @@ export default function IntegrationPage() {
                           onValueChange={setAiBaseUrl}
                         />
                       </>
-                    )}
-                  </>
                 )}
               </ModalBody>
 

@@ -184,19 +184,34 @@ export const integrationController = new Elysia({ prefix: '/integrations' })
     }
   })
 
-  // ==================== UPDATE INTEGRATION ====================
+  // ==================== GET CONFIG (สำหรับ Edit mode) ====================
+  .get('/:id/config', async ({ params, jwt, cookie: { access_token }, set }) => {
+    try {
+      const payload = await jwt.verify(access_token.value)
+      if (!payload) throw new Error('Unauthorized')
+
+      const config = await IntegrationService.getConfig(params.id, payload.tenantId as string)
+      return config
+    } catch (e: any) {
+      set.status = 400
+      return { error: e.message }
+    }
+  })
+
+  // ==================== UPDATE INTEGRATION (Label only - backward compatible) ====================
   .put('/:id', async ({ params, body, jwt, cookie: { access_token }, set }) => {
     try {
       const payload = await jwt.verify(access_token.value)
       if (!payload) throw new Error('Unauthorized')
 
-      const integration = await IntegrationService.update(params.id, payload.tenantId as string, body)
+      // ⭐ ใช้ updateFull แทน update เพื่อรองรับ full edit
+      const integration = await IntegrationService.updateFull(params.id, payload.tenantId as string, body as any)
       return { message: 'Integration updated successfully', integration }
     } catch (e: any) {
       set.status = 400
       return { error: e.message }
     }
-  }, { body: UpdateIntegrationSchema })
+  })
 
   // ==================== DELETE INTEGRATION ====================
   .delete('/:id', async ({ params, jwt, cookie: { access_token }, set }) => {

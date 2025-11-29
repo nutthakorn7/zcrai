@@ -21,19 +21,154 @@ export const IntegrationService = {
     .from(apiKeys)
     .where(eq(apiKeys.tenantId, tenantId))
 
-    // เพิ่ม hasApiKey และ sync status fields
-    return keys.map(key => ({
-      id: key.id,
-      provider: key.provider,
-      label: key.label,
-      keyId: key.keyId,
-      lastUsedAt: key.lastUsedAt,
-      lastSyncStatus: key.lastSyncStatus,   // 'success' | 'error' | null
-      lastSyncError: key.lastSyncError,     // Error message
-      lastSyncAt: key.lastSyncAt,           // Last sync timestamp
-      createdAt: key.createdAt,
-      hasApiKey: !!key.encryptedKey && key.encryptedKey.length > 0,
-    }))
+    // เพิ่ม hasApiKey, fetchSettings และ masked config
+    return keys.map(key => {
+      let fetchSettings = null
+      let maskedUrl = null
+      
+      try {
+        const decrypted = Encryption.decrypt(key.encryptedKey)
+        const parsed = JSON.parse(decrypted)
+        fetchSettings = parsed.fetchSettings || null
+        
+        // Mask URL สำหรับแสดงผล
+        if (key.provider === 'sentinelone') {
+          maskedUrl = parsed.url || null
+        } else if (key.provider === 'crowdstrike') {
+          maskedUrl = parsed.baseUrl || null
+        }
+      } catch (e) {
+        // ignore decrypt errors
+      }
+      
+      return {
+        id: key.id,
+        provider: key.provider,
+        label: key.label,
+        keyId: key.keyId,
+        lastUsedAt: key.lastUsedAt,
+        lastSyncStatus: key.lastSyncStatus,
+        lastSyncError: key.lastSyncError,
+        lastSyncAt: key.lastSyncAt,
+        createdAt: key.createdAt,
+        hasApiKey: !!key.encryptedKey && key.encryptedKey.length > 0,
+        fetchSettings,  // ⭐ ส่ง fetchSettings กลับไปแสดงใน UI
+        maskedUrl,      // ⭐ URL สำหรับแสดงผล (ไม่ mask)
+      }
+    })
+  },
+
+  // ==================== GET CONFIG (สำหรับ Edit mode) ====================
+  async getConfig(integrationId: string, tenantId: string) {
+    const [integration] = await db.select()
+      .from(apiKeys)
+      .where(and(eq(apiKeys.id, integrationId), eq(apiKeys.tenantId, tenantId)))
+    
+    if (!integration) throw new Error('Integration not found')
+    
+    try {
+      const decrypted = Encryption.decrypt(integration.encryptedKey)
+      const parsed = JSON.parse(decrypted)
+      
+      // Return config พร้อม masked sensitive data
+      if (integration.provider === 'sentinelone') {
+        return {
+          url: parsed.url,
+          token: '••••••••', // Masked
+          hasToken: !!parsed.token,
+          fetchSettings: parsed.fetchSettings || {
+            threats: { enabled: true, days: 365 },
+            activities: { enabled: true, days: 120 },
+            alerts: { enabled: true, days: 365 },
+          },
+        }
+      } else if (integration.provider === 'crowdstrike') {
+        return {
+          baseUrl: parsed.baseUrl,
+          clientId: parsed.clientId,
+          clientSecret: '••••••••', // Masked
+          hasSecret: !!parsed.clientSecret,
+          fetchSettings: parsed.fetchSettings || {
+            alerts: { enabled: true, days: 365 },
+            detections: { enabled: true, days: 365 },
+            incidents: { enabled: true, days: 365 },
+          },
+        }
+      } else {
+        // AI Provider
+        return {
+          apiKey: '••••••••',
+          hasKey: !!parsed.apiKey,
+          model: parsed.model,
+          baseUrl: parsed.baseUrl,
+        }
+      }
+    } catch (e) {
+      throw new Error('Failed to decrypt config')
+    }
+  },
+
+  // ==================== UPDATE FULL (URL, Token, fetchSettings) ====================
+  async updateFull(integrationId: string, tenantId: string, data: {
+    label?: string;
+    url?: string;
+    token?: string;
+    baseUrl?: string;
+    clientId?: string;
+    clientSecret?: string;
+    apiKey?: string;
+    model?: string;
+    fetchSettings?: any;
+  }) {
+    const [integration] = await db.select()
+      .from(apiKeys)
+      .where(and(eq(apiKeys.id, integrationId), eq(apiKeys.tenantId, tenantId)))
+    
+    if (!integration) throw new Error('Integration not found')
+    
+    // Decrypt existing config
+    let existingConfig: any = {}
+    try {
+      const decrypted = Encryption.decrypt(integration.encryptedKey)
+      existingConfig = JSON.parse(decrypted)
+    } catch (e) {
+      existingConfig = {}
+    }
+    
+    // Merge new data with existing
+    let newConfig: any = { ...existingConfig }
+    
+    if (integration.provider === 'sentinelone') {
+      if (data.url) newConfig.url = data.url
+      if (data.token) newConfig.token = data.token
+      if (data.fetchSettings) newConfig.fetchSettings = data.fetchSettings
+    } else if (integration.provider === 'crowdstrike') {
+      if (data.baseUrl) newConfig.baseUrl = data.baseUrl
+      if (data.clientId) newConfig.clientId = data.clientId
+      if (data.clientSecret) newConfig.clientSecret = data.clientSecret
+      if (data.fetchSettings) newConfig.fetchSettings = data.fetchSettings
+    } else {
+      // AI Provider
+      if (data.apiKey) newConfig.apiKey = data.apiKey
+      if (data.model !== undefined) newConfig.model = data.model
+      if (data.baseUrl !== undefined) newConfig.baseUrl = data.baseUrl
+    }
+    
+    // Encrypt and save
+    const encryptedKey = Encryption.encrypt(JSON.stringify(newConfig))
+    
+    const [updated] = await db.update(apiKeys)
+      .set({
+        encryptedKey,
+        label: data.label || integration.label,
+        keyId: data.clientId || integration.keyId, // Update keyId if clientId changed
+        lastSyncStatus: 'pending', // Reset sync status
+        lastSyncError: null,
+      })
+      .where(eq(apiKeys.id, integrationId))
+      .returning()
+    
+    return updated
   },
 
   // ==================== LIST FOR COLLECTOR (พร้อม Decrypted Config) ====================
