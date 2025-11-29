@@ -443,7 +443,37 @@ func (s *Scheduler) collectSentinelOne(forceFullSync bool) error {
 			s.logger.Info("S1 Activities disabled by user settings")
 		}
 
-		totalEvents := threatCount + activityCount
+		// ⭐ ดึง Cloud Detection Alerts (ถ้า enabled)
+		alertCount := 0
+		if fetchSettings.Alerts == nil || fetchSettings.Alerts.Enabled {
+			alertDays := 365
+			if fetchSettings.Alerts != nil {
+				alertDays = fetchSettings.Alerts.Days
+			}
+
+			alertStartTime := startTime
+			if isFullSync {
+				alertStartTime = endTime.AddDate(0, 0, -alertDays)
+			}
+
+			s.logger.Info("Fetching S1 cloud detection alerts",
+				zap.Int("days", alertDays),
+				zap.Time("from", alertStartTime))
+
+			count, err := s1Client.FetchAlerts(ctx, alertStartTime, endTime, onPageEvents, onChunkComplete)
+			if err != nil {
+				if ctx.Err() != nil {
+					s.logger.Info("S1 alerts sync cancelled", zap.String("integrationId", integration.ID))
+					continue
+				}
+				s.logger.Error("Failed to fetch S1 alerts", zap.Error(err))
+			}
+			alertCount = count
+		} else {
+			s.logger.Info("S1 Alerts disabled by user settings")
+		}
+
+		totalEvents := threatCount + activityCount + alertCount
 
 		// Update State ผ่าน API (PostgreSQL)
 		if isFullSync {
@@ -641,6 +671,38 @@ func (s *Scheduler) collectCrowdStrike(forceFullSync bool) error {
 			s.logger.Info("CrowdStrike Alerts disabled by user settings")
 		}
 
+		// ⭐ ดึง Incidents (ถ้า enabled)
+		incidentCount := 0
+		if csFetchSettings.Incidents == nil || csFetchSettings.Incidents.Enabled {
+			incidentDays := 365
+			if csFetchSettings.Incidents != nil {
+				incidentDays = csFetchSettings.Incidents.Days
+			}
+
+			incidentStartTime := startTime
+			if needsFullSync {
+				incidentStartTime = endTime.AddDate(0, 0, -incidentDays)
+			}
+
+			s.logger.Info("Fetching CrowdStrike incidents",
+				zap.Int("days", incidentDays),
+				zap.Time("from", incidentStartTime))
+
+			count, err := csClient.FetchIncidents(ctx, incidentStartTime, endTime, onPageEvents, onChunkComplete)
+			if err != nil {
+				if ctx.Err() != nil {
+					s.logger.Info("CrowdStrike incidents sync cancelled", zap.String("integrationId", integration.ID))
+					continue
+				}
+				s.logger.Error("Failed to fetch CrowdStrike incidents", zap.Error(err))
+			}
+			incidentCount = count
+		} else {
+			s.logger.Info("CrowdStrike Incidents disabled by user settings")
+		}
+
+		totalEvents := alertCount + incidentCount
+
 		// อัพเดท checkpoint สุดท้ายผ่าน API
 		if err := s.state.UpdateCheckpoint(integration.TenantID, provider, urlHash, endTime); err != nil {
 			s.logger.Error("Failed to save state", zap.Error(err))
@@ -648,13 +710,15 @@ func (s *Scheduler) collectCrowdStrike(forceFullSync bool) error {
 		s.config.UpdateSyncStatus(integration.TenantID, "crowdstrike", "success", "")
 
 		// ⭐ Event-based OPTIMIZE: dedupe ทันทีหลัง sync เสร็จ
-		if alertCount > 0 {
+		if totalEvents > 0 {
 			s.optimizeClickHouse()
 		}
 
 		s.logger.Info("CrowdStrike collection completed",
 			zap.String("tenantId", integration.TenantID),
-			zap.Int("alerts", alertCount))
+			zap.Int("alerts", alertCount),
+			zap.Int("incidents", incidentCount),
+			zap.Int("total", totalEvents))
 	}
 
 	return nil

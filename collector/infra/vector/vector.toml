@@ -61,33 +61,84 @@ source = '''
 .integration_id = .integration_id || ""
 .integration_name = .integration_name || ""
 
-# Host info
+# ==================== Detection Details ====================
+.rule_name = .rule_name || ""
+.threat_name = .threat_name || ""
+.classification = .classification || ""
+.confidence_level = .confidence_level || ""
+.analyst_verdict = .analyst_verdict || ""
+.incident_status = .incident_status || ""
+.detection_engines = .detection_engines || ""
+.classification_source = .classification_source || ""
+
+# ==================== MITRE ATT&CK ====================
+.mitre_attack_link = .mitre_attack_link || ""
+
+# ==================== Response/Disposition ====================
+.threat_mitigated = .threat_mitigated || false
+.disposition_description = .disposition_description || ""
+.response_actions = .response_actions || ""
+
+# ==================== Console Link ====================
+.console_link = .console_link || ""
+
+# ==================== Storyline/Correlation ====================
+.storyline = .storyline || ""
+.control_graph_id = .control_graph_id || ""
+.incident_id_ref = .incident_id || ""
+.alert_ids = .alert_ids || ""
+
+# ==================== Host Info (Extended) ====================
 .host_name = .host.name || ""
 .host_ip = .host.ip || ""
+.host_external_ip = .host.external_ip || ""
+.host_mac_address = .host.mac_address || ""
 .host_os = .host.os || ""
 .host_os_version = .host.os_version || ""
+.host_platform = .host.platform || ""
 .host_agent_id = .host.agent_id || ""
+.host_agent_version = .host.agent_version || ""
 .host_account_id = .host.account_id || ""
 .host_account_name = .host.account_name || ""
 .host_site_id = .host.site_id || ""
 .host_site_name = .host.site_name || ""
 .host_group_id = .host.group_id || ""
 .host_group_name = .host.group_name || ""
+.host_domain = .host.domain || ""
+.host_ou = .host.ou || ""
 
-# User info
+# ==================== User Info ====================
 .user_name = .user.name || ""
 .user_domain = .user.domain || ""
 .user_email = .user.email || ""
 
-# Process info
+# ==================== Process Info ====================
 .process_name = .process.name || ""
 .process_path = .process.path || ""
 .process_cmd = .process.cmd || ""
 .process_pid = .process.pid || 0
 .process_ppid = .process.ppid || 0
 .process_sha256 = .process.sha256 || ""
+.process_sha1 = .process.sha1 || ""
+.process_md5 = .process.md5 || ""
 
-# File info
+# ==================== Parent Process (Attack Chain) ====================
+.parent_process_name = .parent_process.name || ""
+.parent_process_path = .parent_process.path || ""
+.parent_process_cmd = .parent_process.cmd || ""
+.parent_process_sha256 = .parent_process.sha256 || ""
+.parent_process_md5 = .parent_process.md5 || ""
+.parent_process_user = .parent_process.user_name || ""
+
+# ==================== Grandparent Process (Attack Chain) ====================
+.grandparent_process_name = .grandparent_process.name || ""
+.grandparent_process_path = .grandparent_process.path || ""
+.grandparent_process_cmd = .grandparent_process.cmd || ""
+.grandparent_process_sha256 = .grandparent_process.sha256 || ""
+.grandparent_process_md5 = .grandparent_process.md5 || ""
+.grandparent_process_user = .grandparent_process.user_name || ""
+
+# ==================== File Info ====================
 .file_name = .file.name || ""
 .file_path = .file.path || ""
 .file_hash = .file.hash || ""
@@ -95,7 +146,7 @@ source = '''
 .file_md5 = .file.md5 || ""
 .file_size = .file.size || 0
 
-# Network info
+# ==================== Network Info ====================
 .network_src_ip = .network.src_ip || ""
 .network_dst_ip = .network.dst_ip || ""
 .network_src_port = .network.src_port || 0
@@ -109,12 +160,14 @@ source = '''
 .raw = encode_json(.raw)
 .metadata = encode_json(.metadata)
 
-# Remove nested objects to avoid schema conflicts (optional, but good practice)
+# Remove nested objects to avoid schema conflicts
 del(.host)
 del(.user)
 del(.process)
 del(.file)
 del(.network)
+del(.parent_process)
+del(.grandparent_process)
 '''
 
 # ==================== SINKS ====================
