@@ -10,6 +10,15 @@ import OpenAILogo from '../../assets/logo/openai.png';
 import ClaudeLogo from '../../assets/logo/claude.png';
 import GeminiLogo from '../../assets/logo/gemini.png';
 
+// ⭐ Preload all logos immediately
+const preloadImages = () => {
+  [SentinelOneLogo, CrowdStrikeLogo, OpenAILogo, ClaudeLogo, GeminiLogo].forEach(src => {
+    const img = new Image();
+    img.src = src;
+  });
+};
+preloadImages();
+
 // ⭐ Provider Logo Map
 const PROVIDER_LOGOS: Record<string, string> = {
   sentinelone: SentinelOneLogo,
@@ -456,6 +465,12 @@ export default function IntegrationPage() {
                     <div className="relative">
                       <Avatar
                         src={PROVIDER_LOGOS[int.provider]}
+                        showFallback
+                        fallback={
+                          <div className="w-full h-full flex items-center justify-center bg-default-200 text-default-500 font-bold text-lg">
+                            {int.provider === 'sentinelone' ? 'S1' : int.provider === 'crowdstrike' ? 'CS' : int.provider.slice(0,2).toUpperCase()}
+                          </div>
+                        }
                         className="w-14 h-14 bg-default-100/50 p-2 ring-2 ring-default-200/50"
                         radius="lg"
                       />
@@ -643,6 +658,12 @@ export default function IntegrationPage() {
                   <div className="flex items-center gap-3 mb-3">
                     <Avatar
                       src={PROVIDER_LOGOS[int.provider]}
+                      showFallback
+                      fallback={
+                        <div className="w-full h-full flex items-center justify-center bg-default-200 text-default-500 font-bold text-xs">
+                          {int.provider === 'openai' ? 'AI' : int.provider === 'claude' ? 'CL' : int.provider === 'gemini' ? 'GM' : int.provider.slice(0,2).toUpperCase()}
+                        </div>
+                      }
                       className="w-10 h-10 bg-default-100/50 p-1.5"
                       radius="md"
                     />
