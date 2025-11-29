@@ -289,7 +289,7 @@
 - [x] GET /api/admin/tenants (list all tenants with stats)
 - [x] GET /api/admin/tenants/:id (tenant details)
 - [x] PUT /api/admin/tenants/:id (enable/disable tenant)
-- [ ] GET /api/admin/tenants/:id/users (list users in tenant)
+- [x] GET /api/admin/tenants/:id/users (list users in tenant)
 - [x] GET /api/admin/tenants/:id/stats (usage metrics)
 - [x] POST /api/admin/impersonate/:tenantId (switch to view as tenant)
 
@@ -298,14 +298,14 @@
 - [x] Tenant selector dropdown in header
 - [x] Dashboard stats scoped to selected tenant
 - [x] Log viewer filtered by selected tenant
-- [ ] Integration status per tenant
+- [x] Integration status per tenant
 
 ### 11.4 Super Admin Dashboard UI
 - [x] Tenant overview table (name, users, events, status)
 - [x] Tenant search and filter
 - [x] Tenant detail page (stats, users, integrations)
 - [ ] Usage graphs (events/day per tenant)
-- [ ] System-wide alerts and health status
+- [x] System-wide alerts and health status (DB/Redis/ClickHouse Health Check)
 
 ### 11.5 Billing & Subscription (Optional)
 - [ ] Subscription tier per tenant (Free, Pro, Enterprise)

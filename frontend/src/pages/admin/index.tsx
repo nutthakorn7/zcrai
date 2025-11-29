@@ -24,13 +24,30 @@ interface SystemSummary {
   events: number
 }
 
+interface HealthStatus {
+  database: string
+  clickhouse: string
+  redis: string
+  status: string
+}
+
+interface User {
+  id: string
+  email: string
+  role: string
+  status: string
+}
+
 export default function AdminDashboard() {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
   const [tenants, setTenants] = useState<Tenant[]>([])
   const [summary, setSummary] = useState<SystemSummary | null>(null)
+  const [health, setHealth] = useState<HealthStatus | null>(null)
   const [search, setSearch] = useState("")
   const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null)
+  const [tenantUsers, setTenantUsers] = useState<User[]>([])
+  const [loadingUsers, setLoadingUsers] = useState(false)
   const { isOpen, onOpen, onOpenChange } = useDisclosure()
 
   useEffect(() => {
@@ -40,12 +57,14 @@ export default function AdminDashboard() {
   const loadData = async () => {
     setLoading(true)
     try {
-      const [tenantsRes, summaryRes] = await Promise.all([
+      const [tenantsRes, summaryRes, healthRes] = await Promise.all([
         api.get('/admin/tenants'),
-        api.get('/admin/summary')
+        api.get('/admin/summary'),
+        api.get('/admin/health')
       ])
       setTenants(tenantsRes.data)
       setSummary(summaryRes.data)
+      setHealth(healthRes.data)
     } catch (e: any) {
       if (e.response?.status === 403) {
         navigate('/dashboard')
@@ -66,9 +85,18 @@ export default function AdminDashboard() {
     }
   }
 
-  const handleOpenDetails = (tenant: Tenant) => {
+  const handleOpenDetails = async (tenant: Tenant) => {
     setSelectedTenant(tenant)
     onOpen()
+    setLoadingUsers(true)
+    try {
+      const res = await api.get(`/admin/tenants/${tenant.id}/users`)
+      setTenantUsers(res.data)
+    } catch (e) {
+      console.error('Failed to load tenant users:', e)
+    } finally {
+      setLoadingUsers(false)
+    }
   }
 
   const filteredTenants = tenants.filter(t => 
@@ -91,6 +119,13 @@ export default function AdminDashboard() {
           <h1 className="text-3xl font-bold">Super Admin Dashboard</h1>
           <p className="text-default-500">System-wide overview and tenant management</p>
         </div>
+        {health && (
+          <div className="flex gap-3">
+            <Chip color={health.database === 'connected' ? 'success' : 'danger'} variant="flat" size="sm">DB: {health.database}</Chip>
+            <Chip color={health.clickhouse === 'connected' ? 'success' : 'danger'} variant="flat" size="sm">CH: {health.clickhouse}</Chip>
+            <Chip color={health.redis === 'connected' ? 'success' : 'danger'} variant="flat" size="sm">Redis: {health.redis}</Chip>
+          </div>
+        )}
       </div>
 
       {/* Summary Cards */}
@@ -238,6 +273,39 @@ export default function AdminDashboard() {
                     </div>
                   </div>
                 )}
+
+                {/* Users List */}
+                <div className="mt-6">
+                  <h3 className="text-lg font-semibold mb-3">Tenant Users</h3>
+                  {loadingUsers ? (
+                    <div className="flex justify-center py-4"><Spinner size="sm" /></div>
+                  ) : (
+                    <Table aria-label="Tenant users" removeWrapper isCompact>
+                      <TableHeader>
+                        <TableColumn>EMAIL</TableColumn>
+                        <TableColumn>ROLE</TableColumn>
+                        <TableColumn>STATUS</TableColumn>
+                      </TableHeader>
+                      <TableBody emptyContent="No users found">
+                        {tenantUsers.map(user => (
+                          <TableRow key={user.id}>
+                            <TableCell>{user.email}</TableCell>
+                            <TableCell>
+                              <Chip size="sm" variant="flat" color={user.role === 'tenant_admin' ? 'secondary' : 'default'}>
+                                {user.role}
+                              </Chip>
+                            </TableCell>
+                            <TableCell>
+                              <Chip size="sm" color={user.status === 'active' ? 'success' : 'danger'} variant="dot">
+                                {user.status}
+                              </Chip>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </div>
               </ModalBody>
               <ModalFooter>
                 <Button variant="flat" onPress={onClose}>Close</Button>

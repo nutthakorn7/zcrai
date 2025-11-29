@@ -19,6 +19,17 @@ export const adminController = new Elysia({ prefix: '/admin' })
     })
   )
 
+  // ==================== CHECK HEALTH ====================
+  .get('/health', async ({ jwt, cookie: { access_token }, set }) => {
+    try {
+      await requireSuperAdmin(jwt, access_token)
+      return await AdminService.checkHealth()
+    } catch (e: any) {
+      set.status = e.message === 'Forbidden: Super Admin access required' ? 403 : 401
+      return { error: e.message }
+    }
+  })
+
   // ==================== GET SYSTEM SUMMARY ====================
   .get('/summary', async ({ jwt, cookie: { access_token }, set }) => {
     try {
@@ -54,6 +65,17 @@ export const adminController = new Elysia({ prefix: '/admin' })
       } else {
         set.status = 401
       }
+      return { error: e.message }
+    }
+  })
+
+  // ==================== GET TENANT USERS ====================
+  .get('/tenants/:id/users', async ({ params, jwt, cookie: { access_token }, set }) => {
+    try {
+      await requireSuperAdmin(jwt, access_token)
+      return await AdminService.getTenantUsers(params.id)
+    } catch (e: any) {
+      set.status = e.message === 'Forbidden: Super Admin access required' ? 403 : 401
       return { error: e.message }
     }
   })

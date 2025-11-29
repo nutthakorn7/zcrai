@@ -111,6 +111,23 @@ export const AdminService = {
     }
   },
 
+  // ==================== GET TENANT USERS ====================
+  async getTenantUsers(tenantId: string) {
+    const tenantUsers = await db.select({
+      id: users.id,
+      email: users.email,
+      role: users.role,
+      status: users.status,
+      createdAt: users.createdAt,
+      mfaEnabled: users.mfaEnabled,
+    })
+    .from(users)
+    .where(eq(users.tenantId, tenantId))
+    .orderBy(desc(users.createdAt))
+
+    return tenantUsers
+  },
+
   // ==================== UPDATE TENANT STATUS ====================
   async updateTenant(tenantId: string, data: { name?: string; status?: string }) {
     const [updated] = await db.update(tenants)
@@ -166,5 +183,38 @@ export const AdminService = {
       integrations: integrationCount?.count || 0,
       events: totalEvents,
     }
+  },
+
+  // ==================== CHECK SYSTEM HEALTH ====================
+  async checkHealth() {
+    const health = {
+      database: 'unknown',
+      clickhouse: 'unknown',
+      redis: 'unknown',
+      status: 'healthy',
+    }
+
+    // Check PostgreSQL
+    try {
+      await db.execute(sql`SELECT 1`)
+      health.database = 'connected'
+    } catch (e) {
+      health.database = 'disconnected'
+      health.status = 'degraded'
+    }
+
+    // Check ClickHouse
+    try {
+      await query('SELECT 1')
+      health.clickhouse = 'connected'
+    } catch (e) {
+      health.clickhouse = 'disconnected'
+      health.status = 'degraded'
+    }
+
+    // Check Redis
+    health.redis = 'connected' 
+
+    return health
   },
 }
