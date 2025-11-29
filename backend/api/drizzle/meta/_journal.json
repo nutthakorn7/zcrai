@@ -8,6 +8,13 @@
       "when": 1764344925108,
       "tag": "0000_green_sphinx",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1764431141191,
+      "tag": "0001_flaky_gamora",
+      "breakpoints": true
     }
   ]
 }
