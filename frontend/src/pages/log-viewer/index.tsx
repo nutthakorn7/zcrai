@@ -7,6 +7,42 @@ import {
 import { useNavigate } from "react-router-dom";
 import { api } from "../../shared/api/api";
 import { usePageContext } from "../../contexts/PageContext";
+import { Database } from 'lucide-react';
+
+// Import vendor logos
+import sentineloneLogo from '../../assets/logo/sentinelone.png';
+import crowdstrikeLogo from '../../assets/logo/crowdstrike.png';
+
+// Vendor Logo Component
+const VendorLogo = ({ source }: { source: string }) => {
+  const sourceLower = source?.toLowerCase() || '';
+  
+  if (sourceLower === 'sentinelone') {
+    return (
+      <div className="flex items-center gap-2">
+        <img src={sentineloneLogo} alt="S1" className="w-5 h-5 object-contain" />
+        <span className="text-xs">SentinelOne</span>
+      </div>
+    );
+  }
+  
+  if (sourceLower === 'crowdstrike') {
+    return (
+      <div className="flex items-center gap-2">
+        <img src={crowdstrikeLogo} alt="CS" className="w-5 h-5 object-contain" />
+        <span className="text-xs">CrowdStrike</span>
+      </div>
+    );
+  }
+  
+  // Fallback
+  return (
+    <div className="flex items-center gap-2">
+      <Database className="w-4 h-4 text-default-400" />
+      <span className="text-xs capitalize">{source || '-'}</span>
+    </div>
+  );
+};
 
 interface LogEntry {
   id: string;
@@ -347,7 +383,7 @@ export default function LogViewerPage() {
                         {log.severity}
                       </Chip>
                     </TableCell>
-                    <TableCell className="capitalize text-xs">{log.source}</TableCell>
+                    <TableCell><VendorLogo source={log.source} /></TableCell>
                     <TableCell className="text-xs">{log.integration_name || '-'}</TableCell>
                     <TableCell className="max-w-xs truncate text-sm">{log.title}</TableCell>
                     <TableCell className="text-xs">{log.host_name || '-'}</TableCell>

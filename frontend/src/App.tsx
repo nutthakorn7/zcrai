@@ -6,6 +6,7 @@ import ForgotPasswordPage from "./pages/auth/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/auth/ResetPasswordPage";
 import DashboardPage from "./pages/dashboard";
 import LogViewerPage from "./pages/log-viewer";
+import AlertsPage from "./pages/alerts";
 import AdminDashboard from "./pages/admin";
 import SettingsLayout from "./layouts/SettingsLayout";
 import MFASetupPage from "./pages/settings/MFASetupPage";
@@ -15,8 +16,22 @@ import ProfilePage from "./pages/settings/ProfilePage";
 import TenantPage from "./pages/settings/TenantPage";
 import { useAuth } from "./shared/store/useAuth";
 import { ChatWidget } from "./components/ChatWidget";
+import { SidebarLayout } from "./components/Sidebar";
 import { PageContextProvider } from "./contexts/PageContext";
 import { AdminProvider } from "./contexts/AdminContext";
+
+// Import logos for preloading
+import sentineloneLogo from './assets/logo/sentinelone.png';
+import crowdstrikeLogo from './assets/logo/crowdstrike.png';
+
+// Preload images
+const preloadImages = () => {
+  const images = [sentineloneLogo, crowdstrikeLogo];
+  images.forEach(src => {
+    const img = new Image();
+    img.src = src;
+  });
+};
 
 function ProtectedRoute({ children }: { children: JSX.Element }) {
   const { isAuthenticated, isLoading, user } = useAuth();
@@ -24,15 +39,17 @@ function ProtectedRoute({ children }: { children: JSX.Element }) {
   // แสดง loading ขณะ check auth
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      <div className="flex items-center justify-center min-h-screen" style={{ backgroundColor: '#0E0F14' }}>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-500"></div>
       </div>
     );
   }
   
   return isAuthenticated ? (
     <AdminProvider userRole={user?.role || ''}>
-      {children}
+      <SidebarLayout>
+        {children}
+      </SidebarLayout>
       <ChatWidget />
     </AdminProvider>
   ) : <Navigate to="/login" />;
@@ -44,8 +61,8 @@ function SuperAdminRoute({ children }: { children: JSX.Element }) {
   
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      <div className="flex items-center justify-center min-h-screen" style={{ backgroundColor: '#0E0F14' }}>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-500"></div>
       </div>
     );
   }
@@ -55,7 +72,9 @@ function SuperAdminRoute({ children }: { children: JSX.Element }) {
   
   return (
     <AdminProvider userRole={user?.role || ''}>
-      {children}
+      <SidebarLayout>
+        {children}
+      </SidebarLayout>
     </AdminProvider>
   );
 }
@@ -65,6 +84,7 @@ function App() {
 
   useEffect(() => {
     checkAuth();
+    preloadImages();
   }, []);
 
   return (
@@ -99,6 +119,14 @@ function App() {
           element={
             <ProtectedRoute>
               <LogViewerPage />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/alerts" 
+          element={
+            <ProtectedRoute>
+              <AlertsPage />
             </ProtectedRoute>
           } 
         />

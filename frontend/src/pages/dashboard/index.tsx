@@ -1,18 +1,71 @@
 import { useEffect, useState } from "react";
-import { Button, Spinner } from "@heroui/react";
-import { useAuth } from "../../shared/store/useAuth";
-import { useNavigate } from "react-router-dom";
+import { Button } from "@heroui/react";
 import { api } from "../../shared/api/api";
 import { usePageContext } from "../../contexts/PageContext";
 import { DateRangePicker } from "../../components/DateRangePicker";
 import { 
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  BarChart, Bar, Legend, PieChart, Pie, Cell
+  AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell, BarChart, Bar, CartesianGrid
 } from 'recharts';
 import { 
   ShieldAlert, AlertTriangle, AlertCircle, Activity, 
-  Server, Database, TrendingUp
+  Server, Database, TrendingUp, RefreshCw
 } from 'lucide-react';
+
+// CSS Animations (inject via style tag)
+const animationStyles = `
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 20px rgba(255, 107, 156, 0.2); }
+    50% { box-shadow: 0 0 30px rgba(255, 107, 156, 0.4); }
+  }
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+  .animate-fadeInUp { animation: fadeInUp 0.5s ease-out forwards; }
+  .animate-fadeInUp-1 { animation: fadeInUp 0.5s ease-out 0.1s forwards; opacity: 0; }
+  .animate-fadeInUp-2 { animation: fadeInUp 0.5s ease-out 0.2s forwards; opacity: 0; }
+  .animate-fadeInUp-3 { animation: fadeInUp 0.5s ease-out 0.3s forwards; opacity: 0; }
+  .animate-pulse-glow { animation: pulse-glow 3s ease-in-out infinite; }
+  .card-glass {
+    background: linear-gradient(135deg, rgba(26, 28, 36, 0.9) 0%, rgba(20, 21, 30, 0.95) 100%);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    transition: all 0.3s ease;
+  }
+  .card-glass:hover {
+    border-color: rgba(255, 255, 255, 0.1);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  }
+  .stat-card {
+    background: linear-gradient(135deg, rgba(30, 32, 42, 0.8) 0%, rgba(20, 22, 30, 0.9) 100%);
+    backdrop-filter: blur(10px);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .stat-card:hover {
+    transform: scale(1.02);
+  }
+  .gradient-border {
+    position: relative;
+  }
+  .gradient-border::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 16px;
+    padding: 1px;
+    background: linear-gradient(135deg, rgba(255, 107, 156, 0.3), rgba(126, 87, 255, 0.3));
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+`;
 
 interface Summary {
   critical: number;
@@ -77,8 +130,6 @@ interface SiteData {
 const COLORS = ['#ef4444', '#f59e0b', '#6366f1', '#22c55e', '#64748b'];
 
 export default function DashboardPage() {
-  const { logout, user } = useAuth();
-  const navigate = useNavigate();
   const { setPageContext } = usePageContext();
   
   const [loading, setLoading] = useState(true);
@@ -165,11 +216,6 @@ export default function DashboardPage() {
     }
   };
 
-  const handleLogout = async () => {
-    await logout();
-    navigate('/login');
-  };
-
   // Transform timeline data for chart
   const chartData = timeline.map(t => ({
     time: new Date(t.time).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
@@ -187,119 +233,136 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen dark bg-background">
-        <Spinner size="lg" />
+      <div className="flex flex-col items-center justify-center min-h-screen" style={{ backgroundColor: '#0E0F14' }}>
+        <div className="relative">
+          <div className="w-16 h-16 border-4 border-[#FF6B9C]/20 rounded-full animate-spin" 
+               style={{ borderTopColor: '#FF6B9C' }} />
+          <ShieldAlert className="absolute inset-0 m-auto w-6 h-6 text-[#FF6B9C]" />
+        </div>
+        <p className="mt-4 text-sm text-[#8D93A1]">Loading security data...</p>
       </div>
     );
   }
 
   return (
     <div className="p-6 min-h-screen" style={{ backgroundColor: '#0E0F14' }}>
-      {/* Header */}
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold" style={{ color: '#E4E6EB' }}>
-          Security Dashboard
-        </h1>
+      {/* Inject Animation Styles */}
+      <style>{animationStyles}</style>
+      
+      {/* Header with Gradient */}
+      <div className="flex justify-between items-center mb-8 animate-fadeInUp">
+        <div>
+          <h1 className="text-2xl font-bold bg-gradient-to-r from-[#E4E6EB] to-[#8D93A1] bg-clip-text text-transparent">
+            Security Dashboard
+          </h1>
+          <p className="text-sm mt-1 text-[#6C6F75]">
+            Real-time threat monitoring & analytics
+          </p>
+        </div>
         <div className="flex items-center gap-3">
-          {/* Tenant Selector สำหรับ Super Admin */}
-          {user?.role === 'superadmin' && (
-            <Button 
-              size="sm" 
-              variant="flat" 
-              className="bg-[#1C1E28] border border-white/5 text-[#E4E6EB]"
-              onPress={() => navigate('/admin')}
-            >
-              Admin Panel
-            </Button>
-          )}
           <DateRangePicker 
             startDate={startDate}
             endDate={endDate}
             onChange={handleDateChange}
           />
-          <Button size="sm" variant="flat" className="bg-[#1C1E28] border border-white/5 text-[#E4E6EB]" onPress={() => navigate('/logs')}>
-            Log Viewer
-          </Button>
-          <Button size="sm" variant="flat" className="bg-[#1C1E28] border border-white/5 text-[#E4E6EB]" onPress={() => navigate('/settings')}>
-            Settings
-          </Button>
-          <span className="text-sm" style={{ color: '#8D93A1' }}>{user?.email}</span>
-          <Button color="danger" variant="light" size="sm" onPress={handleLogout}>
-            Logout
+          <Button 
+            size="sm" 
+            className="bg-gradient-to-r from-[#FF6B9C] to-[#7E57FF] text-white border-0 hover:opacity-90 transition-opacity"
+            onPress={loadDashboard}
+          >
+            <RefreshCw className="w-4 h-4 mr-1" />
+            Refresh
           </Button>
         </div>
       </div>
       
-      {/* Summary Panel */}
-      <div 
-        className="rounded-[14px] p-6 mb-6 border"
-        style={{ 
-          backgroundColor: '#1C1E28',
-          borderColor: 'rgba(255,255,255,0.04)',
-          boxShadow: '0px 2px 15px rgba(0,0,0,0.30)'
-        }}
-      >
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
-          {/* Critical */}
+      {/* Summary Stats - Glass Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8 animate-fadeInUp-1">
+        {/* Critical */}
+        <div className="stat-card rounded-2xl p-5 cursor-pointer group">
           <div className="flex items-center gap-3">
-            <div className="p-3 rounded-full" style={{ backgroundColor: 'rgba(255, 74, 100, 0.15)' }}>
-              <ShieldAlert className="w-6 h-6" style={{ color: '#FF4A64' }} />
+            <div className="p-3 rounded-xl bg-gradient-to-br from-[#FF4A64]/20 to-[#FF4A64]/5 group-hover:scale-110 transition-transform">
+              <ShieldAlert className="w-5 h-5 text-[#FF4A64]" />
             </div>
             <div>
-              <p className="text-xs" style={{ color: '#8D93A1' }}>Critical Alerts</p>
-              <p className="text-2xl font-semibold" style={{ color: '#FF4A64' }}>
+              <p className="text-xs text-[#6C6F75] mb-1">Critical</p>
+              <p className="text-2xl font-bold text-[#FF4A64]">
                 {summary?.critical?.toLocaleString() || 0}
               </p>
             </div>
           </div>
-          
-          {/* High */}
+          <div className="mt-3 h-1 rounded-full bg-[#FF4A64]/10 overflow-hidden">
+            <div className="h-full bg-gradient-to-r from-[#FF4A64] to-[#FF6B9C] rounded-full" 
+                 style={{ width: `${Math.min((summary?.critical || 0) / (summary?.total || 1) * 100, 100)}%` }} />
+          </div>
+        </div>
+        
+        {/* High */}
+        <div className="stat-card rounded-2xl p-5 cursor-pointer group">
           <div className="flex items-center gap-3">
-            <div className="p-3 rounded-full" style={{ backgroundColor: 'rgba(245, 158, 11, 0.15)' }}>
-              <AlertTriangle className="w-6 h-6" style={{ color: '#f59e0b' }} />
+            <div className="p-3 rounded-xl bg-gradient-to-br from-[#f59e0b]/20 to-[#f59e0b]/5 group-hover:scale-110 transition-transform">
+              <AlertTriangle className="w-5 h-5 text-[#f59e0b]" />
             </div>
             <div>
-              <p className="text-xs" style={{ color: '#8D93A1' }}>High Alerts</p>
-              <p className="text-2xl font-semibold" style={{ color: '#f59e0b' }}>
+              <p className="text-xs text-[#6C6F75] mb-1">High</p>
+              <p className="text-2xl font-bold text-[#f59e0b]">
                 {summary?.high?.toLocaleString() || 0}
               </p>
             </div>
           </div>
-          
-          {/* Medium */}
+          <div className="mt-3 h-1 rounded-full bg-[#f59e0b]/10 overflow-hidden">
+            <div className="h-full bg-gradient-to-r from-[#f59e0b] to-[#fbbf24] rounded-full" 
+                 style={{ width: `${Math.min((summary?.high || 0) / (summary?.total || 1) * 100, 100)}%` }} />
+          </div>
+        </div>
+        
+        {/* Medium */}
+        <div className="stat-card rounded-2xl p-5 cursor-pointer group">
           <div className="flex items-center gap-3">
-            <div className="p-3 rounded-full" style={{ backgroundColor: 'rgba(234, 179, 8, 0.15)' }}>
-              <AlertCircle className="w-6 h-6" style={{ color: '#eab308' }} />
+            <div className="p-3 rounded-xl bg-gradient-to-br from-[#eab308]/20 to-[#eab308]/5 group-hover:scale-110 transition-transform">
+              <AlertCircle className="w-5 h-5 text-[#eab308]" />
             </div>
             <div>
-              <p className="text-xs" style={{ color: '#8D93A1' }}>Medium Alerts</p>
-              <p className="text-2xl font-semibold" style={{ color: '#eab308' }}>
+              <p className="text-xs text-[#6C6F75] mb-1">Medium</p>
+              <p className="text-2xl font-bold text-[#eab308]">
                 {summary?.medium?.toLocaleString() || 0}
               </p>
             </div>
           </div>
-          
-          {/* Low */}
+          <div className="mt-3 h-1 rounded-full bg-[#eab308]/10 overflow-hidden">
+            <div className="h-full bg-gradient-to-r from-[#eab308] to-[#fde047] rounded-full" 
+                 style={{ width: `${Math.min((summary?.medium || 0) / (summary?.total || 1) * 100, 100)}%` }} />
+          </div>
+        </div>
+        
+        {/* Low */}
+        <div className="stat-card rounded-2xl p-5 cursor-pointer group">
           <div className="flex items-center gap-3">
-            <div className="p-3 rounded-full" style={{ backgroundColor: 'rgba(40, 199, 111, 0.15)' }}>
-              <Activity className="w-6 h-6" style={{ color: '#28C76F' }} />
+            <div className="p-3 rounded-xl bg-gradient-to-br from-[#28C76F]/20 to-[#28C76F]/5 group-hover:scale-110 transition-transform">
+              <Activity className="w-5 h-5 text-[#28C76F]" />
             </div>
             <div>
-              <p className="text-xs" style={{ color: '#8D93A1' }}>Low Alerts</p>
-              <p className="text-2xl font-semibold" style={{ color: '#28C76F' }}>
+              <p className="text-xs text-[#6C6F75] mb-1">Low</p>
+              <p className="text-2xl font-bold text-[#28C76F]">
                 {summary?.low?.toLocaleString() || 0}
               </p>
             </div>
           </div>
-          
-          {/* Total */}
+          <div className="mt-3 h-1 rounded-full bg-[#28C76F]/10 overflow-hidden">
+            <div className="h-full bg-gradient-to-r from-[#28C76F] to-[#4ade80] rounded-full" 
+                 style={{ width: `${Math.min((summary?.low || 0) / (summary?.total || 1) * 100, 100)}%` }} />
+          </div>
+        </div>
+        
+        {/* Total - Featured */}
+        <div className="stat-card rounded-2xl p-5 cursor-pointer group gradient-border animate-pulse-glow">
           <div className="flex items-center gap-3">
-            <div className="p-3 rounded-full" style={{ backgroundColor: 'rgba(255, 107, 156, 0.15)' }}>
-              <TrendingUp className="w-6 h-6" style={{ color: '#FF6B9C' }} />
+            <div className="p-3 rounded-xl bg-gradient-to-br from-[#FF6B9C]/20 to-[#7E57FF]/20 group-hover:scale-110 transition-transform">
+              <TrendingUp className="w-5 h-5 text-[#FF6B9C]" />
             </div>
             <div>
-              <p className="text-xs" style={{ color: '#8D93A1' }}>Total Events</p>
-              <p className="text-2xl font-semibold" style={{ color: '#E4E6EB' }}>
+              <p className="text-xs text-[#6C6F75] mb-1">Total Events</p>
+              <p className="text-2xl font-bold bg-gradient-to-r from-[#FF6B9C] to-[#7E57FF] bg-clip-text text-transparent">
                 {summary?.total?.toLocaleString() || 0}
               </p>
             </div>
@@ -308,124 +371,166 @@ export default function DashboardPage() {
       </div>
 
       {/* Timeline Chart */}
-      <div 
-        className="rounded-[12px] p-5 mb-6 border"
-        style={{ 
-          backgroundColor: '#1A1C24',
-          borderColor: 'rgba(255,255,255,0.04)'
-        }}
-      >
-        <h2 className="text-lg font-semibold mb-4" style={{ color: '#E4E6EB' }}>Events Timeline</h2>
-        <ResponsiveContainer width="100%" height={250}>
+      <div className="card-glass rounded-2xl p-6 mb-6 animate-fadeInUp-2">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-base font-semibold text-[#E4E6EB]">Events Timeline</h2>
+          <div className="flex gap-3">
+            <div className="flex items-center gap-1.5">
+              <div className="w-2.5 h-2.5 rounded-full bg-[#FF4A64]" />
+              <span className="text-xs text-[#6C6F75]">Critical</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2.5 h-2.5 rounded-full bg-[#f59e0b]" />
+              <span className="text-xs text-[#6C6F75]">High</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2.5 h-2.5 rounded-full bg-[#eab308]" />
+              <span className="text-xs text-[#6C6F75]">Medium</span>
+            </div>
+          </div>
+        </div>
+        <ResponsiveContainer width="100%" height={220}>
           <AreaChart data={chartData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-            <XAxis dataKey="time" stroke="#6C6F75" fontSize={11} />
-            <YAxis stroke="#6C6F75" fontSize={11} />
+            <defs>
+              <linearGradient id="criticalGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#FF4A64" stopOpacity={0.4}/>
+                <stop offset="95%" stopColor="#FF4A64" stopOpacity={0}/>
+              </linearGradient>
+              <linearGradient id="highGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.4}/>
+                <stop offset="95%" stopColor="#f59e0b" stopOpacity={0}/>
+              </linearGradient>
+              <linearGradient id="mediumGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#eab308" stopOpacity={0.3}/>
+                <stop offset="95%" stopColor="#eab308" stopOpacity={0}/>
+              </linearGradient>
+            </defs>
+            <XAxis dataKey="time" stroke="#3A3D47" fontSize={10} tickLine={false} axisLine={false} />
+            <YAxis stroke="#3A3D47" fontSize={10} tickLine={false} axisLine={false} />
             <Tooltip 
               contentStyle={{ 
-                backgroundColor: '#1A1C24', 
-                border: '1px solid rgba(255,255,255,0.07)', 
-                borderRadius: 8,
-                color: '#E4E6EB'
+                backgroundColor: 'rgba(26, 28, 36, 0.95)', 
+                border: '1px solid rgba(255,255,255,0.1)', 
+                borderRadius: 12,
+                boxShadow: '0 8px 32px rgba(0,0,0,0.3)'
               }}
-              labelStyle={{ color: '#8D93A1' }}
+              labelStyle={{ color: '#E4E6EB', fontWeight: 600 }}
+              itemStyle={{ color: '#8D93A1' }}
             />
-            <Legend wrapperStyle={{ color: '#8D93A1' }} />
-            <Area type="monotone" dataKey="critical" stackId="1" stroke="#FF4A64" fill="#FF4A64" fillOpacity={0.6} />
-            <Area type="monotone" dataKey="high" stackId="1" stroke="#f59e0b" fill="#f59e0b" fillOpacity={0.6} />
-            <Area type="monotone" dataKey="medium" stackId="1" stroke="#eab308" fill="#eab308" fillOpacity={0.6} />
+            <Area type="monotone" dataKey="critical" stackId="1" stroke="#FF4A64" strokeWidth={2} fill="url(#criticalGradient)" />
+            <Area type="monotone" dataKey="high" stackId="1" stroke="#f59e0b" strokeWidth={2} fill="url(#highGradient)" />
+            <Area type="monotone" dataKey="medium" stackId="1" stroke="#eab308" strokeWidth={2} fill="url(#mediumGradient)" />
           </AreaChart>
         </ResponsiveContainer>
       </div>
 
       {/* Main Grid: Hosts, Users, Sources */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-6 animate-fadeInUp-3">
         {/* Top Hosts */}
-        <div 
-          className="rounded-[12px] p-5 border"
-          style={{ backgroundColor: '#1A1C24', borderColor: 'rgba(255,255,255,0.04)' }}
-        >
-          <h2 className="text-base font-semibold mb-3" style={{ color: '#E4E6EB' }}>Top Hosts</h2>
+        <div className="card-glass rounded-2xl p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <Server className="w-4 h-4 text-[#7E57FF]" />
+            <h2 className="text-sm font-semibold text-[#E4E6EB]">Top Hosts</h2>
+          </div>
           <div className="space-y-2">
             {topHosts.map((host, i) => (
               <div 
                 key={i} 
-                className="flex items-center justify-between p-2 rounded-lg hover:bg-white/5 transition-colors"
+                className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] hover:bg-white/[0.05] transition-all cursor-pointer group"
               >
-                <span className="text-sm truncate max-w-[120px]" style={{ color: '#E4E6EB' }}>{host.host_name}</span>
-                <div className="flex gap-3">
-                  <span className="text-xs" style={{ color: '#8D93A1' }}>{parseInt(host.count).toLocaleString()}</span>
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#7E57FF]/20 to-[#7E57FF]/5 flex items-center justify-center text-xs font-bold text-[#7E57FF]">
+                    {i + 1}
+                  </div>
+                  <span className="text-sm truncate max-w-[100px] text-[#E4E6EB] group-hover:text-white transition-colors">{host.host_name}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-[#6C6F75]">{parseInt(host.count).toLocaleString()}</span>
                   {parseInt(host.critical) > 0 && (
-                    <span className="px-2 py-0.5 text-xs rounded-full" style={{ backgroundColor: 'rgba(255,74,100,0.15)', color: '#FF4A64' }}>
+                    <span className="px-2 py-0.5 text-xs rounded-full bg-[#FF4A64]/15 text-[#FF4A64] font-medium">
                       {host.critical}
                     </span>
                   )}
                 </div>
               </div>
             ))}
-            {topHosts.length === 0 && <p className="text-xs" style={{ color: '#6C6F75' }}>No hosts</p>}
+            {topHosts.length === 0 && <p className="text-xs text-[#6C6F75] text-center py-4">No hosts data</p>}
           </div>
         </div>
 
         {/* Top Users */}
-        <div 
-          className="rounded-[12px] p-5 border"
-          style={{ backgroundColor: '#1A1C24', borderColor: 'rgba(255,255,255,0.04)' }}
-        >
-          <h2 className="text-base font-semibold mb-3" style={{ color: '#E4E6EB' }}>Top Users</h2>
+        <div className="card-glass rounded-2xl p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <Database className="w-4 h-4 text-[#54A3FF]" />
+            <h2 className="text-sm font-semibold text-[#E4E6EB]">Top Users</h2>
+          </div>
           <div className="space-y-2">
             {topUsers.map((u, i) => (
               <div 
                 key={i} 
-                className="flex items-center justify-between p-2 rounded-lg hover:bg-white/5 transition-colors"
+                className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] hover:bg-white/[0.05] transition-all cursor-pointer group"
               >
-                <span className="text-sm truncate max-w-[120px]" style={{ color: '#E4E6EB' }}>{u.user_name}</span>
-                <div className="flex gap-3">
-                  <span className="text-xs" style={{ color: '#8D93A1' }}>{parseInt(u.count).toLocaleString()}</span>
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#54A3FF]/20 to-[#54A3FF]/5 flex items-center justify-center text-xs font-bold text-[#54A3FF]">
+                    {i + 1}
+                  </div>
+                  <span className="text-sm truncate max-w-[100px] text-[#E4E6EB] group-hover:text-white transition-colors">{u.user_name}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-[#6C6F75]">{parseInt(u.count).toLocaleString()}</span>
                   {parseInt(u.critical) > 0 && (
-                    <span className="px-2 py-0.5 text-xs rounded-full" style={{ backgroundColor: 'rgba(255,74,100,0.15)', color: '#FF4A64' }}>
+                    <span className="px-2 py-0.5 text-xs rounded-full bg-[#FF4A64]/15 text-[#FF4A64] font-medium">
                       {u.critical}
                     </span>
                   )}
                 </div>
               </div>
             ))}
-            {topUsers.length === 0 && <p className="text-xs" style={{ color: '#6C6F75' }}>No users</p>}
+            {topUsers.length === 0 && <p className="text-xs text-[#6C6F75] text-center py-4">No users data</p>}
           </div>
         </div>
 
-        {/* Sources Pie */}
-        <div 
-          className="rounded-[12px] p-5 border"
-          style={{ backgroundColor: '#1A1C24', borderColor: 'rgba(255,255,255,0.04)' }}
-        >
-          <h2 className="text-base font-semibold mb-3" style={{ color: '#E4E6EB' }}>Sources</h2>
-          <ResponsiveContainer width="100%" height={180}>
+        {/* Sources Donut */}
+        <div className="card-glass rounded-2xl p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <Activity className="w-4 h-4 text-[#FF6B9C]" />
+            <h2 className="text-sm font-semibold text-[#E4E6EB]">Sources Distribution</h2>
+          </div>
+          <ResponsiveContainer width="100%" height={160}>
             <PieChart>
               <Pie
                 data={pieData}
                 cx="50%"
                 cy="50%"
-                innerRadius={40}
-                outerRadius={70}
+                innerRadius={45}
+                outerRadius={65}
                 dataKey="value"
-                label={({ name, value }: any) => `${name || ''}`}
-                labelLine={false}
+                paddingAngle={4}
               >
                 {pieData.map((_, i) => (
-                  <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                  <Cell key={i} fill={COLORS[i % COLORS.length]} strokeWidth={0} />
                 ))}
               </Pie>
               <Tooltip 
                 contentStyle={{ 
-                  backgroundColor: '#1A1C24', 
-                  border: '1px solid rgba(255,255,255,0.07)', 
-                  borderRadius: 8,
-                  color: '#E4E6EB'
+                  backgroundColor: 'rgba(26, 28, 36, 0.95)', 
+                  border: '1px solid rgba(255,255,255,0.1)', 
+                  borderRadius: 12,
+                  boxShadow: '0 8px 32px rgba(0,0,0,0.3)'
                 }}
+                formatter={(value: number, name: string) => [value.toLocaleString(), name]}
               />
             </PieChart>
           </ResponsiveContainer>
+          {/* Legend */}
+          <div className="flex flex-wrap justify-center gap-3 mt-2">
+            {pieData.map((item, i) => (
+              <div key={i} className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                <span className="text-xs text-[#6C6F75] capitalize">{item.name}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -536,31 +641,6 @@ export default function DashboardPage() {
         ) : (
           <p className="text-center py-8" style={{ color: '#6C6F75' }}>No MITRE ATT&CK data available</p>
         )}
-      </div>
-
-      {/* Actions */}
-      <div className="flex gap-3">
-        <Button 
-          className="text-white"
-          style={{ backgroundColor: '#7E57FF' }}
-          onPress={() => navigate('/logs')}
-        >
-          View Logs
-        </Button>
-        <Button 
-          variant="flat" 
-          className="bg-[#1C1E28] border border-white/5 text-[#E4E6EB]"
-          onPress={loadDashboard}
-        >
-          Refresh
-        </Button>
-        <Button 
-          variant="flat" 
-          className="bg-[#1C1E28] border border-white/5 text-[#E4E6EB]"
-          onPress={() => navigate('/settings')}
-        >
-          Settings
-        </Button>
       </div>
     </div>
   );
