@@ -198,7 +198,7 @@ export const integrationController = new Elysia({ prefix: '/integrations' })
     }
   })
 
-  // ==================== UPDATE INTEGRATION (Label only - backward compatible) ====================
+  // ==================== UPDATE INTEGRATION (Full update: URL, Token, fetchSettings) ====================
   .put('/:id', async ({ params, body, jwt, cookie: { access_token }, set }) => {
     try {
       const payload = await jwt.verify(access_token.value)
@@ -206,6 +206,23 @@ export const integrationController = new Elysia({ prefix: '/integrations' })
 
       // ⭐ ใช้ updateFull แทน update เพื่อรองรับ full edit
       const integration = await IntegrationService.updateFull(params.id, payload.tenantId as string, body as any)
+      
+      // ⭐ Trigger Collector to reload config - บอก Collector ให้ sync ใหม่
+      const collectorUrl = process.env.COLLECTOR_URL || 'http://localhost:8001'
+      try {
+        await fetch(`${collectorUrl}/sync/${params.id}`, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'x-collector-key': COLLECTOR_API_KEY 
+          },
+        })
+        console.log(`[Integration Update] Triggered Collector sync for integration ${params.id}`)
+      } catch (e) {
+        // ไม่ fail ถ้า collector ไม่ตอบ - update ยังสำเร็จ
+        console.warn('[Integration Update] Failed to trigger Collector sync:', e)
+      }
+      
       return { message: 'Integration updated successfully', integration }
     } catch (e: any) {
       set.status = 400

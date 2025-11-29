@@ -132,6 +132,44 @@ func (s *Scheduler) CancelSync(integrationID string) {
 	}
 }
 
+// TriggerReload บอก scheduler ให้ reload config และ sync ใหม่ทันที (เรียกเมื่อ Integration ถูก update)
+func (s *Scheduler) TriggerReload(integrationID string) {
+	s.logger.Info("🔄 [TriggerReload] Integration updated - triggering immediate resync",
+		zap.String("integrationId", integrationID))
+
+	// ⭐ Cancel current sync ถ้ากำลังทำงานอยู่
+	s.syncMu.Lock()
+	if cancel, ok := s.syncContexts[integrationID]; ok {
+		s.logger.Info("🛑 [TriggerReload] Cancelling current sync",
+			zap.String("integrationId", integrationID))
+		cancel()
+		delete(s.syncContexts, integrationID)
+	}
+	s.syncMu.Unlock()
+
+	// ⭐ Trigger immediate resync in background
+	go func() {
+		s.logger.Info("🚀 [TriggerReload] Starting immediate collection with new config",
+			zap.String("integrationId", integrationID))
+
+		// รอสักครู่ให้ cancel เสร็จก่อน
+		time.Sleep(500 * time.Millisecond)
+
+		// รัน collection ใหม่ทันที (จะดึง config ใหม่จาก API)
+		if err := s.collectSentinelOne(false); err != nil {
+			s.logger.Error("❌ [TriggerReload] S1 collection failed", zap.Error(err))
+		} else {
+			s.logger.Info("✅ [TriggerReload] S1 collection completed with new config")
+		}
+
+		if err := s.collectCrowdStrike(false); err != nil {
+			s.logger.Error("❌ [TriggerReload] CrowdStrike collection failed", zap.Error(err))
+		} else {
+			s.logger.Info("✅ [TriggerReload] CrowdStrike collection completed with new config")
+		}
+	}()
+}
+
 // RunNow รัน collection ทันที
 func (s *Scheduler) RunNow(source string) error {
 	switch source {

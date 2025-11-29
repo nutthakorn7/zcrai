@@ -80,6 +80,11 @@ export default function IntegrationPage() {
   const [csSecret, setCsSecret] = useState('');
   const [aiKey, setAiKey] = useState('');
   const [label, setLabel] = useState('');
+  
+  // ⭐ State สำหรับเก็บว่ามี credential เดิมอยู่หรือไม่
+  const [hasExistingToken, setHasExistingToken] = useState(false);
+  const [hasExistingSecret, setHasExistingSecret] = useState(false);
+  const [hasExistingKey, setHasExistingKey] = useState(false);
 
   // ⭐ Fetch Settings State
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -141,6 +146,11 @@ export default function IntegrationPage() {
     setSelectedIntegration(int);
     setLabel(int.label);
     
+    // ⭐ Reset credential states
+    setHasExistingToken(false);
+    setHasExistingSecret(false);
+    setHasExistingKey(false);
+    
     // ⭐ Load existing config for edit
     try {
       const { data } = await api.get(`/integrations/${int.id}/config`);
@@ -148,7 +158,8 @@ export default function IntegrationPage() {
       if (int.provider === 'sentinelone') {
         setModalType('s1');
         setS1Url(data.url || '');
-        setS1Token(''); // Don't show token, let user re-enter if needed
+        setS1Token(''); // ไม่แสดง token จริง แต่บอก user ว่ามีอยู่
+        setHasExistingToken(data.hasToken || false);
         if (data.fetchSettings) {
           setS1FetchSettings(data.fetchSettings);
           setShowAdvanced(true);
@@ -157,7 +168,8 @@ export default function IntegrationPage() {
         setModalType('cs');
         setCsBaseUrl(data.baseUrl || 'https://api.us-2.crowdstrike.com');
         setCsClientId(data.clientId || '');
-        setCsSecret(''); // Don't show secret
+        setCsSecret(''); // ไม่แสดง secret จริง
+        setHasExistingSecret(data.hasSecret || false);
         if (data.fetchSettings) {
           setCsFetchSettings(data.fetchSettings);
           setShowAdvanced(true);
@@ -167,7 +179,8 @@ export default function IntegrationPage() {
         setAiProvider(int.provider);
         setAiModel(data.model || '');
         setAiBaseUrl(data.baseUrl || '');
-        setAiKey(''); // Don't show key
+        setAiKey(''); // ไม่แสดง key จริง
+        setHasExistingKey(data.hasKey || false);
       }
     } catch (e) {
       console.error('Failed to load config');
@@ -292,6 +305,10 @@ export default function IntegrationPage() {
       detections: { enabled: true, days: 365 },
       incidents: { enabled: true, days: 365 },
     });
+    // ⭐ Reset credential existence flags
+    setHasExistingToken(false);
+    setHasExistingSecret(false);
+    setHasExistingKey(false);
   };
 
   const getProviderColor = (provider: string) => {
@@ -462,7 +479,8 @@ export default function IntegrationPage() {
                         />
                         <Input
                           label="API Token"
-                          placeholder="Enter your API Token"
+                          placeholder={mode === 'edit' && hasExistingToken ? '••••••• (Leave empty to keep existing)' : 'Enter your API Token'}
+                          description={mode === 'edit' && hasExistingToken ? '✓ Token exists - leave empty to keep, or enter new token to replace' : undefined}
                           value={s1Token}
                           onValueChange={setS1Token}
                           type="password"
@@ -594,7 +612,8 @@ export default function IntegrationPage() {
                         />
                         <Input
                           label="Client Secret"
-                          placeholder="Enter Client Secret"
+                          placeholder={mode === 'edit' && hasExistingSecret ? '••••••• (Leave empty to keep existing)' : 'Enter Client Secret'}
+                          description={mode === 'edit' && hasExistingSecret ? '✓ Secret exists - leave empty to keep, or enter new to replace' : undefined}
                           value={csSecret}
                           onValueChange={setCsSecret}
                           type="password"
@@ -723,7 +742,8 @@ export default function IntegrationPage() {
                         </Select>
                         <Input
                           label="API Key"
-                          placeholder={`sk-... (Enter your ${aiProvider} API Key)`}
+                          placeholder={mode === 'edit' && hasExistingKey ? '••••••• (Leave empty to keep existing)' : `sk-... (Enter your ${aiProvider} API Key)`}
+                          description={mode === 'edit' && hasExistingKey ? '✓ API Key exists - leave empty to keep, or enter new to replace' : undefined}
                           value={aiKey}
                           onValueChange={setAiKey}
                           type="password"
