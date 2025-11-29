@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Button } from "@heroui/react";
+import { Button, Spinner, Tooltip as HerouiTooltip } from "@heroui/react";
 import { api } from "../../shared/api/api";
 import { usePageContext } from "../../contexts/PageContext";
 import { DateRangePicker } from "../../components/DateRangePicker";
@@ -9,8 +9,12 @@ import {
 } from 'recharts';
 import { 
   ShieldAlert, AlertTriangle, AlertCircle, Activity, 
-  Server, Database, TrendingUp, RefreshCw
+  Server, Database, TrendingUp, RefreshCw, Filter
 } from 'lucide-react';
+
+// Import logos
+import sentineloneLogo from '../../assets/logo/sentinelone.png';
+import crowdstrikeLogo from '../../assets/logo/crowdstrike.png';
 
 // CSS Animations (inject via style tag)
 const animationStyles = `
@@ -21,10 +25,6 @@ const animationStyles = `
   @keyframes pulse-glow {
     0%, 100% { box-shadow: 0 0 20px rgba(255, 107, 156, 0.2); }
     50% { box-shadow: 0 0 30px rgba(255, 107, 156, 0.4); }
-  }
-  @keyframes shimmer {
-    0% { background-position: -200% 0; }
-    100% { background-position: 200% 0; }
   }
   .animate-fadeInUp { animation: fadeInUp 0.5s ease-out forwards; }
   .animate-fadeInUp-1 { animation: fadeInUp 0.5s ease-out 0.1s forwards; opacity: 0; }
@@ -64,6 +64,20 @@ const animationStyles = `
     -webkit-mask-composite: xor;
     mask-composite: exclude;
     pointer-events: none;
+  }
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 3px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
   }
 `;
 
@@ -141,6 +155,9 @@ export default function DashboardPage() {
   });
   const [endDate, setEndDate] = useState(() => new Date());
   
+  // Filter State: 'all', 'sentinelone', 'crowdstrike'
+  const [selectedProvider, setSelectedProvider] = useState<string>('all');
+  
   const [summary, setSummary] = useState<Summary | null>(null);
   const [topHosts, setTopHosts] = useState<TopHost[]>([]);
   const [topUsers, setTopUsers] = useState<TopUser[]>([]);
@@ -150,9 +167,12 @@ export default function DashboardPage() {
   const [integrations, setIntegrations] = useState<IntegrationData[]>([]);
   const [sites, setSites] = useState<SiteData[]>([]);
 
+  // Available providers for filter buttons
+  const [availableProviders, setAvailableProviders] = useState<string[]>([]);
+
   useEffect(() => {
     loadDashboard();
-  }, [startDate, endDate]);
+  }, [startDate, endDate, selectedProvider]);
 
   const handleDateChange = (start: Date, end: Date) => {
     setStartDate(start);
@@ -161,51 +181,71 @@ export default function DashboardPage() {
 
   const loadDashboard = async () => {
     setLoading(true);
-    // Format dates as ISO strings for API
     const start = startDate.toISOString().split('T')[0];
     const end = endDate.toISOString().split('T')[0];
-    const dateParams = `startDate=${start}&endDate=${end}`;
+    let dateParams = `startDate=${start}&endDate=${end}`;
+    
+    if (selectedProvider !== 'all') {
+      dateParams += `&source=${selectedProvider}`;
+    }
     
     try {
       const [summaryRes, hostsRes, usersRes, sourcesRes, timelineRes, mitreRes, intRes, sitesRes] = await Promise.all([
         api.get(`/dashboard/summary?${dateParams}`),
-        api.get(`/dashboard/top-hosts?${dateParams}&limit=5`),
-        api.get(`/dashboard/top-users?${dateParams}&limit=5`),
-        api.get(`/dashboard/sources?${dateParams}`),
+        api.get(`/dashboard/top-hosts?${dateParams}&limit=20`),
+        api.get(`/dashboard/top-users?${dateParams}&limit=20`),
+        api.get(`/dashboard/sources?${dateParams}`), // This gives us available sources
         api.get(`/dashboard/timeline?${dateParams}&interval=day`),
         api.get(`/dashboard/mitre-heatmap?${dateParams}`),
         api.get(`/dashboard/integrations?${dateParams}`),
         api.get(`/dashboard/sites?${dateParams}`),
       ]);
+
+      // 1. Determine Available Providers from Sources API
+      const sources = sourcesRes.data || [];
+      const providers = sources.map((s: any) => s.source.toLowerCase());
+      setAvailableProviders(providers);
+
+      // 2. Set Data
       setSummary(summaryRes.data);
-      setTopHosts(hostsRes.data);
-      setTopUsers(usersRes.data);
-      setSources(sourcesRes.data);
+      
+      // Note: Top Hosts/Users currently don't return 'source' field, so we cannot accurately filter them client-side.
+      // Ideally backend should handle this. For now, we just display what we get if filter is 'all', 
+      // or if backend filtering works. Since backend filtering IS implemented for dashboard endpoints via params (if supported),
+      // we assume backend returns filtered data. IF NOT, we might see mixed data.
+      setTopHosts(hostsRes.data.slice(0, 5));
+      setTopUsers(usersRes.data.slice(0, 5));
+      
+      // Filter Sources Pie Chart (Client-side double check)
+      const filteredSources = selectedProvider === 'all' 
+        ? sourcesRes.data 
+        : sourcesRes.data.filter((s: any) => s.source.toLowerCase().includes(selectedProvider));
+      setSources(filteredSources);
+
       setTimeline(timelineRes.data);
       setMitreData(mitreRes.data);
-      setIntegrations(intRes.data);
-      setSites(sitesRes.data);
       
-      // Update Page Context for AI Assistant
+      // Filter Integrations (Client-side double check)
+      const filteredIntegrations = selectedProvider === 'all'
+        ? intRes.data
+        : intRes.data.filter((i: any) => i.source.toLowerCase().includes(selectedProvider));
+      setIntegrations(filteredIntegrations);
+
+      // Filter Sites (Client-side double check)
+      let filteredSites = sitesRes.data;
+      if (selectedProvider !== 'all' && selectedProvider !== 'sentinelone') {
+         // If filter is NOT all AND NOT sentinelone (e.g. crowdstrike), clear sites usually
+         // But if we have other providers with sites, logic might differ. 
+         // Assuming only S1 has sites concept here.
+         filteredSites = [];
+      }
+      setSites(filteredSites);
+      
       setPageContext({
         pageName: 'Dashboard',
         pageDescription: 'Security monitoring dashboard showing alerts and events summary',
         data: {
-          stats: {
-            totalEvents: summaryRes.data?.total || 0,
-            criticalAlerts: summaryRes.data?.critical || 0,
-            highAlerts: summaryRes.data?.high || 0,
-            mediumAlerts: summaryRes.data?.medium || 0,
-            lowAlerts: summaryRes.data?.low || 0,
-          },
-          topThreats: hostsRes.data?.slice(0, 5).map((h: TopHost) => ({
-            name: h.host_name,
-            count: parseInt(h.count),
-            critical: parseInt(h.critical),
-            high: parseInt(h.high)
-          })),
-          topUsers: usersRes.data?.slice(0, 5),
-          sources: sourcesRes.data,
+          stats: summaryRes.data,
           timeRange: `${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}`,
         }
       });
@@ -215,6 +255,7 @@ export default function DashboardPage() {
       setLoading(false);
     }
   };
+
 
   // Transform timeline data for chart
   const chartData = timeline.map(t => ({
@@ -249,8 +290,8 @@ export default function DashboardPage() {
       {/* Inject Animation Styles */}
       <style>{animationStyles}</style>
       
-      {/* Header with Gradient */}
-      <div className="flex justify-between items-center mb-8 animate-fadeInUp">
+      {/* Header with Gradient and Provider Filter */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 animate-fadeInUp gap-4">
         <div>
           <h1 className="text-2xl font-bold bg-gradient-to-r from-[#E4E6EB] to-[#8D93A1] bg-clip-text text-transparent">
             Security Dashboard
@@ -259,12 +300,59 @@ export default function DashboardPage() {
             Real-time threat monitoring & analytics
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Provider Filter Buttons */}
+          <div className="flex bg-[#1C1E28] rounded-lg p-1 border border-white/5">
+            <HerouiTooltip content="All Providers">
+              <button
+                onClick={() => setSelectedProvider('all')}
+                className={`p-2 rounded-md transition-all ${selectedProvider === 'all' ? 'bg-[#2C2E3A] text-white shadow-sm' : 'text-[#6C6F75] hover:text-[#E4E6EB]'}`}
+              >
+                <div className="flex items-center gap-2 px-1">
+                  <Database className="w-4 h-4" />
+                  <span className="text-xs font-medium">All</span>
+                </div>
+              </button>
+            </HerouiTooltip>
+            
+            {/* SentinelOne Button - Show if available or if selected */}
+            {(availableProviders.includes('sentinelone') || selectedProvider === 'sentinelone') && (
+              <>
+                <div className="w-px bg-white/5 my-1 mx-1" />
+                <HerouiTooltip content="SentinelOne Only">
+                  <button
+                    onClick={() => setSelectedProvider('sentinelone')}
+                    className={`p-2 rounded-md transition-all ${selectedProvider === 'sentinelone' ? 'bg-[#2C2E3A] shadow-sm' : 'opacity-50 hover:opacity-100'}`}
+                  >
+                    <img src={sentineloneLogo} alt="S1" className="w-5 h-5 object-contain" />
+                  </button>
+                </HerouiTooltip>
+              </>
+            )}
+
+            {/* CrowdStrike Button - Show if available or if selected */}
+            {(availableProviders.includes('crowdstrike') || selectedProvider === 'crowdstrike') && (
+              <>
+                <div className="w-px bg-white/5 my-1 mx-1" />
+                <HerouiTooltip content="CrowdStrike Only">
+                  <button
+                    onClick={() => setSelectedProvider('crowdstrike')}
+                    className={`p-2 rounded-md transition-all ${selectedProvider === 'crowdstrike' ? 'bg-[#2C2E3A] shadow-sm' : 'opacity-50 hover:opacity-100'}`}
+                  >
+                    <img src={crowdstrikeLogo} alt="CS" className="w-5 h-5 object-contain" />
+                  </button>
+                </HerouiTooltip>
+              </>
+            )}
+          </div>
+
           <DateRangePicker 
             startDate={startDate}
             endDate={endDate}
             onChange={handleDateChange}
           />
+          
           <Button 
             size="sm" 
             className="bg-gradient-to-r from-[#FF6B9C] to-[#7E57FF] text-white border-0 hover:opacity-90 transition-opacity"
@@ -491,43 +579,61 @@ export default function DashboardPage() {
         </div>
 
         {/* Sources Donut */}
-        <div className="card-glass rounded-2xl p-5">
+        <div className="card-glass rounded-2xl p-5 h-[380px] flex flex-col">
           <div className="flex items-center gap-2 mb-4">
             <Activity className="w-4 h-4 text-[#FF6B9C]" />
             <h2 className="text-sm font-semibold text-[#E4E6EB]">Sources Distribution</h2>
           </div>
-          <ResponsiveContainer width="100%" height={160}>
-            <PieChart>
-              <Pie
-                data={pieData}
-                cx="50%"
-                cy="50%"
-                innerRadius={45}
-                outerRadius={65}
-                dataKey="value"
-                paddingAngle={4}
-              >
-                {pieData.map((_, i) => (
-                  <Cell key={i} fill={COLORS[i % COLORS.length]} strokeWidth={0} />
-                ))}
-              </Pie>
-              <Tooltip 
-                contentStyle={{ 
-                  backgroundColor: 'rgba(26, 28, 36, 0.95)', 
-                  border: '1px solid rgba(255,255,255,0.1)', 
-                  borderRadius: 12,
-                  boxShadow: '0 8px 32px rgba(0,0,0,0.3)'
-                }}
-                formatter={(value: number, name: string) => [value.toLocaleString(), name]}
-              />
-            </PieChart>
-          </ResponsiveContainer>
+          <div className="flex-1 min-h-0">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={pieData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={80}
+                  dataKey="value"
+                  paddingAngle={4}
+                  label={({ cx, x, y, percent, name }: any) => {
+                    return (
+                      <text 
+                        x={x} 
+                        y={y} 
+                        fill="#E4E6EB" 
+                        textAnchor={x > cx ? 'start' : 'end'} 
+                        dominantBaseline="central"
+                        fontSize={12}
+                      >
+                        {`${name} ${(percent * 100).toFixed(0)}%`}
+                      </text>
+                    );
+                  }}
+                  labelLine={{ stroke: '#6C6F75', strokeWidth: 1 }}
+                >
+                  {pieData.map((_, i) => (
+                    <Cell key={i} fill={COLORS[i % COLORS.length]} strokeWidth={0} />
+                  ))}
+                </Pie>
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: 'rgba(26, 28, 36, 0.95)', 
+                    border: '1px solid rgba(255,255,255,0.1)', 
+                    borderRadius: 12,
+                    boxShadow: '0 8px 32px rgba(0,0,0,0.3)'
+                  }}
+                  itemStyle={{ color: '#E4E6EB' }}
+                  formatter={(value: number, name: string) => [value.toLocaleString(), name]}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
           {/* Legend */}
-          <div className="flex flex-wrap justify-center gap-3 mt-2">
+          <div className="flex flex-wrap justify-center gap-3 mt-4">
             {pieData.map((item, i) => (
               <div key={i} className="flex items-center gap-1.5">
                 <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-                <span className="text-xs text-[#6C6F75] capitalize">{item.name}</span>
+                <span className="text-xs text-[#E4E6EB] capitalize">{item.name}</span>
               </div>
             ))}
           </div>
@@ -537,72 +643,72 @@ export default function DashboardPage() {
       {/* Integrations & Sites */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         {/* Integrations */}
-        <div 
-          className="rounded-[12px] p-5 border"
-          style={{ backgroundColor: '#1A1C24', borderColor: 'rgba(255,255,255,0.04)' }}
-        >
-          <h2 className="text-base font-semibold mb-3" style={{ color: '#E4E6EB' }}>Integrations</h2>
-          <div className="space-y-2">
+        <div className="card-glass rounded-2xl p-5 h-[400px] flex flex-col">
+          <div className="flex items-center gap-2 mb-4 flex-shrink-0">
+            <Database className="w-4 h-4 text-[#54A3FF]" />
+            <h2 className="text-sm font-semibold text-[#E4E6EB]">Integrations</h2>
+          </div>
+          <div className="space-y-2 overflow-y-auto custom-scrollbar flex-1 pr-2">
             {integrations.map((int, i) => (
               <div 
                 key={i} 
-                className="flex items-center justify-between p-2 rounded-lg hover:bg-white/5 transition-colors"
+                className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] hover:bg-white/[0.05] transition-all"
               >
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'rgba(84,163,255,0.15)' }}>
-                    <Database className="w-4 h-4" style={{ color: '#54A3FF' }} />
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-[#54A3FF]/10">
+                    <Database className="w-5 h-5 text-[#54A3FF]" />
                   </div>
                   <div>
-                    <span className="text-sm" style={{ color: '#E4E6EB' }}>{int.integration_name || int.integration_id.slice(0, 8)}</span>
-                    <p className="text-xs capitalize" style={{ color: '#6C6F75' }}>{int.source}</p>
+                    <span className="text-sm font-medium text-[#E4E6EB] block">{int.integration_name || int.integration_id.slice(0, 8)}</span>
+                    <p className="text-xs capitalize text-[#6C6F75] mt-0.5">{int.source}</p>
                   </div>
                 </div>
-                <div className="flex gap-3 items-center">
-                  <span className="text-xs" style={{ color: '#8D93A1' }}>{parseInt(int.count).toLocaleString()}</span>
+                <div className="flex flex-col items-end gap-1">
+                  <span className="text-sm font-semibold text-[#E4E6EB]">{parseInt(int.count).toLocaleString()}</span>
                   {parseInt(int.critical) > 0 && (
-                    <span className="px-2 py-0.5 text-xs rounded-full" style={{ backgroundColor: 'rgba(255,74,100,0.15)', color: '#FF4A64' }}>
-                      {int.critical}
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#FF4A64]/15 text-[#FF4A64] font-medium">
+                      {int.critical} Crit
                     </span>
                   )}
                 </div>
               </div>
             ))}
-            {integrations.length === 0 && <p className="text-xs" style={{ color: '#6C6F75' }}>No integrations</p>}
+            {integrations.length === 0 && <p className="text-sm text-[#6C6F75] text-center py-8">No integrations found</p>}
           </div>
         </div>
 
-        {/* S1 Sites */}
-        <div 
-          className="rounded-[12px] p-5 border"
-          style={{ backgroundColor: '#1A1C24', borderColor: 'rgba(255,255,255,0.04)' }}
-        >
-          <h2 className="text-base font-semibold mb-3" style={{ color: '#E4E6EB' }}>SentinelOne Sites</h2>
-          <div className="space-y-2">
+        {/* Sites */}
+        <div className="card-glass rounded-2xl p-5 h-[400px] flex flex-col">
+          <div className="flex items-center gap-2 mb-4 flex-shrink-0">
+            <Server className="w-4 h-4 text-[#7E57FF]" />
+            <h2 className="text-sm font-semibold text-[#E4E6EB]">Sites</h2>
+          </div>
+          <div className="space-y-2 overflow-y-auto custom-scrollbar flex-1 pr-2">
             {sites.map((site, i) => (
               <div 
                 key={i} 
-                className="flex items-center justify-between p-2 rounded-lg hover:bg-white/5 transition-colors"
+                className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] hover:bg-white/[0.05] transition-all"
               >
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'rgba(126,87,255,0.15)' }}>
-                    <Server className="w-4 h-4" style={{ color: '#7E57FF' }} />
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-[#7E57FF]/10">
+                    <Server className="w-5 h-5 text-[#7E57FF]" />
                   </div>
                   <div>
-                    <span className="text-sm" style={{ color: '#E4E6EB' }}>{site.host_site_name}</span>
-                    <p className="text-xs" style={{ color: '#6C6F75' }}>{site.host_account_name || '-'}</p>
+                    <span className="text-sm font-medium text-[#E4E6EB] block">{site.host_site_name}</span>
+                    <p className="text-xs text-[#6C6F75] mt-0.5">{site.host_account_name || '-'}</p>
                   </div>
                 </div>
-                <div className="flex gap-3 items-center">
-                  <span className="text-xs" style={{ color: '#8D93A1' }}>{parseInt(site.count).toLocaleString()}</span>
+                <div className="flex flex-col items-end gap-1">
+                  <span className="text-sm font-semibold text-[#E4E6EB]">{parseInt(site.count).toLocaleString()}</span>
                   {parseInt(site.critical) > 0 && (
-                    <span className="px-2 py-0.5 text-xs rounded-full" style={{ backgroundColor: 'rgba(255,74,100,0.15)', color: '#FF4A64' }}>
-                      {site.critical}
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#FF4A64]/15 text-[#FF4A64] font-medium">
+                      {site.critical} Crit
                     </span>
                   )}
                 </div>
               </div>
             ))}
-            {sites.length === 0 && <p className="text-xs" style={{ color: '#6C6F75' }}>No sites</p>}
+            {sites.length === 0 && <p className="text-sm text-[#6C6F75] text-center py-8">No sites found</p>}
           </div>
         </div>
       </div>
