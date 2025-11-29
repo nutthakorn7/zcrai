@@ -1,4 +1,4 @@
-package client
+package crowdstrike
 
 import (
 	"encoding/json"
@@ -58,6 +58,12 @@ type CSAlert struct {
 	Scenario          string `json:"scenario"`
 	PatternDisposDesc string `json:"pattern_disposition_description"`
 }
+
+// OnChunkComplete callback สำหรับอัพเดท checkpoint หลังจบแต่ละ page
+type OnChunkComplete func(chunkEndTime time.Time)
+
+// OnPageEvents callback สำหรับส่ง events ไป Vector ทันทีแต่ละ page
+type OnPageEvents func(events []models.UnifiedEvent) error
 
 // NewCrowdStrikeClient สร้าง CrowdStrike Client ใหม่
 func NewCrowdStrikeClient(tenantID, integrationID, integrationName string, cfg *config.CrowdStrikeConfig, logger *zap.Logger) *CrowdStrikeClient {
@@ -122,7 +128,7 @@ func (c *CrowdStrikeClient) authenticate() error {
 
 // FetchAlerts ดึง Alerts จาก CrowdStrike Alerts API v2 แบบ Streaming
 func (c *CrowdStrikeClient) FetchAlerts(startTime, endTime time.Time, onPageEvents OnPageEvents, onChunkComplete OnChunkComplete) (int, error) {
-	c.logger.Info("Fetching CrowdStrike alerts with offset pagination (streaming)", 
+	c.logger.Info("Fetching CrowdStrike alerts with offset pagination (streaming)",
 		zap.String("tenantId", c.tenantID),
 		zap.String("from", startTime.Format(time.RFC3339)),
 		zap.String("to", endTime.Format(time.RFC3339)))
@@ -146,7 +152,7 @@ func (c *CrowdStrikeClient) FetchAlerts(startTime, endTime time.Time, onPageEven
 	page := 1
 
 	for {
-		c.logger.Debug("Fetching alert IDs page", 
+		c.logger.Debug("Fetching alert IDs page",
 			zap.Int("page", page),
 			zap.Int("offset", offset))
 
@@ -205,7 +211,7 @@ func (c *CrowdStrikeClient) FetchAlerts(startTime, endTime time.Time, onPageEven
 			}
 		}
 
-		c.logger.Info("Fetched alert IDs page", 
+		c.logger.Info("Fetched alert IDs page",
 			zap.Int("page", page),
 			zap.Int("pageCount", len(result.Resources)),
 			zap.Int("totalFetched", totalFetched),

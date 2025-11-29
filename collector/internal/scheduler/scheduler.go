@@ -6,8 +6,9 @@ import (
 	"time"
 
 	"github.com/robfig/cron/v3"
-	"github.com/zrd4y/zcrAI/collector/internal/client"
 	"github.com/zrd4y/zcrAI/collector/internal/config"
+	"github.com/zrd4y/zcrAI/collector/internal/providers/crowdstrike"
+	"github.com/zrd4y/zcrAI/collector/internal/providers/sentinelone"
 	"github.com/zrd4y/zcrAI/collector/internal/publisher"
 	"github.com/zrd4y/zcrAI/collector/internal/state"
 	"github.com/zrd4y/zcrAI/collector/pkg/models"
@@ -160,15 +161,15 @@ func (s *Scheduler) collectSentinelOne(forceFullSync bool) error {
 		isFullSync := false
 
 		// เช็คว่าเป็น integration ใหม่ (pending) หรือ forceFullSync หรือยังไม่เคย sync
-		needsFullSync := integration.LastSyncStatus == "pending" || 
-			!s.state.HasFullSync(integration.TenantID) || 
+		needsFullSync := integration.LastSyncStatus == "pending" ||
+			!s.state.HasFullSync(integration.TenantID) ||
 			forceFullSync
 
 		if needsFullSync {
 			// First run or new integration or forced full sync: 365 days back
 			startTime = endTime.AddDate(0, 0, -365)
 			isFullSync = true
-			s.logger.Info("Performing Full Sync (365 days)", 
+			s.logger.Info("Performing Full Sync (365 days)",
 				zap.String("tenantId", integration.TenantID),
 				zap.String("reason", integration.LastSyncStatus))
 		} else {
@@ -176,13 +177,13 @@ func (s *Scheduler) collectSentinelOne(forceFullSync bool) error {
 			if !checkpoint.IsZero() {
 				// Start from last checkpoint (with 1 hour overlap for safety)
 				startTime = checkpoint.Add(-1 * time.Hour)
-				s.logger.Info("Resuming from checkpoint", 
+				s.logger.Info("Resuming from checkpoint",
 					zap.String("tenantId", integration.TenantID),
 					zap.Time("checkpoint", startTime))
 			} else {
 				// Fallback to config lookback (7 days)
 				startTime = endTime.AddDate(0, 0, -s.config.LookbackDays)
-				s.logger.Info("No checkpoint found, using default lookback", 
+				s.logger.Info("No checkpoint found, using default lookback",
 					zap.String("tenantId", integration.TenantID),
 					zap.Int("days", s.config.LookbackDays))
 			}
@@ -201,7 +202,7 @@ func (s *Scheduler) collectSentinelOne(forceFullSync bool) error {
 		if integrationName == "" {
 			integrationName = fmt.Sprintf("%s-%s", integration.Provider, integration.ID[:8])
 		}
-		s1Client := client.NewS1Client(integration.TenantID, integration.ID, integrationName, cfg, s.logger)
+		s1Client := sentinelone.NewS1Client(integration.TenantID, integration.ID, integrationName, cfg, s.logger)
 
 		// Callback สำหรับ save checkpoint หลังจบ sync
 		onChunkComplete := func(chunkEndTime time.Time) {
@@ -241,7 +242,7 @@ func (s *Scheduler) collectSentinelOne(forceFullSync bool) error {
 			s.state.SetFullSync(integration.TenantID)
 		}
 		s.state.UpdateCheckpoint(integration.TenantID, endTime)
-		
+
 		if err := s.state.Save(s.statePath); err != nil {
 			s.logger.Error("Failed to save state", zap.Error(err))
 		}
@@ -308,7 +309,7 @@ func (s *Scheduler) collectCrowdStrike(forceFullSync bool) error {
 		if integrationName == "" {
 			integrationName = fmt.Sprintf("%s-%s", integration.Provider, integration.ID[:8])
 		}
-		csClient := client.NewCrowdStrikeClient(integration.TenantID, integration.ID, integrationName, cfg, s.logger)
+		csClient := crowdstrike.NewCrowdStrikeClient(integration.TenantID, integration.ID, integrationName, cfg, s.logger)
 
 		// Callback สำหรับ save checkpoint หลังจบ sync
 		onChunkComplete := func(chunkEndTime time.Time) {

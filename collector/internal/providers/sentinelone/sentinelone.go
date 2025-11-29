@@ -1,4 +1,4 @@
-package client
+package sentinelone
 
 import (
 	"encoding/json"
@@ -26,17 +26,17 @@ type S1Client struct {
 // S1ThreatResponse โครงสร้าง Threat จาก S1 API (nested structure)
 type S1ThreatResponse struct {
 	AgentDetectionInfo struct {
-		AccountID           string `json:"accountId"`
-		AccountName         string `json:"accountName"`
-		AgentDomain         string `json:"agentDomain"`
-		AgentIpV4           string `json:"agentIpV4"`
-		AgentOsName         string `json:"agentOsName"`
-		AgentVersion        string `json:"agentVersion"`
-		ExternalIP          string `json:"externalIp"`
-		GroupID             string `json:"groupId"`
-		GroupName           string `json:"groupName"`
-		SiteID              string `json:"siteId"`
-		SiteName            string `json:"siteName"`
+		AccountID    string `json:"accountId"`
+		AccountName  string `json:"accountName"`
+		AgentDomain  string `json:"agentDomain"`
+		AgentIpV4    string `json:"agentIpV4"`
+		AgentOsName  string `json:"agentOsName"`
+		AgentVersion string `json:"agentVersion"`
+		ExternalIP   string `json:"externalIp"`
+		GroupID      string `json:"groupId"`
+		GroupName    string `json:"groupName"`
+		SiteID       string `json:"siteId"`
+		SiteName     string `json:"siteName"`
 	} `json:"agentDetectionInfo"`
 	AgentRealtimeInfo struct {
 		AgentComputerName string `json:"agentComputerName"`
@@ -47,20 +47,20 @@ type S1ThreatResponse struct {
 		GroupName         string `json:"groupName"`
 	} `json:"agentRealtimeInfo"`
 	ThreatInfo struct {
-		ThreatID             string `json:"threatId"`
-		ThreatName           string `json:"threatName"`
-		Classification       string `json:"classification"`
-		ConfidenceLevel      string `json:"confidenceLevel"`
-		MitigationStatus     string `json:"mitigationStatus"`
-		AnalystVerdict       string `json:"analystVerdict"`
-		FilePath             string `json:"filePath"`
-		FileContentHash      string `json:"sha256"`
-		CreatedAt            string `json:"createdAt"`
-		UpdatedAt            string `json:"updatedAt"`
-		InitiatedBy          string `json:"initiatedBy"`
-		OriginatorProcess    string `json:"originatorProcess"`
-		ProcessUser          string `json:"processUser"`
-		Indicators           []struct {
+		ThreatID          string `json:"threatId"`
+		ThreatName        string `json:"threatName"`
+		Classification    string `json:"classification"`
+		ConfidenceLevel   string `json:"confidenceLevel"`
+		MitigationStatus  string `json:"mitigationStatus"`
+		AnalystVerdict    string `json:"analystVerdict"`
+		FilePath          string `json:"filePath"`
+		FileContentHash   string `json:"sha256"`
+		CreatedAt         string `json:"createdAt"`
+		UpdatedAt         string `json:"updatedAt"`
+		InitiatedBy       string `json:"initiatedBy"`
+		OriginatorProcess string `json:"originatorProcess"`
+		ProcessUser       string `json:"processUser"`
+		Indicators        []struct {
 			Category   string   `json:"category"`
 			Ids        []int64  `json:"ids"`
 			Tactics    []string `json:"tactics"`
@@ -100,18 +100,18 @@ type S1Threat struct {
 
 // S1Activity โครงสร้าง Activity จาก S1 API
 type S1Activity struct {
-	ID            string         `json:"id"`
-	ActivityType  int            `json:"activityType"`
-	AgentID       string         `json:"agentId"`
-	ComputerName  string         `json:"computerName"`
-	SiteName      string         `json:"siteName"`
-	GroupName     string         `json:"groupName"`
-	AccountName   string         `json:"accountName"`
-	PrimaryDescription string    `json:"primaryDescription"`
-	SecondaryDescription string  `json:"secondaryDescription"`
-	UserID        string         `json:"userId"`
-	CreatedAt     string         `json:"createdAt"`
-	Data          map[string]any `json:"data"`
+	ID                   string         `json:"id"`
+	ActivityType         int            `json:"activityType"`
+	AgentID              string         `json:"agentId"`
+	ComputerName         string         `json:"computerName"`
+	SiteName             string         `json:"siteName"`
+	GroupName            string         `json:"groupName"`
+	AccountName          string         `json:"accountName"`
+	PrimaryDescription   string         `json:"primaryDescription"`
+	SecondaryDescription string         `json:"secondaryDescription"`
+	UserID               string         `json:"userId"`
+	CreatedAt            string         `json:"createdAt"`
+	Data                 map[string]any `json:"data"`
 }
 
 // NewS1Client สร้าง S1Client ใหม่
@@ -140,8 +140,8 @@ type OnPageEvents func(events []models.UnifiedEvent) error
 
 // FetchThreats ดึง Threats จาก S1 API ใช้ Cursor Pagination แบบ Streaming
 func (c *S1Client) FetchThreats(startTime, endTime time.Time, onPageEvents OnPageEvents, onChunkComplete OnChunkComplete) (int, error) {
-	c.logger.Info("Fetching S1 threats with cursor pagination (streaming)", 
-		zap.String("tenantId", c.tenantID), 
+	c.logger.Info("Fetching S1 threats with cursor pagination (streaming)",
+		zap.String("tenantId", c.tenantID),
 		zap.String("from", startTime.Format(time.RFC3339)),
 		zap.String("to", endTime.Format(time.RFC3339)))
 
@@ -165,7 +165,7 @@ func (c *S1Client) FetchThreats(startTime, endTime time.Time, onPageEvents OnPag
 			params["cursor"] = cursor
 		}
 
-		c.logger.Debug("Fetching threats page", 
+		c.logger.Debug("Fetching threats page",
 			zap.Int("page", page),
 			zap.Bool("hasCursor", cursor != ""))
 
@@ -213,7 +213,7 @@ func (c *S1Client) FetchThreats(startTime, endTime time.Time, onPageEvents OnPag
 			totalFetched += len(events)
 		}
 
-		c.logger.Info("Fetched threats page", 
+		c.logger.Info("Fetched threats page",
 			zap.Int("page", page),
 			zap.Int("pageCount", len(result.Data)),
 			zap.Int("totalFetched", totalFetched))
@@ -339,7 +339,7 @@ func (c *S1Client) transformThreat(t S1Threat) models.UnifiedEvent {
 
 // FetchActivities ดึง Activities จาก S1 API ใช้ Cursor Pagination แบบ Streaming
 func (c *S1Client) FetchActivities(startTime, endTime time.Time, activityTypes []int, onPageEvents OnPageEvents, onChunkComplete OnChunkComplete) (int, error) {
-	c.logger.Info("Fetching S1 activities with cursor pagination (streaming)", 
+	c.logger.Info("Fetching S1 activities with cursor pagination (streaming)",
 		zap.String("tenantId", c.tenantID),
 		zap.String("from", startTime.Format(time.RFC3339)),
 		zap.String("to", endTime.Format(time.RFC3339)))
@@ -374,7 +374,7 @@ func (c *S1Client) FetchActivities(startTime, endTime time.Time, activityTypes [
 			req.SetQueryParam("activityTypes", string(typesJSON))
 		}
 
-		c.logger.Debug("Fetching activities page", 
+		c.logger.Debug("Fetching activities page",
 			zap.Int("page", page),
 			zap.Bool("hasCursor", cursor != ""))
 
@@ -418,7 +418,7 @@ func (c *S1Client) FetchActivities(startTime, endTime time.Time, activityTypes [
 			totalFetched += len(events)
 		}
 
-		c.logger.Info("Fetched activities page", 
+		c.logger.Info("Fetched activities page",
 			zap.Int("page", page),
 			zap.Int("pageCount", len(result.Data)),
 			zap.Int("totalFetched", totalFetched))
