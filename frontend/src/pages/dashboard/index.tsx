@@ -1,16 +1,18 @@
 import { useEffect, useState } from "react";
-import { 
-  Card, CardBody, Button, Spinner, Table, TableHeader, TableColumn, 
-  TableBody, TableRow, TableCell, Select, SelectItem
-} from "@heroui/react";
+import { Button, Spinner } from "@heroui/react";
 import { useAuth } from "../../shared/store/useAuth";
 import { useNavigate } from "react-router-dom";
 import { api } from "../../shared/api/api";
 import { usePageContext } from "../../contexts/PageContext";
+import { DateRangePicker } from "../../components/DateRangePicker";
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar, Legend, PieChart, Pie, Cell
 } from 'recharts';
+import { 
+  ShieldAlert, AlertTriangle, AlertCircle, Activity, 
+  Server, Database, TrendingUp
+} from 'lucide-react';
 
 interface Summary {
   critical: number;
@@ -80,7 +82,14 @@ export default function DashboardPage() {
   const { setPageContext } = usePageContext();
   
   const [loading, setLoading] = useState(true);
-  const [days, setDays] = useState(7);
+  // Date Range State
+  const [startDate, setStartDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 7);
+    return d;
+  });
+  const [endDate, setEndDate] = useState(() => new Date());
+  
   const [summary, setSummary] = useState<Summary | null>(null);
   const [topHosts, setTopHosts] = useState<TopHost[]>([]);
   const [topUsers, setTopUsers] = useState<TopUser[]>([]);
@@ -92,20 +101,30 @@ export default function DashboardPage() {
 
   useEffect(() => {
     loadDashboard();
-  }, [days]);
+  }, [startDate, endDate]);
+
+  const handleDateChange = (start: Date, end: Date) => {
+    setStartDate(start);
+    setEndDate(end);
+  };
 
   const loadDashboard = async () => {
     setLoading(true);
+    // Format dates as ISO strings for API
+    const start = startDate.toISOString().split('T')[0];
+    const end = endDate.toISOString().split('T')[0];
+    const dateParams = `startDate=${start}&endDate=${end}`;
+    
     try {
       const [summaryRes, hostsRes, usersRes, sourcesRes, timelineRes, mitreRes, intRes, sitesRes] = await Promise.all([
-        api.get(`/dashboard/summary?days=${days}`),
-        api.get(`/dashboard/top-hosts?days=${days}&limit=5`),
-        api.get(`/dashboard/top-users?days=${days}&limit=5`),
-        api.get(`/dashboard/sources?days=${days}`),
-        api.get(`/dashboard/timeline?days=${days}&interval=day`),
-        api.get(`/dashboard/mitre-heatmap?days=${days}`),
-        api.get(`/dashboard/integrations?days=${days}`),
-        api.get(`/dashboard/sites?days=${days}`),
+        api.get(`/dashboard/summary?${dateParams}`),
+        api.get(`/dashboard/top-hosts?${dateParams}&limit=5`),
+        api.get(`/dashboard/top-users?${dateParams}&limit=5`),
+        api.get(`/dashboard/sources?${dateParams}`),
+        api.get(`/dashboard/timeline?${dateParams}&interval=day`),
+        api.get(`/dashboard/mitre-heatmap?${dateParams}`),
+        api.get(`/dashboard/integrations?${dateParams}`),
+        api.get(`/dashboard/sites?${dateParams}`),
       ]);
       setSummary(summaryRes.data);
       setTopHosts(hostsRes.data);
@@ -136,7 +155,7 @@ export default function DashboardPage() {
           })),
           topUsers: usersRes.data?.slice(0, 5),
           sources: sourcesRes.data,
-          timeRange: `${days} days`,
+          timeRange: `${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}`,
         }
       });
     } catch (e) {
@@ -175,273 +194,372 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="p-6 min-h-screen dark bg-background text-foreground">
+    <div className="p-6 min-h-screen" style={{ backgroundColor: '#0E0F14' }}>
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-500 to-purple-500 text-transparent bg-clip-text">
-          zcrAI Dashboard
+        <h1 className="text-2xl font-bold" style={{ color: '#E4E6EB' }}>
+          Security Dashboard
         </h1>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           {/* Tenant Selector สำหรับ Super Admin */}
           {user?.role === 'superadmin' && (
             <Button 
               size="sm" 
               variant="flat" 
-              color="secondary"
+              className="bg-[#1C1E28] border border-white/5 text-[#E4E6EB]"
               onPress={() => navigate('/admin')}
             >
               Admin Panel
             </Button>
           )}
-          <Select
-            label="Time Range"
-            selectedKeys={[days.toString()]}
-            onSelectionChange={(keys) => setDays(parseInt(Array.from(keys)[0] as string))}
-            className="w-32"
-            size="sm"
-          >
-            <SelectItem key="1">1 Day</SelectItem>
-            <SelectItem key="7">7 Days</SelectItem>
-            <SelectItem key="30">30 Days</SelectItem>
-            <SelectItem key="90">90 Days</SelectItem>
-          </Select>
-          <Button size="sm" variant="flat" onPress={() => navigate('/logs')}>
+          <DateRangePicker 
+            startDate={startDate}
+            endDate={endDate}
+            onChange={handleDateChange}
+          />
+          <Button size="sm" variant="flat" className="bg-[#1C1E28] border border-white/5 text-[#E4E6EB]" onPress={() => navigate('/logs')}>
             Log Viewer
           </Button>
-          <Button size="sm" variant="flat" onPress={() => navigate('/settings')}>
+          <Button size="sm" variant="flat" className="bg-[#1C1E28] border border-white/5 text-[#E4E6EB]" onPress={() => navigate('/settings')}>
             Settings
           </Button>
-          <p className="text-sm">Welcome, {user?.email}</p>
+          <span className="text-sm" style={{ color: '#8D93A1' }}>{user?.email}</span>
           <Button color="danger" variant="light" size="sm" onPress={handleLogout}>
             Logout
           </Button>
         </div>
       </div>
       
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
-        <Card className="bg-red-500/10 border border-red-500/30">
-          <CardBody className="text-center py-4">
-            <p className="text-xs text-red-400">Critical</p>
-            <p className="text-2xl font-bold text-red-500">{summary?.critical || 0}</p>
-          </CardBody>
-        </Card>
-        <Card className="bg-orange-500/10 border border-orange-500/30">
-          <CardBody className="text-center py-4">
-            <p className="text-xs text-orange-400">High</p>
-            <p className="text-2xl font-bold text-orange-500">{summary?.high || 0}</p>
-          </CardBody>
-        </Card>
-        <Card className="bg-yellow-500/10 border border-yellow-500/30">
-          <CardBody className="text-center py-4">
-            <p className="text-xs text-yellow-400">Medium</p>
-            <p className="text-2xl font-bold text-yellow-500">{summary?.medium || 0}</p>
-          </CardBody>
-        </Card>
-        <Card className="bg-blue-500/10 border border-blue-500/30">
-          <CardBody className="text-center py-4">
-            <p className="text-xs text-blue-400">Low</p>
-            <p className="text-2xl font-bold text-blue-500">{summary?.low || 0}</p>
-          </CardBody>
-        </Card>
-        <Card className="bg-slate-500/10 border border-slate-500/30">
-          <CardBody className="text-center py-4">
-            <p className="text-xs text-slate-400">Total</p>
-            <p className="text-2xl font-bold">{summary?.total || 0}</p>
-          </CardBody>
-        </Card>
+      {/* Summary Panel */}
+      <div 
+        className="rounded-[14px] p-6 mb-6 border"
+        style={{ 
+          backgroundColor: '#1C1E28',
+          borderColor: 'rgba(255,255,255,0.04)',
+          boxShadow: '0px 2px 15px rgba(0,0,0,0.30)'
+        }}
+      >
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
+          {/* Critical */}
+          <div className="flex items-center gap-3">
+            <div className="p-3 rounded-full" style={{ backgroundColor: 'rgba(255, 74, 100, 0.15)' }}>
+              <ShieldAlert className="w-6 h-6" style={{ color: '#FF4A64' }} />
+            </div>
+            <div>
+              <p className="text-xs" style={{ color: '#8D93A1' }}>Critical Alerts</p>
+              <p className="text-2xl font-semibold" style={{ color: '#FF4A64' }}>
+                {summary?.critical?.toLocaleString() || 0}
+              </p>
+            </div>
+          </div>
+          
+          {/* High */}
+          <div className="flex items-center gap-3">
+            <div className="p-3 rounded-full" style={{ backgroundColor: 'rgba(245, 158, 11, 0.15)' }}>
+              <AlertTriangle className="w-6 h-6" style={{ color: '#f59e0b' }} />
+            </div>
+            <div>
+              <p className="text-xs" style={{ color: '#8D93A1' }}>High Alerts</p>
+              <p className="text-2xl font-semibold" style={{ color: '#f59e0b' }}>
+                {summary?.high?.toLocaleString() || 0}
+              </p>
+            </div>
+          </div>
+          
+          {/* Medium */}
+          <div className="flex items-center gap-3">
+            <div className="p-3 rounded-full" style={{ backgroundColor: 'rgba(234, 179, 8, 0.15)' }}>
+              <AlertCircle className="w-6 h-6" style={{ color: '#eab308' }} />
+            </div>
+            <div>
+              <p className="text-xs" style={{ color: '#8D93A1' }}>Medium Alerts</p>
+              <p className="text-2xl font-semibold" style={{ color: '#eab308' }}>
+                {summary?.medium?.toLocaleString() || 0}
+              </p>
+            </div>
+          </div>
+          
+          {/* Low */}
+          <div className="flex items-center gap-3">
+            <div className="p-3 rounded-full" style={{ backgroundColor: 'rgba(40, 199, 111, 0.15)' }}>
+              <Activity className="w-6 h-6" style={{ color: '#28C76F' }} />
+            </div>
+            <div>
+              <p className="text-xs" style={{ color: '#8D93A1' }}>Low Alerts</p>
+              <p className="text-2xl font-semibold" style={{ color: '#28C76F' }}>
+                {summary?.low?.toLocaleString() || 0}
+              </p>
+            </div>
+          </div>
+          
+          {/* Total */}
+          <div className="flex items-center gap-3">
+            <div className="p-3 rounded-full" style={{ backgroundColor: 'rgba(255, 107, 156, 0.15)' }}>
+              <TrendingUp className="w-6 h-6" style={{ color: '#FF6B9C' }} />
+            </div>
+            <div>
+              <p className="text-xs" style={{ color: '#8D93A1' }}>Total Events</p>
+              <p className="text-2xl font-semibold" style={{ color: '#E4E6EB' }}>
+                {summary?.total?.toLocaleString() || 0}
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Timeline Chart */}
-      <Card className="bg-content1 mb-6">
-        <CardBody>
-          <h2 className="text-lg font-bold mb-4">Events Timeline</h2>
-          <ResponsiveContainer width="100%" height={250}>
-            <AreaChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-              <XAxis dataKey="time" stroke="#9ca3af" fontSize={12} />
-              <YAxis stroke="#9ca3af" fontSize={12} />
-              <Tooltip 
-                contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: 8 }}
-                labelStyle={{ color: '#fff' }}
-              />
-              <Legend />
-              <Area type="monotone" dataKey="critical" stackId="1" stroke="#ef4444" fill="#ef4444" fillOpacity={0.6} />
-              <Area type="monotone" dataKey="high" stackId="1" stroke="#f59e0b" fill="#f59e0b" fillOpacity={0.6} />
-              <Area type="monotone" dataKey="medium" stackId="1" stroke="#eab308" fill="#eab308" fillOpacity={0.6} />
-            </AreaChart>
-          </ResponsiveContainer>
-        </CardBody>
-      </Card>
+      <div 
+        className="rounded-[12px] p-5 mb-6 border"
+        style={{ 
+          backgroundColor: '#1A1C24',
+          borderColor: 'rgba(255,255,255,0.04)'
+        }}
+      >
+        <h2 className="text-lg font-semibold mb-4" style={{ color: '#E4E6EB' }}>Events Timeline</h2>
+        <ResponsiveContainer width="100%" height={250}>
+          <AreaChart data={chartData}>
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+            <XAxis dataKey="time" stroke="#6C6F75" fontSize={11} />
+            <YAxis stroke="#6C6F75" fontSize={11} />
+            <Tooltip 
+              contentStyle={{ 
+                backgroundColor: '#1A1C24', 
+                border: '1px solid rgba(255,255,255,0.07)', 
+                borderRadius: 8,
+                color: '#E4E6EB'
+              }}
+              labelStyle={{ color: '#8D93A1' }}
+            />
+            <Legend wrapperStyle={{ color: '#8D93A1' }} />
+            <Area type="monotone" dataKey="critical" stackId="1" stroke="#FF4A64" fill="#FF4A64" fillOpacity={0.6} />
+            <Area type="monotone" dataKey="high" stackId="1" stroke="#f59e0b" fill="#f59e0b" fillOpacity={0.6} />
+            <Area type="monotone" dataKey="medium" stackId="1" stroke="#eab308" fill="#eab308" fillOpacity={0.6} />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
 
       {/* Main Grid: Hosts, Users, Sources */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         {/* Top Hosts */}
-        <Card className="bg-content1">
-          <CardBody>
-            <h2 className="text-lg font-bold mb-3">Top Hosts</h2>
-            <Table aria-label="Top hosts" removeWrapper isCompact>
-              <TableHeader>
-                <TableColumn>Host</TableColumn>
-                <TableColumn>Events</TableColumn>
-                <TableColumn>Crit</TableColumn>
-              </TableHeader>
-              <TableBody emptyContent="No hosts">
-                {topHosts.map((host, i) => (
-                  <TableRow key={i}>
-                    <TableCell className="text-xs truncate max-w-[120px]">{host.host_name}</TableCell>
-                    <TableCell className="text-xs">{host.count}</TableCell>
-                    <TableCell className="text-xs text-danger">{host.critical}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardBody>
-        </Card>
+        <div 
+          className="rounded-[12px] p-5 border"
+          style={{ backgroundColor: '#1A1C24', borderColor: 'rgba(255,255,255,0.04)' }}
+        >
+          <h2 className="text-base font-semibold mb-3" style={{ color: '#E4E6EB' }}>Top Hosts</h2>
+          <div className="space-y-2">
+            {topHosts.map((host, i) => (
+              <div 
+                key={i} 
+                className="flex items-center justify-between p-2 rounded-lg hover:bg-white/5 transition-colors"
+              >
+                <span className="text-sm truncate max-w-[120px]" style={{ color: '#E4E6EB' }}>{host.host_name}</span>
+                <div className="flex gap-3">
+                  <span className="text-xs" style={{ color: '#8D93A1' }}>{parseInt(host.count).toLocaleString()}</span>
+                  {parseInt(host.critical) > 0 && (
+                    <span className="px-2 py-0.5 text-xs rounded-full" style={{ backgroundColor: 'rgba(255,74,100,0.15)', color: '#FF4A64' }}>
+                      {host.critical}
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+            {topHosts.length === 0 && <p className="text-xs" style={{ color: '#6C6F75' }}>No hosts</p>}
+          </div>
+        </div>
 
         {/* Top Users */}
-        <Card className="bg-content1">
-          <CardBody>
-            <h2 className="text-lg font-bold mb-3">Top Users</h2>
-            <Table aria-label="Top users" removeWrapper isCompact>
-              <TableHeader>
-                <TableColumn>User</TableColumn>
-                <TableColumn>Events</TableColumn>
-                <TableColumn>Crit</TableColumn>
-              </TableHeader>
-              <TableBody emptyContent="No users">
-                {topUsers.map((u, i) => (
-                  <TableRow key={i}>
-                    <TableCell className="text-xs truncate max-w-[120px]">{u.user_name}</TableCell>
-                    <TableCell className="text-xs">{u.count}</TableCell>
-                    <TableCell className="text-xs text-danger">{u.critical}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardBody>
-        </Card>
+        <div 
+          className="rounded-[12px] p-5 border"
+          style={{ backgroundColor: '#1A1C24', borderColor: 'rgba(255,255,255,0.04)' }}
+        >
+          <h2 className="text-base font-semibold mb-3" style={{ color: '#E4E6EB' }}>Top Users</h2>
+          <div className="space-y-2">
+            {topUsers.map((u, i) => (
+              <div 
+                key={i} 
+                className="flex items-center justify-between p-2 rounded-lg hover:bg-white/5 transition-colors"
+              >
+                <span className="text-sm truncate max-w-[120px]" style={{ color: '#E4E6EB' }}>{u.user_name}</span>
+                <div className="flex gap-3">
+                  <span className="text-xs" style={{ color: '#8D93A1' }}>{parseInt(u.count).toLocaleString()}</span>
+                  {parseInt(u.critical) > 0 && (
+                    <span className="px-2 py-0.5 text-xs rounded-full" style={{ backgroundColor: 'rgba(255,74,100,0.15)', color: '#FF4A64' }}>
+                      {u.critical}
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+            {topUsers.length === 0 && <p className="text-xs" style={{ color: '#6C6F75' }}>No users</p>}
+          </div>
+        </div>
 
         {/* Sources Pie */}
-        <Card className="bg-content1">
-          <CardBody>
-            <h2 className="text-lg font-bold mb-3">Sources</h2>
-            <ResponsiveContainer width="100%" height={180}>
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={40}
-                  outerRadius={70}
-                  dataKey="value"
-                  label={({ name, value }: any) => `${name || ''} (${value?.toLocaleString() || 0})`}
-                  labelLine={false}
-                >
-                  {pieData.map((_, i) => (
-                    <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </CardBody>
-        </Card>
+        <div 
+          className="rounded-[12px] p-5 border"
+          style={{ backgroundColor: '#1A1C24', borderColor: 'rgba(255,255,255,0.04)' }}
+        >
+          <h2 className="text-base font-semibold mb-3" style={{ color: '#E4E6EB' }}>Sources</h2>
+          <ResponsiveContainer width="100%" height={180}>
+            <PieChart>
+              <Pie
+                data={pieData}
+                cx="50%"
+                cy="50%"
+                innerRadius={40}
+                outerRadius={70}
+                dataKey="value"
+                label={({ name, value }: any) => `${name || ''}`}
+                labelLine={false}
+              >
+                {pieData.map((_, i) => (
+                  <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip 
+                contentStyle={{ 
+                  backgroundColor: '#1A1C24', 
+                  border: '1px solid rgba(255,255,255,0.07)', 
+                  borderRadius: 8,
+                  color: '#E4E6EB'
+                }}
+              />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
       </div>
 
       {/* Integrations & Sites */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         {/* Integrations */}
-        <Card className="bg-content1">
-          <CardBody>
-            <h2 className="text-lg font-bold mb-3">Integrations</h2>
-            <Table aria-label="Integrations" removeWrapper isCompact>
-              <TableHeader>
-                <TableColumn>Integration</TableColumn>
-                <TableColumn>Source</TableColumn>
-                <TableColumn>Events</TableColumn>
-                <TableColumn>Crit</TableColumn>
-              </TableHeader>
-              <TableBody emptyContent="No integrations">
-                {integrations.map((int, i) => (
-                  <TableRow key={i}>
-                    <TableCell className="text-xs truncate max-w-[100px]">{int.integration_name || int.integration_id.slice(0, 8)}</TableCell>
-                    <TableCell className="text-xs capitalize">{int.source}</TableCell>
-                    <TableCell className="text-xs">{int.count}</TableCell>
-                    <TableCell className="text-xs text-danger">{int.critical}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardBody>
-        </Card>
+        <div 
+          className="rounded-[12px] p-5 border"
+          style={{ backgroundColor: '#1A1C24', borderColor: 'rgba(255,255,255,0.04)' }}
+        >
+          <h2 className="text-base font-semibold mb-3" style={{ color: '#E4E6EB' }}>Integrations</h2>
+          <div className="space-y-2">
+            {integrations.map((int, i) => (
+              <div 
+                key={i} 
+                className="flex items-center justify-between p-2 rounded-lg hover:bg-white/5 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'rgba(84,163,255,0.15)' }}>
+                    <Database className="w-4 h-4" style={{ color: '#54A3FF' }} />
+                  </div>
+                  <div>
+                    <span className="text-sm" style={{ color: '#E4E6EB' }}>{int.integration_name || int.integration_id.slice(0, 8)}</span>
+                    <p className="text-xs capitalize" style={{ color: '#6C6F75' }}>{int.source}</p>
+                  </div>
+                </div>
+                <div className="flex gap-3 items-center">
+                  <span className="text-xs" style={{ color: '#8D93A1' }}>{parseInt(int.count).toLocaleString()}</span>
+                  {parseInt(int.critical) > 0 && (
+                    <span className="px-2 py-0.5 text-xs rounded-full" style={{ backgroundColor: 'rgba(255,74,100,0.15)', color: '#FF4A64' }}>
+                      {int.critical}
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+            {integrations.length === 0 && <p className="text-xs" style={{ color: '#6C6F75' }}>No integrations</p>}
+          </div>
+        </div>
 
         {/* S1 Sites */}
-        <Card className="bg-content1">
-          <CardBody>
-            <h2 className="text-lg font-bold mb-3">SentinelOne Sites</h2>
-            <Table aria-label="Sites" removeWrapper isCompact>
-              <TableHeader>
-                <TableColumn>Account</TableColumn>
-                <TableColumn>Site</TableColumn>
-                <TableColumn>Events</TableColumn>
-                <TableColumn>Crit</TableColumn>
-              </TableHeader>
-              <TableBody emptyContent="No sites">
-                {sites.map((site, i) => (
-                  <TableRow key={i}>
-                    <TableCell className="text-xs truncate max-w-[80px]">{site.host_account_name || '-'}</TableCell>
-                    <TableCell className="text-xs truncate max-w-[100px]">{site.host_site_name}</TableCell>
-                    <TableCell className="text-xs">{site.count}</TableCell>
-                    <TableCell className="text-xs text-danger">{site.critical}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardBody>
-        </Card>
+        <div 
+          className="rounded-[12px] p-5 border"
+          style={{ backgroundColor: '#1A1C24', borderColor: 'rgba(255,255,255,0.04)' }}
+        >
+          <h2 className="text-base font-semibold mb-3" style={{ color: '#E4E6EB' }}>SentinelOne Sites</h2>
+          <div className="space-y-2">
+            {sites.map((site, i) => (
+              <div 
+                key={i} 
+                className="flex items-center justify-between p-2 rounded-lg hover:bg-white/5 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'rgba(126,87,255,0.15)' }}>
+                    <Server className="w-4 h-4" style={{ color: '#7E57FF' }} />
+                  </div>
+                  <div>
+                    <span className="text-sm" style={{ color: '#E4E6EB' }}>{site.host_site_name}</span>
+                    <p className="text-xs" style={{ color: '#6C6F75' }}>{site.host_account_name || '-'}</p>
+                  </div>
+                </div>
+                <div className="flex gap-3 items-center">
+                  <span className="text-xs" style={{ color: '#8D93A1' }}>{parseInt(site.count).toLocaleString()}</span>
+                  {parseInt(site.critical) > 0 && (
+                    <span className="px-2 py-0.5 text-xs rounded-full" style={{ backgroundColor: 'rgba(255,74,100,0.15)', color: '#FF4A64' }}>
+                      {site.critical}
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+            {sites.length === 0 && <p className="text-xs" style={{ color: '#6C6F75' }}>No sites</p>}
+          </div>
+        </div>
       </div>
 
       {/* MITRE ATT&CK */}
-      <Card className="bg-content1 mb-6">
-        <CardBody>
-          <h2 className="text-lg font-bold mb-3">MITRE ATT&CK Techniques</h2>
-          {mitreData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={mitreData.slice(0, 10)} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                <XAxis type="number" stroke="#9ca3af" fontSize={12} />
-                <YAxis 
-                  dataKey="mitre_technique" 
-                  type="category" 
-                  stroke="#9ca3af" 
-                  fontSize={10} 
-                  width={120}
-                  tickFormatter={(v: string) => v.length > 15 ? v.slice(0, 15) + '...' : v}
-                />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: 8 }}
-                  formatter={(value: number) => [value, 'Count']}
-                />
-                <Bar dataKey="count" fill="#6366f1" radius={[0, 4, 4, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
-            <p className="text-center text-default-500 py-8">No MITRE ATT&CK data available</p>
-          )}
-        </CardBody>
-      </Card>
+      <div 
+        className="rounded-[12px] p-5 mb-6 border"
+        style={{ backgroundColor: '#1A1C24', borderColor: 'rgba(255,255,255,0.04)' }}
+      >
+        <h2 className="text-base font-semibold mb-3" style={{ color: '#E4E6EB' }}>MITRE ATT&CK Techniques</h2>
+        {mitreData.length > 0 ? (
+          <ResponsiveContainer width="100%" height={200}>
+            <BarChart data={mitreData.slice(0, 10)} layout="vertical">
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+              <XAxis type="number" stroke="#6C6F75" fontSize={11} />
+              <YAxis 
+                dataKey="mitre_technique" 
+                type="category" 
+                stroke="#6C6F75" 
+                fontSize={10} 
+                width={120}
+                tickFormatter={(v: string) => v.length > 15 ? v.slice(0, 15) + '...' : v}
+              />
+              <Tooltip 
+                contentStyle={{ 
+                  backgroundColor: '#1A1C24', 
+                  border: '1px solid rgba(255,255,255,0.07)', 
+                  borderRadius: 8,
+                  color: '#E4E6EB'
+                }}
+                formatter={(value: number) => [value.toLocaleString(), 'Count']}
+              />
+              <Bar dataKey="count" fill="#7E57FF" radius={[0, 4, 4, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        ) : (
+          <p className="text-center py-8" style={{ color: '#6C6F75' }}>No MITRE ATT&CK data available</p>
+        )}
+      </div>
 
       {/* Actions */}
-      <div className="flex gap-4">
-        <Button color="primary" variant="shadow" onPress={() => navigate('/logs')}>
-          📋 View Logs
+      <div className="flex gap-3">
+        <Button 
+          className="text-white"
+          style={{ backgroundColor: '#7E57FF' }}
+          onPress={() => navigate('/logs')}
+        >
+          View Logs
         </Button>
-        <Button color="secondary" variant="flat" onPress={loadDashboard}>
-          🔄 Refresh
+        <Button 
+          variant="flat" 
+          className="bg-[#1C1E28] border border-white/5 text-[#E4E6EB]"
+          onPress={loadDashboard}
+        >
+          Refresh
         </Button>
-        <Button color="default" variant="flat" onPress={() => navigate('/settings')}>
-          ⚙️ Settings
+        <Button 
+          variant="flat" 
+          className="bg-[#1C1E28] border border-white/5 text-[#E4E6EB]"
+          onPress={() => navigate('/settings')}
+        >
+          Settings
         </Button>
       </div>
     </div>

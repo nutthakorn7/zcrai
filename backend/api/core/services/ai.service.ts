@@ -85,20 +85,27 @@ export const AIService = {
       }
       
       if (name === 'get_dashboard_stats') {
-        const stats = await DashboardService.getSummary(tenantId, args.days || 7);
+        const days = args.days || 7;
+        const endDate = new Date().toISOString().split('T')[0];
+        const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        const stats = await DashboardService.getSummary(tenantId, startDate, endDate);
         return JSON.stringify(stats);
       }
 
       if (name === 'get_top_threats') {
         console.log(`[AI Tool] get_top_threats args:`, JSON.stringify(args));
-        // Default to 'user' if type not specified, or check for user-related keywords
+        const days = args.days || 7;
+        const endDate = new Date().toISOString().split('T')[0];
+        const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        
+        // Default to 'user' if type not specified
         const targetType = args.type || 'user';
         if (targetType === 'user') {
-          const users = await DashboardService.getTopUsers(tenantId, args.days || 7, 5);
+          const users = await DashboardService.getTopUsers(tenantId, startDate, endDate, 5);
           console.log(`[AI Tool] Top Users result:`, JSON.stringify(users));
           return JSON.stringify(users);
         } else {
-          const hosts = await DashboardService.getTopHosts(tenantId, args.days || 7, 5);
+          const hosts = await DashboardService.getTopHosts(tenantId, startDate, endDate, 5);
           console.log(`[AI Tool] Top Hosts result:`, JSON.stringify(hosts));
           return JSON.stringify(hosts);
         }
@@ -115,7 +122,10 @@ export const AIService = {
       }
 
       if (name === 'get_mitre_techniques') {
-        const mitre = await DashboardService.getMitreHeatmap(tenantId, args.days || 30);
+        const days = args.days || 30;
+        const endDate = new Date().toISOString().split('T')[0];
+        const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        const mitre = await DashboardService.getMitreHeatmap(tenantId, startDate, endDate);
         console.log(`[AI Tool] MITRE result:`, JSON.stringify(mitre));
         return JSON.stringify(mitre);
       }

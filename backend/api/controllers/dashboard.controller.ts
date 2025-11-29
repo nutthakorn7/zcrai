@@ -18,6 +18,26 @@ const getEffectiveTenantId = (payload: any, selectedTenant: any): string => {
   return payload.tenantId as string
 }
 
+// Helper: Parse date range from query params
+const parseDateRange = (query: any): { startDate: string, endDate: string } => {
+  const today = new Date()
+  let startDate: string, endDate: string
+  
+  if (query.startDate && query.endDate) {
+    startDate = query.startDate as string
+    endDate = query.endDate as string
+  } else {
+    // Fallback: use days parameter
+    const days = parseInt(query.days as string) || 7
+    const start = new Date(today)
+    start.setDate(start.getDate() - days)
+    startDate = start.toISOString().split('T')[0]
+    endDate = today.toISOString().split('T')[0]
+  }
+  
+  return { startDate, endDate }
+}
+
 export const dashboardController = new Elysia({ prefix: '/dashboard' })
   .use(jwt({
     name: 'jwt',
@@ -51,8 +71,8 @@ export const dashboardController = new Elysia({ prefix: '/dashboard' })
       if (!payload) throw new Error('Unauthorized')
 
       const tenantId = getEffectiveTenantId(payload, selected_tenant)
-      const days = parseInt(query.days as string) || 7
-      return await DashboardService.getSummary(tenantId, days)
+      const { startDate, endDate } = parseDateRange(query)
+      return await DashboardService.getSummary(tenantId, startDate, endDate)
     } catch (e: any) {
       set.status = 400
       return { error: e.message }
@@ -66,9 +86,9 @@ export const dashboardController = new Elysia({ prefix: '/dashboard' })
       if (!payload) throw new Error('Unauthorized')
 
       const tenantId = getEffectiveTenantId(payload, selected_tenant)
-      const days = parseInt(query.days as string) || 7
+      const { startDate, endDate } = parseDateRange(query)
       const interval = (query.interval as 'hour' | 'day') || 'day'
-      return await DashboardService.getTimeline(tenantId, days, interval)
+      return await DashboardService.getTimeline(tenantId, startDate, endDate, interval)
     } catch (e: any) {
       set.status = 400
       return { error: e.message }
@@ -82,9 +102,9 @@ export const dashboardController = new Elysia({ prefix: '/dashboard' })
       if (!payload) throw new Error('Unauthorized')
 
       const tenantId = getEffectiveTenantId(payload, selected_tenant)
-      const days = parseInt(query.days as string) || 7
+      const { startDate, endDate } = parseDateRange(query)
       const limit = parseInt(query.limit as string) || 10
-      return await DashboardService.getTopHosts(tenantId, days, limit)
+      return await DashboardService.getTopHosts(tenantId, startDate, endDate, limit)
     } catch (e: any) {
       set.status = 400
       return { error: e.message }
@@ -98,9 +118,9 @@ export const dashboardController = new Elysia({ prefix: '/dashboard' })
       if (!payload) throw new Error('Unauthorized')
 
       const tenantId = getEffectiveTenantId(payload, selected_tenant)
-      const days = parseInt(query.days as string) || 7
+      const { startDate, endDate } = parseDateRange(query)
       const limit = parseInt(query.limit as string) || 10
-      return await DashboardService.getTopUsers(tenantId, days, limit)
+      return await DashboardService.getTopUsers(tenantId, startDate, endDate, limit)
     } catch (e: any) {
       set.status = 400
       return { error: e.message }
@@ -114,8 +134,8 @@ export const dashboardController = new Elysia({ prefix: '/dashboard' })
       if (!payload) throw new Error('Unauthorized')
 
       const tenantId = getEffectiveTenantId(payload, selected_tenant)
-      const days = parseInt(query.days as string) || 30
-      return await DashboardService.getMitreHeatmap(tenantId, days)
+      const { startDate, endDate } = parseDateRange(query)
+      return await DashboardService.getMitreHeatmap(tenantId, startDate, endDate)
     } catch (e: any) {
       set.status = 400
       return { error: e.message }
@@ -129,8 +149,8 @@ export const dashboardController = new Elysia({ prefix: '/dashboard' })
       if (!payload) throw new Error('Unauthorized')
 
       const tenantId = getEffectiveTenantId(payload, selected_tenant)
-      const days = parseInt(query.days as string) || 7
-      return await DashboardService.getSourcesBreakdown(tenantId, days)
+      const { startDate, endDate } = parseDateRange(query)
+      return await DashboardService.getSourcesBreakdown(tenantId, startDate, endDate)
     } catch (e: any) {
       set.status = 400
       return { error: e.message }
@@ -144,8 +164,8 @@ export const dashboardController = new Elysia({ prefix: '/dashboard' })
       if (!payload) throw new Error('Unauthorized')
 
       const tenantId = getEffectiveTenantId(payload, selected_tenant)
-      const days = parseInt(query.days as string) || 7
-      return await DashboardService.getIntegrationBreakdown(tenantId, days)
+      const { startDate, endDate } = parseDateRange(query)
+      return await DashboardService.getIntegrationBreakdown(tenantId, startDate, endDate)
     } catch (e: any) {
       set.status = 400
       return { error: e.message }
@@ -159,8 +179,8 @@ export const dashboardController = new Elysia({ prefix: '/dashboard' })
       if (!payload) throw new Error('Unauthorized')
 
       const tenantId = getEffectiveTenantId(payload, selected_tenant)
-      const days = parseInt(query.days as string) || 7
-      return await DashboardService.getSiteBreakdown(tenantId, days)
+      const { startDate, endDate } = parseDateRange(query)
+      return await DashboardService.getSiteBreakdown(tenantId, startDate, endDate)
     } catch (e: any) {
       set.status = 400
       return { error: e.message }
