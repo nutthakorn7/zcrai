@@ -15,7 +15,7 @@ export const aiController = new Elysia({ prefix: '/ai' })
   }))
   
   // ==================== CHAT STREAM ====================
-  .post('/chat', async ({ body, jwt, cookie: { access_token }, set }) => {
+  .post('/chat', async ({ body, jwt, cookie: { access_token, selected_tenant }, set }) => {
     try {
       const payload = await jwt.verify(access_token.value)
       if (!payload) {
@@ -25,20 +25,34 @@ export const aiController = new Elysia({ prefix: '/ai' })
 
       const { messages, context } = body as ChatBody
 
-      console.log(`[AI Chat] Request from Tenant: ${payload.tenantId}`)
+      // Use selected_tenant for Super Admin impersonation, otherwise use payload.tenantId
+      let tenantId = payload.tenantId as string
+      if (payload.role === 'superadmin' && selected_tenant?.value) {
+        tenantId = selected_tenant.value as string
+      }
+
+      console.log(`[AI Chat] Request from Tenant: ${tenantId} (User: ${payload.role})`)
 
       // Create a native ReadableStream
       const stream = new ReadableStream({
         async start(controller) {
           const encoder = new TextEncoder()
           try {
-            const result = await AIService.chatStream(payload.tenantId as string, messages, context)
+            const result = await AIService.chatStream(tenantId, messages, context)
             
             if (result.type === 'anthropic') {
               // Handle Anthropic Stream
               for await (const chunk of result.stream as any) {
                 if (chunk.type === 'content_block_delta' && chunk.delta?.type === 'text_delta') {
                   controller.enqueue(encoder.encode(chunk.delta.text))
+                }
+              }
+            } else if (result.type === 'gemini') {
+              // Handle Gemini Stream
+              for await (const chunk of result.stream as any) {
+                const text = chunk.text()
+                if (text) {
+                  controller.enqueue(encoder.encode(text))
                 }
               }
             } else {

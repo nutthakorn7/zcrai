@@ -35,10 +35,9 @@ export default function IntegrationPage() {
 
   // Popular Models
   const POPULAR_MODELS: Record<string, string[]> = {
-    openai: ['gpt-4o', 'gpt-4-turbo', 'gpt-3.5-turbo'],
-    claude: ['claude-sonnet-4-5', 'claude-opus-4-5', 'claude-haiku-4-5'],
-    gemini: ['gemini-1.5-pro', 'gemini-1.5-flash'],
-    deepseek: ['deepseek-chat', 'deepseek-coder'],
+    openai: ['gpt-5.1', 'gpt-5-pro', 'gpt-5-mini', 'gpt-5-nano', 'gpt-4o', 'gpt-4-turbo', 'gpt-3.5-turbo'],
+    claude: ['claude-sonnet-4-5', 'claude-opus-4-5', 'claude-haiku-4-5', 'claude-3-5-sonnet-20240620'],
+    gemini: ['gemini-3-pro-preview', 'gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-1.5-pro', 'gemini-1.5-flash'],
   };
 
   // Form State
@@ -335,7 +334,6 @@ export default function IntegrationPage() {
                           <SelectItem key="openai">OpenAI</SelectItem>
                           <SelectItem key="claude">Claude (Anthropic)</SelectItem>
                           <SelectItem key="gemini">Gemini (Google)</SelectItem>
-                          <SelectItem key="deepseek">DeepSeek</SelectItem>
                         </Select>
                         <Input
                           label="API Key"

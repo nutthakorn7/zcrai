@@ -1,5 +1,6 @@
 import OpenAI from 'openai'
 import Anthropic from '@anthropic-ai/sdk'
+import { GoogleGenerativeAI } from '@google/generative-ai'
 import { IntegrationService } from './integration.service'
 import { LogsService } from './logs.service'
 import { DashboardService } from './dashboard.service'
@@ -47,6 +48,16 @@ const TOOLS_DEF = [
       type: "object",
       properties: {}
     }
+  },
+  {
+    name: "get_mitre_techniques",
+    description: "Get MITRE ATT&CK techniques and tactics from security events. Use this when user asks about MITRE, attack techniques, TTPs, or threat analysis.",
+    input_schema: {
+      type: "object",
+      properties: {
+        days: { type: "number", description: "Days to look back (default 30)" }
+      }
+    }
   }
 ];
 
@@ -79,11 +90,16 @@ export const AIService = {
       }
 
       if (name === 'get_top_threats') {
-        if (args.type === 'user') {
+        console.log(`[AI Tool] get_top_threats args:`, JSON.stringify(args));
+        // Default to 'user' if type not specified, or check for user-related keywords
+        const targetType = args.type || 'user';
+        if (targetType === 'user') {
           const users = await DashboardService.getTopUsers(tenantId, args.days || 7, 5);
+          console.log(`[AI Tool] Top Users result:`, JSON.stringify(users));
           return JSON.stringify(users);
         } else {
           const hosts = await DashboardService.getTopHosts(tenantId, args.days || 7, 5);
+          console.log(`[AI Tool] Top Hosts result:`, JSON.stringify(hosts));
           return JSON.stringify(hosts);
         }
       }
@@ -98,6 +114,12 @@ export const AIService = {
         })));
       }
 
+      if (name === 'get_mitre_techniques') {
+        const mitre = await DashboardService.getMitreHeatmap(tenantId, args.days || 30);
+        console.log(`[AI Tool] MITRE result:`, JSON.stringify(mitre));
+        return JSON.stringify(mitre);
+      }
+
       return "Tool not found.";
     } catch (e: any) {
       console.error(`[AI Tool] Error executing ${name}:`, e);
@@ -110,7 +132,7 @@ export const AIService = {
     const aiConfig = await IntegrationService.getAIConfig(tenantId)
     
     if (!aiConfig) {
-      throw new Error('No AI Provider configured. Please add OpenAI or Claude integration in Settings.')
+      throw new Error('No AI Provider configured. Please add OpenAI or Claude or Gemini integration in Settings.')
     }
 
     // Sanitize messages: Extract only text content, remove tool-related content
@@ -227,6 +249,75 @@ ${context || 'No specific context provided.'}
       return { type: 'anthropic', stream }
     }
     
+    // ==================== GEMINI (GOOGLE) ====================
+    else if (aiConfig.provider === 'gemini' || aiConfig.provider === 'google') {
+      const genAI = new GoogleGenerativeAI(aiConfig.apiKey)
+      
+      // Convert tools to Gemini format
+      const geminiTools = [{
+        functionDeclarations: TOOLS_DEF.map(t => ({
+          name: t.name,
+          description: t.description,
+          parameters: t.input_schema
+        }))
+      }]
+      
+      const geminiModel = genAI.getGenerativeModel({ 
+        model: aiConfig.model || 'gemini-1.5-pro',
+        systemInstruction: systemPrompt,
+        tools: geminiTools as any
+      })
+
+      // Prepare history (exclude last message which will be sent as new message)
+      let history = cleanMessages.slice(0, -1).map(m => ({
+        role: m.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: m.content }]
+      }))
+
+      // Gemini requires first message to be 'user' role
+      while (history.length > 0 && history[0].role === 'model') {
+        history.shift()
+      }
+
+      const lastMessage = cleanMessages[cleanMessages.length - 1]?.content || ''
+
+      // Step 1: Non-streaming call to check for function calls
+      const chatSession = geminiModel.startChat({
+        history: history.length > 0 ? history : undefined
+      })
+      
+      const initialResponse = await chatSession.sendMessage(lastMessage)
+      const responseResult = initialResponse.response
+      
+      // Step 2: Check for function calls
+      const functionCalls = responseResult.functionCalls()
+      if (functionCalls && functionCalls.length > 0) {
+        const fc = functionCalls[0]
+        const toolResult = await this.executeTool(fc.name, fc.args, tenantId)
+        
+        // Step 3: Send function result back and stream final response
+        const finalStream = await chatSession.sendMessageStream([{
+          functionResponse: {
+            name: fc.name,
+            response: { result: toolResult }
+          }
+        }])
+        
+        return { type: 'gemini', stream: finalStream.stream }
+      }
+
+      // No function call, create a new stream for the response
+      // Since we already consumed the response, we need to return the text as a fake stream
+      const responseText = responseResult.text()
+      const fakeStream = {
+        async *[Symbol.asyncIterator]() {
+          yield { text: () => responseText }
+        }
+      }
+      
+      return { type: 'gemini', stream: fakeStream }
+    }
+    
     // ==================== OPENAI ====================
     else {
       // Simplified OpenAI implementation (similar logic: check tool_calls -> execute -> stream)
@@ -293,7 +384,7 @@ ${context || 'No specific context provided.'}
           ...cleanMessages
         ],
         stream: true,
-        temperature: 0.3,
+        // temperature: 0.3, // Removed for compatibility with o1 models
       })
 
       return { type: 'openai', stream }

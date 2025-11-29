@@ -19,6 +19,7 @@
     "@elysiajs/jwt": "latest",
     "@elysiajs/stream": "^1.1.0",
     "@elysiajs/swagger": "latest",
+    "@google/generative-ai": "^0.24.1",
     "@types/cron": "^2.4.3",
     "cron": "^4.3.4",
     "drizzle-orm": "latest",
