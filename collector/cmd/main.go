@@ -99,6 +99,30 @@ func main() {
 		})
 	})
 
+	// ⭐ Trigger sync/reload endpoint - เรียกเมื่อ Integration ถูก update จาก UI
+	app.Post("/sync/:integrationId", func(c *fiber.Ctx) error {
+		integrationID := c.Params("integrationId")
+		cfg.Logger.Info("Received sync trigger from backend", zap.String("integrationId", integrationID))
+
+		// บอก scheduler ให้ reload config ในรอบถัดไป
+		sched.TriggerReload(integrationID)
+
+		return c.JSON(fiber.Map{
+			"message":       "Sync reload triggered",
+			"integrationId": integrationID,
+		})
+	})
+
+	// ⭐ Cancel sync endpoint - เรียกเมื่อ Integration ถูกลบจาก UI
+	app.Delete("/sync/:integrationId", func(c *fiber.Ctx) error {
+		integrationID := c.Params("integrationId")
+		sched.CancelSync(integrationID)
+		return c.JSON(fiber.Map{
+			"message":       "Sync cancelled",
+			"integrationId": integrationID,
+		})
+	})
+
 	// Graceful shutdown
 	go func() {
 		sigChan := make(chan os.Signal, 1)

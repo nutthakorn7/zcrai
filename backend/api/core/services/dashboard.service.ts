@@ -65,7 +65,7 @@ export const DashboardService = {
         countIf(severity = 'high') as high,
         countIf(severity = 'medium') as medium,
         countIf(severity = 'low') as low
-      FROM security_events
+      FROM security_events FINAL
       WHERE tenant_id = {tenantId:String}
         AND toDate(timestamp) >= {startDate:String}
         AND toDate(timestamp) <= {endDate:String}
@@ -121,7 +121,7 @@ export const DashboardService = {
         count() as count,
         countIf(severity = 'critical') as critical,
         countIf(severity = 'high') as high
-      FROM security_events
+      FROM security_events FINAL
       WHERE tenant_id = {tenantId:String}
         AND toDate(timestamp) >= {startDate:String}
         AND toDate(timestamp) <= {endDate:String}
@@ -194,7 +194,7 @@ export const DashboardService = {
         count() as count,
         countIf(severity = 'critical') as critical,
         countIf(severity = 'high') as high
-      FROM security_events
+      FROM security_events FINAL
       WHERE tenant_id = {tenantId:String}
         AND toDate(timestamp) >= {startDate:String}
         AND toDate(timestamp) <= {endDate:String}
@@ -235,7 +235,7 @@ export const DashboardService = {
         count() as count,
         countIf(severity = 'critical') as critical,
         countIf(severity = 'high') as high
-      FROM security_events
+      FROM security_events FINAL
       WHERE tenant_id = {tenantId:String}
         AND toDate(timestamp) >= {startDate:String}
         AND toDate(timestamp) <= {endDate:String}
@@ -259,7 +259,7 @@ export const DashboardService = {
       SELECT 
         severity,
         count() as count
-      FROM security_events
+      FROM security_events FINAL
       WHERE tenant_id = {tenantId:String}
         AND integration_id = {integrationId:String}
         AND timestamp >= now() - INTERVAL {days:UInt32} DAY
@@ -284,7 +284,7 @@ export const DashboardService = {
       SELECT 
         severity,
         count() as count
-      FROM security_events
+      FROM security_events FINAL
       WHERE tenant_id = {tenantId:String}
         AND host_site_name = {siteName:String}
         AND timestamp >= now() - INTERVAL {days:UInt32} DAY

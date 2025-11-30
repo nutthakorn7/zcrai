@@ -15,6 +15,13 @@
       "when": 1764431141191,
       "tag": "0001_flaky_gamora",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1764435937793,
+      "tag": "0002_chilly_magik",
+      "breakpoints": true
     }
   ]
 }

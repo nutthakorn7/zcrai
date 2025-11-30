@@ -5,7 +5,7 @@ export const SchedulerService = {
   init() {
     console.log('[Scheduler] Initializing background jobs...')
 
-    // Run optimization every 15 minutes
+    // Run optimization every 15 minutes (Safety net กรณี Collector ไม่ทำงาน)
     // "0 */15 * * * *"
     const optimizeJob = new CronJob(
       '0 */15 * * * *',

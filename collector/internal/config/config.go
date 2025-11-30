@@ -15,10 +15,10 @@ import (
 type Integration struct {
 	ID             string `json:"id"`
 	TenantID       string `json:"tenantId"`
-	Name           string `json:"name"`           // ชื่อ Integration สำหรับแสดงผล
-	Type           string `json:"type"`           // sentinelone, crowdstrike, ai
-	Provider       string `json:"provider"`       // s1, crowdstrike, openai, claude
-	Config         string `json:"config"`         // JSON string (decrypted)
+	Name           string `json:"name"`     // ชื่อ Integration สำหรับแสดงผล
+	Type           string `json:"type"`     // sentinelone, crowdstrike, ai
+	Provider       string `json:"provider"` // s1, crowdstrike, openai, claude
+	Config         string `json:"config"`   // JSON string (decrypted)
 	Status         string `json:"status"`
 	LastSyncAt     string `json:"lastSyncAt"`
 	LastSyncStatus string `json:"lastSyncStatus"` // pending, success, error
@@ -26,15 +26,37 @@ type Integration struct {
 
 // S1Config โครงสร้าง config ของ SentinelOne
 type S1Config struct {
-	BaseURL  string `json:"baseUrl"`
-	APIToken string `json:"apiToken"`
+	BaseURL       string           `json:"baseUrl"`
+	APIToken      string           `json:"apiToken"`
+	FetchSettings *S1FetchSettings `json:"fetchSettings,omitempty"`
+}
+
+// S1FetchSettings ตั้งค่าการดึงข้อมูล SentinelOne
+type S1FetchSettings struct {
+	Threats    *FetchSettingItem `json:"threats,omitempty"`
+	Activities *FetchSettingItem `json:"activities,omitempty"`
+	Alerts     *FetchSettingItem `json:"alerts,omitempty"`
 }
 
 // CrowdStrikeConfig โครงสร้าง config ของ CrowdStrike
 type CrowdStrikeConfig struct {
-	BaseURL      string `json:"baseUrl"`
-	ClientID     string `json:"clientId"`
-	ClientSecret string `json:"clientSecret"`
+	BaseURL       string           `json:"baseUrl"`
+	ClientID      string           `json:"clientId"`
+	ClientSecret  string           `json:"clientSecret"`
+	FetchSettings *CSFetchSettings `json:"fetchSettings,omitempty"`
+}
+
+// CSFetchSettings ตั้งค่าการดึงข้อมูล CrowdStrike
+type CSFetchSettings struct {
+	Alerts     *FetchSettingItem `json:"alerts,omitempty"`
+	Detections *FetchSettingItem `json:"detections,omitempty"`
+	Incidents  *FetchSettingItem `json:"incidents,omitempty"`
+}
+
+// FetchSettingItem ตั้งค่าแต่ละประเภทข้อมูล
+type FetchSettingItem struct {
+	Enabled bool `json:"enabled"`
+	Days    int  `json:"days"`
 }
 
 // Config หลักของ Collector

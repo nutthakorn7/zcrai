@@ -1,5 +1,5 @@
 import { db } from '../../infra/db'
-import { apiKeys } from '../../infra/db/schema'
+import { apiKeys, collectorStates } from '../../infra/db/schema'
 import { eq, and } from 'drizzle-orm'
 import { Encryption } from '../../utils/encryption'
 
@@ -21,19 +21,154 @@ export const IntegrationService = {
     .from(apiKeys)
     .where(eq(apiKeys.tenantId, tenantId))
 
-    // เพิ่ม hasApiKey และ sync status fields
-    return keys.map(key => ({
-      id: key.id,
-      provider: key.provider,
-      label: key.label,
-      keyId: key.keyId,
-      lastUsedAt: key.lastUsedAt,
-      lastSyncStatus: key.lastSyncStatus,   // 'success' | 'error' | null
-      lastSyncError: key.lastSyncError,     // Error message
-      lastSyncAt: key.lastSyncAt,           // Last sync timestamp
-      createdAt: key.createdAt,
-      hasApiKey: !!key.encryptedKey && key.encryptedKey.length > 0,
-    }))
+    // เพิ่ม hasApiKey, fetchSettings และ masked config
+    return keys.map(key => {
+      let fetchSettings = null
+      let maskedUrl = null
+      
+      try {
+        const decrypted = Encryption.decrypt(key.encryptedKey)
+        const parsed = JSON.parse(decrypted)
+        fetchSettings = parsed.fetchSettings || null
+        
+        // Mask URL สำหรับแสดงผล
+        if (key.provider === 'sentinelone') {
+          maskedUrl = parsed.url || null
+        } else if (key.provider === 'crowdstrike') {
+          maskedUrl = parsed.baseUrl || null
+        }
+      } catch (e) {
+        // ignore decrypt errors
+      }
+      
+      return {
+        id: key.id,
+        provider: key.provider,
+        label: key.label,
+        keyId: key.keyId,
+        lastUsedAt: key.lastUsedAt,
+        lastSyncStatus: key.lastSyncStatus,
+        lastSyncError: key.lastSyncError,
+        lastSyncAt: key.lastSyncAt,
+        createdAt: key.createdAt,
+        hasApiKey: !!key.encryptedKey && key.encryptedKey.length > 0,
+        fetchSettings,  // ⭐ ส่ง fetchSettings กลับไปแสดงใน UI
+        maskedUrl,      // ⭐ URL สำหรับแสดงผล (ไม่ mask)
+      }
+    })
+  },
+
+  // ==================== GET CONFIG (สำหรับ Edit mode) ====================
+  async getConfig(integrationId: string, tenantId: string) {
+    const [integration] = await db.select()
+      .from(apiKeys)
+      .where(and(eq(apiKeys.id, integrationId), eq(apiKeys.tenantId, tenantId)))
+    
+    if (!integration) throw new Error('Integration not found')
+    
+    try {
+      const decrypted = Encryption.decrypt(integration.encryptedKey)
+      const parsed = JSON.parse(decrypted)
+      
+      // Return config พร้อม masked sensitive data
+      if (integration.provider === 'sentinelone') {
+        return {
+          url: parsed.url,
+          token: '••••••••', // Masked
+          hasToken: !!parsed.token,
+          fetchSettings: parsed.fetchSettings || {
+            threats: { enabled: true, days: 365 },
+            activities: { enabled: true, days: 120 },
+            alerts: { enabled: true, days: 365 },
+          },
+        }
+      } else if (integration.provider === 'crowdstrike') {
+        return {
+          baseUrl: parsed.baseUrl,
+          clientId: parsed.clientId,
+          clientSecret: '••••••••', // Masked
+          hasSecret: !!parsed.clientSecret,
+          fetchSettings: parsed.fetchSettings || {
+            alerts: { enabled: true, days: 365 },
+            detections: { enabled: true, days: 365 },
+            incidents: { enabled: true, days: 365 },
+          },
+        }
+      } else {
+        // AI Provider
+        return {
+          apiKey: '••••••••',
+          hasKey: !!parsed.apiKey,
+          model: parsed.model,
+          baseUrl: parsed.baseUrl,
+        }
+      }
+    } catch (e) {
+      throw new Error('Failed to decrypt config')
+    }
+  },
+
+  // ==================== UPDATE FULL (URL, Token, fetchSettings) ====================
+  async updateFull(integrationId: string, tenantId: string, data: {
+    label?: string;
+    url?: string;
+    token?: string;
+    baseUrl?: string;
+    clientId?: string;
+    clientSecret?: string;
+    apiKey?: string;
+    model?: string;
+    fetchSettings?: any;
+  }) {
+    const [integration] = await db.select()
+      .from(apiKeys)
+      .where(and(eq(apiKeys.id, integrationId), eq(apiKeys.tenantId, tenantId)))
+    
+    if (!integration) throw new Error('Integration not found')
+    
+    // Decrypt existing config
+    let existingConfig: any = {}
+    try {
+      const decrypted = Encryption.decrypt(integration.encryptedKey)
+      existingConfig = JSON.parse(decrypted)
+    } catch (e) {
+      existingConfig = {}
+    }
+    
+    // Merge new data with existing
+    let newConfig: any = { ...existingConfig }
+    
+    if (integration.provider === 'sentinelone') {
+      if (data.url) newConfig.url = data.url
+      if (data.token) newConfig.token = data.token
+      if (data.fetchSettings) newConfig.fetchSettings = data.fetchSettings
+    } else if (integration.provider === 'crowdstrike') {
+      if (data.baseUrl) newConfig.baseUrl = data.baseUrl
+      if (data.clientId) newConfig.clientId = data.clientId
+      if (data.clientSecret) newConfig.clientSecret = data.clientSecret
+      if (data.fetchSettings) newConfig.fetchSettings = data.fetchSettings
+    } else {
+      // AI Provider
+      if (data.apiKey) newConfig.apiKey = data.apiKey
+      if (data.model !== undefined) newConfig.model = data.model
+      if (data.baseUrl !== undefined) newConfig.baseUrl = data.baseUrl
+    }
+    
+    // Encrypt and save
+    const encryptedKey = Encryption.encrypt(JSON.stringify(newConfig))
+    
+    const [updated] = await db.update(apiKeys)
+      .set({
+        encryptedKey,
+        label: data.label || integration.label,
+        keyId: data.clientId || integration.keyId, // Update keyId if clientId changed
+        lastSyncStatus: 'pending', // Reset sync status
+        lastSyncError: null,
+      })
+      .where(eq(apiKeys.id, integrationId))
+      .returning()
+    
+    return updated
   },
 
   // ==================== LIST FOR COLLECTOR (พร้อม Decrypted Config) ====================
@@ -52,19 +187,29 @@ export const IntegrationService = {
         const decrypted = Encryption.decrypt(integration.encryptedKey)
         const parsed = JSON.parse(decrypted)
 
-        // แปลง format ตาม provider
+        // แปลง format ตาม provider + ส่ง fetchSettings ไป Collector
         switch (integration.provider) {
           case 'sentinelone':
             config = {
               baseUrl: parsed.url,
-              apiToken: parsed.token
+              apiToken: parsed.token,
+              fetchSettings: parsed.fetchSettings || {
+                threats: { enabled: true, days: 365 },
+                activities: { enabled: true, days: 120 },
+                alerts: { enabled: true, days: 365 },
+              },
             }
             break
           case 'crowdstrike':
             config = {
               baseUrl: parsed.baseUrl,
               clientId: parsed.clientId,
-              clientSecret: parsed.clientSecret
+              clientSecret: parsed.clientSecret,
+              fetchSettings: parsed.fetchSettings || {
+                alerts: { enabled: true, days: 365 },
+                detections: { enabled: true, days: 365 },
+                incidents: { enabled: true, days: 365 },
+              },
             }
             break
           default:
@@ -90,11 +235,27 @@ export const IntegrationService = {
   },
 
   // ==================== ADD SENTINELONE ====================
-  async addSentinelOne(tenantId: string, data: { url: string; token: string; label?: string }) {
+  async addSentinelOne(tenantId: string, data: { 
+    url: string; 
+    token: string; 
+    label?: string;
+    fetchSettings?: {
+      threats?: { enabled: boolean; days: number };
+      activities?: { enabled: boolean; days: number };
+      alerts?: { enabled: boolean; days: number };
+    };
+  }) {
     // Validate URL
     let baseUrl = data.url
     if (baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0, -1)
     if (baseUrl.endsWith('/web/api/v2.1/threats')) baseUrl = baseUrl.replace('/web/api/v2.1/threats', '')
+    
+    // ⭐ Default fetch settings (Best Practice)
+    const fetchSettings = {
+      threats: { enabled: true, days: 365, ...(data.fetchSettings?.threats || {}) },
+      activities: { enabled: true, days: 120, ...(data.fetchSettings?.activities || {}) },
+      alerts: { enabled: true, days: 365, ...(data.fetchSettings?.alerts || {}) },
+    }
     
     // เช็ค URL ซ้ำ - ถ้าซ้ำให้ UPDATE แทน INSERT
     const existingKeys = await db.select().from(apiKeys)
@@ -125,10 +286,11 @@ export const IntegrationService = {
     // Test Connection ก่อน Save/Update
     await this.testSentinelOneConnection(baseUrl, data.token)
 
-    // Save Encrypted Token
+    // Save Encrypted Token + fetchSettings
     const encryptedKey = Encryption.encrypt(JSON.stringify({
       url: baseUrl,
-      token: data.token
+      token: data.token,
+      fetchSettings,  // ⭐ เก็บ fetch settings ด้วย
     }))
 
     let integration
@@ -163,9 +325,26 @@ export const IntegrationService = {
   },
 
   // ==================== ADD CROWDSTRIKE ====================
-  async addCrowdStrike(tenantId: string, data: { clientId: string; clientSecret: string; baseUrl?: string; label?: string }) {
+  async addCrowdStrike(tenantId: string, data: { 
+    clientId: string; 
+    clientSecret: string; 
+    baseUrl?: string; 
+    label?: string;
+    fetchSettings?: {
+      alerts?: { enabled: boolean; days: number };
+      detections?: { enabled: boolean; days: number };
+      incidents?: { enabled: boolean; days: number };
+    };
+  }) {
     let baseUrl = data.baseUrl || 'https://api.us-2.crowdstrike.com'
     if (baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0, -1)
+    
+    // ⭐ Default fetch settings (Best Practice)
+    const fetchSettings = {
+      alerts: { enabled: true, days: 365, ...(data.fetchSettings?.alerts || {}) },
+      detections: { enabled: true, days: 365, ...(data.fetchSettings?.detections || {}) },
+      incidents: { enabled: true, days: 365, ...(data.fetchSettings?.incidents || {}) },
+    }
 
     // เช็ค Client ID ซ้ำ - ถ้าซ้ำให้ UPDATE แทน INSERT
     const existingKeys = await db.select().from(apiKeys)
@@ -191,11 +370,12 @@ export const IntegrationService = {
     // Test Connection ก่อน Save/Update
     await this.testCrowdStrikeConnection(baseUrl, data.clientId, data.clientSecret)
 
-    // Save Encrypted Credentials
+    // Save Encrypted Credentials + fetchSettings
     const encryptedKey = Encryption.encrypt(JSON.stringify({
       baseUrl,
       clientId: data.clientId,
-      clientSecret: data.clientSecret
+      clientSecret: data.clientSecret,
+      fetchSettings,  // ⭐ เก็บ fetch settings ด้วย
     }))
 
     let integration
@@ -496,6 +676,66 @@ export const IntegrationService = {
     } catch (e) {
       console.error('Failed to trigger collector:', e)
       // ไม่ throw error เพราะไม่ควรขัดขวาง flow หลัก
+    }
+  },
+
+  // ดึง state ของ collector จาก PostgreSQL
+  async getCollectorState(tenantId: string, provider: string, urlHash: string) {
+    const [state] = await db
+      .select()
+      .from(collectorStates)
+      .where(
+        and(
+          eq(collectorStates.tenantId, tenantId),
+          eq(collectorStates.provider, provider),
+          eq(collectorStates.urlHash, urlHash)
+        )
+      )
+      .limit(1)
+    
+    return state || null
+  },
+
+  // อัพเดท state ของ collector (upsert)
+  async updateCollectorState(
+    tenantId: string, 
+    provider: string, 
+    urlHash: string, 
+    data: {
+      checkpoint?: Date | null,
+      fullSyncAt?: Date | null,
+      fullSyncComplete?: boolean,
+      eventCount?: Record<string, number>
+    }
+  ) {
+    const existing = await this.getCollectorState(tenantId, provider, urlHash)
+    
+    if (existing) {
+      // Update existing
+      const [updated] = await db
+        .update(collectorStates)
+        .set({
+          ...data,
+          updatedAt: new Date()
+        })
+        .where(eq(collectorStates.id, existing.id))
+        .returning()
+      return updated
+    } else {
+      // Insert new
+      const [created] = await db
+        .insert(collectorStates)
+        .values({
+          tenantId,
+          provider,
+          urlHash,
+          checkpoint: data.checkpoint || null,
+          fullSyncAt: data.fullSyncAt || null,
+          fullSyncComplete: data.fullSyncComplete || false,
+          eventCount: data.eventCount || {}
+        })
+        .returning()
+      return created
     }
   }
 }
