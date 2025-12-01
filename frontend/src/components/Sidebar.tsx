@@ -101,9 +101,10 @@ export function Sidebar() {
           return (
             <Tooltip 
               key={item.path}
-              content={!isExpanded ? item.label : ''}
+              content={item.label}
               placement="right"
               delay={300}
+              isDisabled={isExpanded}
               classNames={{
                 base: "py-2 px-4 rounded-lg",
                 content: "bg-content2 text-foreground text-sm font-medium border border-white/5"
@@ -151,9 +152,10 @@ export function Sidebar() {
       {/* Bottom: Logout */}
       <div className="mt-auto flex flex-col gap-1.5 px-3">
         <Tooltip 
-          content={!isExpanded ? 'Logout' : ''}
+          content="Logout"
           placement="right"
           delay={300}
+          isDisabled={isExpanded}
           classNames={{
             base: "py-2 px-4 rounded-lg",
             content: "bg-content2 text-foreground text-sm font-medium border border-white/5"
