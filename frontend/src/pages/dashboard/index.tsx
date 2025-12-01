@@ -81,6 +81,16 @@ interface SiteData {
   high: string;
 }
 
+interface RecentDetection {
+  id: string;
+  severity: string;
+  mitre_tactic: string;
+  mitre_technique: string;
+  timestamp: string;
+  host_name: string;
+  source: string;
+}
+
 export default function DashboardPage() {
   const { setPageContext } = usePageContext();
   
@@ -105,6 +115,7 @@ export default function DashboardPage() {
   const [mitreData, setMitreData] = useState<MitreData[]>([]);
   const [integrations, setIntegrations] = useState<IntegrationData[]>([]);
   const [sites, setSites] = useState<SiteData[]>([]);
+  const [recentDetections, setRecentDetections] = useState<RecentDetection[]>([]);
 
   // Available providers for filter buttons
   const [availableProviders, setAvailableProviders] = useState<string[]>([]);
@@ -169,7 +180,7 @@ export default function DashboardPage() {
       prevEndDate.setDate(prevEndDate.getDate() - 1);
       const prevDateParams = `startDate=${prevStartDate.toISOString().split('T')[0]}&endDate=${prevEndDate.toISOString().split('T')[0]}`;
 
-      const [summaryRes, prevSummaryRes, hostsRes, usersRes, sourcesRes, timelineRes, mitreRes, intRes, sitesRes] = await Promise.all([
+      const [summaryRes, prevSummaryRes, hostsRes, usersRes, sourcesRes, timelineRes, mitreRes, intRes, sitesRes, recentRes] = await Promise.all([
         api.get(`/dashboard/summary?${dateParams}`),
         api.get(`/dashboard/summary?${prevDateParams}`),
         api.get(`/dashboard/top-hosts?${dateParams}&limit=20`),
@@ -179,6 +190,7 @@ export default function DashboardPage() {
         api.get(`/dashboard/mitre-heatmap?${dateParams}`),
         api.get(`/dashboard/integrations?${dateParams}`),
         api.get(`/dashboard/sites?${dateParams}`),
+        api.get(`/logs?${dateParams}&limit=3&sortBy=timestamp&sortOrder=desc`),
       ]);
 
       // 3. Set Data
@@ -200,6 +212,7 @@ export default function DashboardPage() {
       setIntegrations(filteredIntegrations);
       
       setSites(sitesRes.data);
+      setRecentDetections(recentRes.data.logs || []);
       
       setPageContext({
         pageName: 'Dashboard',
@@ -464,30 +477,32 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Timeline Chart */}
-      <div className="bg-content1 border border-white/5 rounded-xl p-6 mb-6 animate-fade-in">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-semibold text-foreground">Events Timeline</h2>
-          <div className="flex gap-3">
-            <div className="flex items-center gap-1.5">
-              <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: severityColors.critical }} />
-              <span className="text-xs text-foreground/50">Critical</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: severityColors.high }} />
-              <span className="text-xs text-foreground/50">High</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: severityColors.medium }} />
-              <span className="text-xs text-foreground/50">Medium</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: severityColors.low }} />
-              <span className="text-xs text-foreground/50">Low</span>
+      {/* Bento Grid: Timeline + Sources */}
+      <div className="grid grid-cols-12 gap-3 mb-6 animate-fade-in">
+        {/* Timeline Chart - 8 columns */}
+        <div className="col-span-12 lg:col-span-8 bg-content1 border border-white/5 rounded-xl p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-base font-semibold text-foreground">Events Timeline</h2>
+            <div className="flex gap-3">
+              <div className="flex items-center gap-1.5">
+                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: severityColors.critical }} />
+                <span className="text-xs text-foreground/50">Critical</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: severityColors.high }} />
+                <span className="text-xs text-foreground/50">High</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: severityColors.medium }} />
+                <span className="text-xs text-foreground/50">Medium</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: severityColors.low }} />
+                <span className="text-xs text-foreground/50">Low</span>
+              </div>
             </div>
           </div>
-        </div>
-        <ResponsiveContainer width="100%" height={220}>
+          <ResponsiveContainer width="100%" height={220}>
           <AreaChart data={chartData}>
             <defs>
               <linearGradient id="criticalGradient" x1="0" y1="0" x2="0" y2="1">
@@ -519,79 +534,13 @@ export default function DashboardPage() {
             <Area type="monotone" dataKey="medium" stackId="1" stroke={severityColors.medium} strokeWidth={2} fill="url(#mediumGradient)" />
           </AreaChart>
         </ResponsiveContainer>
-      </div>
-
-      {/* Main Grid: Hosts, Users, Sources */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-6 animate-fade-in">
-        {/* Top Hosts */}
-        <div className="bg-content1 border border-white/5 rounded-xl p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <Icon.Server className="w-4 h-4 text-primary" />
-            <h2 className="text-sm font-semibold text-foreground">Top Hosts</h2>
-          </div>
-          <div className="space-y-2">
-            {topHosts.map((host, i) => (
-              <div 
-                key={i} 
-                className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] hover:bg-white/[0.05] transition-all cursor-pointer group"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
-                    {i + 1}
-                  </div>
-                  <span className="text-sm truncate max-w-[100px] text-foreground group-hover:text-foreground/80 transition-colors">{host.host_name}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-foreground/50">{parseInt(host.count).toLocaleString()}</span>
-                  {parseInt(host.critical) > 0 && (
-                    <span className="px-2 py-0.5 text-xs rounded-full font-medium" style={{ backgroundColor: `${severityColors.critical}15`, color: severityColors.critical }}>
-                      {host.critical}
-                    </span>
-                  )}
-                </div>
-              </div>
-            ))}
-            {topHosts.length === 0 && <p className="text-xs text-foreground/50 text-center py-4">No hosts data</p>}
-          </div>
         </div>
 
-        {/* Top Users */}
-        <div className="bg-content1 border border-white/5 rounded-xl p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <Icon.Users className="w-4 h-4 text-secondary" />
-            <h2 className="text-sm font-semibold text-foreground">Top Users</h2>
-          </div>
-          <div className="space-y-2">
-            {topUsers.map((u, i) => (
-              <div 
-                key={i} 
-                className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] hover:bg-white/[0.05] transition-all cursor-pointer group"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-secondary/10 flex items-center justify-center text-xs font-bold text-secondary">
-                    {i + 1}
-                  </div>
-                  <span className="text-sm truncate max-w-[100px] text-foreground group-hover:text-foreground/80 transition-colors">{u.user_name}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-foreground/50">{parseInt(u.count).toLocaleString()}</span>
-                  {parseInt(u.critical) > 0 && (
-                    <span className="px-2 py-0.5 text-xs rounded-full font-medium" style={{ backgroundColor: `${severityColors.critical}15`, color: severityColors.critical }}>
-                      {u.critical}
-                    </span>
-                  )}
-                </div>
-              </div>
-            ))}
-            {topUsers.length === 0 && <p className="text-xs text-foreground/50 text-center py-4">No users data</p>}
-          </div>
-        </div>
-
-        {/* Sources Donut */}
-        <div className="bg-content1 border border-white/5 rounded-xl p-5 h-[380px] flex flex-col">
+        {/* Sources Distribution - 4 columns */}
+        <div className="col-span-12 lg:col-span-4 bg-content1 border border-white/5 rounded-xl p-5 flex flex-col">
           <div className="flex items-center gap-2 mb-4">
             <Icon.Chart className="w-4 h-4 text-primary" />
-            <h2 className="text-sm font-semibold text-foreground">Sources Distribution</h2>
+            <h2 className="text-sm font-semibold text-foreground">Sources</h2>
           </div>
           <div className="flex-1 min-h-0">
             <ResponsiveContainer width="100%" height="100%">
@@ -600,8 +549,8 @@ export default function DashboardPage() {
                   data={pieData}
                   cx="50%"
                   cy="50%"
-                  innerRadius={60}
-                  outerRadius={80}
+                  innerRadius={50}
+                  outerRadius={70}
                   dataKey="value"
                   paddingAngle={4}
                   label={({ cx, x, y, percent, name }: any) => {
@@ -612,7 +561,7 @@ export default function DashboardPage() {
                         fill="#ECEDEE" 
                         textAnchor={x > cx ? 'start' : 'end'} 
                         dominantBaseline="central"
-                        fontSize={12}
+                        fontSize={11}
                       >
                         {`${name} ${(percent * 100).toFixed(0)}%`}
                       </text>
@@ -636,20 +585,127 @@ export default function DashboardPage() {
               </PieChart>
             </ResponsiveContainer>
           </div>
-          {/* Legend */}
-          <div className="flex flex-wrap justify-center gap-3 mt-4">
-            {pieData.map((item, i) => (
-              <div key={i} className="flex items-center gap-1.5">
-                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: ['rgb(239, 68, 68)', 'rgb(245, 158, 11)', 'rgb(99, 102, 241)', 'rgb(34, 197, 94)', 'rgb(100, 116, 139)'][i % 5] }} />
-                <span className="text-xs text-foreground capitalize">{item.name}</span>
+        </div>
+      </div>
+
+      {/* Main Grid: Recent Detections, Hosts, Users */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-6 animate-fade-in">
+        {/* Most Recent Detections */}
+        <div className="bg-content1 border border-white/5 rounded-xl p-5 h-[400px] flex flex-col">
+          <div className="flex items-center justify-between mb-4 flex-shrink-0">
+            <div className="flex items-center gap-2">
+              <Icon.ShieldAlert className="w-4 h-4 text-primary" />
+              <h2 className="text-sm font-semibold text-foreground">Recent Detections</h2>
+            </div>
+          </div>
+          <div className="space-y-2 overflow-y-auto scrollbar-thin flex-1 pr-2">
+            {recentDetections.length > 0 ? (
+              recentDetections.map((detection) => {
+                const severityColor = severityColors[detection.severity.toLowerCase() as keyof typeof severityColors] || severityColors.low;
+                return (
+                  <div
+                    key={detection.id}
+                    className="flex items-center justify-between p-3 rounded-lg bg-content2/50 hover:bg-content2 transition-all cursor-pointer group"
+                  >
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <div
+                        className="w-2 h-2 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: severityColor }}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span
+                            className="text-xs font-medium px-2 py-0.5 rounded-full capitalize"
+                            style={{ backgroundColor: `${severityColor}15`, color: severityColor }}
+                          >
+                            {detection.severity}
+                          </span>
+                        </div>
+                        <span className="text-sm font-medium text-foreground truncate block mb-1">
+                          {detection.mitre_technique || 'Unknown'}
+                        </span>
+                        <div className="flex items-center gap-1.5 text-xs text-foreground/50">
+                          <Icon.Clock className="w-3 h-3" />
+                          <span className="truncate">{new Date(detection.timestamp).toLocaleTimeString()}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <p className="text-xs text-foreground/50 text-center py-4">No recent detections</p>
+            )}
+          </div>
+        </div>
+
+        {/* Top Hosts */}
+        <div className="bg-content1 border border-white/5 rounded-xl p-5 h-[400px] flex flex-col">
+          <div className="flex items-center gap-2 mb-4 flex-shrink-0">
+            <Icon.Server className="w-4 h-4 text-primary" />
+            <h2 className="text-sm font-semibold text-foreground">Top Hosts</h2>
+          </div>
+          <div className="space-y-2 overflow-y-auto scrollbar-thin flex-1 pr-2">
+            {topHosts.map((host, i) => (
+              <div 
+                key={i} 
+                className="flex items-center justify-between p-3 rounded-lg bg-content2/50 hover:bg-content2 transition-all cursor-pointer group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
+                    {i + 1}
+                  </div>
+                  <span className="text-sm truncate max-w-[120px] text-foreground group-hover:text-foreground/80 transition-colors">{host.host_name}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-foreground/50">{parseInt(host.count).toLocaleString()}</span>
+                  {parseInt(host.critical) > 0 && (
+                    <span className="px-2 py-0.5 text-xs rounded-full font-medium" style={{ backgroundColor: `${severityColors.critical}15`, color: severityColors.critical }}>
+                      {host.critical}
+                    </span>
+                  )}
+                </div>
               </div>
             ))}
+            {topHosts.length === 0 && <p className="text-xs text-foreground/50 text-center py-4">No hosts data</p>}
+          </div>
+        </div>
+
+        {/* Top Users */}
+        <div className="bg-content1 border border-white/5 rounded-xl p-5 h-[400px] flex flex-col">
+          <div className="flex items-center gap-2 mb-4 flex-shrink-0">
+            <Icon.Users className="w-4 h-4 text-primary" />
+            <h2 className="text-sm font-semibold text-foreground">Top Users</h2>
+          </div>
+          <div className="space-y-2 overflow-y-auto scrollbar-thin flex-1 pr-2">
+            {topUsers.map((u, i) => (
+              <div 
+                key={i} 
+                className="flex items-center justify-between p-3 rounded-lg bg-content2/50 hover:bg-content2 transition-all cursor-pointer group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-secondary/10 flex items-center justify-center text-xs font-bold text-secondary">
+                    {i + 1}
+                  </div>
+                  <span className="text-sm truncate max-w-[120px] text-foreground group-hover:text-foreground/80 transition-colors">{u.user_name}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-foreground/50">{parseInt(u.count).toLocaleString()}</span>
+                  {parseInt(u.critical) > 0 && (
+                    <span className="px-2 py-0.5 text-xs rounded-full font-medium" style={{ backgroundColor: `${severityColors.critical}15`, color: severityColors.critical }}>
+                      {u.critical}
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+            {topUsers.length === 0 && <p className="text-xs text-foreground/50 text-center py-4">No users data</p>}
           </div>
         </div>
       </div>
 
       {/* Integrations & Sites */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
         {/* Integrations */}
         <div className="bg-content1 border border-white/5 rounded-xl p-5 h-[400px] flex flex-col">
           <div className="flex items-center gap-2 mb-4 flex-shrink-0">
@@ -660,7 +716,7 @@ export default function DashboardPage() {
             {integrations.map((int, i) => (
               <div 
                 key={i} 
-                className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] hover:bg-white/[0.05] transition-all"
+                className="flex items-center justify-between p-3 rounded-lg bg-content2/50 hover:bg-content2 transition-all"
               >
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-primary/10">
@@ -688,14 +744,14 @@ export default function DashboardPage() {
         {/* Sites */}
         <div className="bg-content1 border border-white/5 rounded-xl p-5 h-[400px] flex flex-col">
           <div className="flex items-center gap-2 mb-4 flex-shrink-0">
-            <Icon.Server className="w-4 h-4 text-secondary" />
+            <Icon.Global className="w-4 h-4 text-primary" />
             <h2 className="text-sm font-semibold text-foreground">Sites</h2>
           </div>
           <div className="space-y-2 overflow-y-auto scrollbar-thin flex-1 pr-2">
             {sites.map((site, i) => (
               <div 
                 key={i} 
-                className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] hover:bg-white/[0.05] transition-all"
+                className="flex items-center justify-between p-3 rounded-lg bg-content2/50 hover:bg-content2 transition-all"
               >
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-secondary/10">

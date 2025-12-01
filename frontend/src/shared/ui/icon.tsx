@@ -69,6 +69,7 @@ import {
   CommandLineIcon,
   CpuChipIcon,
   SignalIcon,
+  GlobeAltIcon
 } from '@heroicons/react/24/outline';
 
 import {
@@ -155,6 +156,7 @@ export const Icon = {
   Terminal: CommandLineIcon,
   Cpu: CpuChipIcon,
   Signal: SignalIcon,
+  Global: GlobeAltIcon,
 } as const;
 
 /**

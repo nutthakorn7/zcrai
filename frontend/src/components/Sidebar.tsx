@@ -164,7 +164,7 @@ export function Sidebar() {
           <button
             onClick={handleLogout}
             className={`
-              p-3 rounded-xl text-foreground/50 hover:text-foreground hover:bg-content2/50 
+              p-3 rounded-xl text-red-400 hover:text-red-500 hover:bg-red-500/10
               transition-all duration-200 flex items-center gap-3 w-full
               ${isExpanded ? 'justify-start' : 'justify-center'}
             `}
