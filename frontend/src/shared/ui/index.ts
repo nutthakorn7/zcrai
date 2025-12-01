@@ -3,4 +3,4 @@
  * Barrel export for clean imports
  */
 
-export * from './Icon';
+export * from './icon';

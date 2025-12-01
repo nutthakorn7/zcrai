@@ -7,79 +7,19 @@ import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, BarChart, Bar, CartesianGrid
 } from 'recharts';
-import { 
-  ShieldAlert, AlertTriangle, AlertCircle, Activity, 
-  Server, Database, TrendingUp, RefreshCw
-} from 'lucide-react';
+import { Icon } from '../../shared/ui';
 
 // Import logos
 import sentineloneLogo from '../../assets/logo/sentinelone.png';
 import crowdstrikeLogo from '../../assets/logo/crowdstrike.png';
 
-// CSS Animations (inject via style tag)
-const animationStyles = `
-  @keyframes fadeInUp {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-  @keyframes pulse-glow {
-    0%, 100% { box-shadow: 0 0 20px rgba(255, 107, 156, 0.2); }
-    50% { box-shadow: 0 0 30px rgba(255, 107, 156, 0.4); }
-  }
-  .animate-fadeInUp { animation: fadeInUp 0.5s ease-out forwards; }
-  .animate-fadeInUp-1 { animation: fadeInUp 0.5s ease-out 0.1s forwards; opacity: 0; }
-  .animate-fadeInUp-2 { animation: fadeInUp 0.5s ease-out 0.2s forwards; opacity: 0; }
-  .animate-fadeInUp-3 { animation: fadeInUp 0.5s ease-out 0.3s forwards; opacity: 0; }
-  .animate-pulse-glow { animation: pulse-glow 3s ease-in-out infinite; }
-  .card-glass {
-    background: linear-gradient(135deg, rgba(26, 28, 36, 0.9) 0%, rgba(20, 21, 30, 0.95) 100%);
-    backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    transition: all 0.3s ease;
-  }
-  .card-glass:hover {
-    border-color: rgba(255, 255, 255, 0.1);
-    transform: translateY(-2px);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-  }
-  .stat-card {
-    background: linear-gradient(135deg, rgba(30, 32, 42, 0.8) 0%, rgba(20, 22, 30, 0.9) 100%);
-    backdrop-filter: blur(10px);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-  .stat-card:hover {
-    transform: scale(1.02);
-  }
-  .gradient-border {
-    position: relative;
-  }
-  .gradient-border::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: 16px;
-    padding: 1px;
-    background: linear-gradient(135deg, rgba(255, 107, 156, 0.3), rgba(126, 87, 255, 0.3));
-    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
-    pointer-events: none;
-  }
-  .custom-scrollbar::-webkit-scrollbar {
-    width: 6px;
-  }
-  .custom-scrollbar::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.02);
-    border-radius: 3px;
-  }
-  .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 3px;
-  }
-  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.2);
-  }
-`;
+// Severity color mapping
+const severityColors = {
+  critical: '#FF0202',
+  high: '#FFA735',
+  medium: '#FFEE00',
+  low: '#BBF0FF',
+};
 
 interface Summary {
   critical: number;
@@ -141,8 +81,6 @@ interface SiteData {
   high: string;
 }
 
-const COLORS = ['#ef4444', '#f59e0b', '#6366f1', '#22c55e', '#64748b'];
-
 export default function DashboardPage() {
   const { setPageContext } = usePageContext();
   
@@ -159,6 +97,7 @@ export default function DashboardPage() {
   const [selectedProvider, setSelectedProvider] = useState<string>('all');
   
   const [summary, setSummary] = useState<Summary | null>(null);
+  const [previousSummary, setPreviousSummary] = useState<Summary | null>(null);
   const [topHosts, setTopHosts] = useState<TopHost[]>([]);
   const [topUsers, setTopUsers] = useState<TopUser[]>([]);
   const [sources, setSources] = useState<SourceBreakdown[]>([]);
@@ -223,8 +162,16 @@ export default function DashboardPage() {
          dateParams += `&sources=${selectedProvider}`;
       }
 
-      const [summaryRes, hostsRes, usersRes, sourcesRes, timelineRes, mitreRes, intRes, sitesRes] = await Promise.all([
+      // Calculate previous day date range for comparison
+      const prevStartDate = new Date(startDate);
+      prevStartDate.setDate(prevStartDate.getDate() - 1);
+      const prevEndDate = new Date(endDate);
+      prevEndDate.setDate(prevEndDate.getDate() - 1);
+      const prevDateParams = `startDate=${prevStartDate.toISOString().split('T')[0]}&endDate=${prevEndDate.toISOString().split('T')[0]}`;
+
+      const [summaryRes, prevSummaryRes, hostsRes, usersRes, sourcesRes, timelineRes, mitreRes, intRes, sitesRes] = await Promise.all([
         api.get(`/dashboard/summary?${dateParams}`),
+        api.get(`/dashboard/summary?${prevDateParams}`),
         api.get(`/dashboard/top-hosts?${dateParams}&limit=20`),
         api.get(`/dashboard/top-users?${dateParams}&limit=20`),
         api.get(`/dashboard/sources?${dateParams}`),
@@ -236,6 +183,7 @@ export default function DashboardPage() {
 
       // 3. Set Data
       setSummary(summaryRes.data);
+      setPreviousSummary(prevSummaryRes.data);
       
       setTopHosts(hostsRes.data.slice(0, 5));
       setTopUsers(usersRes.data.slice(0, 5));
@@ -286,43 +234,40 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen" style={{ backgroundColor: '#0E0F14' }}>
+      <div className="flex flex-col items-center justify-center min-h-screen bg-background">
         <div className="relative">
-          <div className="w-16 h-16 border-4 border-[#FF6B9C]/20 rounded-full animate-spin" 
-               style={{ borderTopColor: '#FF6B9C' }} />
-          <ShieldAlert className="absolute inset-0 m-auto w-6 h-6 text-[#FF6B9C]" />
+          <div className="w-16 h-16 border-4 border-primary/20 rounded-full animate-spin" 
+               style={{ borderTopColor: 'var(--color-primary)' }} />
+          <Icon.ShieldAlert className="absolute inset-0 m-auto w-6 h-6 text-primary" />
         </div>
-        <p className="mt-4 text-sm text-[#8D93A1]">Loading security data...</p>
+        <p className="mt-4 text-sm text-foreground/50">Loading security data...</p>
       </div>
     );
   }
 
   return (
-    <div className="p-6 min-h-screen" style={{ backgroundColor: '#0E0F14' }}>
-      {/* Inject Animation Styles */}
-      <style>{animationStyles}</style>
-      
-      {/* Header with Gradient and Provider Filter */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 animate-fadeInUp gap-4">
+    <div className="p-6 min-h-screen bg-background">
+      {/* Header with Provider Filter */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 animate-fade-in gap-4">
         <div>
-          <h1 className="text-2xl font-bold bg-gradient-to-r from-[#E4E6EB] to-[#8D93A1] bg-clip-text text-transparent">
+          <h1 className="text-2xl font-bold text-foreground">
             Security Dashboard
           </h1>
-          <p className="text-sm mt-1 text-[#6C6F75]">
+          <p className="text-sm mt-1 text-foreground/50">
             Real-time threat monitoring & analytics
           </p>
         </div>
         
         <div className="flex flex-wrap items-center gap-3">
           {/* Provider Filter Buttons */}
-          <div className="flex bg-[#1C1E28] rounded-lg p-1 border border-white/5">
+          <div className="flex bg-content1 rounded-lg p-1 border border-white/5">
             <HerouiTooltip content="All Providers">
               <button
                 onClick={() => setSelectedProvider('all')}
-                className={`p-2 rounded-md transition-all ${selectedProvider === 'all' ? 'bg-[#2C2E3A] text-white shadow-sm' : 'text-[#6C6F75] hover:text-[#E4E6EB]'}`}
+                className={`p-2 rounded-md transition-all ${selectedProvider === 'all' ? 'bg-content2 text-foreground shadow-sm' : 'text-foreground/50 hover:text-foreground'}`}
               >
                 <div className="flex items-center gap-2 px-1">
-                  <Database className="w-4 h-4" />
+                  <Icon.Database className="w-4 h-4" />
                   <span className="text-xs font-medium">All</span>
                 </div>
               </button>
@@ -335,7 +280,7 @@ export default function DashboardPage() {
                 <HerouiTooltip content="SentinelOne">
                   <button
                     onClick={() => setSelectedProvider('sentinelone')}
-                    className={`p-2 rounded-md transition-all ${selectedProvider === 'sentinelone' ? 'bg-[#2C2E3A] shadow-sm' : 'opacity-50 hover:opacity-100'}`}
+                    className={`p-2 rounded-md transition-all ${selectedProvider === 'sentinelone' ? 'bg-content2 shadow-sm' : 'opacity-50 hover:opacity-100'}`}
                   >
                     <img src={sentineloneLogo} alt="S1" className="w-5 h-5 object-contain" />
                   </button>
@@ -367,125 +312,178 @@ export default function DashboardPage() {
           
           <Button 
             size="sm" 
-            className="bg-gradient-to-r from-[#FF6B9C] to-[#7E57FF] text-white border-0 hover:opacity-90 transition-opacity"
+            className="bg-primary hover:bg-primary/90 text-background border-0 transition-colors"
             onPress={loadDashboard}
           >
-            <RefreshCw className="w-4 h-4 mr-1" />
+            <Icon.Refresh className="w-4 h-4 mr-1" />
             Refresh
           </Button>
         </div>
       </div>
       
-      {/* Summary Stats - Glass Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8 animate-fadeInUp-1">
+      {/* Summary Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8 animate-fade-in">
         {/* Critical */}
-        <div className="stat-card rounded-2xl p-5 cursor-pointer group">
-          <div className="flex items-center gap-3">
-            <div className="p-3 rounded-xl bg-gradient-to-br from-[#FF4A64]/20 to-[#FF4A64]/5 group-hover:scale-110 transition-transform">
-              <ShieldAlert className="w-5 h-5 text-[#FF4A64]" />
-            </div>
-            <div>
-              <p className="text-xs text-[#6C6F75] mb-1">Critical</p>
-              <p className="text-2xl font-bold text-[#FF4A64]">
-                {summary?.critical?.toLocaleString() || 0}
-              </p>
-            </div>
+        <div className="bg-content1 border border-white/5 hover:border-white/10 rounded-xl p-5 group transition-all" style={{ backgroundColor: `${severityColors.critical}15` }}>
+          <div className="flex items-start justify-between mb-6">
+            <p className="text-sm text-foreground/50">Critical</p>
+            {(() => {
+              const current = summary?.critical || 0;
+              const previous = previousSummary?.critical || 0;
+              const change = previous === 0 ? (current > 0 ? 100 : 0) : ((current - previous) / previous) * 100;
+              const isIncrease = change > 0;
+              return (
+                <div className={`flex items-center gap-1 text-xs font-medium ${isIncrease ? 'text-red-500' : change < 0 ? 'text-green-500' : 'text-foreground/30'}`}>
+                  {change !== 0 && (
+                    isIncrease ? 
+                      <Icon.TrendingUp className="w-3 h-3" /> : 
+                      <Icon.TrendingDown className="w-3 h-3" />
+                  )}
+                  <span>{Math.abs(change).toFixed(1)}%</span>
+                </div>
+              );
+            })()}
           </div>
-          <div className="mt-3 h-1 rounded-full bg-[#FF4A64]/10 overflow-hidden">
-            <div className="h-full bg-gradient-to-r from-[#FF4A64] to-[#FF6B9C] rounded-full" 
-                 style={{ width: `${Math.min((summary?.critical || 0) / (summary?.total || 1) * 100, 100)}%` }} />
+          <div>
+            <p className="text-3xl font-semibold text-foreground">
+              {summary?.critical?.toLocaleString() || 0}
+            </p>
           </div>
         </div>
         
         {/* High */}
-        <div className="stat-card rounded-2xl p-5 cursor-pointer group">
-          <div className="flex items-center gap-3">
-            <div className="p-3 rounded-xl bg-gradient-to-br from-[#f59e0b]/20 to-[#f59e0b]/5 group-hover:scale-110 transition-transform">
-              <AlertTriangle className="w-5 h-5 text-[#f59e0b]" />
-            </div>
-            <div>
-              <p className="text-xs text-[#6C6F75] mb-1">High</p>
-              <p className="text-2xl font-bold text-[#f59e0b]">
-                {summary?.high?.toLocaleString() || 0}
-              </p>
-            </div>
+        <div className="bg-content1 border border-white/5 hover:border-white/10 rounded-xl p-5 group transition-all" style={{ backgroundColor: `${severityColors.high}15` }}>
+          <div className="flex items-start justify-between mb-6">
+            <p className="text-sm text-foreground/50">High</p>
+            {(() => {
+              const current = summary?.high || 0;
+              const previous = previousSummary?.high || 0;
+              const change = previous === 0 ? (current > 0 ? 100 : 0) : ((current - previous) / previous) * 100;
+              const isIncrease = change > 0;
+              return (
+                <div className={`flex items-center gap-1 text-xs font-medium ${isIncrease ? 'text-red-500' : change < 0 ? 'text-green-500' : 'text-foreground/30'}`}>
+                  {change !== 0 && (
+                    isIncrease ? 
+                      <Icon.TrendingUp className="w-3 h-3" /> : 
+                      <Icon.TrendingDown className="w-3 h-3" />
+                  )}
+                  <span>{Math.abs(change).toFixed(1)}%</span>
+                </div>
+              );
+            })()}
           </div>
-          <div className="mt-3 h-1 rounded-full bg-[#f59e0b]/10 overflow-hidden">
-            <div className="h-full bg-gradient-to-r from-[#f59e0b] to-[#fbbf24] rounded-full" 
-                 style={{ width: `${Math.min((summary?.high || 0) / (summary?.total || 1) * 100, 100)}%` }} />
+          <div>
+            <p className="text-3xl font-semibold text-foreground">
+              {summary?.high?.toLocaleString() || 0}
+            </p>
           </div>
         </div>
         
         {/* Medium */}
-        <div className="stat-card rounded-2xl p-5 cursor-pointer group">
-          <div className="flex items-center gap-3">
-            <div className="p-3 rounded-xl bg-gradient-to-br from-[#eab308]/20 to-[#eab308]/5 group-hover:scale-110 transition-transform">
-              <AlertCircle className="w-5 h-5 text-[#eab308]" />
-            </div>
-            <div>
-              <p className="text-xs text-[#6C6F75] mb-1">Medium</p>
-              <p className="text-2xl font-bold text-[#eab308]">
-                {summary?.medium?.toLocaleString() || 0}
-              </p>
-            </div>
+        <div className="bg-content1 border border-white/5 hover:border-white/10 rounded-xl p-5 group transition-all" style={{ backgroundColor: `${severityColors.medium}15` }}>
+          <div className="flex items-start justify-between mb-6">
+            <p className="text-sm text-foreground/50">Medium</p>
+            {(() => {
+              const current = summary?.medium || 0;
+              const previous = previousSummary?.medium || 0;
+              const change = previous === 0 ? (current > 0 ? 100 : 0) : ((current - previous) / previous) * 100;
+              const isIncrease = change > 0;
+              return (
+                <div className={`flex items-center gap-1 text-xs font-medium ${isIncrease ? 'text-red-500' : change < 0 ? 'text-green-500' : 'text-foreground/30'}`}>
+                  {change !== 0 && (
+                    isIncrease ? 
+                      <Icon.TrendingUp className="w-3 h-3" /> : 
+                      <Icon.TrendingDown className="w-3 h-3" />
+                  )}
+                  <span>{Math.abs(change).toFixed(1)}%</span>
+                </div>
+              );
+            })()}
           </div>
-          <div className="mt-3 h-1 rounded-full bg-[#eab308]/10 overflow-hidden">
-            <div className="h-full bg-gradient-to-r from-[#eab308] to-[#fde047] rounded-full" 
-                 style={{ width: `${Math.min((summary?.medium || 0) / (summary?.total || 1) * 100, 100)}%` }} />
+          <div>
+            <p className="text-3xl font-semibold text-foreground">
+              {summary?.medium?.toLocaleString() || 0}
+            </p>
           </div>
         </div>
         
         {/* Low */}
-        <div className="stat-card rounded-2xl p-5 cursor-pointer group">
-          <div className="flex items-center gap-3">
-            <div className="p-3 rounded-xl bg-gradient-to-br from-[#28C76F]/20 to-[#28C76F]/5 group-hover:scale-110 transition-transform">
-              <Activity className="w-5 h-5 text-[#28C76F]" />
-            </div>
-            <div>
-              <p className="text-xs text-[#6C6F75] mb-1">Low</p>
-              <p className="text-2xl font-bold text-[#28C76F]">
-                {summary?.low?.toLocaleString() || 0}
-              </p>
-            </div>
+        <div className="bg-content1 border border-white/5 hover:border-white/10 rounded-xl p-5 group transition-all" style={{ backgroundColor: `${severityColors.low}15` }}>
+          <div className="flex items-start justify-between mb-6">
+            <p className="text-sm text-foreground/50">Low</p>
+            {(() => {
+              const current = summary?.low || 0;
+              const previous = previousSummary?.low || 0;
+              const change = previous === 0 ? (current > 0 ? 100 : 0) : ((current - previous) / previous) * 100;
+              const isIncrease = change > 0;
+              return (
+                <div className={`flex items-center gap-1 text-xs font-medium ${isIncrease ? 'text-red-500' : change < 0 ? 'text-green-500' : 'text-foreground/30'}`}>
+                  {change !== 0 && (
+                    isIncrease ? 
+                      <Icon.TrendingUp className="w-3 h-3" /> : 
+                      <Icon.TrendingDown className="w-3 h-3" />
+                  )}
+                  <span>{Math.abs(change).toFixed(1)}%</span>
+                </div>
+              );
+            })()}
           </div>
-          <div className="mt-3 h-1 rounded-full bg-[#28C76F]/10 overflow-hidden">
-            <div className="h-full bg-gradient-to-r from-[#28C76F] to-[#4ade80] rounded-full" 
-                 style={{ width: `${Math.min((summary?.low || 0) / (summary?.total || 1) * 100, 100)}%` }} />
+          <div>
+            <p className="text-3xl font-semibold text-foreground">
+              {summary?.low?.toLocaleString() || 0}
+            </p>
           </div>
         </div>
         
-        {/* Total - Featured */}
-        <div className="stat-card rounded-2xl p-5 cursor-pointer group gradient-border animate-pulse-glow">
-          <div className="flex items-center gap-3">
-            <div className="p-3 rounded-xl bg-gradient-to-br from-[#FF6B9C]/20 to-[#7E57FF]/20 group-hover:scale-110 transition-transform">
-              <TrendingUp className="w-5 h-5 text-[#FF6B9C]" />
-            </div>
-            <div>
-              <p className="text-xs text-[#6C6F75] mb-1">Total Events</p>
-              <p className="text-2xl font-bold bg-gradient-to-r from-[#FF6B9C] to-[#7E57FF] bg-clip-text text-transparent">
-                {summary?.total?.toLocaleString() || 0}
-              </p>
-            </div>
+        {/* Total */}
+        <div className="bg-content1 border-2 border-primary/30 hover:border-primary/50 rounded-xl p-5 group transition-all shadow-lg shadow-primary/10" style={{ backgroundColor: '#C0DBEF20' }}>
+          <div className="flex items-start justify-between mb-6">
+            <p className="text-sm text-primary font-medium">Total Events</p>
+            {(() => {
+              const current = summary?.total || 0;
+              const previous = previousSummary?.total || 0;
+              const change = previous === 0 ? (current > 0 ? 100 : 0) : ((current - previous) / previous) * 100;
+              const isIncrease = change > 0;
+              return (
+                <div className={`flex items-center gap-1 text-xs font-medium ${isIncrease ? 'text-primary' : change < 0 ? 'text-green-500' : 'text-foreground/30'}`}>
+                  {change !== 0 && (
+                    isIncrease ? 
+                      <Icon.TrendingUp className="w-3 h-3" /> : 
+                      <Icon.TrendingDown className="w-3 h-3" />
+                  )}
+                  <span>{Math.abs(change).toFixed(1)}%</span>
+                </div>
+              );
+            })()}
+          </div>
+          <div>
+            <p className="text-3xl font-semibold text-foreground">
+              {summary?.total?.toLocaleString() || 0}
+            </p>
           </div>
         </div>
       </div>
 
       {/* Timeline Chart */}
-      <div className="card-glass rounded-2xl p-6 mb-6 animate-fadeInUp-2">
+      <div className="bg-content1 border border-white/5 rounded-xl p-6 mb-6 animate-fade-in">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-semibold text-[#E4E6EB]">Events Timeline</h2>
+          <h2 className="text-base font-semibold text-foreground">Events Timeline</h2>
           <div className="flex gap-3">
             <div className="flex items-center gap-1.5">
-              <div className="w-2.5 h-2.5 rounded-full bg-[#FF4A64]" />
-              <span className="text-xs text-[#6C6F75]">Critical</span>
+              <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: severityColors.critical }} />
+              <span className="text-xs text-foreground/50">Critical</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <div className="w-2.5 h-2.5 rounded-full bg-[#f59e0b]" />
-              <span className="text-xs text-[#6C6F75]">High</span>
+              <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: severityColors.high }} />
+              <span className="text-xs text-foreground/50">High</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <div className="w-2.5 h-2.5 rounded-full bg-[#eab308]" />
-              <span className="text-xs text-[#6C6F75]">Medium</span>
+              <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: severityColors.medium }} />
+              <span className="text-xs text-foreground/50">Medium</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: severityColors.low }} />
+              <span className="text-xs text-foreground/50">Low</span>
             </div>
           </div>
         </div>
@@ -493,44 +491,43 @@ export default function DashboardPage() {
           <AreaChart data={chartData}>
             <defs>
               <linearGradient id="criticalGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#FF4A64" stopOpacity={0.4}/>
-                <stop offset="95%" stopColor="#FF4A64" stopOpacity={0}/>
+                <stop offset="5%" stopColor={severityColors.critical} stopOpacity={0.3}/>
+                <stop offset="95%" stopColor={severityColors.critical} stopOpacity={0}/>
               </linearGradient>
               <linearGradient id="highGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.4}/>
-                <stop offset="95%" stopColor="#f59e0b" stopOpacity={0}/>
+                <stop offset="5%" stopColor={severityColors.high} stopOpacity={0.3}/>
+                <stop offset="95%" stopColor={severityColors.high} stopOpacity={0}/>
               </linearGradient>
               <linearGradient id="mediumGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#eab308" stopOpacity={0.3}/>
-                <stop offset="95%" stopColor="#eab308" stopOpacity={0}/>
+                <stop offset="5%" stopColor={severityColors.medium} stopOpacity={0.2}/>
+                <stop offset="95%" stopColor={severityColors.medium} stopOpacity={0}/>
               </linearGradient>
             </defs>
-            <XAxis dataKey="time" stroke="#3A3D47" fontSize={10} tickLine={false} axisLine={false} />
-            <YAxis stroke="#3A3D47" fontSize={10} tickLine={false} axisLine={false} />
+            <XAxis dataKey="time" stroke="#4A4D50" fontSize={10} tickLine={false} axisLine={false} />
+            <YAxis stroke="#4A4D50" fontSize={10} tickLine={false} axisLine={false} />
             <Tooltip 
               contentStyle={{ 
-                backgroundColor: 'rgba(26, 28, 36, 0.95)', 
+                backgroundColor: '#1A1D1F', 
                 border: '1px solid rgba(255,255,255,0.1)', 
                 borderRadius: 12,
-                boxShadow: '0 8px 32px rgba(0,0,0,0.3)'
               }}
-              labelStyle={{ color: '#E4E6EB', fontWeight: 600 }}
-              itemStyle={{ color: '#8D93A1' }}
+              labelStyle={{ color: '#ECEDEE', fontWeight: 600 }}
+              itemStyle={{ color: '#ECEDEE' }}
             />
-            <Area type="monotone" dataKey="critical" stackId="1" stroke="#FF4A64" strokeWidth={2} fill="url(#criticalGradient)" />
-            <Area type="monotone" dataKey="high" stackId="1" stroke="#f59e0b" strokeWidth={2} fill="url(#highGradient)" />
-            <Area type="monotone" dataKey="medium" stackId="1" stroke="#eab308" strokeWidth={2} fill="url(#mediumGradient)" />
+            <Area type="monotone" dataKey="critical" stackId="1" stroke={severityColors.critical} strokeWidth={2} fill="url(#criticalGradient)" />
+            <Area type="monotone" dataKey="high" stackId="1" stroke={severityColors.high} strokeWidth={2} fill="url(#highGradient)" />
+            <Area type="monotone" dataKey="medium" stackId="1" stroke={severityColors.medium} strokeWidth={2} fill="url(#mediumGradient)" />
           </AreaChart>
         </ResponsiveContainer>
       </div>
 
       {/* Main Grid: Hosts, Users, Sources */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-6 animate-fadeInUp-3">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-6 animate-fade-in">
         {/* Top Hosts */}
-        <div className="card-glass rounded-2xl p-5">
+        <div className="bg-content1 border border-white/5 rounded-xl p-5">
           <div className="flex items-center gap-2 mb-4">
-            <Server className="w-4 h-4 text-[#7E57FF]" />
-            <h2 className="text-sm font-semibold text-[#E4E6EB]">Top Hosts</h2>
+            <Icon.Server className="w-4 h-4 text-primary" />
+            <h2 className="text-sm font-semibold text-foreground">Top Hosts</h2>
           </div>
           <div className="space-y-2">
             {topHosts.map((host, i) => (
@@ -539,30 +536,30 @@ export default function DashboardPage() {
                 className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] hover:bg-white/[0.05] transition-all cursor-pointer group"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#7E57FF]/20 to-[#7E57FF]/5 flex items-center justify-center text-xs font-bold text-[#7E57FF]">
+                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
                     {i + 1}
                   </div>
-                  <span className="text-sm truncate max-w-[100px] text-[#E4E6EB] group-hover:text-white transition-colors">{host.host_name}</span>
+                  <span className="text-sm truncate max-w-[100px] text-foreground group-hover:text-foreground/80 transition-colors">{host.host_name}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs text-[#6C6F75]">{parseInt(host.count).toLocaleString()}</span>
+                  <span className="text-xs text-foreground/50">{parseInt(host.count).toLocaleString()}</span>
                   {parseInt(host.critical) > 0 && (
-                    <span className="px-2 py-0.5 text-xs rounded-full bg-[#FF4A64]/15 text-[#FF4A64] font-medium">
+                    <span className="px-2 py-0.5 text-xs rounded-full font-medium" style={{ backgroundColor: `${severityColors.critical}15`, color: severityColors.critical }}>
                       {host.critical}
                     </span>
                   )}
                 </div>
               </div>
             ))}
-            {topHosts.length === 0 && <p className="text-xs text-[#6C6F75] text-center py-4">No hosts data</p>}
+            {topHosts.length === 0 && <p className="text-xs text-foreground/50 text-center py-4">No hosts data</p>}
           </div>
         </div>
 
         {/* Top Users */}
-        <div className="card-glass rounded-2xl p-5">
+        <div className="bg-content1 border border-white/5 rounded-xl p-5">
           <div className="flex items-center gap-2 mb-4">
-            <Database className="w-4 h-4 text-[#54A3FF]" />
-            <h2 className="text-sm font-semibold text-[#E4E6EB]">Top Users</h2>
+            <Icon.Users className="w-4 h-4 text-secondary" />
+            <h2 className="text-sm font-semibold text-foreground">Top Users</h2>
           </div>
           <div className="space-y-2">
             {topUsers.map((u, i) => (
@@ -571,30 +568,30 @@ export default function DashboardPage() {
                 className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] hover:bg-white/[0.05] transition-all cursor-pointer group"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#54A3FF]/20 to-[#54A3FF]/5 flex items-center justify-center text-xs font-bold text-[#54A3FF]">
+                  <div className="w-8 h-8 rounded-lg bg-secondary/10 flex items-center justify-center text-xs font-bold text-secondary">
                     {i + 1}
                   </div>
-                  <span className="text-sm truncate max-w-[100px] text-[#E4E6EB] group-hover:text-white transition-colors">{u.user_name}</span>
+                  <span className="text-sm truncate max-w-[100px] text-foreground group-hover:text-foreground/80 transition-colors">{u.user_name}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs text-[#6C6F75]">{parseInt(u.count).toLocaleString()}</span>
+                  <span className="text-xs text-foreground/50">{parseInt(u.count).toLocaleString()}</span>
                   {parseInt(u.critical) > 0 && (
-                    <span className="px-2 py-0.5 text-xs rounded-full bg-[#FF4A64]/15 text-[#FF4A64] font-medium">
+                    <span className="px-2 py-0.5 text-xs rounded-full font-medium" style={{ backgroundColor: `${severityColors.critical}15`, color: severityColors.critical }}>
                       {u.critical}
                     </span>
                   )}
                 </div>
               </div>
             ))}
-            {topUsers.length === 0 && <p className="text-xs text-[#6C6F75] text-center py-4">No users data</p>}
+            {topUsers.length === 0 && <p className="text-xs text-foreground/50 text-center py-4">No users data</p>}
           </div>
         </div>
 
         {/* Sources Donut */}
-        <div className="card-glass rounded-2xl p-5 h-[380px] flex flex-col">
+        <div className="bg-content1 border border-white/5 rounded-xl p-5 h-[380px] flex flex-col">
           <div className="flex items-center gap-2 mb-4">
-            <Activity className="w-4 h-4 text-[#FF6B9C]" />
-            <h2 className="text-sm font-semibold text-[#E4E6EB]">Sources Distribution</h2>
+            <Icon.Chart className="w-4 h-4 text-primary" />
+            <h2 className="text-sm font-semibold text-foreground">Sources Distribution</h2>
           </div>
           <div className="flex-1 min-h-0">
             <ResponsiveContainer width="100%" height="100%">
@@ -612,7 +609,7 @@ export default function DashboardPage() {
                       <text 
                         x={x} 
                         y={y} 
-                        fill="#E4E6EB" 
+                        fill="#ECEDEE" 
                         textAnchor={x > cx ? 'start' : 'end'} 
                         dominantBaseline="central"
                         fontSize={12}
@@ -621,20 +618,19 @@ export default function DashboardPage() {
                       </text>
                     );
                   }}
-                  labelLine={{ stroke: '#6C6F75', strokeWidth: 1 }}
+                  labelLine={{ stroke: '#4A4D50', strokeWidth: 1 }}
                 >
                   {pieData.map((_, i) => (
-                    <Cell key={i} fill={COLORS[i % COLORS.length]} strokeWidth={0} />
+                    <Cell key={i} fill={['#ef4444', '#f59e0b', '#6366f1', '#22c55e', '#64748b'][i % 5]} strokeWidth={0} />
                   ))}
                 </Pie>
                 <Tooltip 
                   contentStyle={{ 
-                    backgroundColor: 'rgba(26, 28, 36, 0.95)', 
+                    backgroundColor: '#1A1D1F', 
                     border: '1px solid rgba(255,255,255,0.1)', 
                     borderRadius: 12,
-                    boxShadow: '0 8px 32px rgba(0,0,0,0.3)'
                   }}
-                  itemStyle={{ color: '#E4E6EB' }}
+                  itemStyle={{ color: '#ECEDEE' }}
                   formatter={(value: number, name: string) => [value.toLocaleString(), name]}
                 />
               </PieChart>
@@ -644,8 +640,8 @@ export default function DashboardPage() {
           <div className="flex flex-wrap justify-center gap-3 mt-4">
             {pieData.map((item, i) => (
               <div key={i} className="flex items-center gap-1.5">
-                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-                <span className="text-xs text-[#E4E6EB] capitalize">{item.name}</span>
+                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: ['#ef4444', '#f59e0b', '#6366f1', '#22c55e', '#64748b'][i % 5] }} />
+                <span className="text-xs text-foreground capitalize">{item.name}</span>
               </div>
             ))}
           </div>
@@ -655,109 +651,106 @@ export default function DashboardPage() {
       {/* Integrations & Sites */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         {/* Integrations */}
-        <div className="card-glass rounded-2xl p-5 h-[400px] flex flex-col">
+        <div className="bg-content1 border border-white/5 rounded-xl p-5 h-[400px] flex flex-col">
           <div className="flex items-center gap-2 mb-4 flex-shrink-0">
-            <Database className="w-4 h-4 text-[#54A3FF]" />
-            <h2 className="text-sm font-semibold text-[#E4E6EB]">Integrations</h2>
+            <Icon.Database className="w-4 h-4 text-primary" />
+            <h2 className="text-sm font-semibold text-foreground">Integrations</h2>
           </div>
-          <div className="space-y-2 overflow-y-auto custom-scrollbar flex-1 pr-2">
+          <div className="space-y-2 overflow-y-auto scrollbar-thin flex-1 pr-2">
             {integrations.map((int, i) => (
               <div 
                 key={i} 
                 className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] hover:bg-white/[0.05] transition-all"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-[#54A3FF]/10">
-                    <Database className="w-5 h-5 text-[#54A3FF]" />
+                  <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-primary/10">
+                    <Icon.Database className="w-5 h-5 text-primary" />
                   </div>
                   <div>
-                    <span className="text-sm font-medium text-[#E4E6EB] block">{int.integration_name || int.integration_id.slice(0, 8)}</span>
-                    <p className="text-xs capitalize text-[#6C6F75] mt-0.5">{int.source}</p>
+                    <span className="text-sm font-medium text-foreground block">{int.integration_name || int.integration_id.slice(0, 8)}</span>
+                    <p className="text-xs capitalize text-foreground/50 mt-0.5">{int.source}</p>
                   </div>
                 </div>
                 <div className="flex flex-col items-end gap-1">
-                  <span className="text-sm font-semibold text-[#E4E6EB]">{parseInt(int.count).toLocaleString()}</span>
+                  <span className="text-sm font-semibold text-foreground">{parseInt(int.count).toLocaleString()}</span>
                   {parseInt(int.critical) > 0 && (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#FF4A64]/15 text-[#FF4A64] font-medium">
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium" style={{ backgroundColor: `${severityColors.critical}15`, color: severityColors.critical }}>
                       {int.critical} Crit
                     </span>
                   )}
                 </div>
               </div>
             ))}
-            {integrations.length === 0 && <p className="text-sm text-[#6C6F75] text-center py-8">No integrations found</p>}
+            {integrations.length === 0 && <p className="text-sm text-foreground/50 text-center py-8">No integrations found</p>}
           </div>
         </div>
 
         {/* Sites */}
-        <div className="card-glass rounded-2xl p-5 h-[400px] flex flex-col">
+        <div className="bg-content1 border border-white/5 rounded-xl p-5 h-[400px] flex flex-col">
           <div className="flex items-center gap-2 mb-4 flex-shrink-0">
-            <Server className="w-4 h-4 text-[#7E57FF]" />
-            <h2 className="text-sm font-semibold text-[#E4E6EB]">Sites</h2>
+            <Icon.Server className="w-4 h-4 text-secondary" />
+            <h2 className="text-sm font-semibold text-foreground">Sites</h2>
           </div>
-          <div className="space-y-2 overflow-y-auto custom-scrollbar flex-1 pr-2">
+          <div className="space-y-2 overflow-y-auto scrollbar-thin flex-1 pr-2">
             {sites.map((site, i) => (
               <div 
                 key={i} 
                 className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] hover:bg-white/[0.05] transition-all"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-[#7E57FF]/10">
-                    <Server className="w-5 h-5 text-[#7E57FF]" />
+                  <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-secondary/10">
+                    <Icon.Server className="w-5 h-5 text-secondary" />
                   </div>
                   <div>
-                    <span className="text-sm font-medium text-[#E4E6EB] block">{site.host_site_name}</span>
-                    <p className="text-xs text-[#6C6F75] mt-0.5">{site.host_account_name || '-'}</p>
+                    <span className="text-sm font-medium text-foreground block">{site.host_site_name}</span>
+                    <p className="text-xs text-foreground/50 mt-0.5">{site.host_account_name || '-'}</p>
                   </div>
                 </div>
                 <div className="flex flex-col items-end gap-1">
-                  <span className="text-sm font-semibold text-[#E4E6EB]">{parseInt(site.count).toLocaleString()}</span>
+                  <span className="text-sm font-semibold text-foreground">{parseInt(site.count).toLocaleString()}</span>
                   {parseInt(site.critical) > 0 && (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#FF4A64]/15 text-[#FF4A64] font-medium">
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium" style={{ backgroundColor: `${severityColors.critical}15`, color: severityColors.critical }}>
                       {site.critical} Crit
                     </span>
                   )}
                 </div>
               </div>
             ))}
-            {sites.length === 0 && <p className="text-sm text-[#6C6F75] text-center py-8">No sites found</p>}
+            {sites.length === 0 && <p className="text-sm text-foreground/50 text-center py-8">No sites found</p>}
           </div>
         </div>
       </div>
 
       {/* MITRE ATT&CK */}
-      <div 
-        className="rounded-[12px] p-5 mb-6 border"
-        style={{ backgroundColor: '#1A1C24', borderColor: 'rgba(255,255,255,0.04)' }}
-      >
-        <h2 className="text-base font-semibold mb-3" style={{ color: '#E4E6EB' }}>MITRE ATT&CK Techniques</h2>
+      <div className="bg-content1 border border-white/5 rounded-xl p-5 mb-6">
+        <h2 className="text-base font-semibold mb-3 text-foreground">MITRE ATT&CK Techniques</h2>
         {mitreData.length > 0 ? (
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={mitreData.slice(0, 10)} layout="vertical">
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-              <XAxis type="number" stroke="#6C6F75" fontSize={11} />
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+              <XAxis type="number" stroke="#4A4D50" fontSize={11} />
               <YAxis 
                 dataKey="mitre_technique" 
                 type="category" 
-                stroke="#6C6F75" 
+                stroke="#4A4D50" 
                 fontSize={10} 
                 width={120}
                 tickFormatter={(v: string) => v.length > 15 ? v.slice(0, 15) + '...' : v}
               />
               <Tooltip 
                 contentStyle={{ 
-                  backgroundColor: '#1A1C24', 
-                  border: '1px solid rgba(255,255,255,0.07)', 
+                  backgroundColor: '#1A1D1F', 
+                  border: '1px solid rgba(255,255,255,0.1)', 
                   borderRadius: 8,
-                  color: '#E4E6EB'
+                  color: '#ECEDEE'
                 }}
                 formatter={(value: number) => [value.toLocaleString(), 'Count']}
               />
-              <Bar dataKey="count" fill="#7E57FF" radius={[0, 4, 4, 0]} />
+              <Bar dataKey="count" fill="#C0DBEF" radius={[0, 4, 4, 0]} />
             </BarChart>
           </ResponsiveContainer>
         ) : (
-          <p className="text-center py-8" style={{ color: '#6C6F75' }}>No MITRE ATT&CK data available</p>
+          <p className="text-center py-8 text-foreground/50">No MITRE ATT&CK data available</p>
         )}
       </div>
     </div>

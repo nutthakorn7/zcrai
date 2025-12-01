@@ -38,6 +38,8 @@ import {
   // Charts & Analytics
   ChartBarIcon,
   ArrowTrendingUpIcon,
+  ArrowTrendingDownIcon,
+  ArrowUpRightIcon,
   
   // Time & Calendar
   CalendarIcon,
@@ -122,6 +124,8 @@ export const Icon = {
   // Charts
   Chart: ChartBarIcon,
   TrendingUp: ArrowTrendingUpIcon,
+  TrendingDown: ArrowTrendingDownIcon,
+  ArrowUpRight: ArrowUpRightIcon,
   
   // Time
   Calendar: CalendarIcon,
