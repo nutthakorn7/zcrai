@@ -2,12 +2,12 @@ import { useEffect, useState } from "react";
 import { 
   Card, CardBody, Button, Input, Select, SelectItem, Spinner,
   Table, TableHeader, TableColumn, TableBody, TableRow, TableCell,
-  Chip, Pagination, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter
+  Pagination, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter
 } from "@heroui/react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../../shared/api/api";
 import { usePageContext } from "../../contexts/PageContext";
-import { Database } from 'lucide-react';
+import { Icon } from '../../shared/ui';
 
 // Import vendor logos
 import sentineloneLogo from '../../assets/logo/sentinelone.png';
@@ -19,27 +19,27 @@ const VendorLogo = ({ source }: { source: string }) => {
   
   if (sourceLower === 'sentinelone') {
     return (
-      <div className="flex items-center gap-2">
-        <img src={sentineloneLogo} alt="S1" className="w-5 h-5 object-contain" />
-        <span className="text-xs">SentinelOne</span>
+      <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-purple-500/10 border border-purple-500/20">
+        <img src={sentineloneLogo} alt="S1" className="w-3.5 h-3.5 object-contain" />
+        <span className="text-xs font-medium text-purple-400">SentinelOne</span>
       </div>
     );
   }
   
   if (sourceLower === 'crowdstrike') {
     return (
-      <div className="flex items-center gap-2">
-        <img src={crowdstrikeLogo} alt="CS" className="w-5 h-5 object-contain" />
-        <span className="text-xs">CrowdStrike</span>
+      <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-red-500/10 border border-red-500/20">
+        <img src={crowdstrikeLogo} alt="CS" className="w-3.5 h-3.5 object-contain" />
+        <span className="text-xs font-medium text-red-400">CrowdStrike</span>
       </div>
     );
   }
   
   // Fallback
   return (
-    <div className="flex items-center gap-2">
-      <Database className="w-4 h-4 text-default-400" />
-      <span className="text-xs capitalize">{source || '-'}</span>
+    <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-foreground/5 border border-foreground/10">
+      <Icon.Database className="w-3.5 h-3.5 text-foreground/40" />
+      <span className="text-xs font-medium text-foreground/60 capitalize">{source || '-'}</span>
     </div>
   );
 };
@@ -83,12 +83,12 @@ interface PaginationInfo {
   totalPages: number;
 }
 
-const severityColors: Record<string, "danger" | "warning" | "secondary" | "primary" | "default"> = {
-  critical: "danger",
-  high: "warning",
-  medium: "secondary",
-  low: "primary",
-  info: "default",
+// Severity colors matching dashboard
+const severityColors = {
+  critical: '#FF0202',
+  high: '#FFA735',
+  medium: '#FFEE00',
+  low: '#BBF0FF',
 };
 
 export default function LogViewerPage() {
@@ -253,37 +253,61 @@ export default function LogViewerPage() {
   };
 
   return (
-    <div className="p-8 min-h-screen dark bg-background text-foreground">
+    <div className="min-h-screen bg-background p-6">
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Log Viewer</h1>
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-primary/10">
+            <Icon.Document className="w-5 h-5 text-primary" />
+          </div>
+          <h1 className="text-xl font-semibold text-foreground">Log Viewer</h1>
+        </div>
         <div className="flex gap-2">
-          <Button variant="flat" color="success" onPress={handleExportCSV} isDisabled={logs.length === 0}>
-            📥 Export CSV
+          <Button 
+            size="sm"
+            variant="flat" 
+            className="bg-content1 border border-white/5 hover:border-white/10"
+            onPress={handleExportCSV} 
+            isDisabled={logs.length === 0}
+          >
+            <Icon.Document className="w-4 h-4" />
+            Export CSV
           </Button>
-          <Button variant="flat" onPress={() => navigate('/dashboard')}>
-            ← Back to Dashboard
+          <Button 
+            size="sm"
+            className="bg-primary hover:bg-primary/90 text-background"
+            onPress={() => navigate('/dashboard')}
+          >
+            Dashboard
           </Button>
         </div>
       </div>
 
       {/* Filters */}
-      <Card className="mb-6 bg-content1">
-        <CardBody>
-          <div className="flex flex-wrap gap-4 items-end">
+      <Card className="mb-6 bg-content1 border border-white/5 shadow-none">
+        <CardBody className="p-5">
+          <div className="flex flex-wrap gap-3 items-end">
             <Input
               label="Search"
               placeholder="Search title or description..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-64"
+              classNames={{
+                input: "bg-content2",
+                inputWrapper: "bg-content2 border-white/5"
+              }}
+              startContent={<Icon.Search className="w-4 h-4 text-foreground/40" />}
             />
             <Select
               label="Severity"
               placeholder="All"
               selectedKeys={severity ? [severity] : []}
               onSelectionChange={(keys) => setSeverity(Array.from(keys)[0] as string || "")}
-              className="w-36"
+              className="w-32"
+              classNames={{
+                trigger: "bg-content2 border-white/5"
+              }}
             >
               <SelectItem key="critical">Critical</SelectItem>
               <SelectItem key="high">High</SelectItem>
@@ -297,6 +321,9 @@ export default function LogViewerPage() {
               selectedKeys={source ? [source] : []}
               onSelectionChange={(keys) => setSource(Array.from(keys)[0] as string || "")}
               className="w-36"
+              classNames={{
+                trigger: "bg-content2 border-white/5"
+              }}
             >
               <SelectItem key="sentinelone">SentinelOne</SelectItem>
               <SelectItem key="crowdstrike">CrowdStrike</SelectItem>
@@ -306,7 +333,10 @@ export default function LogViewerPage() {
               placeholder="All"
               selectedKeys={integrationId ? [integrationId] : []}
               onSelectionChange={(keys) => setIntegrationId(Array.from(keys)[0] as string || "")}
-              className="w-44"
+              className="w-40"
+              classNames={{
+                trigger: "bg-content2 border-white/5"
+              }}
             >
               {filterOptions.integrations.map((i) => (
                 <SelectItem key={i.id}>{i.name || i.id.slice(0, 8)}</SelectItem>
@@ -319,7 +349,10 @@ export default function LogViewerPage() {
                   placeholder="All"
                   selectedKeys={accountName ? [accountName] : []}
                   onSelectionChange={(keys) => setAccountName(Array.from(keys)[0] as string || "")}
-                  className="w-44"
+                  className="w-40"
+                  classNames={{
+                    trigger: "bg-content2 border-white/5"
+                  }}
                 >
                   {filterOptions.accounts.map((a) => (
                     <SelectItem key={a.name}>{a.name}</SelectItem>
@@ -330,7 +363,10 @@ export default function LogViewerPage() {
                   placeholder="All"
                   selectedKeys={siteName ? [siteName] : []}
                   onSelectionChange={(keys) => setSiteName(Array.from(keys)[0] as string || "")}
-                  className="w-44"
+                  className="w-40"
+                  classNames={{
+                    trigger: "bg-content2 border-white/5"
+                  }}
                 >
                   {filterOptions.sites.map((s) => (
                     <SelectItem key={s.name}>{s.name}</SelectItem>
@@ -338,10 +374,20 @@ export default function LogViewerPage() {
                 </Select>
               </>
             )}
-            <Button color="primary" onPress={handleSearch}>
-              🔍 Search
+            <Button 
+              size="sm"
+              className="bg-primary hover:bg-primary/90 text-background"
+              onPress={handleSearch}
+              startContent={<Icon.Search className="w-4 h-4" />}
+            >
+              Search
             </Button>
-            <Button variant="flat" onPress={handleClear}>
+            <Button 
+              size="sm"
+              variant="flat" 
+              className="bg-content2 border border-white/5"
+              onPress={handleClear}
+            >
               Clear
             </Button>
           </div>
@@ -349,19 +395,26 @@ export default function LogViewerPage() {
       </Card>
 
       {/* Results Info */}
-      <div className="mb-4 text-sm text-default-500">
-        Showing {logs.length} of {pagination.total} logs (Page {pagination.page} of {pagination.totalPages})
+      <div className="mb-4 text-sm text-foreground/50">
+        Showing {logs.length} of {pagination.total} logs · Page {pagination.page} of {pagination.totalPages}
       </div>
 
       {/* Table */}
       {loading ? (
         <div className="flex justify-center py-12">
-          <Spinner size="lg" />
+          <Spinner size="lg" color="primary" />
         </div>
       ) : (
-        <Card className="bg-content1">
-          <CardBody>
-            <Table aria-label="Logs table" removeWrapper>
+        <Card className="bg-content1 border border-white/5 shadow-none">
+          <CardBody className="p-0">
+            <Table 
+              aria-label="Logs table" 
+              removeWrapper
+              classNames={{
+                th: "bg-content2 text-foreground/70 font-medium text-xs",
+                td: "text-foreground/90"
+              }}
+            >
               <TableHeader>
                 <TableColumn>Time</TableColumn>
                 <TableColumn>Severity</TableColumn>
@@ -379,9 +432,15 @@ export default function LogViewerPage() {
                       {new Date(log.timestamp).toLocaleString('en-US')}
                     </TableCell>
                     <TableCell>
-                      <Chip size="sm" color={severityColors[log.severity] || "default"}>
+                      <div 
+                        className="inline-block px-2 py-1 rounded-md text-xs font-semibold"
+                        style={{ 
+                          backgroundColor: severityColors[log.severity as keyof typeof severityColors] || '#6C6F75',
+                          color: log.severity === 'medium' || log.severity === 'low' ? '#111315' : '#FFFFFF'
+                        }}
+                      >
                         {log.severity}
-                      </Chip>
+                      </div>
                     </TableCell>
                     <TableCell><VendorLogo source={log.source} /></TableCell>
                     <TableCell className="text-xs">{log.integration_name || '-'}</TableCell>
@@ -417,9 +476,15 @@ export default function LogViewerPage() {
         <ModalContent>
           <ModalHeader>
             <div className="flex items-center gap-2">
-              <Chip size="sm" color={severityColors[selectedLog?.severity || "info"]}>
+              <div 
+                className="inline-block px-2 py-1 rounded-md text-xs font-semibold"
+                style={{ 
+                  backgroundColor: severityColors[selectedLog?.severity as keyof typeof severityColors] || '#6C6F75',
+                  color: selectedLog?.severity === 'medium' || selectedLog?.severity === 'low' ? '#111315' : '#FFFFFF'
+                }}
+              >
                 {selectedLog?.severity}
-              </Chip>
+              </div>
               <span>{selectedLog?.title}</span>
             </div>
           </ModalHeader>

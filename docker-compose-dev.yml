@@ -32,7 +32,6 @@ services:
       - "8123:8123" # HTTP
       - "9000:9000" # Native
     environment:
-      CLICKHOUSE_USER: default
       CLICKHOUSE_PASSWORD: clickhouse
       CLICKHOUSE_DB: zcrai
     ulimits:
