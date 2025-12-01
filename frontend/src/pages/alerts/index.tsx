@@ -139,27 +139,27 @@ export default function AlertsPage() {
     if (sev === 'critical') {
       return {
         bg: severityColors.critical,
-        text: '#FFFFFF',
+        text: 'rgb(255, 255, 255)',
         label: 'Critical',
       };
     }
     if (sev === 'high') {
       return {
         bg: severityColors.high,
-        text: '#111315',
+        text: 'rgb(17, 19, 21)',
         label: 'High',
       };
     }
     if (sev === 'medium') {
       return {
         bg: severityColors.medium,
-        text: '#111315',
+        text: 'rgb(17, 19, 21)',
         label: 'Medium',
       };
     }
     return {
       bg: severityColors.low,
-      text: '#111315',
+      text: 'rgb(17, 19, 21)',
       label: 'Low',
     };
   };

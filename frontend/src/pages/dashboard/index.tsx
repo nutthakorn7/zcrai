@@ -295,7 +295,7 @@ export default function DashboardPage() {
                 <HerouiTooltip content="CrowdStrike">
                   <button
                     onClick={() => setSelectedProvider('crowdstrike')}
-                    className={`p-2 rounded-md transition-all ${selectedProvider === 'crowdstrike' ? 'bg-[#2C2E3A] shadow-sm' : 'opacity-50 hover:opacity-100'}`}
+                    className={`p-2 rounded-md transition-all ${selectedProvider === 'crowdstrike' ? 'bg-content2 shadow-sm' : 'opacity-50 hover:opacity-100'}`}
                   >
                     <img src={crowdstrikeLogo} alt="CS" className="w-5 h-5 object-contain" />
                   </button>
@@ -333,7 +333,7 @@ export default function DashboardPage() {
               const change = previous === 0 ? (current > 0 ? 100 : 0) : ((current - previous) / previous) * 100;
               const isIncrease = change > 0;
               return (
-                <div className={`flex items-center gap-1 text-xs font-medium ${isIncrease ? 'text-red-500' : change < 0 ? 'text-green-500' : 'text-foreground/30'}`}>
+                <div className={`flex items-center gap-1 text-xs font-medium ${isIncrease ? 'text-green-500' : change < 0 ? 'text-red-500' : 'text-foreground/30'}`}>
                   {change !== 0 && (
                     isIncrease ? 
                       <Icon.TrendingUp className="w-3 h-3" /> : 
@@ -361,7 +361,7 @@ export default function DashboardPage() {
               const change = previous === 0 ? (current > 0 ? 100 : 0) : ((current - previous) / previous) * 100;
               const isIncrease = change > 0;
               return (
-                <div className={`flex items-center gap-1 text-xs font-medium ${isIncrease ? 'text-red-500' : change < 0 ? 'text-green-500' : 'text-foreground/30'}`}>
+                <div className={`flex items-center gap-1 text-xs font-medium ${isIncrease ? 'text-green-500' : change < 0 ? 'text-red-500' : 'text-foreground/30'}`}>
                   {change !== 0 && (
                     isIncrease ? 
                       <Icon.TrendingUp className="w-3 h-3" /> : 
@@ -389,7 +389,7 @@ export default function DashboardPage() {
               const change = previous === 0 ? (current > 0 ? 100 : 0) : ((current - previous) / previous) * 100;
               const isIncrease = change > 0;
               return (
-                <div className={`flex items-center gap-1 text-xs font-medium ${isIncrease ? 'text-red-500' : change < 0 ? 'text-green-500' : 'text-foreground/30'}`}>
+                <div className={`flex items-center gap-1 text-xs font-medium ${isIncrease ? 'text-green-500' : change < 0 ? 'text-red-500' : 'text-foreground/30'}`}>
                   {change !== 0 && (
                     isIncrease ? 
                       <Icon.TrendingUp className="w-3 h-3" /> : 
@@ -417,7 +417,7 @@ export default function DashboardPage() {
               const change = previous === 0 ? (current > 0 ? 100 : 0) : ((current - previous) / previous) * 100;
               const isIncrease = change > 0;
               return (
-                <div className={`flex items-center gap-1 text-xs font-medium ${isIncrease ? 'text-red-500' : change < 0 ? 'text-green-500' : 'text-foreground/30'}`}>
+                <div className={`flex items-center gap-1 text-xs font-medium ${isIncrease ? 'text-green-500' : change < 0 ? 'text-red-500' : 'text-foreground/30'}`}>
                   {change !== 0 && (
                     isIncrease ? 
                       <Icon.TrendingUp className="w-3 h-3" /> : 
@@ -436,7 +436,7 @@ export default function DashboardPage() {
         </div>
         
         {/* Total */}
-        <div className="bg-content1 border-2 border-primary/30 hover:border-primary/50 rounded-xl p-5 group transition-all shadow-lg shadow-primary/10" style={{ backgroundColor: '#C0DBEF20' }}>
+        <div className="bg-primary/[0.08] border-2 border-primary/30 hover:border-primary/50 rounded-xl p-5 group transition-all shadow-lg shadow-primary/10">
           <div className="flex items-start justify-between mb-6">
             <p className="text-sm text-primary font-medium">Total Events</p>
             {(() => {
@@ -445,7 +445,7 @@ export default function DashboardPage() {
               const change = previous === 0 ? (current > 0 ? 100 : 0) : ((current - previous) / previous) * 100;
               const isIncrease = change > 0;
               return (
-                <div className={`flex items-center gap-1 text-xs font-medium ${isIncrease ? 'text-primary' : change < 0 ? 'text-green-500' : 'text-foreground/30'}`}>
+                <div className={`flex items-center gap-1 text-xs font-medium ${isIncrease ? 'text-green-500' : change < 0 ? 'text-red-500' : 'text-foreground/30'}`}>
                   {change !== 0 && (
                     isIncrease ? 
                       <Icon.TrendingUp className="w-3 h-3" /> : 
@@ -621,16 +621,16 @@ export default function DashboardPage() {
                   labelLine={{ stroke: '#4A4D50', strokeWidth: 1 }}
                 >
                   {pieData.map((_, i) => (
-                    <Cell key={i} fill={['#ef4444', '#f59e0b', '#6366f1', '#22c55e', '#64748b'][i % 5]} strokeWidth={0} />
+                    <Cell key={i} fill={['rgb(239, 68, 68)', 'rgb(245, 158, 11)', 'rgb(99, 102, 241)', 'rgb(34, 197, 94)', 'rgb(100, 116, 139)'][i % 5]} strokeWidth={0} />
                   ))}
                 </Pie>
                 <Tooltip 
                   contentStyle={{ 
-                    backgroundColor: '#1A1D1F', 
-                    border: '1px solid rgba(255,255,255,0.1)', 
+                    backgroundColor: 'hsl(var(--heroui-content1))', 
+                    border: '1px solid rgba(255,255,255,0.05)', 
                     borderRadius: 12,
                   }}
-                  itemStyle={{ color: '#ECEDEE' }}
+                  itemStyle={{ color: 'hsl(var(--heroui-foreground))' }}
                   formatter={(value: number, name: string) => [value.toLocaleString(), name]}
                 />
               </PieChart>
@@ -640,7 +640,7 @@ export default function DashboardPage() {
           <div className="flex flex-wrap justify-center gap-3 mt-4">
             {pieData.map((item, i) => (
               <div key={i} className="flex items-center gap-1.5">
-                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: ['#ef4444', '#f59e0b', '#6366f1', '#22c55e', '#64748b'][i % 5] }} />
+                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: ['rgb(239, 68, 68)', 'rgb(245, 158, 11)', 'rgb(99, 102, 241)', 'rgb(34, 197, 94)', 'rgb(100, 116, 139)'][i % 5] }} />
                 <span className="text-xs text-foreground capitalize">{item.name}</span>
               </div>
             ))}
@@ -739,14 +739,14 @@ export default function DashboardPage() {
               />
               <Tooltip 
                 contentStyle={{ 
-                  backgroundColor: '#1A1D1F', 
-                  border: '1px solid rgba(255,255,255,0.1)', 
+                  backgroundColor: 'hsl(var(--heroui-content1))', 
+                  border: '1px solid rgba(255,255,255,0.05)', 
                   borderRadius: 8,
-                  color: '#ECEDEE'
+                  color: 'hsl(var(--heroui-foreground))'
                 }}
                 formatter={(value: number) => [value.toLocaleString(), 'Count']}
               />
-              <Bar dataKey="count" fill="#C0DBEF" radius={[0, 4, 4, 0]} />
+              <Bar dataKey="count" fill="hsl(var(--heroui-primary))" radius={[0, 4, 4, 0]} />
             </BarChart>
           </ResponsiveContainer>
         ) : (

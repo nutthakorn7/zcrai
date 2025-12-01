@@ -328,26 +328,26 @@ export default function AdminDashboard() {
                           dataKey="date" 
                           tick={{ fontSize: 10, fill: '#a1a1aa' }} 
                           tickFormatter={(v) => new Date(v).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                          axisLine={{ stroke: '#3f3f46' }}
-                          tickLine={{ stroke: '#3f3f46' }}
+                          axisLine={{ stroke: 'rgba(255, 255, 255, 0.1)' }}
+                          tickLine={{ stroke: 'rgba(255, 255, 255, 0.1)' }}
                         />
                         <YAxis 
-                          tick={{ fontSize: 10, fill: '#a1a1aa' }} 
-                          axisLine={{ stroke: '#3f3f46' }}
-                          tickLine={{ stroke: '#3f3f46' }}
+                          tick={{ fontSize: 10, fill: 'rgba(255, 255, 255, 0.4)' }} 
+                          axisLine={{ stroke: 'rgba(255, 255, 255, 0.1)' }}
+                          tickLine={{ stroke: 'rgba(255, 255, 255, 0.1)' }}
                         />
                         <Tooltip 
                           labelFormatter={(v) => new Date(v).toLocaleDateString()}
                           formatter={(value: number) => [value.toLocaleString(), 'Events']}
                           contentStyle={{ 
-                            backgroundColor: '#18181b', 
-                            border: '1px solid #3f3f46',
+                            backgroundColor: 'hsl(var(--heroui-content1))', 
+                            border: '1px solid rgba(255, 255, 255, 0.05)',
                             borderRadius: '8px',
-                            color: '#fafafa'
+                            color: 'hsl(var(--heroui-foreground))'
                           }}
-                          labelStyle={{ color: '#a1a1aa' }}
+                          labelStyle={{ color: 'hsl(var(--heroui-foreground) / 0.5)' }}
                         />
-                        <Bar dataKey="count" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="count" fill="rgb(139, 92, 246)" radius={[4, 4, 0, 0]} />
                       </BarChart>
                     </ResponsiveContainer>
                   ) : (

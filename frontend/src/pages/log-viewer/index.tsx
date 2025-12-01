@@ -435,8 +435,8 @@ export default function LogViewerPage() {
                       <div 
                         className="inline-block px-2 py-1 rounded-md text-xs font-semibold"
                         style={{ 
-                          backgroundColor: severityColors[log.severity as keyof typeof severityColors] || '#6C6F75',
-                          color: log.severity === 'medium' || log.severity === 'low' ? '#111315' : '#FFFFFF'
+                          backgroundColor: severityColors[log.severity as keyof typeof severityColors] || 'rgb(108, 111, 117)',
+                          color: log.severity === 'medium' || log.severity === 'low' ? 'rgb(17, 19, 21)' : 'rgb(255, 255, 255)'
                         }}
                       >
                         {log.severity}
@@ -479,8 +479,8 @@ export default function LogViewerPage() {
               <div 
                 className="inline-block px-2 py-1 rounded-md text-xs font-semibold"
                 style={{ 
-                  backgroundColor: severityColors[selectedLog?.severity as keyof typeof severityColors] || '#6C6F75',
-                  color: selectedLog?.severity === 'medium' || selectedLog?.severity === 'low' ? '#111315' : '#FFFFFF'
+                  backgroundColor: severityColors[selectedLog?.severity as keyof typeof severityColors] || 'rgb(108, 111, 117)',
+                  color: selectedLog?.severity === 'medium' || selectedLog?.severity === 'low' ? 'rgb(17, 19, 21)' : 'rgb(255, 255, 255)'
                 }}
               >
                 {selectedLog?.severity}
