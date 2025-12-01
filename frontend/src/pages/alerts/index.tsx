@@ -3,87 +3,67 @@ import { Button, Spinner } from "@heroui/react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../../shared/api/api";
 import { DateRangePicker } from "../../components/DateRangePicker";
-import { 
-  AlertTriangle, ShieldAlert, TrendingDown,
-  Database, Globe, Lock
-} from 'lucide-react';
+import { Icon } from '../../shared/ui';
 
 // Import vendor logos
 import sentineloneLogo from '../../assets/logo/sentinelone.png';
 import crowdstrikeLogo from '../../assets/logo/crowdstrike.png';
 
-// SOC/XDR Dark Theme Colors
-const COLORS = {
-  bgPrimary: '#0E0F14',
-  bgPanel: '#1A1C24',
-  bgSidebar: '#14151E',
-  bgSummary: '#1C1E28',
-  textPrimary: '#E4E6EB',
-  textSecondary: '#8D93A1',
-  textMuted: '#6C6F75',
-  borderSoft: 'rgba(255,255,255,0.04)',
-  borderMedium: 'rgba(255,255,255,0.07)',
-  severityMalicious: '#FF4A64',
-  severityBenign: '#28C76F',
-  accentPink: '#FF6B9C',
-  accentBlue: '#54A3FF',
-  accentDefender: '#3AA0FF',
-  accentPurple: '#7E57FF',
+// Severity color mapping
+const severityColors = {
+  critical: '#FF0202',
+  high: '#FFA735',
+  medium: '#FFEE00',
+  low: '#BBF0FF',
 };
 
-// Vendor Logo Components - ใช้ PNG สำหรับ vendors ที่มี logo
+// Vendor Logo Components
+// Vendor Logo Components
 const VendorLogo = ({ source }: { source: string }) => {
   const sourceLower = source.toLowerCase();
   
   // ใช้ PNG logo สำหรับ vendors ที่มี
   if (sourceLower === 'sentinelone') {
     return (
-      <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-white/5 p-2">
-        <img src={sentineloneLogo} alt="SentinelOne" className="w-8 h-8 object-contain" />
+      <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-white/5 p-2">
+        <img src={sentineloneLogo} alt="SentinelOne" className="w-full h-full object-contain" />
       </div>
     );
   }
   
   if (sourceLower === 'crowdstrike') {
     return (
-      <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-white/5 p-2">
-        <img src={crowdstrikeLogo} alt="CrowdStrike" className="w-8 h-8 object-contain" />
+      <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-white/5 p-2">
+        <img src={crowdstrikeLogo} alt="CrowdStrike" className="w-full h-full object-contain" />
       </div>
     );
   }
   
   // Fallback icons สำหรับ vendors อื่น
-  const iconMap: Record<string, { icon: JSX.Element; bg: string; color: string }> = {
+  const iconMap: Record<string, { icon: JSX.Element; color: string }> = {
     okta: { 
-      icon: <Lock className="w-6 h-6" />, 
-      bg: 'rgba(84,163,255,0.15)', 
-      color: '#54A3FF' 
+      icon: <Icon.Shield className="w-5 h-5" />, 
+      color: '#54A3FF'
     },
     defender: { 
-      icon: <ShieldAlert className="w-6 h-6" />, 
-      bg: 'rgba(58,160,255,0.15)', 
-      color: '#3AA0FF' 
+      icon: <Icon.Shield className="w-5 h-5" />, 
+      color: '#3AA0FF'
     },
     imperva: { 
-      icon: <Globe className="w-6 h-6" />, 
-      bg: 'rgba(126,87,255,0.15)', 
-      color: '#7E57FF' 
+      icon: <Icon.Server className="w-5 h-5" />, 
+      color: '#7E57FF'
     },
     default: { 
-      icon: <Database className="w-6 h-6" />, 
-      bg: 'rgba(141,147,161,0.15)', 
-      color: '#8D93A1' 
+      icon: <Icon.Database className="w-5 h-5" />, 
+      color: '#8D93A1'
     },
   };
   
   const logo = iconMap[sourceLower] || iconMap.default;
   
   return (
-    <div 
-      className="w-12 h-12 rounded-xl flex items-center justify-center"
-      style={{ backgroundColor: logo.bg }}
-    >
-      <div style={{ color: logo.color }}>{logo.icon}</div>
+    <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-white/5" style={{ color: logo.color }}>
+      {logo.icon}
     </div>
   );
 };
@@ -155,19 +135,32 @@ export default function AlertsPage() {
   const incidents = summary ? summary.critical + summary.high : 0;
 
   const getSeverityStyle = (severity: string) => {
-    if (['critical', 'high'].includes(severity.toLowerCase())) {
+    const sev = severity.toLowerCase();
+    if (sev === 'critical') {
       return {
-        bg: COLORS.severityMalicious,
+        bg: severityColors.critical,
         text: '#FFFFFF',
-        label: 'Malicious',
-        glow: '0 0 8px rgba(255, 70, 100, 0.55)'
+        label: 'Critical',
+      };
+    }
+    if (sev === 'high') {
+      return {
+        bg: severityColors.high,
+        text: '#111315',
+        label: 'High',
+      };
+    }
+    if (sev === 'medium') {
+      return {
+        bg: severityColors.medium,
+        text: '#111315',
+        label: 'Medium',
       };
     }
     return {
-      bg: COLORS.severityBenign,
-      text: '#FFFFFF',
-      label: 'Benign',
-      glow: '0 0 8px rgba(40, 199, 111, 0.45)'
+      bg: severityColors.low,
+      text: '#111315',
+      label: 'Low',
     };
   };
 
@@ -185,28 +178,22 @@ export default function AlertsPage() {
 
   if (loading) {
     return (
-      <div 
-        className="flex items-center justify-center min-h-screen"
-        style={{ backgroundColor: COLORS.bgPrimary }}
-      >
-        <Spinner size="lg" />
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <Spinner size="lg" color="primary" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: COLORS.bgPrimary }}>
+    <div className="min-h-screen bg-background">
       {/* Header */}
       <div className="p-6 pb-0">
         <div className="flex justify-between items-center mb-6">
           <div className="flex items-center gap-3">
-            <div 
-              className="p-2 rounded-lg"
-              style={{ backgroundColor: 'rgba(255,107,156,0.15)' }}
-            >
-              <AlertTriangle className="w-6 h-6" style={{ color: COLORS.accentPink }} />
+            <div className="p-2 rounded-lg bg-red-500/10">
+              <Icon.Alert className="w-5 h-5 text-red-500" />
             </div>
-            <h1 className="text-xl font-semibold" style={{ color: COLORS.textPrimary }}>
+            <h1 className="text-xl font-semibold text-foreground">
               Alerts Dashboard
             </h1>
           </div>
@@ -217,8 +204,8 @@ export default function AlertsPage() {
               onChange={handleDateChange}
             />
             <Button 
-              variant="flat" 
-              className="bg-[#1C1E28] border border-white/5 text-[#E4E6EB]"
+              size="sm"
+              className="bg-content1 border border-white/5 text-foreground hover:border-white/10"
               onPress={() => navigate('/dashboard')}
             >
               Dashboard
@@ -227,78 +214,53 @@ export default function AlertsPage() {
         </div>
 
         {/* Summary Panel */}
-        <div 
-          className="rounded-[14px] p-5 mb-6 flex items-center justify-between"
-          style={{ 
-            backgroundColor: COLORS.bgSummary,
-            border: `1px solid ${COLORS.borderSoft}`,
-            boxShadow: '0px 2px 15px rgba(0,0,0,0.30)'
-          }}
-        >
-          {/* Alerts */}
+        <div className="bg-content1 border border-white/5 rounded-xl p-5 mb-6 grid grid-cols-3 gap-8">
+          {/* Total Alerts */}
           <div className="flex items-center gap-4">
-            <div 
-              className="p-3 rounded-full"
-              style={{ backgroundColor: 'rgba(255,107,156,0.15)' }}
-            >
-              <AlertTriangle className="w-6 h-6" style={{ color: COLORS.accentPink }} />
+            <div className="p-3 rounded-lg" style={{ backgroundColor: `${severityColors.critical}15` }}>
+              <Icon.Alert className="w-5 h-5" style={{ color: severityColors.critical }} />
             </div>
             <div>
-              <p className="text-3xl font-semibold" style={{ color: COLORS.textPrimary }}>
+              <p className="text-3xl font-semibold text-foreground">
                 {summary?.total?.toLocaleString() || 0}
               </p>
-              <p className="text-sm" style={{ color: COLORS.textSecondary }}>Alerts</p>
+              <p className="text-sm text-foreground/50">Total Alerts</p>
             </div>
           </div>
 
-          {/* Divider */}
-          <div className="h-12 w-px" style={{ backgroundColor: COLORS.borderMedium }} />
-
-          {/* Incidents */}
+          {/* Critical + High */}
           <div className="flex items-center gap-4">
-            <div 
-              className="p-3 rounded-full"
-              style={{ backgroundColor: 'rgba(255,74,100,0.15)' }}
-            >
-              <ShieldAlert className="w-6 h-6" style={{ color: COLORS.severityMalicious }} />
+            <div className="p-3 rounded-lg" style={{ backgroundColor: `${severityColors.high}15` }}>
+              <Icon.ShieldAlert className="w-5 h-5" style={{ color: severityColors.high }} />
             </div>
             <div>
-              <p className="text-3xl font-semibold" style={{ color: COLORS.textPrimary }}>
+              <p className="text-3xl font-semibold text-foreground">
                 {incidents.toLocaleString()}
               </p>
-              <p className="text-sm" style={{ color: COLORS.textSecondary }}>Incidents</p>
+              <p className="text-sm text-foreground/50">Critical & High</p>
             </div>
           </div>
-
-          {/* Divider */}
-          <div className="h-12 w-px" style={{ backgroundColor: COLORS.borderMedium }} />
 
           {/* Alerts Reduction */}
           <div className="flex items-center gap-4">
-            <div 
-              className="p-3 rounded-full"
-              style={{ backgroundColor: 'rgba(40,199,111,0.15)' }}
-            >
-              <TrendingDown className="w-6 h-6" style={{ color: COLORS.severityBenign }} />
+            <div className="p-3 rounded-lg bg-green-500/10">
+              <Icon.TrendingDown className="w-5 h-5 text-green-500" />
             </div>
             <div>
-              <p className="text-3xl font-semibold" style={{ color: COLORS.severityBenign }}>
+              <p className="text-3xl font-semibold text-green-500">
                 {alertsReduction}%
               </p>
-              <p className="text-sm" style={{ color: COLORS.textSecondary }}>Alerts reduction</p>
+              <p className="text-sm text-foreground/50">Reduction</p>
             </div>
           </div>
         </div>
       </div>
 
       {/* Alerts List */}
-      <div className="px-6 pb-6 space-y-4">
+      <div className="px-6 pb-6 space-y-3">
         {alerts.length === 0 ? (
-          <div 
-            className="rounded-[12px] p-8 text-center"
-            style={{ backgroundColor: COLORS.bgPanel, border: `1px solid ${COLORS.borderSoft}` }}
-          >
-            <p style={{ color: COLORS.textMuted }}>No alerts found for the selected date range</p>
+          <div className="bg-content1 border border-white/5 rounded-xl p-8 text-center">
+            <p className="text-foreground/50">No alerts found for the selected date range</p>
           </div>
         ) : (
           alerts.map((alert, i) => {
@@ -306,37 +268,28 @@ export default function AlertsPage() {
             return (
               <div
                 key={alert.id || i}
-                className="rounded-[12px] p-5 flex items-center justify-between transition-all cursor-pointer hover:border-white/10"
-                style={{ 
-                  backgroundColor: COLORS.bgPanel,
-                  border: `1px solid ${COLORS.borderSoft}`,
-                  boxShadow: '0px 2px 15px rgba(0,0,0,0.30)'
-                }}
+                className="bg-content1 border border-white/5 hover:border-white/10 rounded-xl p-4 flex items-center justify-between transition-all cursor-pointer group"
                 onClick={() => navigate(`/logs?search=${encodeURIComponent(alert.title)}`)}
               >
                 {/* Left: Logo + Content */}
-                <div className="flex items-center gap-4 flex-1">
+                <div className="flex items-center gap-4 flex-1 min-w-0">
                   <VendorLogo source={alert.source} />
                   <div className="flex-1 min-w-0">
-                    <h3 
-                      className="text-base font-semibold truncate mb-1"
-                      style={{ color: COLORS.textPrimary }}
-                    >
+                    <h3 className="text-sm font-medium text-foreground truncate mb-1">
                       {alert.title}
                     </h3>
-                    <p className="text-sm" style={{ color: COLORS.textSecondary }}>
+                    <p className="text-xs text-foreground/50">
                       {getCategoryLabel(alert.source)}
                     </p>
                   </div>
                 </div>
 
-                {/* Right: Status Pill */}
+                {/* Right: Severity Badge */}
                 <div
-                  className="px-4 py-1.5 rounded-full text-sm font-bold"
+                  className="px-3 py-1 rounded-lg text-xs font-semibold"
                   style={{ 
                     backgroundColor: severityStyle.bg,
                     color: severityStyle.text,
-                    boxShadow: severityStyle.glow
                   }}
                 >
                   {severityStyle.label}
