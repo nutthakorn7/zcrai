@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Button, Popover, PopoverTrigger, PopoverContent } from '@heroui/react'
-import { CalendarIcon, ChevronLeftIcon, ChevronRightIcon } from 'lucide-react'
+import { Icon } from '../shared/ui'
 
 interface DateRangePickerProps {
   startDate: Date
@@ -147,9 +147,9 @@ export function DateRangePicker({ startDate, endDate, onChange }: DateRangePicke
           onClick={() => handleDayClick(day)}
           className={`
             w-8 h-8 text-sm rounded-md transition-colors
-            ${inRange ? 'bg-violet-500/20' : 'hover:bg-white/5'}
-            ${(isStart || isEnd) ? 'bg-violet-500 text-white hover:bg-violet-600' : ''}
-            ${!inRange && !isStart && !isEnd ? 'text-[#E4E6EB]' : ''}
+            ${inRange ? 'bg-primary/20' : 'hover:bg-content2'}
+            ${(isStart || isEnd) ? 'bg-primary text-background hover:bg-primary/90 font-medium' : ''}
+            ${!inRange && !isStart && !isEnd ? 'text-foreground' : ''}
           `}
         >
           {day}
@@ -172,24 +172,25 @@ export function DateRangePicker({ startDate, endDate, onChange }: DateRangePicke
     <Popover isOpen={isOpen} onOpenChange={setIsOpen} placement="bottom-end">
       <PopoverTrigger>
         <Button
+          size="sm"
           variant="flat"
-          className="bg-[#1C1E28] border border-white/5 text-[#E4E6EB] hover:bg-[#232530]"
-          startContent={<CalendarIcon className="w-4 h-4 text-[#FF6B9C]" />}
+          className="bg-content1 border border-white/5 hover:border-white/10 text-foreground"
+          startContent={<Icon.Calendar className="w-4 h-4 text-primary" />}
         >
           {formatDate(startDate)} - {formatDate(endDate)}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="bg-[#1A1C24] border border-white/5 p-0 w-auto">
+      <PopoverContent className="bg-content1 border border-white/5 p-0 w-auto shadow-lg">
         <div className="flex">
           {/* Presets */}
           <div className="w-36 border-r border-white/5 p-3">
-            <p className="text-xs text-[#8D93A1] mb-2 font-medium">Quick Select</p>
+            <p className="text-xs text-foreground/50 mb-2 font-medium">Quick Select</p>
             <div className="space-y-1">
               {PRESETS.map((preset) => (
                 <button
                   key={preset.label}
                   onClick={() => handlePreset(preset.days)}
-                  className="w-full text-left px-2 py-1.5 text-sm text-[#E4E6EB] hover:bg-white/5 rounded-md transition-colors"
+                  className="w-full text-left px-2 py-1.5 text-sm text-foreground hover:bg-content2 rounded-md transition-colors"
                 >
                   {preset.label}
                 </button>
@@ -201,21 +202,21 @@ export function DateRangePicker({ startDate, endDate, onChange }: DateRangePicke
           <div className="p-4">
             {/* Month Navigation */}
             <div className="flex items-center justify-between mb-4">
-              <button onClick={prevMonth} className="p-1 hover:bg-white/5 rounded">
-                <ChevronLeftIcon className="w-4 h-4 text-[#8D93A1]" />
+              <button onClick={prevMonth} className="p-1 hover:bg-content2 rounded transition-colors">
+                <Icon.ChevronLeft className="w-4 h-4 text-foreground/50" />
               </button>
-              <span className="text-sm font-medium text-[#E4E6EB]">
+              <span className="text-sm font-medium text-foreground">
                 {monthNames[viewingMonth.getMonth()]} {viewingMonth.getFullYear()}
               </span>
-              <button onClick={nextMonth} className="p-1 hover:bg-white/5 rounded">
-                <ChevronRightIcon className="w-4 h-4 text-[#8D93A1]" />
+              <button onClick={nextMonth} className="p-1 hover:bg-content2 rounded transition-colors">
+                <Icon.ChevronRight className="w-4 h-4 text-foreground/50" />
               </button>
             </div>
 
             {/* Day Headers */}
             <div className="grid grid-cols-7 gap-1 mb-2">
               {dayNames.map((day) => (
-                <div key={day} className="w-8 h-6 text-xs text-[#6C6F75] text-center">
+                <div key={day} className="w-8 h-6 text-xs text-foreground/40 text-center">
                   {day}
                 </div>
               ))}
@@ -230,12 +231,12 @@ export function DateRangePicker({ startDate, endDate, onChange }: DateRangePicke
             <div className="mt-4 pt-4 border-t border-white/5">
               <div className="flex items-center justify-between text-sm">
                 <div>
-                  <span className="text-[#6C6F75]">From: </span>
-                  <span className="text-[#E4E6EB]">{formatDate(tempStart)}</span>
+                  <span className="text-foreground/50">From: </span>
+                  <span className="text-foreground">{formatDate(tempStart)}</span>
                 </div>
                 <div>
-                  <span className="text-[#6C6F75]">To: </span>
-                  <span className="text-[#E4E6EB]">{formatDate(tempEnd)}</span>
+                  <span className="text-foreground/50">To: </span>
+                  <span className="text-foreground">{formatDate(tempEnd)}</span>
                 </div>
               </div>
             </div>
@@ -245,15 +246,14 @@ export function DateRangePicker({ startDate, endDate, onChange }: DateRangePicke
               <Button 
                 size="sm" 
                 variant="flat" 
-                className="flex-1"
+                className="flex-1 bg-content2 border border-white/5"
                 onPress={() => setIsOpen(false)}
               >
                 Cancel
               </Button>
               <Button 
                 size="sm" 
-                color="secondary" 
-                className="flex-1 bg-violet-500"
+                className="flex-1 bg-primary hover:bg-primary/90 text-background"
                 onPress={handleApply}
               >
                 Apply
