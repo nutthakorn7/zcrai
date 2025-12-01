@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Button, Spinner, Tooltip as HerouiTooltip } from "@heroui/react";
+import { Button, Tooltip as HerouiTooltip } from "@heroui/react";
 import { api } from "../../shared/api/api";
 import { usePageContext } from "../../contexts/PageContext";
 import { DateRangePicker } from "../../components/DateRangePicker";
@@ -9,7 +9,7 @@ import {
 } from 'recharts';
 import { 
   ShieldAlert, AlertTriangle, AlertCircle, Activity, 
-  Server, Database, TrendingUp, RefreshCw, Filter
+  Server, Database, TrendingUp, RefreshCw
 } from 'lucide-react';
 
 // Import logos

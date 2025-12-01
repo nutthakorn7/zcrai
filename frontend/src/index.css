@@ -1,7 +1,93 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  /* CSS Variables from Tailwind Config */
+  :root {
+    --color-background: #111315;
+    --color-foreground: #ECEDEE;
+    --color-content1: #1A1D1F;
+    --color-content2: #242527;
+    --color-content3: #353839;
+    --color-content4: #4A4D50;
+    --color-primary: #C0DBEF;
+    --color-secondary: #FDC693;
+    --color-success: #FFEE98;
+    
+    /* Spacing scale */
+    --spacing-tight: 0.5rem;
+    --spacing-base: 1rem;
+    --spacing-comfortable: 1.5rem;
+    --spacing-spacious: 2rem;
+  }
+}
+
 body {
-  @apply bg-background text-foreground min-h-screen;
+  font-family: 'Roboto', sans-serif;
+  @apply bg-background text-foreground min-h-screen antialiased;
+  @apply selection:bg-secondary selection:text-background;
+  
+  /* Smooth scrolling */
+  scroll-behavior: smooth;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+/* Thin scrollbar for tables and lists */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 3px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* Focus visible states (Accessibility) */
+*:focus-visible {
+  @apply outline-none ring-2 ring-primary ring-offset-2 ring-offset-background;
+  outline-offset: 2px;
+}
+
+/* Smooth transitions for interactive elements */
+button, a, [role="button"] {
+  @apply transition-colors duration-200;
+}
+
+/* card base */
+@layer components {
+  .card-notion {
+    @apply bg-content1 rounded-lg border border-white/5;
+    @apply transition-all duration-200;
+  }
+  
+  .card-notion:hover {
+    @apply border-white/10 shadow-sm;
+  }
 }
