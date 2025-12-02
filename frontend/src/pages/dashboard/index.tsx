@@ -9,87 +9,30 @@ import {
 } from 'recharts';
 import { Icon } from '../../shared/ui';
 
+// Import Types from separate file
+import { 
+  Summary, 
+  TopHost, 
+  TopUser, 
+  SourceBreakdown, 
+  TimelineData, 
+  MitreData, 
+  IntegrationData, 
+  SiteData, 
+  RecentDetection 
+} from './type.ts';
+
 // Import logos
 import sentineloneLogo from '../../assets/logo/sentinelone.png';
 import crowdstrikeLogo from '../../assets/logo/crowdstrike.png';
 
-// Severity color mapping
+// Severity color mapping (Can also be moved to a constants file if used elsewhere)
 const severityColors = {
   critical: '#FF0202',
   high: '#FFA735',
   medium: '#FFEE00',
   low: '#BBF0FF',
 };
-
-interface Summary {
-  critical: number;
-  high: number;
-  medium: number;
-  low: number;
-  info: number;
-  total: number;
-}
-
-interface TopHost {
-  host_name: string;
-  count: string;
-  critical: string;
-  high: string;
-}
-
-interface TopUser {
-  user_name: string;
-  count: string;
-  critical: string;
-  high: string;
-}
-
-interface SourceBreakdown {
-  source: string;
-  count: string;
-}
-
-interface TimelineData {
-  time: string;
-  count: string;
-  critical: string;
-  high: string;
-  medium: string;
-  low: string;
-}
-
-interface MitreData {
-  mitre_tactic: string;
-  mitre_technique: string;
-  count: string;
-}
-
-interface IntegrationData {
-  integration_id: string;
-  integration_name: string;
-  source: string;
-  count: string;
-  critical: string;
-  high: string;
-}
-
-interface SiteData {
-  host_account_name: string;
-  host_site_name: string;
-  count: string;
-  critical: string;
-  high: string;
-}
-
-interface RecentDetection {
-  id: string;
-  severity: string;
-  mitre_tactic: string;
-  mitre_technique: string;
-  timestamp: string;
-  host_name: string;
-  source: string;
-}
 
 export default function DashboardPage() {
   const { setPageContext } = usePageContext();
@@ -136,7 +79,7 @@ export default function DashboardPage() {
     let dateParams = `startDate=${start}&endDate=${end}`;
     
     try {
-      // 1. Fetch Active Integrations first to determine valid sources
+      // 1. Fetch Active Integrations
       const activeIntRes = await api.get('/integrations');
       const activeIntegrations = activeIntRes.data || [];
       
@@ -148,32 +91,20 @@ export default function DashboardPage() {
       setAvailableProviders(uniqueActiveProviders);
 
       // 2. Determine sources query param
-      // If 'all' is selected, we filter by ALL ACTIVE providers to hide historical data of removed integrations.
-      // If a specific provider is selected, we filter by that provider.
       let targetSources = uniqueActiveProviders;
       if (selectedProvider !== 'all') {
         targetSources = [selectedProvider];
       }
 
-      // If no active providers and 'all' is selected, we should probably fetch nothing or handle empty state.
-      // But if we send empty sources param to backend (if implemented correctly), it might return everything (bad) or nothing.
-      // My backend implementation: if (sources && sources.length > 0) ... else no filter.
-      // So if we send NO param, it returns ALL history.
-      // If we want to return NOTHING, we should maybe pass a dummy source or handle in backend.
-      // However, if targetSources is empty, let's just not fetch or pass a dummy 'none'.
-      
       if (targetSources.length > 0) {
         dateParams += `&sources=${targetSources.join(',')}`;
       } else if (selectedProvider === 'all') {
-        // No active providers: force empty result by passing a non-existent source
         dateParams += `&sources=none`; 
       } else {
-         // Selected provider is not active? Should unlikely happen if UI is correct, 
-         // but if it happens, just pass it to get (likely empty) data.
          dateParams += `&sources=${selectedProvider}`;
       }
 
-      // Calculate previous day date range for comparison
+      // Calculate previous day date range
       const prevStartDate = new Date(startDate);
       prevStartDate.setDate(prevStartDate.getDate() - 1);
       const prevEndDate = new Date(endDate);
@@ -204,7 +135,6 @@ export default function DashboardPage() {
       setTimeline(timelineRes.data);
       setMitreData(mitreRes.data);
       
-      // Filter integrations to show only active ones
       const activeIntegrationIds = new Set(activeIntegrations.map((i: any) => i.id));
       const filteredIntegrations = intRes.data.filter((i: IntegrationData) => 
         activeIntegrationIds.has(i.integration_id)
@@ -286,7 +216,6 @@ export default function DashboardPage() {
               </button>
             </HerouiTooltip>
             
-            {/* SentinelOne Button - Show if available or if selected */}
             {(availableProviders.includes('sentinelone') || selectedProvider === 'sentinelone') && (
               <>
                 <div className="w-px bg-white/5 my-1 mx-1" />
@@ -301,7 +230,6 @@ export default function DashboardPage() {
               </>
             )}
 
-            {/* CrowdStrike Button - Show if available or if selected */}
             {(availableProviders.includes('crowdstrike') || selectedProvider === 'crowdstrike') && (
               <>
                 <div className="w-px bg-white/5 my-1 mx-1" />
