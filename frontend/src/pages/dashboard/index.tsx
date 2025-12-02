@@ -4,7 +4,7 @@ import { api } from "../../shared/api/api";
 import { usePageContext } from "../../contexts/PageContext";
 import { DateRangePicker } from "../../components/DateRangePicker";
 import { 
-  AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
+  LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, BarChart, Bar, CartesianGrid
 } from 'recharts';
 import { Icon } from '../../shared/ui';
@@ -34,6 +34,12 @@ const severityColors = {
   low: '#BBF0FF',
 };
 
+// Source color mapping
+const sourceColors: { [key: string]: string } = {
+  crowdstrike: '#EF4444', // Red
+  sentinelone: '#A855F7', // Purple
+};
+
 export default function DashboardPage() {
   const { setPageContext } = usePageContext();
   
@@ -44,7 +50,11 @@ export default function DashboardPage() {
     d.setDate(d.getDate() - 7);
     return d;
   });
-  const [endDate, setEndDate] = useState(() => new Date());
+  const [endDate, setEndDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1); // Set to tomorrow to include all of today's data
+    return d;
+  });
   
   // Filter State: 'all', 'sentinelone', 'crowdstrike'
   const [selectedProvider, setSelectedProvider] = useState<string>('all');
@@ -74,8 +84,9 @@ export default function DashboardPage() {
 
   const loadDashboard = async () => {
     setLoading(true);
-    const start = startDate.toISOString().split('T')[0];
-    const end = endDate.toISOString().split('T')[0];
+    // Use local date string to avoid timezone issues
+    const start = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, '0')}-${String(startDate.getDate()).padStart(2, '0')}`;
+    const end = `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, '0')}-${String(endDate.getDate()).padStart(2, '0')}`;
     let dateParams = `startDate=${start}&endDate=${end}`;
     
     try {
@@ -109,7 +120,9 @@ export default function DashboardPage() {
       prevStartDate.setDate(prevStartDate.getDate() - 1);
       const prevEndDate = new Date(endDate);
       prevEndDate.setDate(prevEndDate.getDate() - 1);
-      const prevDateParams = `startDate=${prevStartDate.toISOString().split('T')[0]}&endDate=${prevEndDate.toISOString().split('T')[0]}`;
+      const prevStart = `${prevStartDate.getFullYear()}-${String(prevStartDate.getMonth() + 1).padStart(2, '0')}-${String(prevStartDate.getDate()).padStart(2, '0')}`;
+      const prevEnd = `${prevEndDate.getFullYear()}-${String(prevEndDate.getMonth() + 1).padStart(2, '0')}-${String(prevEndDate.getDate()).padStart(2, '0')}`;
+      const prevDateParams = `startDate=${prevStart}&endDate=${prevEnd}`;
 
       const [summaryRes, prevSummaryRes, hostsRes, usersRes, sourcesRes, timelineRes, mitreRes, intRes, sitesRes, recentRes] = await Promise.all([
         api.get(`/dashboard/summary?${dateParams}`),
@@ -121,15 +134,18 @@ export default function DashboardPage() {
         api.get(`/dashboard/mitre-heatmap?${dateParams}`),
         api.get(`/dashboard/integrations?${dateParams}`),
         api.get(`/dashboard/sites?${dateParams}`),
-        api.get(`/logs?${dateParams}&limit=3&sortBy=timestamp&sortOrder=desc`),
+        api.get(`/logs?${dateParams}&limit=50&sortBy=timestamp&sortOrder=desc`),
       ]);
 
       // 3. Set Data
       setSummary(summaryRes.data);
       setPreviousSummary(prevSummaryRes.data);
       
-      setTopHosts(hostsRes.data.slice(0, 5));
-      setTopUsers(usersRes.data.slice(0, 5));
+      const hostsData = Array.isArray(hostsRes.data) ? hostsRes.data : [];
+      const usersData = Array.isArray(usersRes.data) ? usersRes.data : [];
+      
+      setTopHosts(hostsData.slice(0, 5));
+      setTopUsers(usersData.slice(0, 5));
       
       setSources(sourcesRes.data);
       setTimeline(timelineRes.data);
@@ -142,7 +158,30 @@ export default function DashboardPage() {
       setIntegrations(filteredIntegrations);
       
       setSites(sitesRes.data);
-      setRecentDetections(recentRes.data.logs || []);
+
+      let detections = [];
+      if (recentRes.data) {
+        if (Array.isArray(recentRes.data)) {
+          detections = recentRes.data;
+        } else if (recentRes.data.logs && Array.isArray(recentRes.data.logs)) {
+          detections = recentRes.data.logs;
+        } else if (recentRes.data.data && Array.isArray(recentRes.data.data)) {
+          detections = recentRes.data.data;
+        }
+      }
+      
+      // Sort by timestamp descending to ensure most recent first
+      detections = detections
+        .filter((d: any) => d && d.timestamp)
+        .sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+        .slice(0, 5);
+
+      console.log('=== DETECTIONS AFTER SORT ===');
+      console.log('Total detections:', detections.length);
+      console.log('Detection sources:', detections.map((d: any) => d.source));
+      console.log('Selected provider filter:', selectedProvider);
+
+      setRecentDetections(detections);
       
       setPageContext({
         pageName: 'Dashboard',
@@ -167,6 +206,7 @@ export default function DashboardPage() {
     critical: parseInt(t.critical),
     high: parseInt(t.high),
     medium: parseInt(t.medium),
+    low: parseInt(t.low),
   }));
 
   // Transform source data for pie chart
@@ -431,21 +471,8 @@ export default function DashboardPage() {
             </div>
           </div>
           <ResponsiveContainer width="100%" height={220}>
-          <AreaChart data={chartData}>
-            <defs>
-              <linearGradient id="criticalGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor={severityColors.critical} stopOpacity={0.3}/>
-                <stop offset="95%" stopColor={severityColors.critical} stopOpacity={0}/>
-              </linearGradient>
-              <linearGradient id="highGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor={severityColors.high} stopOpacity={0.3}/>
-                <stop offset="95%" stopColor={severityColors.high} stopOpacity={0}/>
-              </linearGradient>
-              <linearGradient id="mediumGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor={severityColors.medium} stopOpacity={0.2}/>
-                <stop offset="95%" stopColor={severityColors.medium} stopOpacity={0}/>
-              </linearGradient>
-            </defs>
+          <LineChart data={chartData}>
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
             <XAxis dataKey="time" stroke="#4A4D50" fontSize={10} tickLine={false} axisLine={false} />
             <YAxis stroke="#4A4D50" fontSize={10} tickLine={false} axisLine={false} />
             <Tooltip 
@@ -457,10 +484,11 @@ export default function DashboardPage() {
               labelStyle={{ color: '#ECEDEE', fontWeight: 600 }}
               itemStyle={{ color: '#ECEDEE' }}
             />
-            <Area type="monotone" dataKey="critical" stackId="1" stroke={severityColors.critical} strokeWidth={2} fill="url(#criticalGradient)" />
-            <Area type="monotone" dataKey="high" stackId="1" stroke={severityColors.high} strokeWidth={2} fill="url(#highGradient)" />
-            <Area type="monotone" dataKey="medium" stackId="1" stroke={severityColors.medium} strokeWidth={2} fill="url(#mediumGradient)" />
-          </AreaChart>
+            <Line type="monotone" dataKey="critical" stroke={severityColors.critical} strokeWidth={2} dot={false} />
+            <Line type="monotone" dataKey="high" stroke={severityColors.high} strokeWidth={2} dot={false} />
+            <Line type="monotone" dataKey="medium" stroke={severityColors.medium} strokeWidth={2} dot={false} />
+            <Line type="monotone" dataKey="low" stroke={severityColors.low} strokeWidth={2} dot={false} />
+          </LineChart>
         </ResponsiveContainer>
         </div>
 
@@ -530,12 +558,22 @@ export default function DashboardPage() {
             {recentDetections.length > 0 ? (
               recentDetections.map((detection) => {
                 const severityColor = severityColors[detection.severity.toLowerCase() as keyof typeof severityColors] || severityColors.low;
+                const source = detection.source?.toLowerCase() || '';
+                const sourceColor = sourceColors[source] || '#6B7280';
+                const sourceLogo = source === 'crowdstrike' ? crowdstrikeLogo : source === 'sentinelone' ? sentineloneLogo : null;
+                
                 return (
                   <div
                     key={detection.id}
-                    className="flex items-center justify-between p-3 rounded-lg bg-content2/50 hover:bg-content2 transition-all cursor-pointer group"
+                    className="relative flex items-center justify-between p-3 rounded-lg bg-content2/50 hover:bg-content2 transition-all group overflow-hidden"
                   >
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                    {/* Left colored border */}
+                    <div 
+                      className="absolute left-0 top-0 bottom-0 w-1 rounded-l-lg"
+                      style={{ backgroundColor: sourceColor }}
+                    />
+                    
+                    <div className="flex items-center gap-3 flex-1 min-w-0 pl-2">
                       <div
                         className="w-2 h-2 rounded-full flex-shrink-0"
                         style={{ backgroundColor: severityColor }}
@@ -554,10 +592,30 @@ export default function DashboardPage() {
                         </span>
                         <div className="flex items-center gap-1.5 text-xs text-foreground/50">
                           <Icon.Clock className="w-3 h-3" />
-                          <span className="truncate">{new Date(detection.timestamp).toLocaleTimeString()}</span>
+                          <span className="truncate">
+                            {new Date(detection.timestamp).toLocaleDateString('en-US', { 
+                              month: 'short', 
+                              day: 'numeric' 
+                            })} {new Date(detection.timestamp).toLocaleTimeString('en-US', { 
+                              hour: '2-digit', 
+                              minute: '2-digit',
+                              hour12: false 
+                            })}
+                          </span>
                         </div>
                       </div>
                     </div>
+                    
+                    {/* Source logo on the right */}
+                    {sourceLogo && (
+                      <div className="ml-2 flex-shrink-0">
+                        <img 
+                          src={sourceLogo} 
+                          alt={detection.source} 
+                          className="w-5 h-5 object-contain opacity-60 group-hover:opacity-100 transition-opacity"
+                        />
+                      </div>
+                    )}
                   </div>
                 );
               })

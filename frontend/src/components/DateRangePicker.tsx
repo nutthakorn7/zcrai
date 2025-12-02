@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button, Popover, PopoverTrigger, PopoverContent } from '@heroui/react'
 import { Icon } from '../shared/ui'
 
@@ -33,7 +33,19 @@ export function DateRangePicker({ startDate, endDate, onChange }: DateRangePicke
   const [viewingMonth, setViewingMonth] = useState(new Date())
   const [selectingStart, setSelectingStart] = useState(true)
   const [tempStart, setTempStart] = useState(startDate)
-  const [tempEnd, setTempEnd] = useState(endDate)
+  const [tempEnd, setTempEnd] = useState(() => {
+    const d = new Date(endDate)
+    d.setDate(d.getDate() - 1)
+    return d
+  })
+
+  // Sync tempStart and tempEnd when props change
+  useEffect(() => {
+    setTempStart(startDate)
+    const d = new Date(endDate)
+    d.setDate(d.getDate() - 1)
+    setTempEnd(d)
+  }, [startDate, endDate])
 
   const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December']
@@ -49,34 +61,42 @@ export function DateRangePicker({ startDate, endDate, onChange }: DateRangePicke
   }
 
   const handlePreset = (days: number) => {
-    const end = new Date()
+    let end = new Date()
     let start: Date
 
     if (days === 0) {
-      // Today
+      // Today - include all of today's data
       start = new Date()
+      end.setDate(end.getDate() + 1) // Set to tomorrow to include all of today
     } else if (days === 1) {
       // Yesterday
       start = new Date()
       start.setDate(start.getDate() - 1)
-      end.setDate(end.getDate() - 1)
+      end = new Date() // Today
     } else if (days === -1) {
       // This Month
       start = new Date(end.getFullYear(), end.getMonth(), 1)
+      end.setDate(end.getDate() + 1) // Include all of today
     } else if (days === -2) {
       // Last Month
       start = new Date(end.getFullYear(), end.getMonth() - 1, 1)
-      end.setDate(0) // Last day of previous month
+      end = new Date(end.getFullYear(), end.getMonth(), 1) // First day of this month
     } else {
+      // Last N Days
       start = new Date()
       start.setDate(start.getDate() - days)
+      end.setDate(end.getDate() + 1) // Include all of today
     }
 
     start.setHours(0, 0, 0, 0)
-    end.setHours(23, 59, 59, 999)
+    end.setHours(0, 0, 0, 0) // Backend will handle as < end date
 
+    // Set temp states for display (subtract 1 from end for display)
+    const displayEnd = new Date(end)
+    displayEnd.setDate(displayEnd.getDate() - 1)
     setTempStart(start)
-    setTempEnd(end)
+    setTempEnd(displayEnd)
+    
     onChange(start, end)
     setIsOpen(false)
   }
@@ -102,7 +122,9 @@ export function DateRangePicker({ startDate, endDate, onChange }: DateRangePicke
     const start = new Date(tempStart)
     const end = new Date(tempEnd)
     start.setHours(0, 0, 0, 0)
-    end.setHours(23, 59, 59, 999)
+    // Add 1 day to end to include all data of the selected end date
+    end.setDate(end.getDate() + 1)
+    end.setHours(0, 0, 0, 0)
     onChange(start, end)
     setIsOpen(false)
   }
@@ -177,7 +199,7 @@ export function DateRangePicker({ startDate, endDate, onChange }: DateRangePicke
           className="bg-content1 border border-white/5 hover:border-white/10 text-foreground"
           startContent={<Icon.Calendar className="w-4 h-4 text-primary" />}
         >
-          {formatDate(startDate)} - {formatDate(endDate)}
+          {formatDate(startDate)} - {formatDate(tempEnd)}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="bg-content1 border border-white/5 p-0 w-auto shadow-lg">

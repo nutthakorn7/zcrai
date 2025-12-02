@@ -47,7 +47,12 @@ export const logsController = new Elysia({ prefix: '/logs' })
         startDate: query.startDate as string | undefined,
         endDate: query.endDate as string | undefined,
         severity: query.severity ? (query.severity as string).split(',') : undefined,
-        source: query.source ? (query.source as string).split(',') : undefined,
+        // Support both 'source' and 'sources' for compatibility with dashboard
+        source: query.sources 
+          ? (typeof query.sources === 'string' ? query.sources.split(',').filter(Boolean) : query.sources)
+          : query.source 
+            ? (query.source as string).split(',') 
+            : undefined,
         host: query.host as string | undefined,
         user: query.user as string | undefined,
         search: query.search as string | undefined,

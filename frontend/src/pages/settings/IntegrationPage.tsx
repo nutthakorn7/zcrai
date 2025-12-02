@@ -1034,14 +1034,14 @@ export default function IntegrationPage() {
                               }
                             }}
                           >
-                            {(POPULAR_MODELS[aiProvider] || []).map((m: string) => (
+                            {[...(POPULAR_MODELS[aiProvider] || []).map((m: string) => (
                               <SelectItem key={m} textValue={m}>
                                 {m}
                               </SelectItem>
-                            ))}
+                            )),
                             <SelectItem key="custom" className="text-primary" textValue="Custom Model">
                               Type Custom Model...
-                            </SelectItem>
+                            </SelectItem>]}
                           </Select>
                         ) : (
                           <div className="flex gap-2">
