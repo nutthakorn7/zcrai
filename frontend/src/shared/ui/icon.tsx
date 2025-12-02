@@ -21,6 +21,7 @@ import {
   CircleStackIcon,
   ServerIcon,
   FolderIcon,
+  BuildingOfficeIcon,
   
   // Actions
   Cog6ToothIcon,
@@ -29,6 +30,8 @@ import {
   PlusIcon,
   TrashIcon,
   PencilIcon,
+  LockClosedIcon,
+  KeyIcon,
   
   // Users & Social
   UsersIcon,
@@ -54,6 +57,7 @@ import {
   FunnelIcon,
   EyeIcon,
   EyeSlashIcon,
+  ArrowLeftIcon,
   
   // Status
   CheckCircleIcon,
@@ -107,6 +111,7 @@ export const Icon = {
   Database: CircleStackIcon,
   Server: ServerIcon,
   Folder: FolderIcon,
+  Building: BuildingOfficeIcon,
   
   
   // Actions
@@ -116,6 +121,8 @@ export const Icon = {
   Add: PlusIcon,
   Delete: TrashIcon,
   Edit: PencilIcon,
+  Lock: LockClosedIcon,
+  Key: KeyIcon,
   
   // Users
   Users: UsersIcon,
@@ -141,6 +148,7 @@ export const Icon = {
   Filter: FunnelIcon,
   Eye: EyeIcon,
   EyeSlash: EyeSlashIcon,
+  ArrowLeft: ArrowLeftIcon,
   
   // Status
   CheckCircle: CheckCircleIcon,

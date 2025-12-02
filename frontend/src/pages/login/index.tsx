@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Card, CardBody, Input, Button, Link } from "@heroui/react";
+import { Input, Button, Checkbox } from "@heroui/react";
 import { useAuth } from "../../shared/store/useAuth";
 import { useNavigate } from "react-router-dom";
+import { Icon } from '../../shared/ui';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -10,6 +11,7 @@ export default function LoginPage() {
   const [requireMFA, setRequireMFA] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [isVisible, setIsVisible] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -34,90 +36,176 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-background">
-      <Card className="w-[400px] p-4">
-        <CardBody>
-          <h1 className="text-2xl font-bold text-center mb-6 bg-gradient-to-r from-blue-500 to-purple-500 text-transparent bg-clip-text">
-            zcrAI Login
-          </h1>
+    <div className="min-h-screen flex flex-col items-center justify-center bg-background px-4 relative overflow-hidden">
+      
+      {/* Background Decor (Subtle Grid) */}
+      <div 
+        className="absolute inset-0 opacity-5 pointer-events-none" 
+        style={{ 
+          backgroundImage: 'radial-gradient(#4A4D50 1px, transparent 1px)', 
+          backgroundSize: '30px 30px' 
+        }}
+      />
 
-          {error && (
-            <div className="bg-danger/20 text-danger p-3 rounded-lg mb-4 text-sm">
-              {error}
+      {/* Main Card Container */}
+      <div className="w-full max-w-[420px] flex flex-col items-center z-10">
+        
+        {/* Header & Logo Section */}
+        <div className="mb-8 flex flex-col items-center gap-4 text-center">
+          <div className="relative group">
+            <div className="absolute inset-0 bg-primary blur-xl opacity-20 rounded-full group-hover:opacity-30 transition-opacity" />
+            <div className="relative w-20 h-20 rounded-2xl bg-gradient-to-tr from-primary/10 to-transparent border border-primary/20 flex items-center justify-center backdrop-blur-sm">
+              <Icon.Shield className="w-10 h-10 text-primary" />
             </div>
-          )}
-
-          {!requireMFA ? (
-            <>
-              <Input 
-                label="Email" 
-                placeholder="Enter your email" 
-                value={email} 
-                onValueChange={setEmail}
-                className="mb-4"
-              />
-              <Input 
-                label="Password" 
-                type="password" 
-                placeholder="Enter your password" 
-                value={password}
-                onValueChange={setPassword}
-                className="mb-6"
-              />
-            </>
-          ) : (
-            <div className="mb-6">
-              <p className="text-default-500 text-sm mb-4 text-center">
-                Enter the 6-digit code from your authenticator app
-              </p>
-              <Input 
-                label="MFA Code" 
-                placeholder="000000" 
-                value={mfaCode}
-                onValueChange={setMfaCode}
-                maxLength={6}
-                className="text-center"
-              />
-            </div>
-          )}
-
-          <Button 
-            color="primary" 
-            fullWidth 
-            isLoading={isLoading}
-            onPress={handleLogin}
-          >
-            {requireMFA ? 'Verify' : 'Login'}
-          </Button>
-
-          {requireMFA && (
-            <Button
-              variant="light"
-              fullWidth
-              className="mt-2"
-              onPress={() => {
-                setRequireMFA(false);
-                setMfaCode('');
-                setError('');
-              }}
-            >
-              Back
-            </Button>
-          )}
-
-          <div className="text-center mt-4 space-y-2">
-            <Link href="/forgot-password" className="text-sm text-default-500 hover:text-primary block">
-              Forgot Password?
-            </Link>
-            <p className="text-sm text-default-500">
-              New here?{' '}
-              <Link href="/register" className="text-primary">
-                Register Tenant
-              </Link>
+          </div>
+          
+          <div className="mt-2">
+            <h1 className="text-3xl font-bold tracking-tight mb-2 text-foreground">
+              {requireMFA ? 'Security Check' : 'Welcome Back'}
+            </h1>
+            <p className="text-foreground/50 text-sm">
+              {requireMFA 
+                ? 'Enter the 6-digit code from your authenticator' 
+                : 'Sign in to your zecuraAI account'}
             </p>
           </div>
-        </CardBody>
-      </Card>
+              <div className="mt-2 w-24 h-1 mx-auto bg-gradient-to-r from-transparent via-primary/50 to-transparent rounded-full" />
+        </div>
+
+        {/* Error Message */}
+        {error && (
+          <div className="w-full mb-6 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs text-center flex items-center justify-center gap-2 animate-pulse">
+            <Icon.AlertCircle className="w-4 h-4" />
+            {error}
+          </div>
+        )}
+
+        {/* Form Section */}
+        <form 
+          onSubmit={(e) => { e.preventDefault(); handleLogin(); }} 
+          className="w-full flex flex-col gap-6"
+        >
+          
+          {!requireMFA ? (
+            /* Login Form */
+            <div className="space-y-5 animate-fade-in">
+              {/* Email */}
+              <Input
+                label="EMAIL ADDRESS"
+                type="email"
+                value={email}
+                onValueChange={setEmail}
+                startContent={<Icon.Mail className="w-5 h-5 text-foreground/50" />}
+                classNames={{
+                  label: "text-xs font-semibold text-foreground/50 uppercase tracking-wider",
+                  inputWrapper: "bg-content1 border border-content4 hover:border-primary/50 data-[hover=true]:border-primary/50 group-data-[focus=true]:border-primary h-[56px]",
+                  input: "text-sm"
+                }}
+              />
+
+              {/* Password */}
+              <div className="space-y-2">
+                <Input
+                  label="PASSWORD"
+                  type={isVisible ? "text" : "password"}
+                  value={password}
+                  onValueChange={setPassword}
+                  startContent={<Icon.Lock className="w-5 h-5 text-foreground/50" />}
+                  endContent={
+                    <button 
+                      type="button" 
+                      onClick={() => setIsVisible(!isVisible)} 
+                      className="focus:outline-none text-foreground/50 hover:text-foreground/80"
+                    >
+                      {isVisible ? <Icon.EyeSlash className="w-5 h-5" /> : <Icon.Eye className="w-5 h-5" />}
+                    </button>
+                  }
+                  classNames={{
+                    label: "text-xs font-semibold text-foreground/50 uppercase tracking-wider",
+                    inputWrapper: "bg-content1 border border-content4 hover:border-primary/50 data-[hover=true]:border-primary/50 group-data-[focus=true]:border-primary h-[56px]",
+                    input: "text-sm"
+                  }}
+                />
+                <div className="flex justify-end mt-1">
+                  <a href="/forgot-password" className="text-primary hover:text-primary/80 text-xs transition-colors">
+                    Forgot Password?
+                  </a>
+                </div>
+              </div>
+
+              {/* Remember Me */}
+              <Checkbox 
+                size="sm"
+                classNames={{
+                  label: "text-xs text-foreground/50 "
+                }}
+              >
+                Remember me on this device
+              </Checkbox>
+            </div>
+          ) : (
+            /* MFA Form */
+            <div className="space-y-4 animate-fade-in">
+              <Input
+                autoFocus
+                label="AUTHENTICATOR CODE"
+                value={mfaCode}
+                onValueChange={(value) => {
+                  if (value.length <= 6) setMfaCode(value.replace(/\D/g, ''));
+                }}
+                placeholder="000 000"
+                maxLength={6}
+                startContent={<Icon.Key className="w-5 h-5 text-primary" />}
+                classNames={{
+                  label: "text-xs font-semibold text-foreground/50 uppercase tracking-wider",
+                  inputWrapper: "bg-content1 border border-primary/50 h-[60px]",
+                  input: "font-mono text-xl text-primary text-center tracking-widest"
+                }}
+              />
+              <p className="text-center text-xs text-foreground/50">
+                Open your authenticator app (Google Auth, Microsoft Auth) to view the code.
+              </p>
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          <div className="flex flex-col gap-3 mt-4">
+            <Button 
+              type="submit" 
+              isLoading={isLoading}
+              className="h-[50px] bg-primary hover:bg-primary/90 text-background font-bold tracking-wide shadow-[0_0_20px_rgba(192,219,239,0.2)]"
+              spinner={<Icon.Refresh className="w-5 h-5 animate-spin" />}
+            >
+              {requireMFA ? 'Verify Identity' : 'Sign In'}
+            </Button>
+
+            {requireMFA && (
+              <Button
+                variant="light"
+                type="button"
+                onClick={() => {
+                  setRequireMFA(false);
+                  setMfaCode('');
+                  setError('');
+                }}
+                className="text-foreground/50 hover:text-foreground"
+              >
+                Back to Login
+              </Button>
+            )}
+          </div>
+        </form>
+
+        {/* Footer */}
+        {!requireMFA && (
+          <div className="mt-8 text-center text-sm text-foreground/50">
+            Don't have an account?{" "}
+            <a href="/register" className="text-primary font-bold hover:underline transition-all">
+              Create Tenant
+            </a>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
