@@ -302,4 +302,46 @@ export const DashboardService = {
     }
     return result
   },
+
+  // ==================== RECENT DETECTIONS ====================
+  async getRecentDetections(tenantId: string, startDate: string, endDate: string, limit: number = 5, sources?: string[]) {
+    if (isEmptySources(sources)) return []
+    const sourceFilter = (sources && sources.length > 0) ? `AND source IN {sources:Array(String)}` : ''
+    const sql = `
+      SELECT 
+        id,
+        source,
+        timestamp,
+        severity,
+        title,
+        description,
+        mitre_tactic,
+        mitre_technique,
+        host_name,
+        user_name,
+        threat_name,
+        console_link
+      FROM security_events FINAL
+      WHERE tenant_id = {tenantId:String}
+        AND toDate(timestamp) >= {startDate:String}
+        AND toDate(timestamp) <= {endDate:String}
+        ${sourceFilter}
+      ORDER BY timestamp DESC
+      LIMIT {limit:UInt32}
+    `
+    return await query<{
+      id: string
+      source: string
+      timestamp: string
+      severity: string
+      title: string
+      description: string
+      mitre_tactic: string
+      mitre_technique: string
+      host_name: string
+      user_name: string
+      threat_name: string
+      console_link: string
+    }>(sql, { tenantId, startDate, endDate, limit, sources })
+  },
 }

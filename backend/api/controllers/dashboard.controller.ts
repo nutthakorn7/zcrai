@@ -298,3 +298,29 @@ export const dashboardController = new Elysia({ prefix: '/dashboard' })
       return { error: e.message }
     }
   })
+
+  // ==================== RECENT DETECTIONS ====================
+  .get('/recent-detections', async ({ jwt, cookie: { access_token, selected_tenant }, query, set }) => {
+    try {
+      const payload = await jwt.verify(access_token.value)
+      if (!payload) throw new Error('Unauthorized')
+
+      const tenantId = getEffectiveTenantId(payload, selected_tenant)
+      const { startDate, endDate } = parseDateRange(query)
+      const limit = parseInt(query.limit as string) || 5
+      
+      let sources: string[] | undefined = undefined
+      if (query.sources) {
+        sources = typeof query.sources === 'string' 
+          ? query.sources.split(',').filter(Boolean)
+          : Array.isArray(query.sources) ? query.sources : undefined
+      } else if (query.source) {
+        sources = [query.source as string]
+      }
+
+      return await DashboardService.getRecentDetections(tenantId, startDate, endDate, limit, sources)
+    } catch (e: any) {
+      set.status = 400
+      return { error: e.message }
+    }
+  })

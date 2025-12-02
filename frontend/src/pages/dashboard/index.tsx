@@ -134,7 +134,7 @@ export default function DashboardPage() {
         api.get(`/dashboard/mitre-heatmap?${dateParams}`),
         api.get(`/dashboard/integrations?${dateParams}`),
         api.get(`/dashboard/sites?${dateParams}`),
-        api.get(`/logs?${dateParams}&limit=50&sortBy=timestamp&sortOrder=desc`),
+        api.get(`/dashboard/recent-detections?${dateParams}&limit=5`),
       ]);
 
       // 3. Set Data
@@ -159,28 +159,8 @@ export default function DashboardPage() {
       
       setSites(sitesRes.data);
 
-      let detections = [];
-      if (recentRes.data) {
-        if (Array.isArray(recentRes.data)) {
-          detections = recentRes.data;
-        } else if (recentRes.data.logs && Array.isArray(recentRes.data.logs)) {
-          detections = recentRes.data.logs;
-        } else if (recentRes.data.data && Array.isArray(recentRes.data.data)) {
-          detections = recentRes.data.data;
-        }
-      }
-      
-      // Sort by timestamp descending to ensure most recent first
-      detections = detections
-        .filter((d: any) => d && d.timestamp)
-        .sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-        .slice(0, 5);
-
-      console.log('=== DETECTIONS AFTER SORT ===');
-      console.log('Total detections:', detections.length);
-      console.log('Detection sources:', detections.map((d: any) => d.source));
-      console.log('Selected provider filter:', selectedProvider);
-
+      // Recent detections now come pre-sorted from the backend
+      const detections = Array.isArray(recentRes.data) ? recentRes.data : [];
       setRecentDetections(detections);
       
       setPageContext({
