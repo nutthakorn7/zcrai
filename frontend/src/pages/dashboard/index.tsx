@@ -450,8 +450,9 @@ export default function DashboardPage() {
               </div>
             </div>
           </div>
-          <ResponsiveContainer width="100%" height={220}>
-          <LineChart data={chartData}>
+          <div className="h-[220px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={chartData}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
             <XAxis dataKey="time" stroke="#4A4D50" fontSize={10} tickLine={false} axisLine={false} />
             <YAxis stroke="#4A4D50" fontSize={10} tickLine={false} axisLine={false} />
@@ -468,8 +469,9 @@ export default function DashboardPage() {
             <Line type="monotone" dataKey="high" stroke={severityColors.high} strokeWidth={2} dot={false} />
             <Line type="monotone" dataKey="medium" stroke={severityColors.medium} strokeWidth={2} dot={false} />
             <Line type="monotone" dataKey="low" stroke={severityColors.low} strokeWidth={2} dot={false} />
-          </LineChart>
-        </ResponsiveContainer>
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
         </div>
 
         {/* Sources Distribution - 4 columns */}
@@ -478,7 +480,7 @@ export default function DashboardPage() {
             <Icon.Chart className="w-4 h-4 text-primary" />
             <h2 className="text-sm font-semibold text-foreground">Sources</h2>
           </div>
-          <div className="flex-1 min-h-0">
+          <div className="flex-1 min-h-[200px]">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
@@ -747,7 +749,8 @@ export default function DashboardPage() {
       <div className="bg-content1 border border-white/5 rounded-xl p-5 mb-6">
         <h2 className="text-base font-semibold mb-3 text-foreground">MITRE ATT&CK Techniques</h2>
         {mitreData.length > 0 ? (
-          <ResponsiveContainer width="100%" height={200}>
+          <div className="h-[200px]">
+            <ResponsiveContainer width="100%" height="100%">
             <BarChart data={mitreData.slice(0, 10)} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
               <XAxis type="number" stroke="#4A4D50" fontSize={11} />
@@ -770,7 +773,8 @@ export default function DashboardPage() {
               />
               <Bar dataKey="count" fill="hsl(var(--heroui-primary))" radius={[0, 4, 4, 0]} />
             </BarChart>
-          </ResponsiveContainer>
+            </ResponsiveContainer>
+          </div>
         ) : (
           <p className="text-center py-8 text-foreground/50">No MITRE ATT&CK data available</p>
         )}

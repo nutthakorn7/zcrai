@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Card, CardBody, Button, Input, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure, Chip, Select, SelectItem, Switch, Divider, Avatar, Tooltip } from "@heroui/react";
+import { Card, CardBody, Button, Input, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure, Chip, Select, SelectItem, Switch, Divider, Avatar } from "@heroui/react";
 import { api } from "../../shared/api/api";
 import { usePageContext } from "../../contexts/PageContext";
+import { Icon } from '../../shared/ui';
 
 // ⭐ Import Logos
 import SentinelOneLogo from '../../assets/logo/sentinelone.png';
@@ -417,65 +418,93 @@ export default function IntegrationPage() {
       {/* ⭐ Security Integrations Section */}
       <div className="space-y-4">
         <h2 className="text-lg font-semibold text-default-600 flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+          <Icon.Wrench className="w-5 h-5 text-secondary" />
           Security Tools
         </h2>
+        
+        {/* ⭐ Add Provider Card (Top) */}
+        <Card className="border border-white/5 bg-content2/30">
+          <CardBody className="p-5">
+            <h3 className="text-sm font-semibold text-default-600 mb-4">Add Provider</h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {/* CrowdStrike Button */}
+              <button
+                onClick={() => handleOpenAdd('cs')}
+                className="group relative overflow-hidden rounded-xl 
+                           border border-red-500/20 
+                           bg-gradient-to-br from-red-500/10 to-orange-500/5 
+                           hover:from-red-500/20 hover:to-orange-500/10 
+                           hover:border-red-500/40 
+                           active:scale-[0.98] 
+                           transition-all duration-300 p-4"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-red-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <img src={CrowdStrikeLogo} alt="CrowdStrike" className="w-6 h-6" />
+                  </div>
+                  <div className="flex-1 text-left">
+                    <span className="font-medium text-red-400 group-hover:text-red-300 transition-colors block">CrowdStrike</span>
+                    <span className="text-xs text-default-400">Endpoint Protection</span>
+                  </div>
+                  <div className="w-6 h-6 rounded-full bg-red-500/10 group-hover:bg-red-500/20 flex items-center justify-center transition-colors">
+                    <span className="text-red-400 text-lg font-light">+</span>
+                  </div>
+                </div>
+              </button>
+
+              {/* SentinelOne Button */}
+              <button
+                onClick={() => handleOpenAdd('s1')}
+                className="group relative overflow-hidden rounded-xl 
+                           border border-purple-500/20 
+                           bg-gradient-to-br from-purple-500/10 to-purple-600/5 
+                           hover:from-purple-500/20 hover:to-purple-600/10 
+                           hover:border-purple-500/40 
+                           active:scale-[0.98] 
+                           transition-all duration-300 p-4"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <img src={SentinelOneLogo} alt="SentinelOne" className="w-6 h-6" />
+                  </div>
+                  <div className="flex-1 text-left">
+                    <span className="font-medium text-purple-400 group-hover:text-purple-300 transition-colors block">SentinelOne</span>
+                    <span className="text-xs text-default-400">AI Security</span>
+                  </div>
+                  <div className="w-6 h-6 rounded-full bg-purple-500/10 group-hover:bg-purple-500/20 flex items-center justify-center transition-colors">
+                    <span className="text-purple-400 text-lg font-light">+</span>
+                  </div>
+                </div>
+              </button>
+            </div>
+          </CardBody>
+        </Card>
+        
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {/* ⭐ Add SentinelOne Card */}
-          <Card 
-            isPressable
-            onPress={() => handleOpenAdd('s1')}
-            className="bg-gradient-to-br from-purple-500/10 to-purple-600/5 border-2 border-dashed border-purple-500/30 hover:border-purple-400 hover:shadow-lg hover:shadow-purple-500/10 transition-all duration-300 group"
-          >
-            <CardBody className="p-5 flex flex-col items-center justify-center min-h-[140px]">
-              <div className="w-14 h-14 rounded-xl bg-purple-500/20 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                <img src={SentinelOneLogo} alt="SentinelOne" className="w-8 h-8" />
-              </div>
-              <p className="font-semibold text-purple-400">SentinelOne</p>
-              <p className="text-xs text-default-400 mt-1">+ Add Integration</p>
-            </CardBody>
-          </Card>
-          
-          {/* ⭐ Add CrowdStrike Card */}
-          <Card 
-            isPressable
-            onPress={() => handleOpenAdd('cs')}
-            className="bg-gradient-to-br from-red-500/10 to-orange-500/5 border-2 border-dashed border-red-500/30 hover:border-red-400 hover:shadow-lg hover:shadow-red-500/10 transition-all duration-300 group"
-          >
-            <CardBody className="p-5 flex flex-col items-center justify-center min-h-[140px]">
-              <div className="w-14 h-14 rounded-xl bg-red-500/20 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                <img src={CrowdStrikeLogo} alt="CrowdStrike" className="w-8 h-8" />
-              </div>
-              <p className="font-semibold text-red-400">CrowdStrike</p>
-              <p className="text-xs text-default-400 mt-1">+ Add Integration</p>
-            </CardBody>
-          </Card>
-          
-          {/* ⭐ Existing Security Integrations */}
+          {/* ⭐ Existing Security Integrations (Left Side) */}
           {integrations
             .filter(int => int.provider === 'sentinelone' || int.provider === 'crowdstrike')
             .map((int) => (
               <Card 
                 key={int.id} 
-                className={`bg-gradient-to-br ${PROVIDER_CONFIG[int.provider]?.gradient || 'from-default-100 to-default-50'} border border-default-200/50 backdrop-blur-sm hover:border-default-300 transition-all duration-300`}
+                className={`bg-gradient-to-br ${PROVIDER_CONFIG[int.provider]?.gradient || 'from-default-100 to-default-50'} border border-white/5 backdrop-blur-sm hover:border-white/10 transition-all duration-300`}
               >
                 <CardBody className="p-5">
                   <div className="flex items-start gap-4">
                     {/* Logo */}
                     <div className="relative">
-                      <Avatar
-                        src={PROVIDER_LOGOS[int.provider]}
-                        showFallback
-                        fallback={
-                          <div className="w-full h-full flex items-center justify-center bg-default-200 text-default-500 font-bold text-lg">
-                            {int.provider === 'sentinelone' ? 'S1' : int.provider === 'crowdstrike' ? 'CS' : int.provider.slice(0,2).toUpperCase()}
-                          </div>
-                        }
-                        className="w-14 h-14 bg-default-100/50 p-2 ring-2 ring-default-200/50"
-                        radius="lg"
-                      />
+                      <div className={`w-12 h-12 rounded-xl ${
+                        int.provider === 'sentinelone' ? 'bg-purple-500/20' : 'bg-red-500/20'
+                      } flex items-center justify-center backdrop-blur-sm`}>
+                        <img 
+                          src={PROVIDER_LOGOS[int.provider]} 
+                          alt={int.provider}
+                          className="w-7 h-7"
+                        />
+                      </div>
                       {/* Status Indicator */}
-                      <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-content1 ${
+                      <div className={`absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full border-2 border-content1 ${
                         !int.hasApiKey ? 'bg-danger' : 
                         int.lastSyncStatus === 'error' ? 'bg-warning' : 
                         'bg-success'
@@ -485,8 +514,15 @@ export default function IntegrationPage() {
                     {/* Content */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <h3 className="text-lg font-bold truncate">{int.label}</h3>
-                        <Chip size="sm" variant="flat" color={PROVIDER_CONFIG[int.provider]?.color as any} className="text-xs">
+                        <h3 className="text-base font-semibold truncate">{int.label}</h3>
+                        <Chip 
+                          size="sm" 
+                          className={`text-xs ${
+                            int.provider === 'sentinelone' 
+                              ? 'bg-purple-500/20 text-purple-300 border-purple-500/30' 
+                              : 'bg-red-500/20 text-red-300 border-red-500/30'
+                          } border`}
+                        >
                           {PROVIDER_CONFIG[int.provider]?.name || int.provider}
                         </Chip>
                       </div>
@@ -494,7 +530,7 @@ export default function IntegrationPage() {
                       {/* URL */}
                       {int.maskedUrl && (
                         <p className="text-xs text-default-400 font-mono truncate mb-2">
-                          🔗 {int.maskedUrl}
+                          {int.maskedUrl}
                         </p>
                       )}
                       
@@ -504,42 +540,36 @@ export default function IntegrationPage() {
                           {int.provider === 'sentinelone' && (
                             <>
                               {(int.fetchSettings as S1FetchSettings).threats?.enabled && (
-                                <Tooltip content="Threats retention period">
-                                  <Chip size="sm" variant="dot" color="danger" className="text-xs bg-default-100/50">
-                                    Threats {(int.fetchSettings as S1FetchSettings).threats.days}d
-                                  </Chip>
-                                </Tooltip>
+                                <Chip size="sm" className="text-xs bg-white/5 border border-white/10">
+                                  Threats {(int.fetchSettings as S1FetchSettings).threats.days}d
+                                </Chip>
                               )}
                               {(int.fetchSettings as S1FetchSettings).activities?.enabled && (
-                                <Tooltip content="Activities retention period">
-                                  <Chip size="sm" variant="dot" color="primary" className="text-xs bg-default-100/50">
-                                    Activities {(int.fetchSettings as S1FetchSettings).activities.days}d
-                                  </Chip>
-                                </Tooltip>
+                                <Chip size="sm" className="text-xs bg-white/5 border border-white/10">
+                                  Activities {(int.fetchSettings as S1FetchSettings).activities.days}d
+                                </Chip>
                               )}
                               {(int.fetchSettings as S1FetchSettings).alerts?.enabled && (
-                                <Tooltip content="Alerts retention period">
-                                  <Chip size="sm" variant="dot" color="warning" className="text-xs bg-default-100/50">
-                                    Alerts {(int.fetchSettings as S1FetchSettings).alerts.days}d
-                                  </Chip>
-                                </Tooltip>
+                                <Chip size="sm" className="text-xs bg-white/5 border border-white/10">
+                                  Alerts {(int.fetchSettings as S1FetchSettings).alerts.days}d
+                                </Chip>
                               )}
                             </>
                           )}
                           {int.provider === 'crowdstrike' && (
                             <>
                               {(int.fetchSettings as CSFetchSettings).detections?.enabled && (
-                                <Chip size="sm" variant="dot" color="danger" className="text-xs bg-default-100/50">
+                                <Chip size="sm" className="text-xs bg-white/5 border border-white/10">
                                   Detections {(int.fetchSettings as CSFetchSettings).detections.days}d
                                 </Chip>
                               )}
                               {(int.fetchSettings as CSFetchSettings).incidents?.enabled && (
-                                <Chip size="sm" variant="dot" color="warning" className="text-xs bg-default-100/50">
+                                <Chip size="sm" className="text-xs bg-white/5 border border-white/10">
                                   Incidents {(int.fetchSettings as CSFetchSettings).incidents.days}d
                                 </Chip>
                               )}
                               {(int.fetchSettings as CSFetchSettings).alerts?.enabled && (
-                                <Chip size="sm" variant="dot" color="primary" className="text-xs bg-default-100/50">
+                                <Chip size="sm" className="text-xs bg-white/5 border border-white/10">
                                   Alerts {(int.fetchSettings as CSFetchSettings).alerts.days}d
                                 </Chip>
                               )}
@@ -549,17 +579,23 @@ export default function IntegrationPage() {
                       )}
                       
                       {/* Status & Date */}
-                      <div className="flex items-center gap-3 text-xs text-default-400">
+                      <div className="flex items-center gap-2 text-xs text-default-400">
                         {/* ⭐ Resync Countdown แสดงขณะรอ sync ใหม่ */}
                         {resyncCountdown && resyncCountdown.integrationId === int.id ? (
                           <span className="text-warning animate-pulse font-medium">
-                            ⏳ Resync in {resyncCountdown.seconds}s...
+                            ⏳ Resync in {resyncCountdown.seconds}s
                           </span>
                         ) : (
-                          <span>
-                            {!int.hasApiKey ? '⚠️ Missing API Key' : 
-                             int.lastSyncStatus === 'error' ? `⚠️ ${int.lastSyncError || 'Sync Error'}` : 
-                             int.lastSyncStatus === 'pending' ? '🔄 Syncing...' : '✅ Connected'}
+                          <span className="flex items-center gap-1">
+                            <span className={`w-1.5 h-1.5 rounded-full ${
+                              !int.hasApiKey ? 'bg-danger' : 
+                              int.lastSyncStatus === 'error' ? 'bg-warning' : 
+                              int.lastSyncStatus === 'pending' ? 'bg-primary animate-pulse' : 
+                              'bg-success'
+                            }`}></span>
+                            {!int.hasApiKey ? 'Missing API Key' : 
+                             int.lastSyncStatus === 'error' ? (int.lastSyncError || 'Sync Error') : 
+                             int.lastSyncStatus === 'pending' ? 'Syncing...' : 'Connected'}
                           </span>
                         )}
                         <span>•</span>
@@ -569,23 +605,31 @@ export default function IntegrationPage() {
                   </div>
                   
                   {/* Actions */}
-                  <Divider className="my-3 bg-default-200/30" />
-                  <div className="flex justify-end gap-2">
+                  <div className="flex justify-end gap-2 mt-4 pt-3 border-t border-white/5">
                     <Button 
                       size="sm" 
                       variant="flat" 
-                      color="success"
-                      className="bg-success/10"
+                      className="bg-white/5 hover:bg-white/10 border border-white/10"
                       isLoading={testingId === int.id}
                       onPress={() => handleTestConnection(int.id)}
                     >
                       Test
                     </Button>
-                    <Button size="sm" variant="flat" className="bg-default-100" onPress={() => handleOpenEdit(int)}>
-                      Edit
+                    <Button 
+                      size="sm" 
+                      variant="flat" 
+                      className="bg-white/5 hover:bg-white/10 border border-white/10" 
+                      onPress={() => handleOpenEdit(int)}
+                    >
+                      <Icon.Edit className="w-4 h-4" />
                     </Button>
-                    <Button size="sm" variant="flat" color="danger" className="bg-danger/10" onPress={() => handleDelete(int.id)}>
-                      Remove
+                    <Button 
+                      size="sm" 
+                      variant="flat" 
+                      className="bg-danger/10 hover:bg-danger/20 text-danger border border-danger/20" 
+                      onPress={() => handleDelete(int.id)}
+                    >
+                      <Icon.Delete className="w-4 h-4" />
                     </Button>
                   </div>
                 </CardBody>
@@ -597,76 +641,116 @@ export default function IntegrationPage() {
       {/* ⭐ AI Providers Section */}
       <div className="space-y-4">
         <h2 className="text-lg font-semibold text-default-600 flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-success animate-pulse"></span>
+          <Icon.Cpu className="w-5 h-5 te xt-secondary" />
           AI Providers
         </h2>
-        <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-          {/* ⭐ Add OpenAI Card */}
-          <Card 
-            isPressable
-            onPress={() => handleOpenAdd('ai', 'openai')}
-            className="bg-gradient-to-br from-emerald-500/10 to-teal-500/5 border-2 border-dashed border-emerald-500/30 hover:border-emerald-400 hover:shadow-lg hover:shadow-emerald-500/10 transition-all duration-300 group"
-          >
-            <CardBody className="p-4 flex flex-col items-center justify-center min-h-[120px]">
-              <div className="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                <img src={OpenAILogo} alt="OpenAI" className="w-7 h-7" />
-              </div>
-              <p className="font-semibold text-emerald-400 text-sm">OpenAI</p>
-              <p className="text-xs text-default-400">+ Add</p>
-            </CardBody>
-          </Card>
-          
-          {/* ⭐ Add Claude Card */}
-          <Card 
-            isPressable
-            onPress={() => handleOpenAdd('ai', 'claude')}
-            className="bg-gradient-to-br from-amber-500/10 to-orange-400/5 border-2 border-dashed border-amber-500/30 hover:border-amber-400 hover:shadow-lg hover:shadow-amber-500/10 transition-all duration-300 group"
-          >
-            <CardBody className="p-4 flex flex-col items-center justify-center min-h-[120px]">
-              <div className="w-12 h-12 rounded-xl bg-amber-500/20 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                <img src={ClaudeLogo} alt="Claude" className="w-7 h-7" />
-              </div>
-              <p className="font-semibold text-amber-400 text-sm">Claude</p>
-              <p className="text-xs text-default-400">+ Add</p>
-            </CardBody>
-          </Card>
-          
-          {/* ⭐ Add Gemini Card */}
-          <Card 
-            isPressable
-            onPress={() => handleOpenAdd('ai', 'gemini')}
-            className="bg-gradient-to-br from-blue-500/10 to-cyan-400/5 border-2 border-dashed border-blue-500/30 hover:border-blue-400 hover:shadow-lg hover:shadow-blue-500/10 transition-all duration-300 group"
-          >
-            <CardBody className="p-4 flex flex-col items-center justify-center min-h-[120px]">
-              <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                <img src={GeminiLogo} alt="Gemini" className="w-7 h-7" />
-              </div>
-              <p className="font-semibold text-blue-400 text-sm">Gemini</p>
-              <p className="text-xs text-default-400">+ Add</p>
-            </CardBody>
-          </Card>
-          
-          {/* ⭐ Existing AI Integrations */}
+        
+        {/* ⭐ Add AI Provider Card (Top) */}
+        <Card className="border border-white/5 bg-content2/30">
+          <CardBody className="p-5">
+            <h3 className="text-sm font-semibold text-default-600 mb-4">Add AI Provider</h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {/* OpenAI Button */}
+              <button
+                onClick={() => handleOpenAdd('ai', 'openai')}
+                className="group relative overflow-hidden rounded-xl 
+                           border border-emerald-500/20 
+                           bg-gradient-to-br from-emerald-500/10 to-teal-500/5 
+                           hover:from-emerald-500/20 hover:to-teal-500/10 
+                           hover:border-emerald-500/40 
+                           active:scale-[0.98] 
+                           transition-all duration-300 p-4"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <img src={OpenAILogo} alt="OpenAI" className="w-6 h-6" />
+                  </div>
+                  <div className="flex-1 text-left">
+                    <span className="font-medium text-emerald-400 group-hover:text-emerald-300 transition-colors block">OpenAI</span>
+                    <span className="text-xs text-default-400">GPT Models</span>
+                  </div>
+                  <div className="w-6 h-6 rounded-full bg-emerald-500/10 group-hover:bg-emerald-500/20 flex items-center justify-center transition-colors">
+                    <span className="text-emerald-400 text-lg font-light">+</span>
+                  </div>
+                </div>
+              </button>
+
+              {/* Claude Button */}
+              <button
+                onClick={() => handleOpenAdd('ai', 'claude')}
+                className="group relative overflow-hidden rounded-xl 
+                           border border-amber-500/20 
+                           bg-gradient-to-br from-amber-500/10 to-orange-400/5 
+                           hover:from-amber-500/20 hover:to-orange-400/10 
+                           hover:border-amber-500/40 
+                           active:scale-[0.98] 
+                           transition-all duration-300 p-4"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <img src={ClaudeLogo} alt="Claude" className="w-6 h-6" />
+                  </div>
+                  <div className="flex-1 text-left">
+                    <span className="font-medium text-amber-400 group-hover:text-amber-300 transition-colors block">Claude</span>
+                    <span className="text-xs text-default-400">Anthropic</span>
+                  </div>
+                  <div className="w-6 h-6 rounded-full bg-amber-500/10 group-hover:bg-amber-500/20 flex items-center justify-center transition-colors">
+                    <span className="text-amber-400 text-lg font-light">+</span>
+                  </div>
+                </div>
+              </button>
+
+              {/* Gemini Button */}
+              <button
+                onClick={() => handleOpenAdd('ai', 'gemini')}
+                className="group relative overflow-hidden rounded-xl 
+                           border border-blue-500/20 
+                           bg-gradient-to-br from-blue-500/10 to-cyan-400/5 
+                           hover:from-blue-500/20 hover:to-cyan-400/10 
+                           hover:border-blue-500/40 
+                           active:scale-[0.98] 
+                           transition-all duration-300 p-4"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <img src={GeminiLogo} alt="Gemini" className="w-6 h-6" />
+                  </div>
+                  <div className="flex-1 text-left">
+                    <span className="font-medium text-blue-400 group-hover:text-blue-300 transition-colors block">Gemini</span>
+                    <span className="text-xs text-default-400">Google AI</span>
+                  </div>
+                  <div className="w-6 h-6 rounded-full bg-blue-500/10 group-hover:bg-blue-500/20 flex items-center justify-center transition-colors">
+                    <span className="text-blue-400 text-lg font-light">+</span>
+                  </div>
+                </div>
+              </button>
+            </div>
+          </CardBody>
+        </Card>
+        
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {/* ⭐ Existing AI Integrations (Left Side) */}
           {integrations
             .filter(int => ['openai', 'claude', 'gemini'].includes(int.provider))
             .map((int) => (
               <Card 
                 key={int.id} 
-                className={`bg-gradient-to-br ${PROVIDER_CONFIG[int.provider]?.gradient || 'from-default-100 to-default-50'} border border-default-200/50 backdrop-blur-sm hover:border-default-300 transition-all duration-300`}
+                className={`bg-gradient-to-br ${PROVIDER_CONFIG [int.provider]?.gradient || 'from-default-100 to-default-50'} border border-white/5 backdrop-blur-sm hover:border-white/10 transition-all duration-300`}
               >
-                <CardBody className="p-4">
+                <CardBody className="p-5">
                   <div className="flex items-center gap-3 mb-3">
-                    <Avatar
-                      src={PROVIDER_LOGOS[int.provider]}
-                      showFallback
-                      fallback={
-                        <div className="w-full h-full flex items-center justify-center bg-default-200 text-default-500 font-bold text-xs">
-                          {int.provider === 'openai' ? 'AI' : int.provider === 'claude' ? 'CL' : int.provider === 'gemini' ? 'GM' : int.provider.slice(0,2).toUpperCase()}
-                        </div>
-                      }
-                      className="w-10 h-10 bg-default-100/50 p-1.5"
-                      radius="md"
-                    />
+                    <div className={`w-10 h-10 rounded-xl ${
+                      int.provider === 'openai' ? 'bg-emerald-500/20' : 
+                      int.provider === 'claude' ? 'bg-amber-500/20' : 
+                      'bg-blue-500/20'
+                    } flex items-center justify-center backdrop-blur-sm`}>
+                      <img 
+                        src={PROVIDER_LOGOS[int.provider]} 
+                        alt={int.provider}
+                        className="w-6 h-6"
+                      />
+                    </div>
                     <div className="flex-1 min-w-0">
                       <h3 className="font-semibold truncate text-sm">{int.label}</h3>
                       <p className="text-xs text-default-400 truncate">
@@ -676,12 +760,23 @@ export default function IntegrationPage() {
                     <div className={`w-2.5 h-2.5 rounded-full ${int.hasApiKey ? 'bg-success' : 'bg-danger'}`}></div>
                   </div>
                   
-                  <div className="flex justify-between gap-2">
-                    <Button size="sm" variant="flat" className="flex-1 bg-default-100/50" onPress={() => handleOpenEdit(int)}>
+                  <div className="flex justify-between gap-2 pt-2 border-t border-white/5">
+                    <Button 
+                      size="sm" 
+                      variant="flat" 
+                      className="flex-1 bg-white/5 hover:bg-white/10 border border-white/10" 
+                      onPress={() => handleOpenEdit(int)}
+                    >
                       Configure
                     </Button>
-                    <Button size="sm" variant="flat" color="danger" className="bg-danger/10" isIconOnly onPress={() => handleDelete(int.id)}>
-                      🗑️
+                    <Button 
+                      size="sm" 
+                      variant="flat" 
+                      className="bg-danger/10 hover:bg-danger/20 text-danger border border-danger/20" 
+                      isIconOnly 
+                      onPress={() => handleDelete(int.id)}
+                    >
+                      <Icon.Delete className="w-4 h-4" />
                     </Button>
                   </div>
                 </CardBody>
@@ -1086,6 +1181,9 @@ export default function IntegrationPage() {
                   className={`${
                     modalType === 's1' ? 'bg-gradient-to-r from-purple-600 to-purple-500' :
                     modalType === 'cs' ? 'bg-gradient-to-r from-red-600 to-orange-500' :
+                    aiProvider === 'openai' ? 'bg-gradient-to-r from-emerald-600 to-teal-500' :
+                    aiProvider === 'claude' ? 'bg-gradient-to-r from-amber-600 to-orange-400' :
+                    aiProvider === 'gemini' ? 'bg-gradient-to-r from-blue-600 to-cyan-500' :
                     'bg-gradient-to-r from-emerald-600 to-teal-500'
                   } text-white shadow-lg`}
                   onPress={() => handleSubmit(onClose)} 

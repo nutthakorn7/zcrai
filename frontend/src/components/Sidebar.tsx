@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { Tooltip } from '@heroui/react';
 import { Icon } from '../shared/ui';
 import { useAuth } from '../shared/store/useAuth';
+import ZcrAILogo from '../assets/logo/zcrailogo.svg';
 
 interface NavItem {
   icon: React.ComponentType<{ className?: string }>;
@@ -72,10 +73,14 @@ export function Sidebar() {
       <div className={`mb-8 px-3 flex items-center gap-3 ${isExpanded ? '' : 'justify-center'}`}>
         <button
           onClick={() => navigate('/dashboard')}
-          className="p-2 rounded-xl bg-primary/10 hover:bg-primary/15 transition-colors cursor-pointer flex-shrink-0"
+          className="group relative rounded-xl cursor-pointer flex-shrink-0 transition-all duration-300"
           aria-label="Go to dashboard"
         >
-          <Icon.Shield className="w-6 h-6 text-primary" />
+          {/* Glow Effect */}
+          <div className="absolute inset-0 rounded-xl bg-primary/0 group-hover:bg-primary/50 blur-xl transition-all duration-300 group-hover:blur-2xl" />
+          
+          {/* Logo */}
+          <img src={ZcrAILogo} alt="zcrAI Logo" className="w-16 h-16 relative z-10 transition-transform duration-300 group-hover:scale-105" />
         </button>
         <div 
           className={`
