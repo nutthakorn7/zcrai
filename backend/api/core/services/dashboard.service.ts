@@ -67,6 +67,7 @@ export const DashboardService = {
   },
 
   // ==================== TIMELINE (Events Over Time) ====================
+  // แยกตาม source เพื่อให้ frontend แสดงกราฟแยกตาม provider
   async getTimeline(tenantId: string, startDate: string, endDate: string, interval: 'hour' | 'day' = 'day', sources?: string[]) {
     // ถ้าไม่มี active integration ให้ return empty array
     if (isEmptySources(sources)) return []
@@ -77,6 +78,7 @@ export const DashboardService = {
     const sql = `
       SELECT 
         ${dateFunc}(timestamp) as time,
+        source,
         count() as count,
         countIf(severity = 'critical') as critical,
         countIf(severity = 'high') as high,
@@ -87,11 +89,12 @@ export const DashboardService = {
         AND toDate(timestamp) >= {startDate:String}
         AND toDate(timestamp) <= {endDate:String}
         ${sourceFilter}
-      GROUP BY time
-      ORDER BY time ASC
+      GROUP BY time, source
+      ORDER BY time ASC, source ASC
     `
     return await query<{
       time: string
+      source: string
       count: string
       critical: string
       high: string

@@ -30,6 +30,7 @@ export interface SourceBreakdown {
 
 export interface TimelineData {
   time: string;
+  source: string;  // เพิ่ม source field เพื่อแยกตาม provider
   count: string;
   critical: string;
   high: string;

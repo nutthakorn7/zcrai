@@ -236,18 +236,32 @@ export default function DashboardPage() {
   };
 
 
-  // Transform timeline data for chart
-  const chartData = timeline.map(t => {
-    const dataPoint = {
-      time: new Date(t.time).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-      total: parseInt(t.count),
-      critical: parseInt(t.critical),
-      high: parseInt(t.high),
-      medium: parseInt(t.medium),
-      low: parseInt(t.low),
-    };
-    return dataPoint;
-  });
+  // Transform timeline data for chart - รวม data ตาม time และแยก source
+  // Output format: { time: 'Jan 1', crowdstrike_total: 10, crowdstrike_critical: 2, sentinelone_total: 50, ... }
+  const chartData = (() => {
+    const grouped: { [time: string]: any } = {};
+    
+    timeline.forEach(t => {
+      const formattedTime = new Date(t.time).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const src = t.source?.toLowerCase() || 'unknown';
+      
+      if (!grouped[formattedTime]) {
+        grouped[formattedTime] = { time: formattedTime };
+      }
+      
+      // Add source-specific data
+      grouped[formattedTime][`${src}_total`] = (grouped[formattedTime][`${src}_total`] || 0) + parseInt(t.count);
+      grouped[formattedTime][`${src}_critical`] = (grouped[formattedTime][`${src}_critical`] || 0) + parseInt(t.critical);
+      grouped[formattedTime][`${src}_high`] = (grouped[formattedTime][`${src}_high`] || 0) + parseInt(t.high);
+      grouped[formattedTime][`${src}_medium`] = (grouped[formattedTime][`${src}_medium`] || 0) + parseInt(t.medium);
+      grouped[formattedTime][`${src}_low`] = (grouped[formattedTime][`${src}_low`] || 0) + parseInt(t.low);
+    });
+    
+    return Object.values(grouped);
+  })();
+
+  // หา sources ที่มีใน timeline data
+  const timelineSources = [...new Set(timeline.map(t => t.source?.toLowerCase()).filter(Boolean))];
 
   // Transform source data for pie chart
   const pieData = sources.map(s => ({
@@ -486,44 +500,76 @@ export default function DashboardPage() {
         <div className="col-span-12 lg:col-span-8 bg-content1 border border-white/5 rounded-xl p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-base font-semibold text-foreground">Events Timeline</h2>
-            <div className="flex gap-3">
-              <div className="flex items-center gap-1.5">
-                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: severityColors.critical }} />
-                <span className="text-xs text-foreground/50">Critical</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: severityColors.high }} />
-                <span className="text-xs text-foreground/50">High</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: severityColors.medium }} />
-                <span className="text-xs text-foreground/50">Medium</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: severityColors.low }} />
-                <span className="text-xs text-foreground/50">Low</span>
-              </div>
+            {/* Legend เรียบง่าย - logo + ชื่อ provider */}
+            <div className="flex gap-4">
+              {timelineSources.includes('crowdstrike') && (
+                <div className="flex items-center gap-2">
+                  <img src={providerLogos['crowdstrike']} alt="CrowdStrike" className="w-5 h-5 object-contain" />
+                  <div className="w-5 h-1 rounded" style={{ backgroundColor: '#EF4444' }} />
+                  <span className="text-xs text-foreground/70">CrowdStrike</span>
+                </div>
+              )}
+              {timelineSources.includes('sentinelone') && (
+                <div className="flex items-center gap-2">
+                  <img src={providerLogos['sentinelone']} alt="SentinelOne" className="w-5 h-5 object-contain" />
+                  <div className="w-5 h-1 rounded" style={{ backgroundColor: '#A855F7' }} />
+                  <span className="text-xs text-foreground/70">SentinelOne</span>
+                </div>
+              )}
             </div>
           </div>
-          <div className="h-[220px]">
+          <div className="h-[250px]">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={chartData}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
             <XAxis dataKey="time" stroke="#4A4D50" fontSize={10} tickLine={false} axisLine={false} />
             <YAxis stroke="#4A4D50" fontSize={10} tickLine={false} axisLine={false} />
             <Tooltip 
-              contentStyle={{ 
-                backgroundColor: '#1A1D1F', 
-                border: '1px solid rgba(255,255,255,0.1)', 
-                borderRadius: 12,
+              content={({ active, payload, label }) => {
+                if (!active || !payload || payload.length === 0) return null;
+                const data = payload[0]?.payload || {};
+                return (
+                  <div className="bg-[#1A1D1F] border border-white/10 rounded-xl p-3 shadow-xl min-w-[200px]">
+                    <p className="text-sm font-semibold text-foreground mb-2">{label}</p>
+                    {/* CrowdStrike Section */}
+                    {data.crowdstrike_total > 0 && (
+                      <div className="mb-2">
+                        <div className="flex items-center gap-2 mb-1">
+                          <img src={providerLogos['crowdstrike']} alt="CrowdStrike" className="w-4 h-4" />
+                          <span className="text-xs font-medium text-foreground">CrowdStrike</span>
+                          <span className="text-xs font-bold text-[#EF4444] ml-auto">{data.crowdstrike_total}</span>
+                        </div>
+                        <div className="flex gap-2 ml-6 text-[10px]">
+                          {data.crowdstrike_critical > 0 && <span className="text-[#FF0202]">Crit: {data.crowdstrike_critical}</span>}
+                          {data.crowdstrike_high > 0 && <span className="text-[#FFA735]">High: {data.crowdstrike_high}</span>}
+                          {data.crowdstrike_medium > 0 && <span className="text-[#FFEE00]">Med: {data.crowdstrike_medium}</span>}
+                          {data.crowdstrike_low > 0 && <span className="text-[#BBF0FF]">Low: {data.crowdstrike_low}</span>}
+                        </div>
+                      </div>
+                    )}
+                    {/* SentinelOne Section */}
+                    {data.sentinelone_total > 0 && (
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <img src={providerLogos['sentinelone']} alt="SentinelOne" className="w-4 h-4" />
+                          <span className="text-xs font-medium text-foreground">SentinelOne</span>
+                          <span className="text-xs font-bold text-[#A855F7] ml-auto">{data.sentinelone_total}</span>
+                        </div>
+                        <div className="flex gap-2 ml-6 text-[10px]">
+                          {data.sentinelone_critical > 0 && <span className="text-[#FF0202]">Crit: {data.sentinelone_critical}</span>}
+                          {data.sentinelone_high > 0 && <span className="text-[#FFA735]">High: {data.sentinelone_high}</span>}
+                          {data.sentinelone_medium > 0 && <span className="text-[#FFEE00]">Med: {data.sentinelone_medium}</span>}
+                          {data.sentinelone_low > 0 && <span className="text-[#BBF0FF]">Low: {data.sentinelone_low}</span>}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
               }}
-              labelStyle={{ color: '#ECEDEE', fontWeight: 600 }}
-              itemStyle={{ color: '#ECEDEE' }}
             />
-            <Line type="monotone" dataKey="critical" stroke={severityColors.critical} strokeWidth={2} dot={false} />
-            <Line type="monotone" dataKey="high" stroke={severityColors.high} strokeWidth={2} dot={false} />
-            <Line type="monotone" dataKey="medium" stroke={severityColors.medium} strokeWidth={2} dot={false} />
-            <Line type="monotone" dataKey="low" stroke={severityColors.low} strokeWidth={2} dot={false} />
+            {/* แค่ 2 เส้น - Total ของแต่ละ provider */}
+            <Line type="monotone" dataKey="crowdstrike_total" name="crowdstrike_total" stroke="#EF4444" strokeWidth={2.5} dot={false} />
+            <Line type="monotone" dataKey="sentinelone_total" name="sentinelone_total" stroke="#A855F7" strokeWidth={2.5} dot={false} />
               </LineChart>
             </ResponsiveContainer>
           </div>
