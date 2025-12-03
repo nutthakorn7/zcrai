@@ -26,6 +26,12 @@ import {
 import sentineloneLogo from '../../assets/logo/sentinelone.png';
 import crowdstrikeLogo from '../../assets/logo/crowdstrike.png';
 
+// Logo mapping for providers
+const providerLogos: { [key: string]: string } = {
+  sentinelone: sentineloneLogo,
+  crowdstrike: crowdstrikeLogo,
+};
+
 // Severity color mapping (Can also be moved to a constants file if used elsewhere)
 const severityColors = {
   critical: '#FF0202',
@@ -736,12 +742,16 @@ export default function DashboardPage() {
                 className="flex items-center justify-between p-3 rounded-lg bg-content2/50 hover:bg-content2 transition-all"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-primary/10">
-                    <Icon.Database className="w-5 h-5 text-primary" />
+                  <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-white/10 overflow-hidden">
+                    {providerLogos[int.source] ? (
+                      <img src={providerLogos[int.source]} alt={int.source} className="w-6 h-6 object-contain" />
+                    ) : (
+                      <Icon.Database className="w-5 h-5 text-primary" />
+                    )}
                   </div>
                   <div>
-                    <span className="text-sm font-medium text-foreground block">{int.integration_name || int.integration_id.slice(0, 8)}</span>
-                    <p className="text-xs capitalize text-foreground/50 mt-0.5">{int.source}</p>
+                    <span className="text-sm font-medium text-foreground block capitalize">{int.source}</span>
+                    <p className="text-xs text-foreground/50 mt-0.5">{int.integration_name || int.integration_id.slice(0, 8)}</p>
                   </div>
                 </div>
                 <div className="flex flex-col items-end gap-1">
