@@ -58,6 +58,7 @@ import {
   EyeIcon,
   EyeSlashIcon,
   ArrowLeftIcon,
+  DocumentArrowDownIcon,
   
   // Status
   CheckCircleIcon,
@@ -150,6 +151,7 @@ export const Icon = {
   Eye: EyeIcon,
   EyeSlash: EyeSlashIcon,
   ArrowLeft: ArrowLeftIcon,
+  FileText: DocumentArrowDownIcon,
   
   // Status
   CheckCircle: CheckCircleIcon,
