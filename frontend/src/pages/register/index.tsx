@@ -3,6 +3,7 @@ import { Input, Button, Checkbox } from "@heroui/react";
 import { useAuth } from "../../shared/store/useAuth";
 import { useNavigate } from "react-router-dom";
 import { Icon } from '../../shared/ui';
+import ZcrAILogo from '../../assets/logo/zcrailogo.svg';
 
 export default function RegisterPage() {
   const [email, setEmail] = useState('');
@@ -54,10 +55,15 @@ export default function RegisterPage() {
         {/* Header & Logo Section */}
         <div className="mb-8 flex flex-col items-center gap-3 text-center">
           <div className="relative group">
-            <div className="absolute inset-0 bg-primary blur-xl opacity-20 rounded-full group-hover:opacity-30 transition-opacity" />
-            <div className="relative w-20 h-20 rounded-2xl bg-gradient-to-tr from-primary/10 to-transparent border border-primary/20 flex items-center justify-center backdrop-blur-sm">
-              <Icon.Shield className="w-10 h-10 text-primary" />
-            </div>
+            <div className="absolute inset-0 rounded-full blur-2xl bg-primary opacity-0 group-hover:opacity-40 transition-all duration-300" />
+            <img 
+              src={ZcrAILogo} 
+              alt="zcrAI Logo" 
+              className="w-20 h-20 group-hover:brightness-150 transition-all duration-300 animate-bounce relative z-10" 
+              style={{
+                animationDuration: '2s',
+              }}
+            />
           </div>
           <div>
             <h1 className="text-3xl font-bold tracking-tight mt-2 text-foreground">

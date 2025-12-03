@@ -3,6 +3,7 @@ import { Input, Button } from "@heroui/react";
 import { api } from "../../shared/api/api";
 import { Icon, IconSolid } from '../../shared/ui';
 import { useNavigate } from "react-router-dom";
+import ZcrAILogo from '../../assets/logo/zcrailogo.svg';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -48,8 +49,16 @@ export default function ForgotPasswordPage() {
         
         {/* Header */}
         <div className="mb-8 flex flex-col items-center gap-3 text-center">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-primary/20 to-primary/5 border border-primary/20 flex items-center justify-center shadow-[0_0_30px_-5px_rgba(192,219,239,0.3)]">
-            <Icon.Shield className="w-10 h-10 text-primary" />
+          <div className="relative group">
+            <div className="absolute inset-0 rounded-full blur-2xl bg-primary opacity-0 group-hover:opacity-40 transition-all duration-300" />
+            <img 
+              src={ZcrAILogo} 
+              alt="zcrAI Logo" 
+              className="w-20 h-20 group-hover:brightness-150 transition-all duration-300 animate-bounce relative z-10" 
+              style={{
+                animationDuration: '2s',
+              }}
+            />
           </div>
           <h1 className="text-3xl font-bold tracking-tight mt-2 text-foreground">
             Reset Password
@@ -107,7 +116,6 @@ export default function ForgotPasswordPage() {
                 type="email"
                 value={email}
                 onValueChange={setEmail}
-                placeholder="admin@company.com"
                 startContent={<Icon.Mail className="w-5 h-5 text-foreground/50" />}
                 classNames={{
                   label: "text-xs font-semibold text-foreground/50 uppercase tracking-wider ",
