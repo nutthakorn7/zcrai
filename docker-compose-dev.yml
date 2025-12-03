@@ -41,6 +41,7 @@ services:
     volumes:
       - clickhouse_data:/var/lib/clickhouse
       - ./collector/infra/db/clickhouse:/docker-entrypoint-initdb.d:ro
+      - ./collector/infra/db/clickhouse/config.d:/etc/clickhouse-server/config.d:ro
     networks:
       - zcrai-net
     healthcheck:

@@ -16,6 +16,16 @@ import (
 	"go.uber.org/zap"
 )
 
+// CSMSSPChild โครงสร้าง MSSP Child Site จาก Flight Control
+type CSMSSPChild struct {
+	ChildCID  string   `json:"child_cid"`
+	ChildGCID string   `json:"child_gcid"`
+	ChildOf   string   `json:"child_of"`
+	Name      string   `json:"name"`
+	Domains   []string `json:"domains"`
+	Status    string   `json:"status"`
+}
+
 // CrowdStrikeClient CrowdStrike Falcon API Client
 type CrowdStrikeClient struct {
 	baseURL         string
@@ -29,6 +39,10 @@ type CrowdStrikeClient struct {
 	accessToken     string
 	tokenExpiry     time.Time
 	mu              sync.Mutex
+	// ⭐ MSSP Sites cache สำหรับ map CID → Site Name
+	msspSites   map[string]CSMSSPChild // key = child_cid
+	msspSitesMu sync.RWMutex
+	msspLoaded  bool
 }
 
 // CSMitreAttack โครงสร้าง MITRE ATT&CK mapping
@@ -369,6 +383,134 @@ func (c *CrowdStrikeClient) authenticate() error {
 	return nil
 }
 
+// FetchMSSPSites ดึง MSSP Children Sites จาก Flight Control API แล้ว cache ไว้
+// เรียกครั้งเดียวตอนเริ่ม sync เพื่อ map CID → Site Name
+func (c *CrowdStrikeClient) FetchMSSPSites() error {
+	c.msspSitesMu.Lock()
+	defer c.msspSitesMu.Unlock()
+
+	// ถ้าโหลดแล้วไม่ต้องโหลดซ้ำ
+	if c.msspLoaded {
+		return nil
+	}
+
+	if err := c.authenticate(); err != nil {
+		return err
+	}
+
+	c.msspSites = make(map[string]CSMSSPChild)
+
+	// Step 1: Query all MSSP children IDs
+	resp, err := c.client.R().
+		SetHeader("Authorization", "Bearer "+c.accessToken).
+		SetQueryParam("limit", "500").
+		Get(c.baseURL + "/mssp/queries/children/v1")
+
+	if err != nil {
+		c.logger.Warn("Failed to fetch MSSP children (may not be MSSP parent)", zap.Error(err))
+		c.msspLoaded = true // Mark as loaded even if failed
+		return nil
+	}
+
+	// ถ้า 403 หรือ 404 แปลว่าไม่ใช่ MSSP Parent
+	if resp.StatusCode() == 403 || resp.StatusCode() == 404 {
+		c.logger.Debug("Not an MSSP parent account, skipping sites cache")
+		c.msspLoaded = true
+		return nil
+	}
+
+	if resp.StatusCode() != 200 {
+		c.logger.Warn("MSSP children query failed", zap.Int("status", resp.StatusCode()))
+		c.msspLoaded = true
+		return nil
+	}
+
+	var queryResp struct {
+		Resources []string `json:"resources"`
+		Meta      struct {
+			Pagination struct {
+				Total int `json:"total"`
+			} `json:"pagination"`
+		} `json:"meta"`
+	}
+
+	if err := json.Unmarshal(resp.Body(), &queryResp); err != nil {
+		c.logger.Warn("Failed to parse MSSP children query", zap.Error(err))
+		c.msspLoaded = true
+		return nil
+	}
+
+	if len(queryResp.Resources) == 0 {
+		c.logger.Debug("No MSSP children found")
+		c.msspLoaded = true
+		return nil
+	}
+
+	c.logger.Info("Found MSSP children sites", zap.Int("total", queryResp.Meta.Pagination.Total))
+
+	// Step 2: Get children details
+	// แบ่ง batch ละ 50 IDs
+	batchSize := 50
+	for i := 0; i < len(queryResp.Resources); i += batchSize {
+		end := i + batchSize
+		if end > len(queryResp.Resources) {
+			end = len(queryResp.Resources)
+		}
+		batch := queryResp.Resources[i:end]
+
+		// สร้าง query string สำหรับ multiple IDs
+		req := c.client.R().
+			SetHeader("Authorization", "Bearer "+c.accessToken)
+		for _, id := range batch {
+			req.QueryParam.Add("ids", id)
+		}
+
+		detailResp, err := req.Get(c.baseURL + "/mssp/entities/children/v1")
+		if err != nil {
+			c.logger.Warn("Failed to fetch MSSP children details", zap.Error(err))
+			continue
+		}
+
+		if detailResp.StatusCode() != 200 {
+			c.logger.Warn("MSSP children details failed", zap.Int("status", detailResp.StatusCode()))
+			continue
+		}
+
+		var detailResult struct {
+			Resources []CSMSSPChild `json:"resources"`
+		}
+
+		if err := json.Unmarshal(detailResp.Body(), &detailResult); err != nil {
+			c.logger.Warn("Failed to parse MSSP children details", zap.Error(err))
+			continue
+		}
+
+		// Cache sites by child_cid
+		for _, site := range detailResult.Resources {
+			c.msspSites[site.ChildCID] = site
+			c.logger.Debug("Cached MSSP site",
+				zap.String("cid", site.ChildCID),
+				zap.String("name", site.Name))
+		}
+	}
+
+	c.msspLoaded = true
+	c.logger.Info("MSSP sites cache loaded", zap.Int("sites", len(c.msspSites)))
+	return nil
+}
+
+// lookupSiteName หา Site Name จาก CID (สำหรับ MSSP Parent)
+// ถ้าไม่พบ (ไม่ใช่ MSSP หรือ CID เป็นของ Parent เอง) return empty
+func (c *CrowdStrikeClient) lookupSiteName(cid string) (siteID, siteName string) {
+	c.msspSitesMu.RLock()
+	defer c.msspSitesMu.RUnlock()
+
+	if site, ok := c.msspSites[cid]; ok {
+		return site.ChildCID, site.Name
+	}
+	return "", ""
+}
+
 // FetchAlerts ดึง Alerts จาก CrowdStrike Alerts API v2 แบบ Streaming
 // ctx ใช้สำหรับ cancel sync เมื่อ Integration ถูกลบ
 func (c *CrowdStrikeClient) FetchAlerts(ctx context.Context, startTime, endTime time.Time, onPageEvents OnPageEvents, onChunkComplete OnChunkComplete) (int, error) {
@@ -379,6 +521,12 @@ func (c *CrowdStrikeClient) FetchAlerts(ctx context.Context, startTime, endTime 
 
 	if err := c.authenticate(); err != nil {
 		return 0, err
+	}
+
+	// ⭐ โหลด MSSP Sites cache ก่อน sync (ถ้ายังไม่โหลด)
+	if err := c.FetchMSSPSites(); err != nil {
+		c.logger.Warn("Failed to load MSSP sites", zap.Error(err))
+		// ไม่ return error เพราะอาจไม่ใช่ MSSP account
 	}
 
 	totalFetched := 0
@@ -564,6 +712,15 @@ func (c *CrowdStrikeClient) transformAlert(a CSAlert) models.UnifiedEvent {
 		externalIP = a.Device.ExternalIP
 	}
 
+	// ⭐ เลือก Hostname ที่ดีที่สุด (fallback จาก device)
+	hostname := a.Hostname
+	if hostname == "" && a.Device.Hostname != "" {
+		hostname = a.Device.Hostname
+	}
+
+	// ⭐ Lookup MSSP Site จาก CID (สำหรับ Multi-tenant/Flight Control)
+	siteID, siteName := c.lookupSiteName(a.CID)
+
 	return models.UnifiedEvent{
 		ID:              a.CompositeID,
 		TenantID:        c.tenantID,
@@ -599,7 +756,7 @@ func (c *CrowdStrikeClient) transformAlert(a CSAlert) models.UnifiedEvent {
 
 		// ⭐ Host Info (Extended)
 		Host: models.HostInfo{
-			Name:         a.Hostname,
+			Name:         hostname, // ใช้ fallback hostname
 			IP:           hostIP,
 			ExternalIP:   externalIP,
 			MacAddress:   a.Device.MacAddress,
@@ -609,6 +766,8 @@ func (c *CrowdStrikeClient) transformAlert(a CSAlert) models.UnifiedEvent {
 			AgentID:      a.AgentID,
 			AgentVersion: a.Device.AgentVersion,
 			AccountID:    a.CID,
+			SiteID:       siteID,   // MSSP Child CID
+			SiteName:     siteName, // MSSP Child Name
 			Domain:       a.MachineDomain,
 		},
 		User: models.UserInfo{
@@ -748,6 +907,11 @@ func (c *CrowdStrikeClient) FetchIncidents(ctx context.Context, startTime, endTi
 
 	if err := c.authenticate(); err != nil {
 		return 0, err
+	}
+
+	// ⭐ โหลด MSSP Sites cache ก่อน sync (ถ้ายังไม่โหลด)
+	if err := c.FetchMSSPSites(); err != nil {
+		c.logger.Warn("Failed to load MSSP sites", zap.Error(err))
 	}
 
 	totalFetched := 0
@@ -917,6 +1081,12 @@ func (c *CrowdStrikeClient) transformIncident(inc CSIncident) models.UnifiedEven
 	var externalIP string
 	if len(inc.Hosts) > 0 {
 		h := inc.Hosts[0]
+		// ⭐ Lookup MSSP Site จาก CID
+		siteID, siteName := c.lookupSiteName(h.CID)
+		// ถ้าไม่เจอใน MSSP cache ให้ใช้ SiteName จาก Host (ถ้ามี)
+		if siteName == "" {
+			siteName = h.SiteName
+		}
 		hostInfo = models.HostInfo{
 			Name:         h.Hostname,
 			IP:           h.LocalIP,
@@ -927,7 +1097,8 @@ func (c *CrowdStrikeClient) transformIncident(inc CSIncident) models.UnifiedEven
 			AgentID:      h.DeviceID,
 			AgentVersion: h.AgentVersion,
 			AccountID:    h.CID,
-			SiteName:     h.SiteName,
+			SiteID:       siteID,
+			SiteName:     siteName,
 			GroupName:    strings.Join(h.Groups, ", "),
 			Domain:       h.MachineDomain,
 		}
