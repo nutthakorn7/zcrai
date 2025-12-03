@@ -82,6 +82,29 @@ export default function DashboardPage() {
     setEndDate(end);
   };
 
+  // Calculate percentage change: Compare current vs previous period
+  // Logic: ((current - previous) / previous) * 100
+  // Edge cases:
+  //   - previous = 0, current > 0 → Infinity (show as +100% but note it's new)
+  //   - previous = 0, current = 0 → No change (0%)
+  //   - previous > 0, current = 0 → -100% (decrease to zero)
+  //   - previous = current → 0% (no change)
+  const calculateChange = (current: number, previous: number): { change: number; isIncrease: boolean } => {
+    // Both zero: no change
+    if (previous === 0 && current === 0) {
+      return { change: 0, isIncrease: false };
+    }
+    
+    // Previous is 0 but current > 0: New alerts (show as +100% for indication, but it's technically infinite)
+    if (previous === 0 && current > 0) {
+      return { change: 100, isIncrease: true };
+    }
+    
+    // Normal case: calculate percentage change
+    const change = ((current - previous) / previous) * 100;
+    return { change, isIncrease: change >= 0 };
+  };
+
   const loadDashboard = async () => {
     setLoading(true);
     // Use local date string to avoid timezone issues
@@ -115,14 +138,28 @@ export default function DashboardPage() {
          dateParams += `&sources=${selectedProvider}`;
       }
 
-      // Calculate previous day date range
-      const prevStartDate = new Date(startDate);
-      prevStartDate.setDate(prevStartDate.getDate() - 1);
-      const prevEndDate = new Date(endDate);
-      prevEndDate.setDate(prevEndDate.getDate() - 1);
+      // Calculate previous period (same length as current period, but shifted back)
+      // Example: 
+      //   - Current:  Nov 26 - Dec 3 (8 days)
+      //   - Previous: Nov 18 - Nov 25 (8 days before current)
+      // This gives true period-over-period comparison
+      const periodDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+      const prevEndDate = new Date(startDate);
+      prevEndDate.setDate(prevEndDate.getDate() - 1); // Last day before current period starts
+      const prevStartDate = new Date(prevEndDate);
+      prevStartDate.setDate(prevStartDate.getDate() - (periodDays - 1)); // Go back by period length
       const prevStart = `${prevStartDate.getFullYear()}-${String(prevStartDate.getMonth() + 1).padStart(2, '0')}-${String(prevStartDate.getDate()).padStart(2, '0')}`;
       const prevEnd = `${prevEndDate.getFullYear()}-${String(prevEndDate.getMonth() + 1).padStart(2, '0')}-${String(prevEndDate.getDate()).padStart(2, '0')}`;
-      const prevDateParams = `startDate=${prevStart}&endDate=${prevEnd}`;
+      let prevDateParams = `startDate=${prevStart}&endDate=${prevEnd}`;
+      
+      // Add same sources filter to previous period for fair comparison
+      if (targetSources.length > 0) {
+        prevDateParams += `&sources=${targetSources.join(',')}`;
+      } else if (selectedProvider === 'all') {
+        prevDateParams += `&sources=none`;
+      } else {
+        prevDateParams += `&sources=${selectedProvider}`;
+      }
 
       const [summaryRes, prevSummaryRes, hostsRes, usersRes, sourcesRes, timelineRes, mitreRes, intRes, sitesRes, recentRes] = await Promise.all([
         api.get(`/dashboard/summary?${dateParams}`),
@@ -137,9 +174,23 @@ export default function DashboardPage() {
         api.get(`/dashboard/recent-detections?${dateParams}&limit=5`),
       ]);
 
-      // 3. Set Data
-      setSummary(summaryRes.data);
-      setPreviousSummary(prevSummaryRes.data);
+      // 3. Set Data with Validation
+      const summaryData = summaryRes.data;
+      const prevSummaryData = prevSummaryRes.data;
+      
+      // Validate total = critical + high + medium + low
+      if (summaryData?.critical !== undefined && summaryData?.high !== undefined && 
+          summaryData?.medium !== undefined && summaryData?.low !== undefined) {
+        const calculatedTotal = summaryData.critical + summaryData.high + summaryData.medium + summaryData.low;
+        if (summaryData.total !== calculatedTotal) {
+          console.warn(`❌ Data Mismatch: Backend returned total ${summaryData.total}, but sum of severities is ${calculatedTotal}`);
+          // Optionally correct it
+          summaryData.total = calculatedTotal;
+        }
+      }
+      
+      setSummary(summaryData);
+      setPreviousSummary(prevSummaryData);
       
       const hostsData = Array.isArray(hostsRes.data) ? hostsRes.data : [];
       const usersData = Array.isArray(usersRes.data) ? usersRes.data : [];
@@ -180,14 +231,17 @@ export default function DashboardPage() {
 
 
   // Transform timeline data for chart
-  const chartData = timeline.map(t => ({
-    time: new Date(t.time).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-    total: parseInt(t.count),
-    critical: parseInt(t.critical),
-    high: parseInt(t.high),
-    medium: parseInt(t.medium),
-    low: parseInt(t.low),
-  }));
+  const chartData = timeline.map(t => {
+    const dataPoint = {
+      time: new Date(t.time).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      total: parseInt(t.count),
+      critical: parseInt(t.critical),
+      high: parseInt(t.high),
+      medium: parseInt(t.medium),
+      low: parseInt(t.low),
+    };
+    return dataPoint;
+  });
 
   // Transform source data for pie chart
   const pieData = sources.map(s => ({
@@ -291,8 +345,7 @@ export default function DashboardPage() {
             {(() => {
               const current = summary?.critical || 0;
               const previous = previousSummary?.critical || 0;
-              const change = previous === 0 ? (current > 0 ? 100 : 0) : ((current - previous) / previous) * 100;
-              const isIncrease = change > 0;
+              const { change, isIncrease } = calculateChange(current, previous);
               return (
                 <div className={`flex items-center gap-1 text-xs font-medium ${isIncrease ? 'text-green-500' : change < 0 ? 'text-red-500' : 'text-foreground/30'}`}>
                   {change !== 0 && (
@@ -319,8 +372,7 @@ export default function DashboardPage() {
             {(() => {
               const current = summary?.high || 0;
               const previous = previousSummary?.high || 0;
-              const change = previous === 0 ? (current > 0 ? 100 : 0) : ((current - previous) / previous) * 100;
-              const isIncrease = change > 0;
+              const { change, isIncrease } = calculateChange(current, previous);
               return (
                 <div className={`flex items-center gap-1 text-xs font-medium ${isIncrease ? 'text-green-500' : change < 0 ? 'text-red-500' : 'text-foreground/30'}`}>
                   {change !== 0 && (
@@ -347,8 +399,7 @@ export default function DashboardPage() {
             {(() => {
               const current = summary?.medium || 0;
               const previous = previousSummary?.medium || 0;
-              const change = previous === 0 ? (current > 0 ? 100 : 0) : ((current - previous) / previous) * 100;
-              const isIncrease = change > 0;
+              const { change, isIncrease } = calculateChange(current, previous);
               return (
                 <div className={`flex items-center gap-1 text-xs font-medium ${isIncrease ? 'text-green-500' : change < 0 ? 'text-red-500' : 'text-foreground/30'}`}>
                   {change !== 0 && (
@@ -375,8 +426,7 @@ export default function DashboardPage() {
             {(() => {
               const current = summary?.low || 0;
               const previous = previousSummary?.low || 0;
-              const change = previous === 0 ? (current > 0 ? 100 : 0) : ((current - previous) / previous) * 100;
-              const isIncrease = change > 0;
+              const { change, isIncrease } = calculateChange(current, previous);
               return (
                 <div className={`flex items-center gap-1 text-xs font-medium ${isIncrease ? 'text-green-500' : change < 0 ? 'text-red-500' : 'text-foreground/30'}`}>
                   {change !== 0 && (
@@ -403,8 +453,7 @@ export default function DashboardPage() {
             {(() => {
               const current = summary?.total || 0;
               const previous = previousSummary?.total || 0;
-              const change = previous === 0 ? (current > 0 ? 100 : 0) : ((current - previous) / previous) * 100;
-              const isIncrease = change > 0;
+              const { change, isIncrease } = calculateChange(current, previous);
               return (
                 <div className={`flex items-center gap-1 text-xs font-medium ${isIncrease ? 'text-green-500' : change < 0 ? 'text-red-500' : 'text-foreground/30'}`}>
                   {change !== 0 && (

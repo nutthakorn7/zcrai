@@ -1,5 +1,21 @@
 import { query } from '../../infra/clickhouse/client'
 
+/**
+ * IMPORTANT: Data Consistency Strategy
+ * 
+ * All dashboard queries now use raw table `security_events FINAL` instead of Materialized Views (MVs)
+ * Reason: MVs have data latency/staleness issues causing mismatches between Summary, Timeline, and other endpoints
+ * 
+ * This ensures:
+ * ✅ Total = sum(critical + high + medium + low) ← matches perfectly
+ * ✅ Timeline chart shows correct severity distribution
+ * ✅ All metrics (Summary, TopHosts, TopUsers, etc.) are in sync
+ * ✅ Real-time data accuracy (no 5-10min lag from MV refresh)
+ * 
+ * Trade-off: Slightly slower queries (aggregating from raw table vs pre-aggregated MV)
+ * But data accuracy > query speed for a SOC dashboard
+ */
+
 // Helper: ตรวจสอบว่า sources เป็น empty หรือมี 'none' (แปลว่าไม่มี active integration)
 const isEmptySources = (sources?: string[]): boolean => {
   if (!sources || sources.length === 0) return false // ไม่ได้ส่ง sources = แสดงทั้งหมด
@@ -20,13 +36,14 @@ export const DashboardService = {
     const sql = `
       SELECT 
         severity,
-        sum(event_count) as count
-      FROM security_events_daily_mv
+        count() as count
+      FROM security_events FINAL
       WHERE tenant_id = {tenantId:String}
-        AND date >= {startDate:String}
-        AND date <= {endDate:String}
+        AND toDate(timestamp) >= {startDate:String}
+        AND toDate(timestamp) <= {endDate:String}
         ${sourceFilter}
       GROUP BY severity
+      ORDER BY severity
     `
     const rows = await query<{ severity: string; count: string }>(sql, { tenantId, startDate, endDate, sources })
     
@@ -71,7 +88,7 @@ export const DashboardService = {
         AND toDate(timestamp) <= {endDate:String}
         ${sourceFilter}
       GROUP BY time
-      ORDER BY time
+      ORDER BY time ASC
     `
     return await query<{
       time: string
@@ -90,13 +107,13 @@ export const DashboardService = {
     const sql = `
       SELECT 
         host_name,
-        sum(event_count) as count,
-        sum(critical_count) as critical,
-        sum(high_count) as high
-      FROM security_events_top_hosts_mv
+        count() as count,
+        countIf(severity = 'critical') as critical,
+        countIf(severity = 'high') as high
+      FROM security_events FINAL
       WHERE tenant_id = {tenantId:String}
-        AND date >= {startDate:String}
-        AND date <= {endDate:String}
+        AND toDate(timestamp) >= {startDate:String}
+        AND toDate(timestamp) <= {endDate:String}
         AND host_name != ''
         ${sourceFilter}
       GROUP BY host_name
@@ -147,11 +164,11 @@ export const DashboardService = {
       SELECT 
         mitre_tactic,
         mitre_technique,
-        sum(event_count) as count
-      FROM security_events_mitre_mv
+        count() as count
+      FROM security_events FINAL
       WHERE tenant_id = {tenantId:String}
-        AND date >= {startDate:String}
-        AND date <= {endDate:String}
+        AND toDate(timestamp) >= {startDate:String}
+        AND toDate(timestamp) <= {endDate:String}
         AND (mitre_tactic != '' OR mitre_technique != '')
         ${sourceFilter}
       GROUP BY mitre_tactic, mitre_technique
@@ -171,13 +188,14 @@ export const DashboardService = {
     const sql = `
       SELECT 
         source,
-        sum(event_count) as count
-      FROM security_events_daily_mv
+        count() as count
+      FROM security_events FINAL
       WHERE tenant_id = {tenantId:String}
-        AND date >= {startDate:String}
-        AND date <= {endDate:String}
+        AND toDate(timestamp) >= {startDate:String}
+        AND toDate(timestamp) <= {endDate:String}
         ${sourceFilter}
       GROUP BY source
+      ORDER BY count DESC
     `
     return await query<{ source: string; count: string }>(sql, { tenantId, startDate, endDate, sources })
   },
