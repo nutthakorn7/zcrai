@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { 
   Card, CardBody, Button, Input, Select, SelectItem, Spinner,
   Table, TableHeader, TableColumn, TableBody, TableRow, TableCell,
-  Pagination, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter
+  Pagination, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Chip,
+  Dropdown, DropdownTrigger, DropdownMenu, DropdownItem, Tooltip
 } from "@heroui/react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../../shared/api/api";
@@ -13,75 +14,38 @@ import { Icon } from '../../shared/ui';
 import sentineloneLogo from '../../assets/logo/sentinelone.png';
 import crowdstrikeLogo from '../../assets/logo/crowdstrike.png';
 
+import { 
+  LogEntry, FilterOptions, PaginationInfo
+} from './type.ts';
+
 // Vendor Logo Component
 const VendorLogo = ({ source }: { source: string }) => {
   const sourceLower = source?.toLowerCase() || '';
   
   if (sourceLower === 'sentinelone') {
     return (
-      <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-purple-500/10 border border-purple-500/20">
-        <img src={sentineloneLogo} alt="S1" className="w-3.5 h-3.5 object-contain" />
-        <span className="text-xs font-medium text-purple-400">SentinelOne</span>
+      <div className="w-8 h-8 rounded-md flex items-center justify-center border border-white/5 bg-purple-500/20 p-1.5">
+        <img src={sentineloneLogo} alt="S1" className="w-full h-full object-contain" />
       </div>
     );
   }
   
   if (sourceLower === 'crowdstrike') {
     return (
-      <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-red-500/10 border border-red-500/20">
-        <img src={crowdstrikeLogo} alt="CS" className="w-3.5 h-3.5 object-contain" />
-        <span className="text-xs font-medium text-red-400">CrowdStrike</span>
+      <div className="w-8 h-8 rounded-md flex items-center justify-center border border-white/5 bg-red-500/20 p-1.5">
+        <img src={crowdstrikeLogo} alt="CS" className="w-full h-full object-contain" />
       </div>
     );
   }
   
   // Fallback
+  const letter = source?.[0]?.toUpperCase() || 'X';
   return (
-    <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-foreground/5 border border-foreground/10">
-      <Icon.Database className="w-3.5 h-3.5 text-foreground/40" />
-      <span className="text-xs font-medium text-foreground/60 capitalize">{source || '-'}</span>
+    <div className="w-8 h-8 rounded flex items-center justify-center bg-foreground/5 border border-white/5">
+      <span className="text-[10px] font-bold text-foreground/40">{letter}</span>
     </div>
   );
 };
-
-interface LogEntry {
-  id: string;
-  source: string;
-  timestamp: string;
-  severity: string;
-  event_type: string;
-  title: string;
-  description: string;
-  host_name: string;
-  host_ip: string;
-  user_name: string;
-  mitre_tactic: string;
-  mitre_technique: string;
-  process_name: string;
-  file_name: string;
-  // Integration info
-  integration_id: string;
-  integration_name: string;
-  // S1 Tenant info
-  host_account_id: string;
-  host_account_name: string;
-  host_site_id: string;
-  host_site_name: string;
-  host_group_name: string;
-}
-
-interface FilterOptions {
-  integrations: { id: string; name: string }[];
-  accounts: { id: string; name: string }[];
-  sites: { id: string; name: string }[];
-}
-
-interface PaginationInfo {
-  page: number;
-  limit: number;
-  total: number;
-  totalPages: number;
-}
 
 // Severity colors matching dashboard
 const severityColors = {
@@ -103,6 +67,8 @@ export default function LogViewerPage() {
   const [search, setSearch] = useState("");
   const [severity, setSeverity] = useState<string>("");
   const [source, setSource] = useState<string>("");
+  const [selectedProvider, setSelectedProvider] = useState<string>('all');
+  const [availableProviders, setAvailableProviders] = useState<string[]>([]);
   const [integrationId, setIntegrationId] = useState<string>("");
   const [accountName, setAccountName] = useState<string>("");
   const [siteName, setSiteName] = useState<string>("");
@@ -116,7 +82,7 @@ export default function LogViewerPage() {
 
   useEffect(() => {
     loadLogs();
-  }, [pagination.page]);
+  }, [pagination.page, selectedProvider]);
 
   const loadFilterOptions = async () => {
     try {
@@ -130,6 +96,23 @@ export default function LogViewerPage() {
   const loadLogs = async () => {
     setLoading(true);
     try {
+      // Fetch active integrations to determine available providers
+      const activeIntRes = await api.get('/integrations');
+      const activeIntegrations = activeIntRes.data || [];
+      
+      const activeProviders = activeIntegrations
+        .map((i: any) => i.provider.toLowerCase())
+        .filter((p: string) => ['sentinelone', 'crowdstrike'].includes(p));
+        
+      const uniqueActiveProviders = Array.from(new Set(activeProviders)) as string[];
+      setAvailableProviders(uniqueActiveProviders);
+      
+      // Determine target sources based on selected provider
+      let targetSources = uniqueActiveProviders;
+      if (selectedProvider !== 'all') {
+        targetSources = [selectedProvider];
+      }
+      
       const params = new URLSearchParams({
         page: pagination.page.toString(),
         limit: pagination.limit.toString(),
@@ -137,6 +120,16 @@ export default function LogViewerPage() {
       if (search) params.append('search', search);
       if (severity) params.append('severity', severity);
       if (source) params.append('source', source);
+      
+      // Add sources parameter based on provider selection
+      if (targetSources.length > 0) {
+        params.append('sources', targetSources.join(','));
+      } else if (selectedProvider === 'all') {
+        params.append('sources', 'none');
+      } else {
+        params.append('sources', selectedProvider);
+      }
+      
       if (integrationId) params.append('integration_id', integrationId);
       if (accountName) params.append('account_name', accountName);
       if (siteName) params.append('site_name', siteName);
@@ -212,6 +205,7 @@ export default function LogViewerPage() {
     setSearch("");
     setSeverity("");
     setSource("");
+    setSelectedProvider('all');
     setIntegrationId("");
     setAccountName("");
     setSiteName("");
@@ -223,268 +217,430 @@ export default function LogViewerPage() {
     setPagination(prev => ({ ...prev, page }));
   };
 
-  // Export to CSV function
-  const handleExportCSV = () => {
-    if (logs.length === 0) return;
-    
-    const headers = ['ID', 'Timestamp', 'Severity', 'Source', 'Integration', 'Title', 'Host', 'Site', 'User', 'MITRE Tactic', 'MITRE Technique'];
-    const csvContent = [
-      headers.join(','),
-      ...logs.map(log => [
-        log.id,
-        log.timestamp,
-        log.severity,
-        log.source,
-        log.integration_name || '',
-        `"${(log.title || '').replace(/"/g, '""')}"`,
-        log.host_name || '',
-        log.host_site_name || '',
-        log.user_name || '',
-        log.mitre_tactic || '',
-        log.mitre_technique || '',
-      ].join(','))
-    ].join('\n');
-    
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `logs_export_${new Date().toISOString().slice(0, 10)}.csv`;
-    link.click();
+  const renderCell = (log: LogEntry, columnKey: string) => {
+    switch (columnKey) {
+      case "time":
+        const dateObj = new Date(log.timestamp);
+        const time = dateObj.toLocaleTimeString('en-US', { 
+          hour: '2-digit', 
+          minute: '2-digit',
+          hour12: false 
+        });
+        const date = dateObj.toLocaleDateString('en-US', { 
+          month: 'short', 
+          day: 'numeric'
+        });
+        return (
+          <div className="flex flex-col">
+            <span className="text-xs text-foreground/90">{time}</span>
+            <span className="text-[10px] text-foreground/40">{date}</span>
+          </div>
+        );
+      
+      case "severity":
+        const sev = log.severity.toLowerCase() as keyof typeof severityColors;
+        const hexColor = severityColors[sev] || severityColors.low;
+        return (
+          <Chip
+            size="sm"
+            variant="flat"
+            style={{
+              backgroundColor: `${hexColor}1A`,
+              color: hexColor,
+              borderColor: `${hexColor}33`,
+            }}
+            className="border font-medium uppercase tracking-wide text-[10px]"
+            startContent={
+              <span 
+                className="w-1.5 h-1.5 rounded-full"
+                style={{ backgroundColor: hexColor }}
+              />
+            }
+          >
+            {log.severity}
+          </Chip>
+        );
+      
+      case "source":
+        return <VendorLogo source={log.source} />;
+      
+      case "details":
+        return (
+          <div className="flex flex-col gap-0.5">
+            <span className="text-sm font-medium text-foreground/90 truncate group-hover:text-primary transition-colors cursor-pointer">
+              {log.title}
+            </span>
+            <div className="flex items-center gap-2 text-[10px] text-foreground/40 ">
+              {log.mitre_tactic && log.mitre_tactic !== '-' && (
+                <span className="bg-white/5 px-1 rounded">#{log.mitre_tactic}</span>
+              )}
+              <span>via {log.integration_name || '-'}</span>
+            </div>
+          </div>
+        );
+      
+      case "context":
+        return (
+          <div className="flex flex-col gap-1 text-xs text-foreground/60">
+            {log.host_name && (
+              <div className="flex items-center gap-1.5">
+                <Icon.Server className="w-3 h-3" />
+                <span className="truncate">{log.host_name}</span>
+              </div>
+            )}
+            {log.user_name && (
+              <div className="flex items-center gap-1.5">
+                <Icon.User className="w-3 h-3" />
+                <span className="truncate">{log.user_name}</span>
+              </div>
+            )}
+          </div>
+        );
+      
+      case "site":
+        return (
+          <span className="text-xs text-foreground/50 truncate">
+            {log.host_site_name || '-'}
+          </span>
+        );
+      
+      case "actions":
+        return (
+          <Button 
+            size="sm" 
+            variant="light" 
+            onPress={() => setSelectedLog(log)}
+            className="opacity-20 group-hover:opacity-100 transition-opacity"
+          >
+            <Icon.Eye className="w-4 h-4" />
+          </Button>
+        );
+      
+      default:
+        return null;
+    }
+  };
+
+  // Export to CSV function - fetches ALL filtered logs, not just current page
+  const handleExportCSV = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch active integrations to determine target sources
+      const activeIntRes = await api.get('/integrations');
+      const activeIntegrations = activeIntRes.data || [];
+      
+      const activeProviders = activeIntegrations
+        .map((i: any) => i.provider.toLowerCase())
+        .filter((p: string) => ['sentinelone', 'crowdstrike'].includes(p));
+        
+      const uniqueActiveProviders = Array.from(new Set(activeProviders)) as string[];
+      
+      // Determine target sources based on selected provider
+      let targetSources = uniqueActiveProviders;
+      if (selectedProvider !== 'all') {
+        targetSources = [selectedProvider];
+      }
+      
+      // Build params with current filters but no pagination limit
+      const params = new URLSearchParams({
+        page: '1',
+        limit: '10000', // Get all filtered logs
+      });
+      if (search) params.append('search', search);
+      if (severity) params.append('severity', severity);
+      if (source) params.append('source', source);
+      
+      // Add sources parameter based on provider selection
+      if (targetSources.length > 0) {
+        params.append('sources', targetSources.join(','));
+      } else if (selectedProvider === 'all') {
+        params.append('sources', 'none');
+      } else {
+        params.append('sources', selectedProvider);
+      }
+      
+      if (integrationId) params.append('integration_id', integrationId);
+      if (accountName) params.append('account_name', accountName);
+      if (siteName) params.append('site_name', siteName);
+
+      // Fetch all filtered logs
+      const res = await api.get(`/logs?${params.toString()}`);
+      const allLogs = res.data.data || [];
+      
+      if (allLogs.length === 0) {
+        console.warn('No logs to export');
+        return;
+      }
+      
+      // Generate CSV content
+      const headers = ['ID', 'Timestamp', 'Severity', 'Source', 'Integration', 'Title', 'Description', 'Host', 'Site', 'User', 'MITRE Tactic', 'MITRE Technique'];
+      const csvContent = [
+        headers.join(','),
+        ...allLogs.map((log: LogEntry) => [
+          log.id,
+          log.timestamp,
+          log.severity,
+          log.source,
+          log.integration_name || '',
+          `"${(log.title || '').replace(/"/g, '""')}"`,
+          `"${(log.description || '').replace(/"/g, '""')}"`,
+          log.host_name || '',
+          log.host_site_name || '',
+          log.user_name || '',
+          log.mitre_tactic || '',
+          log.mitre_technique || '',
+        ].join(','))
+      ].join('\n');
+      
+      // Download CSV
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      
+      // Create descriptive filename with active filters
+      const filterParts = [];
+      if (selectedProvider !== 'all') filterParts.push(selectedProvider);
+      if (severity) filterParts.push(severity);
+      if (search) filterParts.push('searched');
+      
+      const filterSuffix = filterParts.length > 0 ? `_${filterParts.join('_')}` : '';
+      link.download = `logs_export${filterSuffix}_${new Date().toISOString().slice(0, 10)}.csv`;
+      link.click();
+      
+      console.log(`Exported ${allLogs.length} logs to CSV`);
+    } catch (e) {
+      console.error('Failed to export logs:', e);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      {/* Header */}
-      <div className="flex justify-between items-center mb-6">
+    <div className="min-h-screen bg-background">
+      {/* Sticky Glass Header */}
+      <header className="sticky top-0 z-40 w-full backdrop-blur-xl bg-background/60 border-b border-white/5 h-16 flex items-center justify-between px-8">
+        <div className="flex items-center gap-4">
+         <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">Log Viewer</h1>
+          <span className="text-sm text-foreground/50 border-l border-white/10 pl-3">Real-time log feed</span>
+        </div>
+        </div>
+        {/* Actions / Filters */}
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-primary/10">
-            <Icon.Document className="w-5 h-5 text-primary" />
-          </div>
-          <h1 className="text-xl font-semibold text-foreground">Log Viewer</h1>
-        </div>
-        <div className="flex gap-2">
-          <Button 
-            size="sm"
-            variant="flat" 
-            className="bg-content1 border border-white/5 hover:border-white/10"
-            onPress={handleExportCSV} 
-            isDisabled={logs.length === 0}
-          >
-            <Icon.Document className="w-4 h-4" />
-            Export CSV
-          </Button>
-          <Button 
-            size="sm"
-            className="bg-primary hover:bg-primary/90 text-background"
-            onPress={() => navigate('/dashboard')}
-          >
-            Dashboard
-          </Button>
-        </div>
-      </div>
-
-      {/* Filters */}
-      <Card className="mb-6 bg-content1 border border-white/5 shadow-none">
-        <CardBody className="p-5">
-          <div className="flex flex-wrap gap-3 items-end">
-            <Input
-              label="Search"
-              placeholder="Search title or description..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-64"
-              classNames={{
-                input: "bg-content2",
-                inputWrapper: "bg-content2 border-white/5"
-              }}
-              startContent={<Icon.Search className="w-4 h-4 text-foreground/40" />}
-            />
-            <Select
-              label="Severity"
-              placeholder="All"
-              selectedKeys={severity ? [severity] : []}
-              onSelectionChange={(keys) => setSeverity(Array.from(keys)[0] as string || "")}
-              className="w-32"
-              classNames={{
-                trigger: "bg-content2 border-white/5"
-              }}
-            >
-              <SelectItem key="critical">Critical</SelectItem>
-              <SelectItem key="high">High</SelectItem>
-              <SelectItem key="medium">Medium</SelectItem>
-              <SelectItem key="low">Low</SelectItem>
-              <SelectItem key="info">Info</SelectItem>
-            </Select>
-            <Select
-              label="Source"
-              placeholder="All"
-              selectedKeys={source ? [source] : []}
-              onSelectionChange={(keys) => setSource(Array.from(keys)[0] as string || "")}
-              className="w-36"
-              classNames={{
-                trigger: "bg-content2 border-white/5"
-              }}
-            >
-              <SelectItem key="sentinelone">SentinelOne</SelectItem>
-              <SelectItem key="crowdstrike">CrowdStrike</SelectItem>
-            </Select>
-            <Select
-              label="Integration"
-              placeholder="All"
-              selectedKeys={integrationId ? [integrationId] : []}
-              onSelectionChange={(keys) => setIntegrationId(Array.from(keys)[0] as string || "")}
-              className="w-40"
-              classNames={{
-                trigger: "bg-content2 border-white/5"
-              }}
-            >
-              {filterOptions.integrations.map((i) => (
-                <SelectItem key={i.id}>{i.name || i.id.slice(0, 8)}</SelectItem>
-              ))}
-            </Select>
-            {source === 'sentinelone' && (
+          {/* Provider Filter Buttons */}
+          <div className="flex bg-content1 rounded-lg p-1 border border-white/5">
+            <Tooltip content="All Providers">
+              <button
+                onClick={() => setSelectedProvider('all')}
+                className={`p-2 rounded-md transition-all ${selectedProvider === 'all' ? 'bg-content2 text-foreground shadow-sm' : 'text-foreground/50 hover:text-foreground'}`}
+              >
+                <div className="flex items-center gap-2 px-1">
+                  <Icon.Database className="w-4 h-4" />
+                  <span className="text-xs font-medium">All</span>
+                </div>
+              </button>
+            </Tooltip>
+            
+            {(availableProviders.includes('sentinelone') || selectedProvider === 'sentinelone') && (
               <>
-                <Select
-                  label="S1 Account"
-                  placeholder="All"
-                  selectedKeys={accountName ? [accountName] : []}
-                  onSelectionChange={(keys) => setAccountName(Array.from(keys)[0] as string || "")}
-                  className="w-40"
-                  classNames={{
-                    trigger: "bg-content2 border-white/5"
-                  }}
-                >
-                  {filterOptions.accounts.map((a) => (
-                    <SelectItem key={a.name}>{a.name}</SelectItem>
-                  ))}
-                </Select>
-                <Select
-                  label="Site"
-                  placeholder="All"
-                  selectedKeys={siteName ? [siteName] : []}
-                  onSelectionChange={(keys) => setSiteName(Array.from(keys)[0] as string || "")}
-                  className="w-40"
-                  classNames={{
-                    trigger: "bg-content2 border-white/5"
-                  }}
-                >
-                  {filterOptions.sites.map((s) => (
-                    <SelectItem key={s.name}>{s.name}</SelectItem>
-                  ))}
-                </Select>
+                <div className="w-px bg-white/5 my-1 mx-1" />
+                <Tooltip content="SentinelOne">
+                  <button
+                    onClick={() => setSelectedProvider('sentinelone')}
+                    className={`p-2 rounded-md transition-all ${selectedProvider === 'sentinelone' ? 'bg-content2 shadow-sm' : 'opacity-50 hover:opacity-100'}`}
+                  >
+                    <img src={sentineloneLogo} alt="SentinelOne" className="w-4 h-4 object-contain" />
+                  </button>
+                </Tooltip>
               </>
             )}
-            <Button 
-              size="sm"
-              className="bg-primary hover:bg-primary/90 text-background"
-              onPress={handleSearch}
-              startContent={<Icon.Search className="w-4 h-4" />}
-            >
-              Search
-            </Button>
-            <Button 
-              size="sm"
-              variant="flat" 
-              className="bg-content2 border border-white/5"
-              onPress={handleClear}
-            >
-              Clear
-            </Button>
+
+            {(availableProviders.includes('crowdstrike') || selectedProvider === 'crowdstrike') && (
+              <>
+                <div className="w-px bg-white/5 my-1 mx-1" />
+                <Tooltip content="CrowdStrike">
+                  <button
+                    onClick={() => setSelectedProvider('crowdstrike')}
+                    className={`p-2 rounded-md transition-all ${selectedProvider === 'crowdstrike' ? 'bg-content2 shadow-sm' : 'opacity-50 hover:opacity-100'}`}
+                  >
+                    <img src={crowdstrikeLogo} alt="CrowdStrike" className="w-4 h-4 object-contain" />
+                  </button>
+                </Tooltip>
+              </>
+            )}
           </div>
-        </CardBody>
-      </Card>
 
-      {/* Results Info */}
-      <div className="mb-4 text-sm text-foreground/50">
-        Showing {logs.length} of {pagination.total} logs · Page {pagination.page} of {pagination.totalPages}
-      </div>
+          <div className="h-4 w-px bg-white/10 mx-2"></div>
+          
+          {/* Search Input */}
+          <Input
+            type="text"
+            placeholder="Search logs..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+            size="sm"
+            radius="md"
+            variant="bordered"
+            classNames={{
+              input: "text-sm text-foreground placeholder:text-foreground/50",
+              inputWrapper: "bg-content1 border-foreground/20 hover:border-primary/50 data-[hover=true]:border-primary/50 h-9",
+            }}
+            startContent={
+              <Icon.Search className="w-4 h-4 text-foreground/50" />
+            }
+            className="w-64"
+          />
 
-      {/* Table */}
-      {loading ? (
-        <div className="flex justify-center py-12">
-          <Spinner size="lg" color="primary" />
-        </div>
-      ) : (
-        <Card className="bg-content1 border border-white/5 shadow-none">
-          <CardBody className="p-0">
-            <Table 
-              aria-label="Logs table" 
-              removeWrapper
+          <div className="h-4 w-px bg-white/10 mx-2"></div>
+
+          {/* Severity Filter */}
+          <Dropdown>
+            <DropdownTrigger>
+              <Button
+                variant="bordered"
+                size="sm"
+                className="bg-transparent border-white/10 hover:border-primary/50 h-9 min-w-32 justify-between text-xs capitalize"
+                endContent={
+                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                }
+              >
+                {severity ? (
+                  <span className="capitalize">{severity}</span>
+                ) : (
+                  <span className="text-foreground/50">All Severity</span>
+                )}
+              </Button>
+            </DropdownTrigger>
+            <DropdownMenu
+              aria-label="Severity filter"
+              selectionMode="single"
+              selectedKeys={severity ? [severity] : []}
+              onSelectionChange={(keys) => {
+                const selected = Array.from(keys)[0] as string;
+                setSeverity(selected === severity ? "" : selected);
+              }}
               classNames={{
-                th: "bg-content2 text-foreground/70 font-medium text-xs",
-                td: "text-foreground/90"
+                base: "bg-content1 border border-white/10",
+                list: "gap-0"
+              }}
+            >
+              <DropdownItem key="critical" className="text-xs">Critical</DropdownItem>
+              <DropdownItem key="high" className="text-xs">High</DropdownItem>
+              <DropdownItem key="medium" className="text-xs">Medium</DropdownItem>
+              <DropdownItem key="low" className="text-xs">Low</DropdownItem>
+              <DropdownItem key="info" className="text-xs">Info</DropdownItem>
+            </DropdownMenu>
+          </Dropdown>
+
+          <Button
+            size="sm"
+            isIconOnly
+            className="bg-transparent hover:bg-white/5 text-foreground/60 hover:text-foreground border-0 min-w-8 w-8 h-8"
+            onPress={loadLogs}
+          >
+            <Icon.Refresh className="w-4 h-4" />
+          </Button>
+
+          <div className="h-4 w-px bg-white/10 mx-2"></div>
+
+          <Tooltip content="Export filtered logs to CSV">
+            <Button
+              size="sm"
+              variant="bordered"
+              className="bg-transparent border-white/10 hover:border-primary/50 h-9 text-xs"
+              startContent={<Icon.FileText className="w-3.5 h-3.5" />}
+              onPress={handleExportCSV}
+            >
+              Export CSV
+            </Button>
+          </Tooltip>
+        </div>
+      </header>
+
+      {/* Content Canvas */}
+      <div className="p-8 max-w-[1600px] mx-auto w-full animate-fade-in">
+        {loading ? (
+          <div className="flex justify-center py-12">
+            <Spinner size="lg" color="primary" />
+          </div>
+        ) : (
+          <>
+            {/* Table */}
+            <Table
+              aria-label="Logs table"
+              classNames={{
+                wrapper: "bg-transparent shadow-none border border-white/5 rounded-lg",
+                th: "bg-transparent text-[10px] font-bold text-foreground/40 uppercase tracking-wider border-b border-white/10",
+                td: "py-3 text-foreground/90",
+                tr: "hover:bg-content1 border-b border-white/5 last:border-0 cursor-default transition-all group",
               }}
             >
               <TableHeader>
-                <TableColumn>Time</TableColumn>
-                <TableColumn>Severity</TableColumn>
-                <TableColumn>Source</TableColumn>
-                <TableColumn>Integration</TableColumn>
-                <TableColumn>Title</TableColumn>
-                <TableColumn>Host</TableColumn>
-                <TableColumn>Site</TableColumn>
-                <TableColumn>Actions</TableColumn>
+                <TableColumn key="time" className="w-32">Time</TableColumn>
+                <TableColumn key="severity" className="w-28">Severity</TableColumn>
+                <TableColumn key="source" className="w-20">Source</TableColumn>
+                <TableColumn key="details">Event Details</TableColumn>
+                <TableColumn key="context" className="w-48">Context</TableColumn>
+                <TableColumn key="site" className="w-24">Site</TableColumn>
+                <TableColumn key="actions" className="w-20">Actions</TableColumn>
               </TableHeader>
-              <TableBody emptyContent="No logs found">
-                {logs.map((log) => (
-                  <TableRow key={log.id} className="cursor-pointer hover:bg-default-100">
-                    <TableCell className="text-xs whitespace-nowrap">
-                      {new Date(log.timestamp).toLocaleString('en-US')}
-                    </TableCell>
-                    <TableCell>
-                      <div 
-                        className="inline-block px-2 py-1 rounded-md text-xs font-semibold"
-                        style={{ 
-                          backgroundColor: severityColors[log.severity as keyof typeof severityColors] || 'rgb(108, 111, 117)',
-                          color: log.severity === 'medium' || log.severity === 'low' ? 'rgb(17, 19, 21)' : 'rgb(255, 255, 255)'
-                        }}
-                      >
-                        {log.severity}
-                      </div>
-                    </TableCell>
-                    <TableCell><VendorLogo source={log.source} /></TableCell>
-                    <TableCell className="text-xs">{log.integration_name || '-'}</TableCell>
-                    <TableCell className="max-w-xs truncate text-sm">{log.title}</TableCell>
-                    <TableCell className="text-xs">{log.host_name || '-'}</TableCell>
-                    <TableCell className="text-xs">{log.host_site_name || '-'}</TableCell>
-                    <TableCell>
-                      <Button size="sm" variant="light" onPress={() => setSelectedLog(log)}>
-                        View
-                      </Button>
-                    </TableCell>
+              <TableBody
+                items={logs}
+                emptyContent={
+                  <div className="text-center py-20 text-foreground/30 text-sm">
+                    No logs found matching your filters.
+                  </div>
+                }
+              >
+                {(log) => (
+                  <TableRow key={log.id}>
+                    {(columnKey) => (
+                      <TableCell>{renderCell(log, columnKey as string)}</TableCell>
+                    )}
                   </TableRow>
-                ))}
+                )}
               </TableBody>
             </Table>
-          </CardBody>
-        </Card>
-      )}
 
-      {/* Pagination */}
-      {pagination.totalPages > 1 && (
-        <div className="flex justify-center mt-6">
-          <Pagination
-            total={pagination.totalPages}
-            page={pagination.page}
-            onChange={handlePageChange}
-          />
-        </div>
-      )}
+            {/* Pagination */}
+            {pagination.totalPages > 1 && (
+              <div className="flex justify-center mt-8 border-t border-white/5 pt-6">
+                <Pagination
+                  total={pagination.totalPages}
+                  page={pagination.page}
+                  onChange={handlePageChange}
+                  classNames={{
+                    cursor: "bg-primary text-background",
+                  }}
+                />
+              </div>
+            )}
+          </>
+        )}
+      </div>
 
       {/* Detail Modal */}
       <Modal isOpen={!!selectedLog} onClose={() => setSelectedLog(null)} size="3xl">
         <ModalContent>
           <ModalHeader>
             <div className="flex items-center gap-2">
-              <div 
-                className="inline-block px-2 py-1 rounded-md text-xs font-semibold"
-                style={{ 
-                  backgroundColor: severityColors[selectedLog?.severity as keyof typeof severityColors] || 'rgb(108, 111, 117)',
-                  color: selectedLog?.severity === 'medium' || selectedLog?.severity === 'low' ? 'rgb(17, 19, 21)' : 'rgb(255, 255, 255)'
-                }}
-              >
-                {selectedLog?.severity}
-              </div>
+              {selectedLog && (
+                <Chip
+                  size="sm"
+                  variant="flat"
+                  style={{
+                    backgroundColor: `${severityColors[selectedLog.severity.toLowerCase() as keyof typeof severityColors] || severityColors.low}1A`,
+                    color: severityColors[selectedLog.severity.toLowerCase() as keyof typeof severityColors] || severityColors.low,
+                  }}
+                  className="border font-medium uppercase text-[10px]"
+                >
+                  {selectedLog.severity}
+                </Chip>
+              )}
               <span>{selectedLog?.title}</span>
             </div>
           </ModalHeader>
