@@ -53,8 +53,9 @@ export const SchedulerService = {
         query: `INSERT INTO zcrai.security_events_integration_mv SELECT tenant_id, toDate(timestamp) AS date, integration_id, integration_name, source, count() AS event_count, countIf(severity = 'critical') AS critical_count, countIf(severity = 'high') AS high_count FROM zcrai.security_events GROUP BY tenant_id, date, integration_id, integration_name, source`
       },
       {
-        name: 'zcrai.security_events_s1_tenant_mv',
-        query: `INSERT INTO zcrai.security_events_s1_tenant_mv SELECT tenant_id, toDate(timestamp) AS date, host_account_id, host_account_name, host_site_id, host_site_name, count() AS event_count, countIf(severity = 'critical') AS critical_count, countIf(severity = 'high') AS high_count FROM zcrai.security_events WHERE source = 'sentinelone' GROUP BY tenant_id, date, host_account_id, host_account_name, host_site_id, host_site_name`
+        // Sites MV - รองรับทุก source (S1 sites, CrowdStrike MSSP sites)
+        name: 'zcrai.security_events_sites_mv',
+        query: `INSERT INTO zcrai.security_events_sites_mv SELECT tenant_id, toDate(timestamp) AS date, source, host_account_id, host_account_name, host_site_id, host_site_name, count() AS event_count, countIf(severity = 'critical') AS critical_count, countIf(severity = 'high') AS high_count FROM zcrai.security_events WHERE host_site_name != '' GROUP BY tenant_id, date, source, host_account_id, host_account_name, host_site_id, host_site_name`
       }
     ]
 

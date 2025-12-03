@@ -359,7 +359,7 @@ export default function LogViewerPage() {
                   ))}
                 </Select>
                 <Select
-                  label="S1 Site"
+                  label="Site"
                   placeholder="All"
                   selectedKeys={siteName ? [siteName] : []}
                   onSelectionChange={(keys) => setSiteName(Array.from(keys)[0] as string || "")}

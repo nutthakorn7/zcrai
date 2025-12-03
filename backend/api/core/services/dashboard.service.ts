@@ -213,23 +213,17 @@ export const DashboardService = {
     }>(sql, { tenantId, startDate, endDate, sources })
   },
 
-  // ==================== SITE BREAKDOWN (Dynamic Source Filter) ====================
+  // ==================== SITE BREAKDOWN (All Sources) ====================
   async getSiteBreakdown(tenantId: string, startDate: string, endDate: string, sources?: string[]) {
     // ถ้าไม่มี active integration ให้ return empty
     if (isEmptySources(sources)) return []
     
-    // Sites are primarily for SentinelOne. 
-    // If 'sources' is provided and doesn't include 'sentinelone', return empty.
-    if (sources && sources.length > 0 && !sources.includes('sentinelone')) {
-      return []
-    }
+    const sourceFilter = (sources && sources.length > 0) ? `AND source IN {sources:Array(String)}` : ''
     
-    // We still only fetch sites for sentinelone source explicitly in the query for safety/speed
-    // even if 'crowdstrike' is in the list, it won't match site query logic usually unless generalized
-    // For now, we stick to S1 sites but allow it only if S1 is allowed.
-    
+    // รองรับทั้ง SentinelOne (host_site_name) และ CrowdStrike (host_site_name = MSSP site name)
     const sql = `
       SELECT 
+        source,
         host_account_name,
         host_site_name,
         count() as count,
@@ -239,18 +233,19 @@ export const DashboardService = {
       WHERE tenant_id = {tenantId:String}
         AND toDate(timestamp) >= {startDate:String}
         AND toDate(timestamp) <= {endDate:String}
-        AND source = 'sentinelone'
         AND host_site_name != ''
-      GROUP BY host_account_name, host_site_name
+        ${sourceFilter}
+      GROUP BY source, host_account_name, host_site_name
       ORDER BY count DESC
     `
     return await query<{
+      source: string
       host_account_name: string
       host_site_name: string
       count: string
       critical: string
       high: string
-    }>(sql, { tenantId, startDate, endDate })
+    }>(sql, { tenantId, startDate, endDate, sources })
   },
 
   // ==================== SUMMARY BY INTEGRATION ====================

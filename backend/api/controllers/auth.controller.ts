@@ -57,7 +57,7 @@ export const authController = new Elysia({ prefix: '/auth' })
         value: accessToken,
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
+        sameSite: 'lax',
         maxAge: 60 * 60, // 1 hour
         path: '/'
       })
@@ -66,7 +66,7 @@ export const authController = new Elysia({ prefix: '/auth' })
         value: refreshTokenValue,
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
+        sameSite: 'lax',
         maxAge: 7 * 24 * 60 * 60,
         path: '/auth/refresh'
       })
@@ -140,7 +140,7 @@ export const authController = new Elysia({ prefix: '/auth' })
         value: accessToken,
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
+        sameSite: 'lax',
         maxAge: 60 * 60, // 1 hour
         path: '/'
       })
@@ -149,7 +149,7 @@ export const authController = new Elysia({ prefix: '/auth' })
         value: newRefreshToken,
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
+        sameSite: 'lax',
         maxAge: 7 * 24 * 60 * 60,
         path: '/auth/refresh'
       })

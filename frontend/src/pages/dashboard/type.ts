@@ -53,6 +53,7 @@ export interface IntegrationData {
 }
 
 export interface SiteData {
+  source: string;
   host_account_name: string;
   host_site_name: string;
   count: string;

@@ -727,7 +727,10 @@ export default function DashboardPage() {
                   </div>
                   <div>
                     <span className="text-sm font-medium text-foreground block">{site.host_site_name}</span>
-                    <p className="text-xs text-foreground/50 mt-0.5">{site.host_account_name || '-'}</p>
+                    <p className="text-xs text-foreground/50 mt-0.5">
+                      {site.host_account_name || '-'}
+                      <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] bg-primary/10 text-primary uppercase">{site.source}</span>
+                    </p>
                   </div>
                 </div>
                 <div className="flex flex-col items-end gap-1">

@@ -78,9 +78,10 @@ const app = new Elysia()
     },
   }))
   .use(cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: true, // อนุญาตทุก origin ใน development
     credentials: true,
     allowedHeaders: ['Content-Type', 'Authorization'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   }))
   .use(authController)
   .use(tenantController)

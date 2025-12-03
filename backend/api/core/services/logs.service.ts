@@ -156,18 +156,18 @@ export const LogsService = {
         WHERE tenant_id = {tenantId:String} AND integration_id != ''
         ORDER BY integration_name
       `, { tenantId }),
-      // S1 Accounts - รายการ Account ทั้งหมด
+      // Accounts - รายการ Account ทั้งหมด (รองรับทุก source)
       query<{ host_account_id: string; host_account_name: string }>(`
         SELECT DISTINCT host_account_id, host_account_name 
         FROM security_events 
-        WHERE tenant_id = {tenantId:String} AND source = 'sentinelone' AND host_account_name != ''
+        WHERE tenant_id = {tenantId:String} AND host_account_name != ''
         ORDER BY host_account_name
       `, { tenantId }),
-      // S1 Sites - รายการ Site ทั้งหมด
+      // Sites - รายการ Site ทั้งหมด (รองรับทุก source)
       query<{ host_site_id: string; host_site_name: string }>(`
         SELECT DISTINCT host_site_id, host_site_name 
         FROM security_events 
-        WHERE tenant_id = {tenantId:String} AND source = 'sentinelone' AND host_site_name != ''
+        WHERE tenant_id = {tenantId:String} AND host_site_name != ''
         ORDER BY host_site_name
       `, { tenantId }),
     ])
