@@ -95,11 +95,12 @@ export default function RegisterPage() {
             label="ORGANIZATION NAME"
             value={tenantName}
             onValueChange={setTenantName}
+            placeholder="Acme Corporation"
             startContent={<Icon.Building className="w-5 h-5 text-foreground/50" />}
             classNames={{
               label: "text-xs font-semibold text-foreground/50 uppercase tracking-wider ",
               inputWrapper: "bg-content1 border border-content4 hover:border-primary/50 data-[hover=true]:border-primary/50 group-data-[focus=true]:border-primary h-[56px]",
-              input: " text-base"
+              input: " text-base placeholder:text-foreground/50"
             }}
           />
 
@@ -109,11 +110,12 @@ export default function RegisterPage() {
             type="email"
             value={email}
             onValueChange={setEmail}
+            placeholder="admin@company.com"
             startContent={<Icon.Mail className="w-5 h-5 text-foreground/50" />}
             classNames={{
               label: "text-xs font-semibold text-foreground/50 uppercase tracking-wider ",
               inputWrapper: "bg-content1 border border-content4 hover:border-primary/50 data-[hover=true]:border-primary/50 group-data-[focus=true]:border-primary h-[56px]",
-              input: " text-base"
+              input: " text-base placeholder:text-foreground/50"
             }}
           />
 
@@ -123,6 +125,7 @@ export default function RegisterPage() {
             type={isVisible ? "text" : "password"}
             value={password}
             onValueChange={setPassword}
+            placeholder="Create a strong password"
             startContent={<Icon.Lock className="w-5 h-5 text-foreground/50" />}
             endContent={
               <button 
@@ -136,7 +139,7 @@ export default function RegisterPage() {
             classNames={{
               label: "text-xs font-semibold text-foreground/50 uppercase tracking-wider ",
               inputWrapper: "bg-content1 border border-content4 hover:border-primary/50 data-[hover=true]:border-primary/50 group-data-[focus=true]:border-primary h-[56px]",
-              input: "text-base"
+              input: "text-base placeholder:text-foreground/50"
             }}
           />
 
