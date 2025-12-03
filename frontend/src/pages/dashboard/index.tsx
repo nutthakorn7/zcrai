@@ -324,14 +324,14 @@ export default function DashboardPage() {
             endDate={endDate}
             onChange={handleDateChange}
           />
-          
+
           <Button 
-            size="sm" 
-            className="bg-primary hover:bg-primary/90 text-background border-0 transition-colors"
+            size="sm"
+            isIconOnly
+            className="bg-transparent hover:bg-white/5 text-foreground/60 hover:text-foreground border-0"
             onPress={loadDashboard}
           >
-            <Icon.Refresh className="w-4 h-4 mr-1" />
-            Refresh
+            <Icon.Refresh className="w-4 h-4" />
           </Button>
         </div>
       </div>
