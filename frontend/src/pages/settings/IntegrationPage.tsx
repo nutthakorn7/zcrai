@@ -797,23 +797,31 @@ export default function IntegrationPage() {
                   </div>
                   
                   <div className="flex justify-between gap-2 pt-2 border-t border-white/5">
-                    <Button 
-                      size="sm" 
-                      variant="flat" 
-                      className="flex-1 bg-white/5 hover:bg-white/10 border border-white/10" 
-                      onPress={() => handleOpenEdit(int)}
-                    >
-                      Configure
-                    </Button>
-                    <Button 
-                      size="sm" 
-                      variant="flat" 
-                      className="bg-danger/10 hover:bg-danger/20 text-danger border border-danger/20" 
-                      isIconOnly 
-                      onPress={() => handleDelete(int.id)}
-                    >
-                      <Icon.Delete className="w-4 h-4" />
-                    </Button>
+                    {int.id === 'system-gemini' ? (
+                      <div className="w-full text-center text-xs text-default-400 py-1">
+                        System Managed
+                      </div>
+                    ) : (
+                      <>
+                        <Button 
+                          size="sm" 
+                          variant="flat" 
+                          className="flex-1 bg-white/5 hover:bg-white/10 border border-white/10" 
+                          onPress={() => handleOpenEdit(int)}
+                        >
+                          Configure
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="flat" 
+                          className="bg-danger/10 hover:bg-danger/20 text-danger border border-danger/20" 
+                          isIconOnly 
+                          onPress={() => handleDelete(int.id)}
+                        >
+                          <Icon.Delete className="w-4 h-4" />
+                        </Button>
+                      </>
+                    )}
                   </div>
                 </CardBody>
               </Card>
