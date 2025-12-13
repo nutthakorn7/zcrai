@@ -37,6 +37,7 @@
   "devDependencies": {
     "@types/qrcode": "^1.5.6",
     "bun-types": "latest",
-    "drizzle-kit": "latest"
+    "drizzle-kit": "latest",
+    "ioredis-mock": "^8.13.1"
   }
 }

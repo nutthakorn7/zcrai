@@ -1,8 +1,14 @@
 import Redis from 'ioredis'
 
-const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379'
+// Use mock Redis in test environment to avoid auth issues
+const RedisClient = process.env.NODE_ENV === 'test' 
+  ? (await import('ioredis-mock')).default 
+  : Redis
 
-export const redis = new Redis(redisUrl)
+// Read from env dynamically (not at module load time) to allow test overrides
+const getRedisUrl = () => process.env.REDIS_URL || 'redis://localhost:6379'
+
+export const redis = new RedisClient(getRedisUrl())
 
 // Key prefixes
 export const SESSION_PREFIX = 'session:'

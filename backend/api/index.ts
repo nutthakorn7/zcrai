@@ -75,11 +75,15 @@ async function seedSuperAdmin() {
 
 // Initialize
 export { seedSuperAdmin }
-SchedulerService.init()
 
-// Start enrichment worker
-const enrichmentWorker = new EnrichmentWorker()
-enrichmentWorker.start()
+// Don't start background workers during tests (they create Redis connections too early)
+if (process.env.NODE_ENV !== 'test') {
+  SchedulerService.init()
+  
+  // Start enrichment worker
+  const enrichmentWorker = new EnrichmentWorker()
+  enrichmentWorker.start()
+}
 
 const app = new Elysia()
   .use(swagger({

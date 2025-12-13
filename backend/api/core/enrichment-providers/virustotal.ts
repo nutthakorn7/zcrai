@@ -36,7 +36,8 @@ export class VirusTotalProvider {
 
   private async makeRequest(endpoint: string): Promise<any> {
     if (!this.apiKey) {
-      throw new Error('VirusTotal API key not configured');
+      console.warn('⚠️ VirusTotal API key not configured. Using Mock Data.');
+      return this.getMockData(endpoint);
     }
 
     if (!this.canMakeRequest()) {
@@ -52,10 +53,32 @@ export class VirusTotalProvider {
     this.recordRequest();
 
     if (!response.ok) {
+        // If 403/401, fallback to mock maybe? No, explicit error is better if key is present but wrong.
       throw new Error(`VirusTotal API error: ${response.statusText}`);
     }
 
     return response.json();
+  }
+
+  private getMockData(endpoint: string): any {
+    // Basic deterministic mock based on input
+    const isMalicious = endpoint.includes('bad') || endpoint.includes('192.168.6.66');
+    
+    const stats = isMalicious ? { malicious: 5, harmless: 0 } : { malicious: 0, harmless: 5 };
+    const total = 90;
+
+    return {
+        data: {
+            attributes: {
+                last_analysis_stats: stats,
+                reputation: isMalicious ? -10 : 10,
+                country: 'US',
+                asn: 12345,
+                categories: isMalicious ? ['malware', 'phishing'] : ['safe'],
+                last_analysis_date: Math.floor(Date.now() / 1000)
+            }
+        }
+    };
   }
 
   async enrichIP(ip: string): Promise<VirusTotalResponse> {

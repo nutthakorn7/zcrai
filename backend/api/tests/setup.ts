@@ -1,8 +1,10 @@
-import { treaty } from '@elysiajs/eden'
-
+// Must set env vars before ANY imports, as they initialize Redis clients
+process.env.NODE_ENV = 'test'
 process.env.REDIS_URL = 'redis://localhost:6380'
 
+import { treaty } from '@elysiajs/eden'
 import { app, seedSuperAdmin } from '../index'
+export { seedSuperAdmin }
 
 // Connect to the running server or in-memory
 // Since we export 'app' which has .listen(), we can test against localhost if running
