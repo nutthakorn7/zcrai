@@ -27,6 +27,10 @@ import {
   Cog6ToothIcon,
   ArrowLeftStartOnRectangleIcon,
   ArrowPathIcon,
+  ArrowDownTrayIcon,
+  DevicePhoneMobileIcon,
+  ComputerDesktopIcon,
+  MapPinIcon,
   PlusIcon,
   TrashIcon,
   PencilIcon,
@@ -170,7 +174,12 @@ export const Icon = {
   Signal: SignalIcon,
   Global: GlobeAltIcon,
   Wrench: WrenchIcon,
-  Briefcase: BriefcaseIcon
+  Briefcase: BriefcaseIcon,
+  Download: ArrowDownTrayIcon,
+  // Devices
+  DevicePhoneMobile: DevicePhoneMobileIcon,
+  DeviceComputer: ComputerDesktopIcon,
+  Map: MapPinIcon
 } as const;
 
 /**

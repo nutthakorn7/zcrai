@@ -3,9 +3,10 @@ import { Button, Tooltip as HerouiTooltip, Card, CardBody, CardHeader, Chip } fr
 import { api } from "../../shared/api/api";
 import { usePageContext } from "../../contexts/PageContext";
 import { DateRangePicker } from "../../components/DateRangePicker";
+import { useNavigate } from "react-router-dom";
 import { 
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, BarChart, Bar, CartesianGrid
+  PieChart, Pie, Cell, BarChart, Bar, CartesianGrid, AreaChart, Area
 } from 'recharts';
 import { Icon } from '../../shared/ui';
 
@@ -78,6 +79,24 @@ export default function DashboardPage() {
 
   // Available providers for filter buttons
   const [availableProviders, setAvailableProviders] = useState<string[]>([]);
+  const navigate = useNavigate();
+
+  const handleTimelineClick = (data: any) => {
+    if (data && data.activeLabel) {
+      navigate(`/alerts?date=${data.activeLabel}`);
+    }
+  };
+
+  const handlePieClick = (data: any) => {
+    if (data && data.name) {
+      navigate(`/alerts?source=${data.name.toLowerCase()}`);
+    }
+  };
+
+  const handleSummaryClick = (sev: string) => {
+      if (sev === 'total') return navigate('/alerts');
+      navigate(`/alerts?severity=${sev.toLowerCase()}`);
+  };
 
   useEffect(() => {
     loadDashboard();
@@ -269,6 +288,75 @@ export default function DashboardPage() {
     value: parseInt(s.count),
   }));
 
+  const Sparkline = ({ data, dataKey, color }: { data: any[], dataKey: string, color: string }) => (
+    <div className="h-[40px] w-[80px]">
+        <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={data}>
+                <defs>
+                    <linearGradient id={`grad-${dataKey}`} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor={color} stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor={color} stopOpacity={0}/>
+                    </linearGradient>
+                </defs>
+                <Area 
+                    type="monotone" 
+                    dataKey={dataKey} 
+                    stroke={color} 
+                    strokeWidth={2} 
+                    fill={`url(#grad-${dataKey})`} 
+                    isAnimationActive={false}
+                />
+            </AreaChart>
+        </ResponsiveContainer>
+    </div>
+  );
+
+  const SummaryCard = ({ title, count, prevCount, color, icon, dataKey }: any) => {
+    const { change, isIncrease } = calculateChange(count || 0, prevCount || 0);
+
+    // Prepare data for sparkline
+    const sparkData = timeline.map(t => ({
+        ...t,
+        [dataKey]: Number((t as any)[dataKey] || 0) || 0 // Handle potentially missing keys
+    }));
+
+    return (
+        <Card className="bg-content1/50 border border-white/5 backdrop-blur-sm shadow-sm hover:shadow-md transition-all">
+            <CardBody className="p-4 overflow-hidden">
+                <div className="flex justify-between items-start">
+                    <div className="flex gap-3">
+                         <div 
+                            className="p-3 rounded-xl flex items-center justify-center"
+                            style={{ backgroundColor: `${color}15`, color: color }}
+                         >
+                             {icon}
+                         </div>
+                         <div>
+                            <p className="text-sm text-default-500 font-medium uppercase tracking-wider">{title}</p>
+                            <h4 className="text-3xl font-bold mt-1" style={{ color: color === 'var(--color-primary)' ? undefined : color }}>{count?.toLocaleString() || 0}</h4>
+                            <div className="flex items-center gap-2 mt-1">
+                                <Chip 
+                                    size="sm" 
+                                    variant="flat" 
+                                    className="h-5 px-1 bg-transparent border border-white/5"
+                                    classNames={{ content: `text-[10px] font-semibold ${isIncrease ? 'text-green-500' : 'text-default-400'}` }}
+                                    startContent={isIncrease && <Icon.TrendingUp className="size-3 text-green-500" />}
+                                >
+                                    {isIncrease ? '+' : ''}{change !== Infinity ? change.toFixed(1) : 'New'}%
+                                </Chip>
+                            </div>
+                         </div>
+                    </div>
+                    {/* Sparkline */}
+                    <div className="opacity-50 hover:opacity-100 transition-opacity">
+                        <Sparkline data={sparkData} dataKey={dataKey} color={color} />
+                    </div>
+                </div>
+            </CardBody>
+        </Card>
+    );
+  };
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background">
@@ -357,49 +445,58 @@ export default function DashboardPage() {
       </div>
       
       {/* Summary Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8 animate-fade-in">
-        {[
-          { label: 'Critical', key: 'critical', color: severityColors.critical },
-          { label: 'High', key: 'high', color: severityColors.high },
-          { label: 'Medium', key: 'medium', color: severityColors.medium },
-          { label: 'Low', key: 'low', color: severityColors.low },
-          { label: 'Total Events', key: 'total', color: 'var(--color-primary)' } // Special case for Total
-        ].map((item) => (
-          <Card 
-            key={item.key}
-            className={`border ${item.key === 'total' ? 'border-primary/30 shadow-lg shadow-primary/10' : 'border-white/5 hover:border-white/10'} transition-all`}
-            style={{ 
-              backgroundColor: item.key === 'total' ? 'rgba(var(--color-primary), 0.08)' : `${item.color}15` 
-            }}
-          >
-            <CardBody className="p-5 overflow-hidden">
-              <div className="flex items-start justify-between mb-4">
-                <p className={`text-sm font-medium ${item.key === 'total' ? 'text-primary' : 'text-foreground/50'}`}>
-                  {item.label}
-                </p>
-                {(() => {
-                  // @ts-ignore
-                  const current = summary?.[item.key] || 0;
-                  // @ts-ignore
-                  const previous = previousSummary?.[item.key] || 0;
-                  const { change, isIncrease } = calculateChange(current, previous);
-                  return (
-                    <div className={`flex items-center gap-1 text-xs font-medium ${isIncrease ? 'text-success' : change < 0 ? 'text-danger' : 'text-foreground/30'}`}>
-                      {change !== 0 && (
-                        isIncrease ? <Icon.TrendingUp className="w-3 h-3" /> : <Icon.TrendingDown className="w-3 h-3" />
-                      )}
-                      <span>{Math.abs(change).toFixed(1)}%</span>
-                    </div>
-                  );
-                })()}
-              </div>
-              <p className="text-3xl font-semibold text-foreground">
-                {/* @ts-ignore */}
-                {(summary?.[item.key] || 0).toLocaleString()}
-              </p>
-            </CardBody>
-          </Card>
-        ))}
+      {/* Summary Cards with Sparklines */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8 animate-fade-in">
+        <div onClick={() => handleSummaryClick('critical')} className="cursor-pointer transition-transform hover:scale-[1.02]">
+            <SummaryCard 
+                title="Critical" 
+                count={summary?.critical} 
+                prevCount={previousSummary?.critical} 
+                color={severityColors.critical} 
+                icon={<Icon.Alert className="size-6 text-current" />}
+                dataKey="critical"
+            />
+        </div>
+        <div onClick={() => handleSummaryClick('high')} className="cursor-pointer transition-transform hover:scale-[1.02]">
+            <SummaryCard 
+                title="High" 
+                count={summary?.high} 
+                prevCount={previousSummary?.high} 
+                color={severityColors.high} 
+                icon={<Icon.Alert className="size-6 text-current" />}
+                dataKey="high"
+            />
+        </div>
+        <div onClick={() => handleSummaryClick('medium')} className="cursor-pointer transition-transform hover:scale-[1.02]">
+            <SummaryCard 
+                title="Medium" 
+                count={summary?.medium} 
+                prevCount={previousSummary?.medium} 
+                color={severityColors.medium} 
+                icon={<Icon.Alert className="size-6 text-current" />}
+                dataKey="medium"
+            />
+        </div>
+        <div onClick={() => handleSummaryClick('low')} className="cursor-pointer transition-transform hover:scale-[1.02]">
+            <SummaryCard 
+                title="Low" 
+                count={summary?.low} 
+                prevCount={previousSummary?.low} 
+                color={severityColors.low} 
+                icon={<Icon.Alert className="size-6 text-current" />}
+                dataKey="low"
+            />
+        </div>
+        <div onClick={() => handleSummaryClick('total')} className="cursor-pointer transition-transform hover:scale-[1.02]">
+            <SummaryCard 
+                title="Total Events" 
+                count={summary?.total} 
+                prevCount={previousSummary?.total} 
+                color="var(--color-primary)" 
+                icon={<Icon.Chart className="size-6 text-current" />}
+                dataKey="count" // 'count' in timeline is total
+            />
+        </div>
       </div>
 
       {/* Bento Grid: Timeline + Sources */}
@@ -428,11 +525,12 @@ export default function DashboardPage() {
             </div>
             <div className="h-[280px]">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData}>
+                <LineChart data={chartData} onClick={handleTimelineClick} className="cursor-pointer">
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
                   <XAxis dataKey="time" stroke="#4A4D50" fontSize={10} tickLine={false} axisLine={false} />
                   <YAxis stroke="#4A4D50" fontSize={10} tickLine={false} axisLine={false} />
                   <Tooltip 
+                    cursor={{ stroke: 'rgba(255,255,255,0.1)', strokeWidth: 2 }}
                     content={({ active, payload, label }) => {
                       if (!active || !payload || payload.length === 0) return null;
                       const data = payload[0]?.payload || {};
@@ -459,6 +557,9 @@ export default function DashboardPage() {
                               </div>
                             </div>
                           )}
+                          <div className="mt-2 text-[10px] text-default-400 text-center italic">
+                              Click to analyze specific events
+                          </div>
                         </div>
                       );
                     }}
@@ -490,9 +591,11 @@ export default function DashboardPage() {
                     dataKey="value"
                     paddingAngle={4}
                     stroke="none"
+                    onClick={handlePieClick}
+                    className="cursor-pointer"
                   >
                     {pieData.map((_, i) => (
-                      <Cell key={i} fill={['#EF4444', '#A855F7', '#3B82F6', '#22C55E'][i % 4]} />
+                      <Cell key={i} fill={['#EF4444', '#A855F7', '#3B82F6', '#22C55E'][i % 4]} className="hover:opacity-80 transition-opacity" />
                     ))}
                   </Pie>
                   <Tooltip 
@@ -511,7 +614,7 @@ export default function DashboardPage() {
             {/* Custom Legend */}
             <div className="grid grid-cols-2 gap-2 mt-4">
                {pieData.map((entry, index) => (
-                 <div key={index} className="flex items-center gap-2 p-2 rounded-lg bg-content2/50">
+                 <div key={index} className="flex items-center gap-2 p-2 rounded-lg bg-content2/50 cursor-pointer hover:bg-content2 transition-colors" onClick={() => handlePieClick(entry)}>
                     <div className="w-2 h-2 rounded-full" style={{ backgroundColor: ['#EF4444', '#A855F7', '#3B82F6', '#22C55E'][index % 4] }} />
                     <span className="text-xs text-foreground/70 capitalize truncate">{entry.name}</span>
                     <span className="text-xs font-bold ml-auto">{entry.value}</span>

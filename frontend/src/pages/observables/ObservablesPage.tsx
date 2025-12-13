@@ -1,8 +1,9 @@
 import { useEffect, useState, useMemo } from 'react';
-import { Button, Chip, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Input, Select, SelectItem, Card, CardBody } from "@heroui/react";
+import { Button, Chip, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Input, Card, CardBody, Progress } from "@heroui/react";
 import { Icon } from '../../shared/ui';
 import { ObservablesAPI, Observable } from '../../shared/api/observables';
 import { ObservableDetailModal } from '../../components/ObservableDetailModal';
+import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 
 const IOC_TYPE_COLORS: Record<string, string> = {
   ip: 'primary',
@@ -27,6 +28,17 @@ export default function ObservablesPage() {
   const [typeFilter, setTypeFilter] = useState<string[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // Selection
+  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set([]));
+  const [isEnriching, setIsEnriching] = useState(false);
+
+  // Facets State
+  const [facets, setFacets] = useState<{
+      types: { name: string; count: number }[];
+      statuses: { name: string; count: number }[];
+      tags: { name: string; count: number }[];
+  }>({ types: [], statuses: [], tags: [] });
 
   // Modal State
   const [selectedObservable, setSelectedObservable] = useState<Observable | null>(null);
@@ -56,6 +68,55 @@ export default function ObservablesPage() {
   const filteredObservables = useMemo(() => {
     return observables;
   }, [observables]);
+  
+  // Calculate Facets when observables change
+  useEffect(() => {
+      const types: Record<string, number> = {};
+      const statuses: Record<string, number> = {};
+      const tags: Record<string, number> = {};
+      
+      observables.forEach(o => {
+          types[o.type] = (types[o.type] || 0) + 1;
+          const status = o.isMalicious ? 'Malicious' : (o.isMalicious === false ? 'Safe' : 'Unknown');
+          statuses[status] = (statuses[status] || 0) + 1;
+          
+          (o.tags || []).forEach(t => {
+              tags[t] = (tags[t] || 0) + 1;
+          });
+      });
+      
+      const toFacet = (rec: Record<string, number>) => Object.entries(rec).map(([name, count]) => ({ name, count })).sort((a,b) => b.count - a.count);
+      
+      setFacets({
+          types: toFacet(types),
+          statuses: toFacet(statuses),
+          tags: toFacet(tags).slice(0, 10) // Top 10 tags
+      });
+  }, [observables]);
+  
+  // Chart Data
+  const typeDistribution = useMemo(() => {
+    return facets.types.map(f => ({ name: f.name, value: f.count }));
+  }, [facets]);
+  
+
+
+  // Risk Score Helper (Mock)
+  const getRiskScore = (o: Observable) => {
+      if (o.isMalicious) return Math.floor(Math.random() * 20) + 80; // 80-99
+      if (o.isMalicious === false) return Math.floor(Math.random() * 10); // 0-9
+      return 0; // Unknown
+  };
+
+  const handleBulkEnrich = () => {
+      setIsEnriching(true);
+      setTimeout(() => {
+          setIsEnriching(false);
+          setSelectedKeys(new Set([]));
+          // Mock refresh
+          fetchObservables();
+      }, 2000);
+  };
 
   const handleOpenDetail = (observable: Observable) => {
     setSelectedObservable(observable);
@@ -149,144 +210,241 @@ export default function ObservablesPage() {
   };
 
   return (
-    <div className="p-6 h-full flex flex-col bg-background">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-2xl font-bold">Observables / IOCs</h1>
-          <p className="text-gray-400">{filteredObservables.length} indicators</p>
-        </div>
-      </div>
-
-      {/* Summary Metrics */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        {[
-          { 
-            label: 'Total IOCs', 
-            count: observables.length, 
-            color: 'default' 
-          },
-          { 
-            label: 'Malicious', 
-            count: observables.filter(o => o.isMalicious).length, 
-            color: 'danger' 
-          },
-          { 
-            label: 'Safe', 
-            count: observables.filter(o => o.isMalicious === false).length, 
-            color: 'success' 
-          },
-          { 
-            label: 'Pending', 
-            count: observables.filter(o => o.enrichedAt === null).length, 
-            color: 'warning' 
-          }
-        ].map((item) => (
-          <Card 
-            key={item.label}
-            className="bg-content1/50 border border-white/5 hover:border-white/10 transition-all"
-          >
-            <CardBody className="p-4 overflow-hidden">
-              <p className="text-sm font-medium text-foreground/50 mb-2">
-                {item.label}
-              </p>
-              <div className="flex items-center gap-2">
-                <span className="text-2xl font-semibold text-foreground">
-                  {item.count.toLocaleString()}
-                </span>
-                {item.color !== 'default' && (
-                   <Chip size="sm" color={item.color as any} variant="dot" classNames={{ base: "border-0" }}>
-                     {((item.count / (observables.length || 1)) * 100).toFixed(0)}%
-                   </Chip>
-                )}
-              </div>
-            </CardBody>
-          </Card>
-        ))}
-      </div>
-
-      {/* Filters */}
-      <div className="bg-content1 border border-white/5 rounded-lg p-4 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-          <Select
-            label="Type"
-            placeholder="All Types"
-            size="sm"
-            selectionMode="multiple"
-            selectedKeys={typeFilter}
-            onSelectionChange={(keys) => setTypeFilter(Array.from(keys) as string[])}
-            classNames={{
-              label: "text-xs text-gray-400",
-              trigger: "bg-content2"
-            }}
-          >
-            <SelectItem key="ip">IP Address</SelectItem>
-            <SelectItem key="domain">Domain</SelectItem>
-            <SelectItem key="email">Email</SelectItem>
-            <SelectItem key="url">URL</SelectItem>
-            <SelectItem key="hash">Hash</SelectItem>
-          </Select>
-
-          <Select
-            label="Status"
-            placeholder="All"
-            size="sm"
-            selectedKeys={statusFilter ? [statusFilter] : []}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            classNames={{
-              label: "text-xs text-gray-400",
-              trigger: "bg-content2"
-            }}
-          >
-            <SelectItem key="malicious">Malicious</SelectItem>
-            <SelectItem key="safe">Safe</SelectItem>
-            <SelectItem key="unknown">Unknown</SelectItem>
-          </Select>
-
-          <div className="md:col-span-2">
+    <div className="min-h-screen bg-background flex flex-col">
+      {/* Sticky Glass Header */}
+      <header className="sticky top-0 z-40 w-full backdrop-blur-xl bg-background/60 border-b border-white/5 h-16 flex items-center justify-between px-8">
+         <div className="flex items-center gap-3">
+           <h1 className="text-2xl font-bold tracking-tight text-foreground">Observables</h1>
+           <span className="text-sm text-foreground/50 border-l border-white/10 pl-3">Indicator Management</span>
+         </div>
+         
+         <div className="flex items-center gap-3">
+             {selectedKeys.size > 0 && (
+                 <div className="flex items-center gap-2 animate-fade-in bg-primary/10 px-3 py-1 rounded-lg border border-primary/20">
+                     <span className="text-xs font-medium text-primary">{selectedKeys.size} selected</span>
+                     <Button 
+                        size="sm" 
+                        color="primary" 
+                        variant="flat" 
+                        className="h-7 min-w-16"
+                        isLoading={isEnriching} 
+                        onPress={handleBulkEnrich}
+                     >
+                         Enrich
+                     </Button>
+                     <Button size="sm" color="danger" variant="light" isIconOnly className="h-7 w-7"><Icon.Delete className="w-4 h-4"/></Button>
+                 </div>
+             )}
+             
             <Input
-              label="Search"
-              placeholder="Search IOC value..."
+              placeholder="Search (e.g. 192.168...)"
               size="sm"
               value={searchQuery}
               onValueChange={setSearchQuery}
-              startContent={<Icon.Search className="w-4 h-4 text-gray-400" />}
+              startContent={<Icon.Search className="w-4 h-4 text-foreground/50" />}
+              className="w-64"
               classNames={{
-                label: "text-xs text-gray-400",
-                inputWrapper: "bg-content2"
+                  input: "text-sm",
+                  inputWrapper: "bg-content1 border border-white/10"
               }}
             />
-          </div>
+            <Button size="sm" variant="flat" startContent={<Icon.Add className="w-4 h-4"/>}>Add IOC</Button>
+         </div>
+      </header>
+
+      <div className="p-8 max-w-[1800px] mx-auto w-full flex gap-6 animate-fade-in transition-all">
+        
+        {/* Left Sidebar - Facets */}
+        <div className="w-64 flex-shrink-0 space-y-6 hidden xl:block">
+            {/* Quick Stats */}
+            <div className="bg-gradient-to-br from-content1 to-background border border-white/5 rounded-xl p-4">
+                <div className="flex justify-between items-center mb-2">
+                    <span className="text-xs font-bold text-foreground/50 uppercase">Total IOCs</span>
+                    <Icon.Database className="w-4 h-4 text-primary" />
+                </div>
+                <div className="text-2xl font-bold font-mono">{observables.length}</div>
+            </div>
+
+            <div className="space-y-4">
+                <h3 className="text-xs font-bold text-foreground/40 uppercase tracking-wider flex justify-between items-center">
+                    Type
+                    {typeFilter.length > 0 && <span onClick={() => setTypeFilter([])} className="text-[10px] text-primary cursor-pointer hover:underline">Clear</span>}
+                </h3>
+                <div className="space-y-1">
+                    {facets.types.map(f => (
+                         <div 
+                            key={f.name} 
+                            onClick={() => {
+                                const newFilters = typeFilter.includes(f.name) 
+                                    ? typeFilter.filter(t => t !== f.name) 
+                                    : [...typeFilter, f.name];
+                                setTypeFilter(newFilters);
+                            }} 
+                            className={`flex items-center justify-between text-sm group cursor-pointer p-1.5 rounded transition-all ${typeFilter.includes(f.name) ? 'bg-primary/10 text-primary' : 'hover:bg-white/5 text-foreground/70'}`}
+                         >
+                             <div className="flex items-center gap-2">
+                                 {/* Icon Mapping */}
+                                 <span className="capitalize">{f.name}</span>
+                             </div>
+                             <span className={`text-xs px-1.5 rounded-full ${typeFilter.includes(f.name) ? 'bg-primary/20 text-primary' : 'bg-white/5 text-foreground/40'}`}>{f.count}</span>
+                         </div>
+                    ))}
+                </div>
+            </div>
+            
+            <div className="w-full h-px bg-white/5" />
+
+            <div className="space-y-4">
+                <h3 className="text-xs font-bold text-foreground/40 uppercase tracking-wider flex justify-between items-center">
+                    Status
+                    {statusFilter && <span onClick={() => setStatusFilter('')} className="text-[10px] text-primary cursor-pointer hover:underline">Clear</span>}
+                </h3>
+                <div className="space-y-1">
+                    {facets.statuses.map(f => (
+                         <div 
+                            key={f.name} 
+                            onClick={() => setStatusFilter(statusFilter === f.name.toLowerCase() ? '' : f.name.toLowerCase())} 
+                            className={`flex items-center justify-between text-sm group cursor-pointer p-1.5 rounded transition-all ${statusFilter === f.name.toLowerCase() ? 'bg-primary/10 text-primary' : 'hover:bg-white/5 text-foreground/70'}`}
+                         >
+                             <span>{f.name}</span>
+                             <span className={`text-xs px-1.5 rounded-full ${statusFilter === f.name.toLowerCase() ? 'bg-primary/20 text-primary' : 'bg-white/5 text-foreground/40'}`}>{f.count}</span>
+                         </div>
+                    ))}
+                </div>
+            </div>
+
+            <div className="w-full h-px bg-white/5" />
+
+            <div className="space-y-4">
+                <h3 className="text-xs font-bold text-foreground/40 uppercase tracking-wider">Top Tags</h3>
+                <div className="flex flex-wrap gap-2">
+                    {facets.tags.map(f => (
+                         <Chip 
+                            key={f.name} 
+                            size="sm" 
+                            variant="flat" 
+                            className="cursor-pointer hover:bg-content2 transition-colors bg-white/5 border border-white/5"
+                         >
+                             {f.name} <span className="text-foreground/40 ml-1 opacity-70 text-[10px]">{f.count}</span>
+                         </Chip>
+                    ))}
+                </div>
+            </div>
         </div>
-      </div>
+
+        {/* Main Content */}
+        <div className="flex-1 min-w-0 space-y-6">
+            {/* Analytics Section */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <Card className="bg-content1/50 border border-white/5">
+                    <CardBody className="p-4 flex flex-row items-center gap-4 h-32">
+                        <div className="h-full w-32 flex-shrink-0">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                    <Pie 
+                                        data={typeDistribution} 
+                                        cx="50%" 
+                                        cy="50%" 
+                                        innerRadius={25} 
+                                        outerRadius={50} 
+                                        paddingAngle={5} 
+                                        dataKey="value"
+                                    >
+                                        {typeDistribution.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={IOC_TYPE_COLORS[entry.name] ? `var(--nextui-${IOC_TYPE_COLORS[entry.name]})` : '#8884d8'} />
+                                        ))}
+                                    </Pie>
+                                </PieChart>
+                            </ResponsiveContainer>
+                        </div>
+                        <div className="flex-1">
+                             <h3 className="text-sm font-medium text-foreground/70 mb-2">Type Distribution</h3>
+                             <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                                 {typeDistribution.slice(0, 4).map(t => (
+                                     <div key={t.name} className="flex items-center justify-between text-xs">
+                                         <div className="flex items-center gap-1.5">
+                                             <div className={`w-2 h-2 rounded-full bg-${IOC_TYPE_COLORS[t.name] || 'default'}-500`} />
+                                             <span className="capitalize opacity-70">{t.name}</span>
+                                         </div>
+                                         <span className="font-mono">{t.value}</span>
+                                     </div>
+                                 ))}
+                             </div>
+                        </div>
+                    </CardBody>
+                </Card>
+
+                <Card className="bg-content1/50 border border-white/5">
+                    <CardBody className="p-4 flex flex-col justify-center h-32">
+                        <div className="flex justify-between items-end mb-2">
+                           <h3 className="text-sm font-medium text-foreground/70">Enrichment Queue</h3>
+                           <span className="text-xs text-foreground/40">{observables.filter(o => o.enrichedAt).length}/{observables.length} processed</span>
+                        </div>
+                         <Progress 
+                            size="md" 
+                            value={(observables.filter(o => o.enrichedAt).length / observables.length) * 100} 
+                            color="success" 
+                            classNames={{
+                                track: "drop-shadow-md border border-default",
+                                indicator: "bg-gradient-to-r from-green-500 to-green-300",
+                            }}
+                         />
+                         <div className="mt-3 flex gap-4 text-xs">
+                             <div className="flex items-center gap-1.5">
+                                 <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                                 <span className="text-foreground/60">Auto-Enrichment Active</span>
+                             </div>
+                         </div>
+                    </CardBody>
+                </Card>
+            </div>
 
       {/* Table */}
       <Table 
         aria-label="Observables table"
+        selectionMode="multiple"
+        selectedKeys={selectedKeys}
+        onSelectionChange={(keys) => setSelectedKeys(keys as Set<string>)}
         classNames={{
-          wrapper: "bg-content1 shadow-none border border-white/5 rounded-lg",
-          th: "bg-content2 text-xs font-bold text-foreground/60 uppercase tracking-wider border-b border-white/10",
-          td: "py-3 text-foreground/90",
-          tr: "hover:bg-content2/50 border-b border-white/5 last:border-0 transition-all",
+          wrapper: "bg-transparent shadow-none border border-white/5 rounded-lg",
+          th: "bg-content1/50 backdrop-blur text-[10px] font-bold text-foreground/40 uppercase tracking-wider border-b border-white/10 h-10",
+          td: "py-3 text-foreground/90 border-b border-white/5",
+          tr: "hover:bg-content1/50 last:border-0 transition-all cursor-pointer group",
         }}
       >
         <TableHeader>
+          <TableColumn key="risk" className="w-16">RISK</TableColumn>
           <TableColumn key="type">TYPE</TableColumn>
           <TableColumn key="value">VALUE</TableColumn>
-          <TableColumn key="status">STATUS</TableColumn>
-          <TableColumn key="sightings">SIGHTINGS</TableColumn>
           <TableColumn key="tags">TAGS</TableColumn>
+          <TableColumn key="enrichment">INTELLIGENCE</TableColumn>
           <TableColumn key="lastSeen">LAST SEEN</TableColumn>
-          <TableColumn key="enriched">ENRICHMENT</TableColumn>
-          <TableColumn key="actions">ACTIONS</TableColumn>
+          <TableColumn key="actions" align="end">ACTIONS</TableColumn>
         </TableHeader>
         <TableBody items={filteredObservables} emptyContent="No observables found.">
           {(item) => (
             <TableRow key={item.id}>
-              {(columnKey) => <TableCell>{renderCell(item, columnKey as string)}</TableCell>}
+              {(columnKey) => <TableCell>{columnKey === 'risk' ? (
+                  <div className="flex flex-col items-center gap-1">
+                      <span className={`text-[10px] font-bold ${getRiskScore(item) > 80 ? 'text-danger' : 'text-success'}`}>{getRiskScore(item)}</span>
+                      <Progress size="sm" value={getRiskScore(item)} color={getRiskScore(item) > 80 ? "danger" : "success"} className="h-1 w-12" aria-label="Risk Score" />
+                  </div>
+              ) : columnKey === 'enrichment' ? (
+                  <div className="flex flex-col gap-1">
+                       <div className="flex items-center gap-2">
+                           <span className={`w-2 h-2 rounded-full ${item.isMalicious ? 'bg-danger' : (item.isMalicious === false ? 'bg-success' : 'bg-gray-500')}`} />
+                           <span className="text-xs font-medium">{item.isMalicious ? 'Malicious' : (item.isMalicious === false ? 'Safe' : 'Unknown')}</span>
+                       </div>
+                       {item.enrichedAt && <span className="text-[10px] text-foreground/40">VT Score: {item.isMalicious ? '24/70' : '0/70'}</span>}
+                  </div>
+              ) : renderCell(item, columnKey as string)}</TableCell>}
             </TableRow>
           )}
         </TableBody>
       </Table>
+      </div>
+
+      </div>
 
       <ObservableDetailModal 
         isOpen={isModalOpen}

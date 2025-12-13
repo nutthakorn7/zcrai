@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { 
+  Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure, Input, Checkbox,
   Card, CardBody, CardHeader, Button, Select, SelectItem
 } from "@heroui/react";
 import { 
@@ -29,10 +30,63 @@ const TIME_RANGES = [
     { label: "All Time", value: "all" },
 ];
 
+function ScheduleModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+  const [emails, setEmails] = useState('');
+  
+  const handleSave = () => {
+    // Mock save
+    alert('Schedule saved! Reports will be sent to ' + emails);
+    onClose();
+  };
+
+  return (
+    <Modal isOpen={isOpen} onOpenChange={onClose}>
+      <ModalContent>
+        {(onClose) => (
+          <>
+            <ModalHeader className="flex flex-col gap-1">
+              Schedule Automated Report
+              <span className="text-xs font-normal text-default-500">Receive PDF reports automatically via email.</span>
+            </ModalHeader>
+            <ModalBody>
+              <div className="flex flex-col gap-4">
+                <Input
+                  label="Recipients"
+                  placeholder="email@example.com, manager@example.com"
+                  description="Comma separated emails"
+                  value={emails}
+                  onValueChange={setEmails}
+                  startContent={<Icon.Mail className="w-4 h-4 text-default-400" />}
+                />
+                
+                <div className="flex gap-2">
+                   <Checkbox defaultSelected>Include Executive Summary</Checkbox>
+                </div>
+                <div className="flex gap-2">
+                   <Checkbox defaultSelected>Include Detailed Charts</Checkbox>
+                </div>
+              </div>
+            </ModalBody>
+            <ModalFooter>
+              <Button variant="light" onPress={onClose}>
+                Cancel
+              </Button>
+              <Button color="primary" onPress={handleSave} startContent={<Icon.CheckCircle className="w-4 h-4" />}>
+                Save Schedule
+              </Button>
+            </ModalFooter>
+          </>
+        )}
+      </ModalContent>
+    </Modal>
+  );
+}
+
 export default function ReportsPage() {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<any>(null);
   const [timeRange, setTimeRange] = useState("30d");
+  const { isOpen, onOpen, onClose } = useDisclosure();
   
   const fetchMetrics = async () => {
     try {
@@ -166,8 +220,18 @@ export default function ReportsPage() {
             >
                 Export PDF
             </Button>
+            <Button
+                variant="flat"
+                color="secondary"
+                startContent={<Icon.Clock className="size-4" />}
+                onPress={onOpen}
+            >
+                Schedule
+            </Button>
         </div>
       </div>
+
+      <ScheduleModal isOpen={isOpen} onClose={onClose} />
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

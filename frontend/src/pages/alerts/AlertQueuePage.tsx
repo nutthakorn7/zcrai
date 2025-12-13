@@ -7,14 +7,26 @@ import { DonutCard } from '../../components/DonutCard';
 import { FilterBar } from '../../components/FilterBar';
 import { SEVERITY_COLORS, getSeverityColor, getSeverityDotSize } from '../../constants/severity';
 
+import { useSearchParams } from 'react-router-dom';
+
 export default function AlertQueuePage() {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [selectedAlerts, setSelectedAlerts] = useState<Set<string>>(new Set());
+  const [isGrouped, setIsGrouped] = useState(false);
+  const [isLive, setIsLive] = useState(false); // Live Mode state
   
-  // Filter states
-  const [severityFilter, setSeverityFilter] = useState<string[]>([]);
-  const [statusFilter, setStatusFilter] = useState<string[]>([]);
-  const [sourceFilter, setSourceFilter] = useState('');
+  // URL Params
+  const [searchParams] = useSearchParams();
+
+  // Filter states - Init from URL
+  const [severityFilter, setSeverityFilter] = useState<string[]>(
+    searchParams.getAll('severity').length > 0 ? searchParams.getAll('severity') : []
+  );
+  const [statusFilter, setStatusFilter] = useState<string[]>(
+    searchParams.getAll('status').length > 0 ? searchParams.getAll('status') : []
+  );
+  const [sourceFilter, setSourceFilter] = useState(searchParams.get('source') || '');
+  const [dateFilter, setDateFilter] = useState(searchParams.get('date') || '');
   const [searchQuery, setSearchQuery] = useState('');
   
   // Modal states
@@ -38,15 +50,102 @@ export default function AlertQueuePage() {
     fetchAlerts();
   }, []);
 
+  // Poll for updates if Live Mode is active
+  useEffect(() => {
+    if (!isLive) return;
+    const interval = setInterval(fetchAlerts, 5000); // Poll every 5 seconds
+    return () => clearInterval(interval);
+  }, [isLive]);
+
+
+  // Update filters if URL changes (e.g. navigation from dashboard)
+  useEffect(() => {
+    const sev = searchParams.getAll('severity');
+    if (sev.length > 0) setSeverityFilter(sev);
+    
+    const src = searchParams.get('source');
+    if (src) setSourceFilter(src);
+
+    const date = searchParams.get('date');
+    if (date) setDateFilter(date);
+  }, [searchParams]);
+
   const filteredAlerts = useMemo(() => {
     return alerts.filter(a => {
+      // 1. Basic Filters from UI (Sidebar/Dropdowns)
       if (severityFilter.length > 0 && !severityFilter.includes(a.severity)) return false;
       if (statusFilter.length > 0 && !statusFilter.includes(a.status)) return false;
-      if (sourceFilter && a.source !== sourceFilter) return false;
-      if (searchQuery && !a.title.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+      if (sourceFilter && a.source.toLowerCase() !== sourceFilter.toLowerCase()) return false;
+      
+      // 2. Advanced Search Query Logic (KQL Style)
+      if (searchQuery) {
+          const terms = searchQuery.split(' ');
+          let matchesAll = true;
+          
+          for (const term of terms) {
+              if (term.includes(':')) {
+                  const [key, value] = term.split(':').map(s => s.toLowerCase());
+                  if (!value) continue;
+
+                  if (key === 'severity') {
+                      if (a.severity.toLowerCase() !== value) matchesAll = false;
+                  } else if (key === 'status') {
+                      if (a.status.toLowerCase() !== value) matchesAll = false;
+                  } else if (key === 'source') {
+                      if (!a.source.toLowerCase().includes(value)) matchesAll = false;
+                  } else if (key === 'ip') {
+                       // Assume source could be IP, or check fields if available
+                       if(!a.source.includes(value)) matchesAll = false; 
+                  }
+              } else {
+                  // General Text Search
+                  if (!a.title.toLowerCase().includes(term.toLowerCase()) && !a.source.toLowerCase().includes(term.toLowerCase())) {
+                      matchesAll = false;
+                  }
+              }
+          }
+          if (!matchesAll) return false;
+      }
+      
+      // 3. Date Filter Logic
+      if (dateFilter) {
+          const alertDate = new Date(a.createdAt);
+          const formattedDate = alertDate.toISOString().split('T')[0];
+          const shortDate = alertDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+          if (dateFilter !== formattedDate && dateFilter !== shortDate) return false; 
+      }
+
       return true;
     });
-  }, [alerts, severityFilter, statusFilter, sourceFilter, searchQuery]);
+  }, [alerts, severityFilter, statusFilter, sourceFilter, searchQuery, dateFilter]);
+
+  // Grouped Data
+  const groupedAlerts = useMemo(() => {
+     if (!isGrouped) return [];
+     
+     const groups: Record<string, any> = {};
+     filteredAlerts.forEach(a => {
+         if (!groups[a.source]) {
+             groups[a.source] = {
+                 id: `group-${a.source}`,
+                 source: a.source,
+                 count: 0,
+                 severities: { critical: 0, high: 0, medium: 0, low: 0, info: 0 },
+                 latest: a.createdAt,
+                 status: a.status // Representative status
+             };
+         }
+         groups[a.source].count++;
+         const sev = a.severity.toLowerCase() as keyof typeof SEVERITY_COLORS;
+         if (groups[a.source].severities[sev] !== undefined) groups[a.source].severities[sev]++;
+         
+         if (new Date(a.createdAt) > new Date(groups[a.source].latest)) {
+             groups[a.source].latest = a.createdAt;
+         }
+     });
+     
+     return Object.values(groups).sort((a: any, b: any) => b.count - a.count);
+  }, [filteredAlerts, isGrouped]);
 
   // Aggregate data for donut charts
   const severityData = useMemo(() => {
@@ -226,7 +325,21 @@ export default function AlertQueuePage() {
           <h1 className="text-2xl font-bold">Alert Queue</h1>
           <p className="text-gray-400">{filteredAlerts.length} alerts · {selectedAlerts.size} selected</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
+          <Button
+            size="sm"
+            variant={isLive ? "flat" : "light"}
+            color={isLive ? "success" : "default"}
+            onPress={() => setIsLive(!isLive)}
+            startContent={<div className={`w-2 h-2 rounded-full ${isLive ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`}></div>}
+            className="mr-2"
+          >
+            {isLive ? "Live" : "Paused"}
+          </Button>
+          <div className="flex items-center gap-2 mr-4 bg-content1 px-3 py-1.5 rounded-lg border border-white/5">
+             <span className="text-sm text-gray-400">Group by Source</span>
+             <Checkbox isSelected={isGrouped} onValueChange={setIsGrouped} size="sm" />
+          </div>
           {selectedAlerts.size > 0 && (
             <>
               <Button color="danger" variant="flat" onPress={onDismissOpen}>
@@ -270,7 +383,7 @@ export default function AlertQueuePage() {
       />
 
       {/* Table */}
-      <Table 
+        <Table 
         aria-label="Alerts table"
         classNames={{
           wrapper: "bg-content1 shadow-none border border-white/5 rounded-lg",
@@ -278,25 +391,59 @@ export default function AlertQueuePage() {
           td: "py-3 text-foreground/90",
           tr: "hover:bg-content2/50 border-b border-white/5 last:border-0 cursor-pointer transition-all",
         }}
+        isHeaderSticky
       >
         <TableHeader>
-          <TableColumn key="select">
-            <Checkbox
-              isSelected={selectedAlerts.size === filteredAlerts.length && filteredAlerts.length > 0}
-              onValueChange={handleSelectAll}
-            />
-          </TableColumn>
-          <TableColumn key="severity">SEVERITY</TableColumn>
-          <TableColumn key="title">TITLE</TableColumn>
-          <TableColumn key="source">SOURCE</TableColumn>
-          <TableColumn key="status">STATUS</TableColumn>
-          <TableColumn key="created">CREATED</TableColumn>
-          <TableColumn key="actions">ACTIONS</TableColumn>
+          {[
+            <TableColumn key="select">
+              <Checkbox
+                isSelected={selectedAlerts.size === filteredAlerts.length && filteredAlerts.length > 0}
+                onValueChange={handleSelectAll}
+              />
+            </TableColumn>,
+            ...(!isGrouped ? [<TableColumn key="title">TITLE</TableColumn>] : []),
+            <TableColumn key="source">SOURCE</TableColumn>,
+            ...(isGrouped ? [<TableColumn key="count">COUNT</TableColumn>] : []),
+            ...(isGrouped ? [<TableColumn key="breakdown">SEVERITY BREAKDOWN</TableColumn>] : []),
+            ...(!isGrouped ? [<TableColumn key="severity">SEVERITY</TableColumn>] : []),
+            ...(!isGrouped ? [<TableColumn key="status">STATUS</TableColumn>] : []),
+            <TableColumn key="created">{isGrouped ? 'LATEST ACTIVITY' : 'CREATED'}</TableColumn>,
+            <TableColumn key="actions">ACTIONS</TableColumn>
+          ]}
         </TableHeader>
-        <TableBody items={filteredAlerts} emptyContent="No alerts found.">
-          {(item) => (
+        <TableBody items={isGrouped ? groupedAlerts : filteredAlerts} emptyContent="No alerts found.">
+          {(item: any) => (
             <TableRow key={item.id}>
-              {(columnKey) => <TableCell>{renderCell(item, columnKey as string)}</TableCell>}
+              {(columnKey) => <TableCell>
+                  {(() => {
+                      if (isGrouped) {
+                          // Grouped Render Logic
+                          if (columnKey === 'source') return <span className="font-bold text-lg">{item.source}</span>;
+                          if (columnKey === 'count') return <Chip color="secondary" variant="flat">{item.count} Alerts</Chip>;
+                          if (columnKey === 'breakdown') {
+                              return (
+                                  <div className="flex gap-1">
+                                      {Object.entries(item.severities).map(([sev, count]: [string, any]) => {
+                                          if (count === 0) return null;
+                                          return (
+                                              <div key={sev} className="flex items-center gap-1 bg-white/5 rounded px-1.5 py-0.5">
+                                                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: SEVERITY_COLORS[sev as keyof typeof SEVERITY_COLORS]?.dot || 'gray' }}></div>
+                                                  <span className="text-xs text-gray-300">{count}</span>
+                                              </div>
+                                          );
+                                      })}
+                                  </div>
+                              );
+                          }
+                          if (columnKey === 'created') return <span className="text-sm text-gray-400">{new Date(item.latest).toLocaleDateString()}</span>;
+                          if (columnKey === 'actions') return <Button size="sm" variant="light" onPress={() => { setSourceFilter(item.source); setIsGrouped(false); }}>Drill Down</Button>;
+                          return null;
+                      } else {
+                          // Normal Render Logic
+                          return renderCell(item, columnKey as string);
+                      }
+                  })()}
+              </TableCell>}
             </TableRow>
           )}
         </TableBody>

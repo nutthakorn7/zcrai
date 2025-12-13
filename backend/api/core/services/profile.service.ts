@@ -1,25 +1,33 @@
 import { db } from '../../infra/db'
-import { users } from '../../infra/db/schema'
+import { users, tenants } from '../../infra/db/schema'
 import { eq } from 'drizzle-orm'
 
 export const ProfileService = {
   // ==================== GET PROFILE ====================
   async get(userId: string) {
-    const [user] = await db.select({
-      id: users.id,
-      email: users.email,
-      role: users.role,
-      status: users.status,
-      tenantId: users.tenantId,
-      mfaEnabled: users.mfaEnabled,
-      createdAt: users.createdAt,
-      updatedAt: users.updatedAt,
+    const [result] = await db.select({
+      user: {
+        id: users.id,
+        email: users.email,
+        role: users.role,
+        status: users.status,
+        tenantId: users.tenantId,
+        mfaEnabled: users.mfaEnabled,
+        createdAt: users.createdAt,
+        updatedAt: users.updatedAt,
+      },
+      tenant: tenants
     })
     .from(users)
+    .leftJoin(tenants, eq(users.tenantId, tenants.id))
     .where(eq(users.id, userId))
 
-    if (!user) throw new Error('User not found')
-    return user
+    if (!result) throw new Error('User not found')
+    
+    return {
+      ...result.user,
+      tenant: result.tenant
+    }
   },
 
   // ==================== UPDATE PROFILE ====================

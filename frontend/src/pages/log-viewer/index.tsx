@@ -15,9 +15,38 @@ import sentineloneLogo from '../../assets/logo/sentinelone.png';
 import crowdstrikeLogo from '../../assets/logo/crowdstrike.png';
 
 import { 
-  LogEntry, FilterOptions, PaginationInfo
+  LogEntry, PaginationInfo
 } from './type.ts';
 import { CasesAPI } from "../../shared/api/cases";
+import { 
+  BarChart, Bar, XAxis, Tooltip as RechartTooltip, ResponsiveContainer, Cell
+} from 'recharts';
+
+const Histogram = ({ data, onBarClick }: { data: any[], onBarClick: (data: any) => void }) => {
+    if (!data || data.length === 0) return <div className="h-24 flex items-center justify-center text-xs text-foreground/30">No activity to display</div>;
+    
+    return (
+        <div className="h-32 w-full mb-6 bg-content1/50 border border-white/5 rounded-lg p-4">
+            <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={data} onClick={onBarClick} barCategoryGap={2}>
+                    <RechartTooltip 
+                        contentStyle={{ backgroundColor: '#18181b', border: '1px solid #27272a' }}
+                        cursor={{fill: 'rgba(255,255,255,0.05)'}}
+                    />
+                    <XAxis 
+                        dataKey="time" 
+                        hide 
+                    />
+                    <Bar dataKey="count" fill="#3B82F6" radius={[2, 2, 0, 0]}>
+                        {data.map((entry: any, index: number) => (
+                            <Cell key={`cell-${index}`} fill={entry.severity === 'critical' ? '#EF4444' : '#3B82F6'} />
+                        ))}
+                    </Bar>
+                </BarChart>
+            </ResponsiveContainer>
+        </div>
+    );
+};
 
 // Vendor Logo Component
 const VendorLogo = ({ source }: { source: string }) => {
@@ -62,37 +91,73 @@ export default function LogViewerPage() {
   const [loading, setLoading] = useState(true);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [pagination, setPagination] = useState<PaginationInfo>({ page: 1, limit: 20, total: 0, totalPages: 1 });
-  const [_, setFilterOptions] = useState<FilterOptions>({ integrations: [], accounts: [], sites: [] });
   
+  // Facets State
+  const [facets, setFacets] = useState<{
+      sources: { name: string; count: number }[];
+      hosts: { name: string; count: number }[];
+      users: { name: string; count: number }[];
+  }>({ sources: [], hosts: [], users: [] });
+
   // Filters
   const [search, setSearch] = useState("");
   const [severity, setSeverity] = useState<string>("");
-  const [source] = useState<string>("");
+
   const [selectedProvider, setSelectedProvider] = useState<string>('all');
   const [availableProviders, setAvailableProviders] = useState<string[]>([]);
   const [integrationId] = useState<string>("");
   const [accountName] = useState<string>("");
   const [siteName] = useState<string>("");
+  const [isLive, setIsLive] = useState(false);
   
   // Detail Modal
   const [selectedLog, setSelectedLog] = useState<LogEntry | null>(null);
 
   useEffect(() => {
-    loadFilterOptions();
-  }, []);
-
-  useEffect(() => {
     loadLogs();
   }, [pagination.page, selectedProvider]);
+  
+  // Live Tail Polling
+  useEffect(() => {
+      if (!isLive) return;
+      const interval = setInterval(() => {
+          if (pagination.page !== 1) setPagination(prev => ({ ...prev, page: 1 }));
+          loadLogs();
+      }, 5000);
+      return () => clearInterval(interval);
+  }, [isLive, pagination.page]);
 
-  const loadFilterOptions = async () => {
-    try {
-      const res = await api.get('/logs/filters');
-      setFilterOptions(res.data);
-    } catch (e) {
-      console.error('Failed to load filter options:', e);
-    }
+  // Histogram Data Aggregation
+  const histogramData = logs.reduce((acc: any[], log) => {
+      const date = new Date(log.timestamp);
+      const key = `${date.getHours()}:${date.getMinutes() < 10 ? '0' : ''}${date.getMinutes()}`;
+      const existing = acc.find(item => item.time === key);
+      if (existing) {
+          existing.count++;
+          if (log.severity === 'critical') existing.severity = 'critical';
+      } else {
+          acc.push({ time: key, count: 1, severity: log.severity });
+      }
+      return acc;
+  }, []).sort((a,b) => a.time.localeCompare(b.time));
+  
+  const parseKQL = (query: string) => {
+      const filters: any = { search: '', severity: null, source: null };
+      const terms = query.split(' ');
+      const textTerms = [];
+      for (const term of terms) {
+          if (term.includes(':')) {
+              const [key, value] = term.split(':');
+              if (key === 'severity') filters.severity = value;
+              if (key === 'source') filters.source = value;
+          } else {
+              textTerms.push(term);
+          }
+      }
+      filters.search = textTerms.join(' ');
+      return filters;
   };
+
 
   const loadLogs = async () => {
     setLoading(true);
@@ -118,9 +183,16 @@ export default function LogViewerPage() {
         page: pagination.page.toString(),
         limit: pagination.limit.toString(),
       });
-      if (search) params.append('search', search);
+      
+      // KQL Parsing
+      const kql = parseKQL(search);
+      
+      if (kql.search) params.append('search', kql.search);
+      if (kql.severity) params.append('severity', kql.severity);
+      else if (severity) params.append('severity', severity); // Fallback to dropdown
+      
+      if (kql.source) params.append('source', kql.source);
       if (severity) params.append('severity', severity);
-      if (source) params.append('source', source);
       
       // Add sources parameter based on provider selection
       if (targetSources.length > 0) {
@@ -133,32 +205,47 @@ export default function LogViewerPage() {
       
       if (integrationId) params.append('integration_id', integrationId);
       if (accountName) params.append('account_name', accountName);
-      if (siteName) params.append('site_name', siteName);
-
       const res = await api.get(`/logs?${params.toString()}`);
-      setLogs(res.data.data);
+      
+      const logsData = res.data.data || [];
+      setLogs(logsData);
       setPagination(res.data.pagination);
+      
+      // Compute Facets
+      const countBy = (key: keyof LogEntry) => {
+          const counts: Record<string, number> = {};
+          logsData.forEach((l: LogEntry) => {
+              const val = l[key] as string;
+              if (val) counts[val] = (counts[val] || 0) + 1;
+          });
+          return Object.entries(counts)
+              .map(([name, count]) => ({ name, count }))
+              .sort((a,b) => b.count - a.count)
+              .slice(0, 5);
+      };
+
+      setFacets({
+          sources: countBy('source'),
+          hosts: countBy('host_name'),
+          users: countBy('user_name')
+      });
+      
+      // AI Context Data
+      const severityBreakdown = logsData.reduce((acc: Record<string, number>, log: LogEntry) => {
+        acc[log.severity] = (acc[log.severity] || 0) + 1;
+        return acc;
+      }, {});
+      const uniqueSources = [...new Set(logsData.map((l: LogEntry) => l.source))];
+      const uniqueHosts = [...new Set(logsData.map((l: LogEntry) => l.host_name).filter(Boolean))];
+      const uniqueUsers = [...new Set(logsData.map((l: LogEntry) => l.user_name).filter(Boolean))];
       
       // Update Page Context for AI Assistant
       const activeFilters = [];
       if (search) activeFilters.push(`search: ${search}`);
       if (severity) activeFilters.push(`severity: ${severity}`);
-      if (source) activeFilters.push(`source: ${source}`);
       if (integrationId) activeFilters.push(`integration: ${integrationId}`);
       if (accountName) activeFilters.push(`account: ${accountName}`);
       if (siteName) activeFilters.push(`site: ${siteName}`);
-      
-      // Calculate severity breakdown from visible logs
-      const logsData = res.data.data || [];
-      const severityBreakdown = logsData.reduce((acc: Record<string, number>, log: LogEntry) => {
-        acc[log.severity] = (acc[log.severity] || 0) + 1;
-        return acc;
-      }, {});
-      
-      // Get unique sources, hosts, users from visible logs
-      const uniqueSources = [...new Set(logsData.map((l: LogEntry) => l.source))];
-      const uniqueHosts = [...new Set(logsData.map((l: LogEntry) => l.host_name).filter(Boolean))];
-      const uniqueUsers = [...new Set(logsData.map((l: LogEntry) => l.user_name).filter(Boolean))];
       
       setPageContext({
         pageName: 'Log Viewer',
@@ -340,7 +427,7 @@ export default function LogViewerPage() {
       });
       if (search) params.append('search', search);
       if (severity) params.append('severity', severity);
-      if (source) params.append('source', source);
+
       
       // Add sources parameter based on provider selection
       if (targetSources.length > 0) {
@@ -412,11 +499,21 @@ export default function LogViewerPage() {
       {/* Sticky Glass Header */}
       <header className="sticky top-0 z-40 w-full backdrop-blur-xl bg-background/60 border-b border-white/5 h-16 flex items-center justify-between px-8">
         <div className="flex items-center gap-4">
-         <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3">
           <h1 className="text-2xl font-bold tracking-tight text-foreground">Log Viewer</h1>
           <span className="text-sm text-foreground/50 border-l border-white/10 pl-3">Real-time log feed</span>
+            <Button
+                size="sm"
+                variant={isLive ? "flat" : "light"}
+                color={isLive ? "success" : "default"}
+                onPress={() => setIsLive(!isLive)}
+                startContent={<div className={`w-2 h-2 rounded-full ${isLive ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`}></div>}
+            >
+                {isLive ? "Live" : "Paused"}
+            </Button>
+         </div>
         </div>
-        </div>
+        
         {/* Actions / Filters */}
         <div className="flex items-center gap-3">
           {/* Provider Filter Buttons */}
@@ -467,7 +564,7 @@ export default function LogViewerPage() {
           {/* Search Input */}
           <Input
             type="text"
-            placeholder="Search logs..."
+            placeholder="Search logs (e.g. source:firewall severity:critical)..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
@@ -481,7 +578,7 @@ export default function LogViewerPage() {
             startContent={
               <Icon.Search className="w-4 h-4 text-foreground/50" />
             }
-            className="w-64"
+            className="w-96"
           />
 
           <div className="h-4 w-px bg-white/10 mx-2"></div>
@@ -550,26 +647,88 @@ export default function LogViewerPage() {
             </Button>
           </Tooltip>
         </div>
+
       </header>
 
       {/* Content Canvas */}
-      <div className="p-8 max-w-[1600px] mx-auto w-full animate-fade-in">
-        {loading ? (
-          <div className="flex justify-center py-12">
-            <Spinner size="lg" color="primary" />
-          </div>
-        ) : (
-          <>
-            {/* Table */}
-            <Table
-              aria-label="Logs table"
-              classNames={{
-                wrapper: "bg-transparent shadow-none border border-white/5 rounded-lg",
-                th: "bg-transparent text-[10px] font-bold text-foreground/40 uppercase tracking-wider border-b border-white/10",
-                td: "py-3 text-foreground/90",
-                tr: "hover:bg-content1 border-b border-white/5 last:border-0 cursor-default transition-all group",
-              }}
-            >
+      <div className="p-8 max-w-[1800px] mx-auto w-full animate-fade-in flex gap-6">
+        
+        {/* Left Sidebar - Facets */}
+        <div className="w-64 flex-shrink-0 space-y-6 hidden xl:block">
+            {/* Histogram Mini (Optional place, but let's keep facets here) */}
+            
+            <div className="space-y-4">
+                <h3 className="text-xs font-bold text-foreground/40 uppercase tracking-wider">Top Sources</h3>
+                <div className="space-y-1">
+                    {facets.sources.map(f => (
+                         <div key={f.name} onClick={() => setSearch((prev) => `${prev} source:${f.name}`)} className="flex items-center justify-between text-sm group cursor-pointer hover:bg-white/5 p-1 rounded">
+                             <span className="text-foreground/80 group-hover:text-primary truncate">{f.name}</span>
+                             <span className="text-xs text-foreground/40 bg-white/5 px-1.5 rounded-full">{f.count}</span>
+                         </div>
+                    ))}
+                    {facets.sources.length === 0 && <span className="text-xs text-foreground/30">No data</span>}
+                </div>
+            </div>
+
+            <div className="w-full h-px bg-white/5" />
+
+            <div className="space-y-4">
+                <h3 className="text-xs font-bold text-foreground/40 uppercase tracking-wider">Top Hosts</h3>
+                <div className="space-y-1">
+                    {facets.hosts.map(f => (
+                         <div key={f.name} onClick={() => setSearch((prev) => `${prev} host:${f.name}`)} className="flex items-center justify-between text-sm group cursor-pointer hover:bg-white/5 p-1 rounded">
+                             <div className="flex items-center gap-2 truncate">
+                                <Icon.Server className="w-3 h-3 text-foreground/30" />
+                                <span className="text-foreground/80 group-hover:text-primary truncate max-w-[120px]">{f.name}</span>
+                             </div>
+                             <span className="text-xs text-foreground/40 bg-white/5 px-1.5 rounded-full">{f.count}</span>
+                         </div>
+                    ))}
+                    {facets.hosts.length === 0 && <span className="text-xs text-foreground/30">No data</span>}
+                </div>
+            </div>
+
+            <div className="w-full h-px bg-white/5" />
+
+            <div className="space-y-4">
+                <h3 className="text-xs font-bold text-foreground/40 uppercase tracking-wider">Top Users</h3>
+                <div className="space-y-1">
+                    {facets.users.map(f => (
+                         <div key={f.name} onClick={() => setSearch((prev) => `${prev} user:${f.name}`)} className="flex items-center justify-between text-sm group cursor-pointer hover:bg-white/5 p-1 rounded">
+                             <div className="flex items-center gap-2 truncate">
+                                <Icon.User className="w-3 h-3 text-foreground/30" />
+                                <span className="text-foreground/80 group-hover:text-primary truncate max-w-[120px]">{f.name}</span>
+                             </div>
+                             <span className="text-xs text-foreground/40 bg-white/5 px-1.5 rounded-full">{f.count}</span>
+                         </div>
+                    ))}
+                    {facets.users.length === 0 && <span className="text-xs text-foreground/30">No data</span>}
+                </div>
+            </div>
+        </div>
+
+        {/* Main Content */}
+        <div className="flex-1 min-w-0">
+            <Histogram data={histogramData} onBarClick={() => {}} />
+            
+            {loading ? (
+            <div className="flex justify-center py-12">
+                <Spinner size="lg" color="primary" />
+            </div>
+            ) : (
+             <>
+             {/* Table code ... */}
+             <Table
+               aria-label="Logs table"
+               classNames={{
+                 wrapper: "bg-transparent shadow-none border border-white/5 rounded-lg",
+                 th: "bg-transparent text-[10px] font-bold text-foreground/40 uppercase tracking-wider border-b border-white/10",
+                 td: "py-3 text-foreground/90",
+                 tr: "hover:bg-content1 border-b border-white/5 last:border-0 cursor-default transition-all group",
+               }}
+             >
+             {/* ... */}
+
               <TableHeader>
                 <TableColumn key="time" className="w-32">Time</TableColumn>
                 <TableColumn key="severity" className="w-28">Severity</TableColumn>
@@ -610,8 +769,9 @@ export default function LogViewerPage() {
                 />
               </div>
             )}
-          </>
-        )}
+           </>
+          )}
+        </div>
       </div>
 
       {/* Detail Modal */}

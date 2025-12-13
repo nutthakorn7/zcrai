@@ -6,6 +6,8 @@ export const tenants = pgTable('tenants', {
   id: uuid('id').defaultRandom().primaryKey(),
   name: text('name').notNull(),
   status: text('status').default('active').notNull(),
+  apiUsage: integer('api_usage').default(0).notNull(),
+  apiLimit: integer('api_limit').default(10000).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 })
