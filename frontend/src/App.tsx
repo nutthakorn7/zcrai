@@ -11,7 +11,7 @@ import AdminDashboard from "./pages/admin";
 import SettingsLayout from "./layouts/SettingsLayout";
 import MFASetupPage from "./pages/settings/MFASetupPage";
 import IntegrationPage from "./pages/settings/IntegrationPage";
-import PlaybooksPage from "./pages/settings/PlaybooksPage";
+import PlaybooksPage from "./pages/playbooks/PlaybooksPage";
 import ReportsPage from "./pages/reports/ReportsPage";
 import UserPage from "./pages/settings/UserPage";
 import ProfilePage from "./pages/settings/ProfilePage";
@@ -212,7 +212,6 @@ function App() {
           <Route path="profile" element={<ProfilePage />} />
           <Route path="mfa" element={<MFASetupPage />} />
           <Route path="integrations" element={<IntegrationPage />} />
-          {/* Playbooks moved to top level */}
           <Route path="users" element={<UserPage />} />
           <Route path="tenants" element={<TenantPage />} />
         </Route>
