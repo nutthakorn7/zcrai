@@ -115,8 +115,8 @@ export default function UserPage() {
                         <Button size="sm" variant="light">Options</Button>
                       </DropdownTrigger>
                       <DropdownMenu aria-label="User Actions">
-                        <DropdownItem onPress={() => handleStatusChange(user.id, 'active')}>Activate</DropdownItem>
-                        <DropdownItem onPress={() => handleStatusChange(user.id, 'suspended')} className="text-danger" color="danger">Suspend</DropdownItem>
+                        <DropdownItem key="activate" onPress={() => handleStatusChange(user.id, 'active')}>Activate</DropdownItem>
+                        <DropdownItem key="suspend" onPress={() => handleStatusChange(user.id, 'suspended')} className="text-danger" color="danger">Suspend</DropdownItem>
                       </DropdownMenu>
                     </Dropdown>
                   </TableCell>
@@ -144,15 +144,16 @@ export default function UserPage() {
                   selectedKeys={[role]} 
                   onChange={(e) => setRole(e.target.value)}
                 >
-                  <SelectItem key="soc_analyst" value="soc_analyst">SOC Analyst</SelectItem>
-                  <SelectItem key="tenant_admin" value="tenant_admin">Tenant Admin</SelectItem>
-                  <SelectItem key="customer" value="customer">Customer (Read-only)</SelectItem>
-                  {/* Only Super Admin can create another Super Admin */}
-                  {currentUser?.role === 'superadmin' && (
-                    <SelectItem key="superadmin" value="superadmin" className="text-danger">
-                      Super Admin (System-wide)
+                  {[
+                    { key: "soc_analyst", label: "SOC Analyst" },
+                    { key: "tenant_admin", label: "Tenant Admin" },
+                    { key: "customer", label: "Customer (Read-only)" },
+                    ...(currentUser?.role === 'superadmin' ? [{ key: "superadmin", label: "Super Admin (System-wide)", className: "text-danger" }] : [])
+                  ].map((item) => (
+                    <SelectItem key={item.key} className={item.className || ""}>
+                      {item.label}
                     </SelectItem>
-                  )}
+                  ))}
                 </Select>
               </ModalBody>
               <ModalFooter>

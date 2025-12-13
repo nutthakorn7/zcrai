@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import { 
-  Card, CardBody, Button, Input, Select, SelectItem, Spinner,
+  Button, Input, Spinner,
   Table, TableHeader, TableColumn, TableBody, TableRow, TableCell,
   Pagination, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Chip,
   Dropdown, DropdownTrigger, DropdownMenu, DropdownItem, Tooltip
 } from "@heroui/react";
-import { useNavigate } from "react-router-dom";
+
 import { api } from "../../shared/api/api";
 import { usePageContext } from "../../contexts/PageContext";
 import { Icon } from '../../shared/ui';
@@ -56,22 +56,22 @@ const severityColors = {
 };
 
 export default function LogViewerPage() {
-  const navigate = useNavigate();
+
   const { setPageContext } = usePageContext();
   const [loading, setLoading] = useState(true);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [pagination, setPagination] = useState<PaginationInfo>({ page: 1, limit: 20, total: 0, totalPages: 1 });
-  const [filterOptions, setFilterOptions] = useState<FilterOptions>({ integrations: [], accounts: [], sites: [] });
+  const [_, setFilterOptions] = useState<FilterOptions>({ integrations: [], accounts: [], sites: [] });
   
   // Filters
   const [search, setSearch] = useState("");
   const [severity, setSeverity] = useState<string>("");
-  const [source, setSource] = useState<string>("");
+  const [source] = useState<string>("");
   const [selectedProvider, setSelectedProvider] = useState<string>('all');
   const [availableProviders, setAvailableProviders] = useState<string[]>([]);
-  const [integrationId, setIntegrationId] = useState<string>("");
-  const [accountName, setAccountName] = useState<string>("");
-  const [siteName, setSiteName] = useState<string>("");
+  const [integrationId] = useState<string>("");
+  const [accountName] = useState<string>("");
+  const [siteName] = useState<string>("");
   
   // Detail Modal
   const [selectedLog, setSelectedLog] = useState<LogEntry | null>(null);
@@ -201,17 +201,7 @@ export default function LogViewerPage() {
     loadLogs();
   };
 
-  const handleClear = () => {
-    setSearch("");
-    setSeverity("");
-    setSource("");
-    setSelectedProvider('all');
-    setIntegrationId("");
-    setAccountName("");
-    setSiteName("");
-    setPagination(prev => ({ ...prev, page: 1 }));
-    setTimeout(() => loadLogs(), 0);
-  };
+
 
   const handlePageChange = (page: number) => {
     setPagination(prev => ({ ...prev, page }));

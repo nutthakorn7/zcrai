@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Card, CardBody, Button, Input, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure, Chip, Select, SelectItem, Switch, Divider, Avatar } from "@heroui/react";
+import { Card, CardBody, Button, Input, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure, Chip, Select, SelectItem, Switch, Divider } from "@heroui/react";
 import { api } from "../../shared/api/api";
 import { usePageContext } from "../../contexts/PageContext";
 import { Icon } from '../../shared/ui';
@@ -414,6 +414,42 @@ export default function IntegrationPage() {
         </h1>
         <p className="text-default-500 mt-1">Connect your security tools and AI providers</p>
       </div>
+
+      {/* ⭐ Active Connections Section */}
+      {integrations.some(i => i.hasApiKey) && (
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold text-default-600 flex items-center gap-2">
+            <Icon.Signal className="w-5 h-5 text-success" />
+            Active Connections
+          </h2>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {integrations
+              .filter(i => i.hasApiKey)
+              .map(int => (
+                <Card key={int.id} className="bg-content1/50 border border-success/20">
+                  <CardBody className="p-4 flex flex-row items-center gap-4">
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                      int.lastSyncStatus === 'success' ? 'bg-success/10 text-success' : 
+                      int.lastSyncStatus === 'pending' ? 'bg-primary/10 text-primary' : 'bg-danger/10 text-danger'
+                    }`}>
+                      <img src={PROVIDER_LOGOS[int.provider]} alt={int.provider} className="w-6 h-6" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-sm truncate">{int.label}</h3>
+                      <p className="text-xs text-default-400 capitalize">{int.provider}</p>
+                    </div>
+                    <div className={`px-2 py-1 rounded-md text-xs font-medium border ${
+                      int.lastSyncStatus === 'success' ? 'bg-success/10 text-success border-success/20' : 
+                      int.lastSyncStatus === 'pending' ? 'bg-primary/10 text-primary border-primary/20' : 'bg-danger/10 text-danger border-danger/20'
+                    }`}>
+                      {int.lastSyncStatus === 'success' ? 'Active' : int.lastSyncStatus || 'Unknown'}
+                    </div>
+                  </CardBody>
+                </Card>
+              ))}
+          </div>
+        </div>
+      )}
 
       {/* ⭐ Security Integrations Section */}
       <div className="space-y-4">
