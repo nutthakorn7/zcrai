@@ -1,17 +1,17 @@
 # Build stage
-FROM golang:1.22-alpine AS builder
+FROM golang:1.23-alpine AS builder
 
 WORKDIR /app
 
 # Install dependencies
 RUN apk add --no-cache git
 
-# Copy go mod files
-COPY go.mod go.sum ./
-RUN go mod download
-
-# Copy source code
+# Copy source code first (needed for tidy)
 COPY . .
+
+# Force tidy and download to fix dependencies
+RUN go mod tidy
+RUN go mod download
 
 # Build
 RUN CGO_ENABLED=0 GOOS=linux go build -o collector ./cmd/main.go

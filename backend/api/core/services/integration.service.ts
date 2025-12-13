@@ -21,8 +21,10 @@ export const IntegrationService = {
     .from(apiKeys)
     .where(eq(apiKeys.tenantId, tenantId))
 
-    // เพิ่ม hasApiKey, fetchSettings และ masked config
-    return keys.map(key => {
+    // Check if Gemini is already configured in DB
+    const hasGemini = keys.some(k => k.provider === 'gemini')
+    
+    const result = keys.map(key => {
       let fetchSettings = null
       let maskedUrl = null
       
@@ -52,10 +54,30 @@ export const IntegrationService = {
         lastSyncAt: key.lastSyncAt,
         createdAt: key.createdAt,
         hasApiKey: !!key.encryptedKey && key.encryptedKey.length > 0,
-        fetchSettings,  // ⭐ ส่ง fetchSettings กลับไปแสดงใน UI
-        maskedUrl,      // ⭐ URL สำหรับแสดงผล (ไม่ mask)
+        fetchSettings,
+        maskedUrl,
       }
     })
+
+    // Inject System Gemini if not present in DB but exists in Env
+    if (!hasGemini && process.env.GEMINI_API_KEY) {
+      result.push({
+        id: 'system-gemini',
+        provider: 'gemini',
+        label: 'Gemini (System Config)',
+        keyId: null,
+        lastUsedAt: null,
+        lastSyncStatus: 'success',
+        lastSyncError: null,
+        lastSyncAt: new Date(),
+        createdAt: new Date(),
+        hasApiKey: true,
+        fetchSettings: null,
+        maskedUrl: null,
+      })
+    }
+
+    return result
   },
 
   // ==================== GET CONFIG (สำหรับ Edit mode) ====================
@@ -631,7 +653,17 @@ export const IntegrationService = {
     // Filter only AI providers
     const aiKeys = keys.filter(k => providers.includes(k.provider.toLowerCase()))
     
-    if (aiKeys.length === 0) return null
+    if (aiKeys.length === 0) {
+      // Fallback to System Environment Variables (for Self-Hosted Single Tenant)
+      if (process.env.GEMINI_API_KEY) {
+        return {
+          provider: 'gemini',
+          apiKey: process.env.GEMINI_API_KEY,
+          model: 'gemini-1.5-pro'
+        }
+      }
+      return null
+    }
 
     // Sort by last updated or created desc to get latest
     aiKeys.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())

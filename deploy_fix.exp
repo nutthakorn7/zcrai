@@ -1,0 +1,19 @@
+#!/usr/bin/expect -f
+
+set timeout 60
+set pass "#8#J8YMULd6u8iQ"
+set host "root@45.118.132.160"
+set src "/Users/pop7/Code/zcrAI/backend/api/core/services/integration.service.ts"
+set dest "/root/zcrAI/backend/api/core/services/integration.service.ts"
+
+spawn scp -o StrictHostKeyChecking=no $src $host:$dest
+expect {
+    "password:" { send "$pass\r"; exp_continue }
+    eof
+}
+
+spawn ssh -o StrictHostKeyChecking=no $host "export PATH=\$HOME/.bun/bin:\$PATH; pm2 restart zcrai-api"
+expect {
+    "password:" { send "$pass\r"; exp_continue }
+    eof
+}
