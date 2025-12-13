@@ -16,6 +16,7 @@
     "@anthropic-ai/sdk": "^0.71.0",
     "@clickhouse/client": "^1.14.0",
     "@elysiajs/cors": "latest",
+    "@elysiajs/eden": "^1.4.5",
     "@elysiajs/jwt": "latest",
     "@elysiajs/stream": "^1.1.0",
     "@elysiajs/swagger": "latest",

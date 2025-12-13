@@ -1,7 +1,27 @@
 import { Elysia } from 'elysia';
+import { jwt } from '@elysiajs/jwt';
 import { AlertService } from '../core/services/alert.service';
+import { CreateAlertSchema } from '../validators/alert.validator';
 
 export const alertController = new Elysia({ prefix: '/alerts' })
+  .use(
+    jwt({
+        name: 'jwt',
+        secret: process.env.JWT_SECRET || 'super_secret_dev_key',
+        exp: '1h'
+    })
+  )
+  .derive(async ({ jwt, cookie: { access_token } }) => {
+    if (!access_token.value || typeof access_token.value !== 'string') return { user: null }
+    const payload = await jwt.verify(access_token.value)
+    return { user: payload }
+  })
+  .onBeforeHandle(({ user, set }) => {
+    if (!user) {
+        set.status = 401
+        return { error: 'Unauthorized' }
+    }
+  })
   // List alerts
   .get('/', async ({ query, user }: any) => {
     if (!user) throw new Error('Unauthorized');
@@ -28,8 +48,7 @@ export const alertController = new Elysia({ prefix: '/alerts' })
     });
 
     return { success: true, data: alert };
-  })
-
+  }, { body: CreateAlertSchema })
   // Get alert by ID
   .get('/:id', async ({ params, user }: any) => {
     if (!user) throw new Error('Unauthorized');

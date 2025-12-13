@@ -9,6 +9,12 @@ export const ProfileService = {
       user: {
         id: users.id,
         email: users.email,
+        name: users.name,
+        jobTitle: users.jobTitle,
+        bio: users.bio,
+        phoneNumber: users.phoneNumber,
+        marketingOptIn: users.marketingOptIn,
+        emailAlertsEnabled: users.emailAlertsEnabled,
         role: users.role,
         status: users.status,
         tenantId: users.tenantId,
@@ -31,7 +37,15 @@ export const ProfileService = {
   },
 
   // ==================== UPDATE PROFILE ====================
-  async update(userId: string, data: { email?: string }) {
+  async update(userId: string, data: { 
+    email?: string; 
+    name?: string; 
+    jobTitle?: string; 
+    bio?: string; 
+    phoneNumber?: string;
+    marketingOptIn?: boolean;
+    emailAlertsEnabled?: boolean;
+  }) {
     // เช็ค email ซ้ำ (ถ้าเปลี่ยน email)
     if (data.email) {
       const existing = await db.select().from(users)
@@ -51,6 +65,7 @@ export const ProfileService = {
       .returning({
         id: users.id,
         email: users.email,
+        name: users.name,
         role: users.role,
         status: users.status,
         mfaEnabled: users.mfaEnabled,

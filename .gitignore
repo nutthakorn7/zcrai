@@ -39,3 +39,7 @@ coverage/
 tmp/
 temp/
 *.tmp
+
+# Environment
+.env
+.env.test

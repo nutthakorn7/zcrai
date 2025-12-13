@@ -24,6 +24,7 @@ import { users, tenants } from './infra/db/schema'
 import { eq } from 'drizzle-orm'
 
 // Auto-seed Super Admin on startup (or reset password if exists)
+// Auto-seed Super Admin on startup (or reset password if exists)
 async function seedSuperAdmin() {
   const email = process.env.SUPERADMIN_EMAIL || 'superadmin@zcr.ai'
   const password = process.env.SUPERADMIN_PASSWORD || 'SuperAdmin@123!'
@@ -58,13 +59,14 @@ async function seedSuperAdmin() {
       })
       console.log('✅ Super Admin created:', email, 'in System Tenant')
     } else if (existing.role === 'superadmin') {
-      await db.update(users)
-        .set({ 
-          passwordHash,
-          tenantId: tenantId // Ensure linked to System Tenant
-        })
-        .where(eq(users.email, email))
-      console.log('✅ Super Admin updated:', email)
+      // Don't update password every time to avoid race/hashing issues in tests
+      // await db.update(users)
+      //   .set({ 
+      //     passwordHash,
+      //     tenantId: tenantId 
+      //   })
+      //   .where(eq(users.email, email))
+      console.log('✅ Super Admin exists:', email)
     }
   } catch (e: any) {
     console.error('❌ Super Admin seed error:', e.message)
@@ -72,7 +74,7 @@ async function seedSuperAdmin() {
 }
 
 // Initialize
-seedSuperAdmin()
+export { seedSuperAdmin }
 SchedulerService.init()
 
 // Start enrichment worker
@@ -112,6 +114,11 @@ const app = new Elysia()
   .use(aiController)
   .use(adminController) // Super Admin routes
   .get('/health', () => ({ status: 'ok', timestamp: new Date().toISOString() }))
-  .listen(process.env.PORT || 8000)
 
-console.log(`🦊 zcrAI Backend running at http://localhost:${app.server?.port}`)
+if (import.meta.main) {
+  seedSuperAdmin()
+  app.listen(process.env.PORT || 8000)
+  console.log(`🦊 zcrAI Backend running at http://localhost:${app.server?.port}`)
+}
+
+export { app }

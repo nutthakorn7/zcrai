@@ -17,10 +17,16 @@ export const users = pgTable('users', {
   id: uuid('id').defaultRandom().primaryKey(),
   tenantId: uuid('tenant_id').references(() => tenants.id), // Optional for superadmin
   email: text('email').notNull().unique(),
+  name: text('name'),
+  jobTitle: text('job_title'),
+  bio: text('bio'),
+  phoneNumber: text('phone_number'),
   passwordHash: text('password_hash').notNull(),
   role: text('role').default('customer').notNull(), // 'superadmin' | 'admin' | 'analyst' | 'customer'
   mfaEnabled: boolean('mfa_enabled').default(false).notNull(),
   mfaSecret: text('mfa_secret'),
+  marketingOptIn: boolean('marketing_opt_in').default(false).notNull(),
+  emailAlertsEnabled: boolean('email_alerts_enabled').default(true).notNull(),
   status: text('status').default('active').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),

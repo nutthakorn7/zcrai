@@ -1,6 +1,7 @@
 import { Elysia, t } from 'elysia'
 import { jwt } from '@elysiajs/jwt'
 import { PlaybookService } from '../core/services/playbook.service'
+import { CreatePlaybookSchema, UpdatePlaybookSchema, RunPlaybookSchema, UpdateExecutionStepSchema } from '../validators/playbook.validator'
 
 export const playbookController = new Elysia({ prefix: '/playbooks' })
   .use(
@@ -25,72 +26,56 @@ export const playbookController = new Elysia({ prefix: '/playbooks' })
   // ==================== LIST PLAYBOOKS ====================
   .get('/', async ({ user }) => {
     // @ts-ignore
-    return await PlaybookService.list(user.tenantId)
+    const playbooks = await PlaybookService.list(user.tenantId)
+    return { success: true, data: playbooks }
   })
 
   // ==================== GET PLAYBOOK ====================
   .get('/:id', async ({ user, params: { id } }) => {
     // @ts-ignore
-    return await PlaybookService.getById(user.tenantId, id)
+    const playbook = await PlaybookService.getById(user.tenantId, id)
+    return { success: true, data: playbook }
   })
 
   // ==================== CREATE PLAYBOOK ====================
   .post('/', async ({ user, body }) => {
     // @ts-ignore
-    return await PlaybookService.create(user.tenantId, body)
-  }, {
-    body: t.Object({
-      title: t.String(),
-      description: t.Optional(t.String()),
-      triggerType: t.Optional(t.String()),
-      targetTag: t.Optional(t.String()),
-      steps: t.Optional(t.Array(t.Object({
-        name: t.String(),
-        type: t.String(), // 'manual', 'automation'
-        description: t.Optional(t.String()),
-        actionId: t.Optional(t.String()),
-        config: t.Optional(t.Any())
-      })))
-    })
-  })
+    const playbook = await PlaybookService.create(user.tenantId, body)
+    return { success: true, data: playbook }
+  }, { body: CreatePlaybookSchema })
 
   // ==================== UPDATE PLAYBOOK ====================
   .put('/:id', async ({ user, params: { id }, body }) => {
     // @ts-ignore
-    return await PlaybookService.update(user.tenantId, id, body)
-  })
+    const playbook = await PlaybookService.update(user.tenantId, id, body)
+    return { success: true, data: playbook }
+  }, { body: UpdatePlaybookSchema })
 
   // ==================== DELETE PLAYBOOK ====================
   .delete('/:id', async ({ user, params: { id } }) => {
     // @ts-ignore
-    return await PlaybookService.delete(user.tenantId, id)
+    const result = await PlaybookService.delete(user.tenantId, id)
+    return { success: true, data: result }
   })
 
   // ==================== RUN PLAYBOOK (ON CASE) ====================
   .post('/run', async ({ user, body }) => {
     // @ts-ignore
-    return await PlaybookService.run(user.tenantId, body.caseId, body.playbookId, user.id)
-  }, {
-    body: t.Object({
-      caseId: t.String(),
-      playbookId: t.String()
-    })
-  })
+    const execution = await PlaybookService.run(user.tenantId, body.caseId, body.playbookId, user.id)
+    return { success: true, data: execution }
+  }, { body: RunPlaybookSchema })
 
   // ==================== LIST CASE EXECUTIONS ====================
   .get('/executions', async ({ user, query }) => {
     if (!query.caseId) throw new Error('caseId required')
     // @ts-ignore
-    return await PlaybookService.listExecutions(user.tenantId, query.caseId as string)
+    const executions = await PlaybookService.listExecutions(user.tenantId, query.caseId as string)
+    return { success: true, data: executions }
   })
 
   // ==================== UPDATE EXECUTION STEP ====================
   .put('/executions/:executionId/steps/:stepId', async ({ user, params: { executionId, stepId }, body }) => {
     // @ts-ignore
-    return await PlaybookService.updateStepStatus(user.tenantId, executionId, stepId, body.status, body.result)
-  }, {
-    body: t.Object({
-      status: t.String(), // 'completed', etc.
-      result: t.Optional(t.Any())
-    })
-  })
+    const result = await PlaybookService.updateStepStatus(user.tenantId, executionId, stepId, body.status, body.result)
+    return { success: true, data: result }
+  }, { body: UpdateExecutionStepSchema })

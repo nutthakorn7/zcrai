@@ -6,6 +6,10 @@ interface User {
   email: string;
   role: string;
   tenantId: string;
+  name?: string;
+  jobTitle?: string;
+  bio?: string;
+  phoneNumber?: string;
 }
 
 interface LoginResponse {
