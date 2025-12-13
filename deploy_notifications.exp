@@ -1,0 +1,40 @@
+#!/usr/bin/expect -f
+
+set timeout 300
+set pass "#8#J8YMULd6u8iQ"
+set host "root@45.118.132.160"
+
+# Upload NotificationService
+spawn scp -o StrictHostKeyChecking=no /Users/pop7/Code/zcrAI/backend/api/core/services/notification.service.ts $host:/root/zcrAI/backend/api/core/services/
+expect {
+    "password:" { send "$pass\r"; exp_continue }
+    eof
+}
+
+# Upload CaseService (updated with notifications)
+spawn scp -o StrictHostKeyChecking=no /Users/pop7/Code/zcrAI/backend/api/core/services/case.service.ts $host:/root/zcrAI/backend/api/core/services/
+expect {
+    "password:" { send "$pass\r"; exp_continue }
+    eof
+}
+
+# Upload NotificationController
+spawn scp -o StrictHostKeyChecking=no /Users/pop7/Code/zcrAI/backend/api/controllers/notification.controller.ts $host:/root/zcrAI/backend/api/controllers/
+expect {
+    "password:" { send "$pass\r"; exp_continue }
+    eof
+}
+
+# Upload Index (Main App)
+spawn scp -o StrictHostKeyChecking=no /Users/pop7/Code/zcrAI/backend/api/index.ts $host:/root/zcrAI/backend/api/
+expect {
+    "password:" { send "$pass\r"; exp_continue }
+    eof
+}
+
+# Restart PM2
+spawn ssh -o StrictHostKeyChecking=no $host "pm2 restart zcrai-api"
+expect {
+    "password:" { send "$pass\r"; exp_continue }
+    eof
+}

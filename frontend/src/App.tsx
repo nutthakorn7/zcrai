@@ -11,9 +11,15 @@ import AdminDashboard from "./pages/admin";
 import SettingsLayout from "./layouts/SettingsLayout";
 import MFASetupPage from "./pages/settings/MFASetupPage";
 import IntegrationPage from "./pages/settings/IntegrationPage";
+import PlaybooksPage from "./pages/settings/PlaybooksPage";
+import ReportsPage from "./pages/reports/ReportsPage";
 import UserPage from "./pages/settings/UserPage";
 import ProfilePage from "./pages/settings/ProfilePage";
 import TenantPage from "./pages/settings/TenantPage";
+import CaseBoardPage from "./pages/cases";
+import CaseDetailPage from "./pages/cases/CaseDetailPage";
+import AlertQueuePage from "./pages/alerts/AlertQueuePage";
+import ObservablesPage from "./pages/observables/ObservablesPage";
 import { useAuth } from "./shared/store/useAuth";
 import { ChatWidget } from "./components/ChatWidget";
 import { SidebarLayout } from "./components/Sidebar";
@@ -131,6 +137,58 @@ function App() {
           } 
         />
 
+        <Route 
+          path="/queue" 
+          element={
+            <ProtectedRoute>
+              <AlertQueuePage />
+            </ProtectedRoute>
+          } 
+        />
+
+        <Route 
+          path="/cases" 
+          element={
+            <ProtectedRoute>
+              <CaseBoardPage />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/cases/:id" 
+          element={
+            <ProtectedRoute>
+              <CaseDetailPage />
+            </ProtectedRoute>
+          } 
+        />
+
+        <Route 
+          path="/observables" 
+          element={
+            <ProtectedRoute>
+              <ObservablesPage />
+            </ProtectedRoute>
+          } 
+        />
+
+        <Route 
+          path="/playbooks" 
+          element={
+            <ProtectedRoute>
+              <PlaybooksPage />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/reports" 
+          element={
+            <ProtectedRoute>
+              <ReportsPage />
+            </ProtectedRoute>
+          } 
+        />
+
         {/* Super Admin Routes */}
         <Route 
           path="/admin" 
@@ -154,6 +212,7 @@ function App() {
           <Route path="profile" element={<ProfilePage />} />
           <Route path="mfa" element={<MFASetupPage />} />
           <Route path="integrations" element={<IntegrationPage />} />
+          {/* Playbooks moved to top level */}
           <Route path="users" element={<UserPage />} />
           <Route path="tenants" element={<TenantPage />} />
         </Route>

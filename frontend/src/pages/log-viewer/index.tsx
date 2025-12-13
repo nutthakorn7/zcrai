@@ -17,6 +17,7 @@ import crowdstrikeLogo from '../../assets/logo/crowdstrike.png';
 import { 
   LogEntry, FilterOptions, PaginationInfo
 } from './type.ts';
+import { CasesAPI } from "../../shared/api/cases";
 
 // Vendor Logo Component
 const VendorLogo = ({ source }: { source: string }) => {
@@ -658,6 +659,22 @@ export default function LogViewerPage() {
           </ModalBody>
           <ModalFooter>
             <Button variant="flat" onPress={() => setSelectedLog(null)}>Close</Button>
+            <Button color="primary" onPress={() => {
+              if (selectedLog) {
+                 CasesAPI.create({
+                    title: selectedLog.title || 'Security Event',
+                    description: `Source: ${selectedLog.source}\nHost: ${selectedLog.host_name}\n\n${selectedLog.description || ''}`,
+                    severity: ['critical', 'high', 'medium', 'low'].includes(selectedLog.severity.toLowerCase()) ? selectedLog.severity.toLowerCase() : 'medium',
+                    tags: ['log-generated', selectedLog.source]
+                 }).then(() => {
+                    setSelectedLog(null);
+                    // navigate('/cases'); // Optional: Redirect or just notify
+                    alert('Case Created Successfully!');
+                 });
+              }
+            }}>
+              Create Case
+            </Button>
           </ModalFooter>
         </ModalContent>
       </Modal>

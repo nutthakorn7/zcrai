@@ -184,6 +184,30 @@ export const integrationController = new Elysia({ prefix: '/integrations' })
     }
   })
 
+  // ==================== ADD ENRICHMENT PROVIDER (VirusTotal, AbuseIPDB) ====================
+  .post('/enrichment/:provider', async ({ jwt, cookie: { access_token }, params, body, set }) => {
+    try {
+      const payload = await jwt.verify(access_token.value)
+      if (!payload) throw new Error('Unauthorized')
+
+      const { apiKey, label } = body as { apiKey: string; label?: string }
+      const provider = params.provider.toLowerCase()
+
+      if (!apiKey) throw new Error('API Key is required')
+      if (!['virustotal', 'abuseipdb'].includes(provider)) {
+        throw new Error('Invalid enrichment provider. Must be virustotal or abuseipdb')
+      }
+
+      return await IntegrationService.addEnrichment(payload.tenantId as string, provider, {
+        apiKey,
+        label: label || (provider === 'virustotal' ? 'VirusTotal' : 'AbuseIPDB')
+      })
+    } catch (e: any) {
+      set.status = 400
+      return { error: e.message }
+    }
+  })
+
   // ==================== GET CONFIG (สำหรับ Edit mode) ====================
   .get('/:id/config', async ({ params, jwt, cookie: { access_token }, set }) => {
     try {

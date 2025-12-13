@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { Tooltip } from '@heroui/react';
 import { Icon } from '../shared/ui';
 import { useAuth } from '../shared/store/useAuth';
+import { NotificationBell } from './NotificationBell';
 import ZcrAILogo from '../assets/logo/zcrailogo.svg';
 
 interface NavItem {
@@ -19,20 +20,47 @@ export function Sidebar() {
   const [isExpanded, setIsExpanded] = React.useState(false);
 
   const navItems: NavItem[] = [
+    // 1. Overview
     { 
       icon: Icon.Dashboard, 
       label: 'Dashboard', 
       path: '/dashboard' 
     },
     { 
+      icon: Icon.Chart, 
+      label: 'Reports', 
+      path: '/reports' 
+    },
+
+    // 2. Operations
+    { 
+      icon: Icon.Briefcase, 
+      label: 'Cases', 
+      path: '/cases' 
+    },
+    { 
       icon: Icon.Alert, 
       label: 'Alerts', 
       path: '/alerts' 
     },
+
+    // 3. Investigation
     { 
       icon: Icon.Document, 
       label: 'Logs', 
       path: '/logs' 
+    },
+    { 
+      icon: Icon.Search, 
+      label: 'Observables', 
+      path: '/observables' 
+    },
+
+    // 4. Engineering
+    { 
+      icon: Icon.Terminal, 
+      label: 'Playbooks', 
+      path: '/playbooks' 
     },
     { 
       icon: Icon.Settings, 
@@ -198,10 +226,17 @@ export function SidebarLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen bg-background">
       <Sidebar />
-      {/* Add padding to prevent content jump when sidebar expands */}
-      <main className="flex-1 ml-[70px] transition-none" role="main">
-        {children}
-      </main>
+      <div className="flex-1 ml-[70px] flex flex-col">
+        {/* Top Navbar */}
+        <div className="sticky top-0 z-30 h-16 bg-content1/80 backdrop-blur-xl border-b border-white/5 flex items-center justify-end px-6">
+          <NotificationBell />
+        </div>
+        
+        {/* Main Content */}
+        <main className="flex-1" role="main">
+          {children}
+        </main>
+      </div>
     </div>
   );
 }

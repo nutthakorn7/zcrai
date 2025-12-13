@@ -1,0 +1,12 @@
+#!/usr/bin/expect -f
+
+set timeout 20
+set pass "#8#J8YMULd6u8iQ"
+set host "root@45.118.132.160"
+
+# Read .env file
+spawn ssh -o StrictHostKeyChecking=no $host "cat /root/zcrAI/backend/api/.env"
+expect {
+    "password:" { send "$pass\r"; exp_continue }
+    eof
+}

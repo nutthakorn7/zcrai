@@ -1,11 +1,10 @@
 import { useEffect, useState } from "react";
-import { Button, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Chip, Tooltip } from "@heroui/react";
+import { Button, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Chip, Tooltip, Card, CardBody } from "@heroui/react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../../shared/api/api";
+import { CasesAPI } from "../../shared/api/cases";
 import { DateRangePicker } from "../../components/DateRangePicker";
 import { Icon } from '../../shared/ui';
-
-// Import vendor logos
 import sentineloneLogo from '../../assets/logo/sentinelone.png';
 import crowdstrikeLogo from '../../assets/logo/crowdstrike.png';
 
@@ -219,6 +218,34 @@ export default function AlertsPage() {
             {alert.severity}
           </Chip>
         );
+
+      case "actions":
+        return (
+            <div className="flex justify-end">
+                <Button 
+                    size="sm" 
+                    color="primary" 
+                    variant="ghost" 
+                    startContent={<Icon.Shield className="w-3 h-3" />}
+                    onPress={async () => {
+                         try {
+                            await CasesAPI.create({
+                                title: alert.title,
+                                description: `Promoted from Alert ID: ${alert.id}\nSource: ${alert.source}\nTimestamp: ${alert.timestamp}`,
+                                severity: ['critical', 'high', 'medium', 'low'].includes(alert.severity.toLowerCase()) ? alert.severity.toLowerCase() : 'medium',
+                                tags: ['alert-promoted', alert.source]
+                            });
+                            // Optional: navigate(`/cases/${newCase.id}`);
+                            window.alert('Case promoted successfully!'); 
+                        } catch (e) {
+                            console.error(e);
+                        }
+                    }}
+                >
+                    Promote
+                </Button>
+            </div>
+        );
       
       default:
         return null;
@@ -309,38 +336,33 @@ export default function AlertsPage() {
 
       <div className="p-8 max-w-[1600px] mx-auto w-full animate-fade-in">
         {/* Summary Metrics */}
-        <section className="grid grid-cols-5 gap-6 mb-12 border-b border-white/5 pb-8">
-          <div className="flex flex-col gap-1">
-            <span className="text-[11px] font-bold text-foreground/50 uppercase tracking-widest">Critical</span>
-            <span className="text-4xl font-light tracking-tight text-red-400">
-              {summary?.critical?.toLocaleString() || 0}
-            </span>
-          </div>
-          <div className="flex flex-col gap-1">
-            <span className="text-[11px] font-bold text-foreground/50 uppercase tracking-widest">High</span>
-            <span className="text-4xl font-light tracking-tight text-orange-400">
-              {summary?.high?.toLocaleString() || 0}
-            </span>
-          </div>
-          <div className="flex flex-col gap-1">
-            <span className="text-[11px] font-bold text-foreground/50 uppercase tracking-widest">Medium</span>
-            <span className="text-4xl font-light tracking-tight text-yellow-200">
-              {summary?.medium?.toLocaleString() || 0}
-            </span>
-          </div>
-          <div className="flex flex-col gap-1">
-            <span className="text-[11px] font-bold text-foreground/50 uppercase tracking-widest">Low</span>
-            <span className="text-4xl font-light tracking-tight text-blue-300">
-              {summary?.low?.toLocaleString() || 0}
-            </span>
-          </div>
-          <div className="flex flex-col gap-1">
-            <span className="text-[11px] font-bold text-foreground/50 uppercase tracking-widest">Total Alerts</span>
-            <span className="text-4xl font-light tracking-tight text-foreground">
-              {summary?.total?.toLocaleString() || 0}
-            </span>
-          </div>
-        </section>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+          {[
+            { label: 'Critical', key: 'critical', color: severityColors.critical },
+            { label: 'High', key: 'high', color: severityColors.high },
+            { label: 'Medium', key: 'medium', color: severityColors.medium },
+            { label: 'Low', key: 'low', color: severityColors.low },
+            { label: 'Total Alerts', key: 'total', color: 'var(--color-primary)' }
+          ].map((item) => (
+            <Card 
+              key={item.key}
+              className={`border ${item.key === 'total' ? 'border-primary/30 shadow-lg shadow-primary/10' : 'border-white/5 hover:border-white/10'} transition-all`}
+              style={{ 
+                backgroundColor: item.key === 'total' ? 'rgba(var(--color-primary), 0.08)' : `${item.color}15` 
+              }}
+            >
+              <CardBody className="p-5 overflow-hidden">
+                <p className={`text-sm font-medium mb-4 ${item.key === 'total' ? 'text-primary' : 'text-foreground/50'}`}>
+                  {item.label}
+                </p>
+                <p className="text-3xl font-semibold text-foreground">
+                  {/* @ts-ignore */}
+                  {(summary?.[item.key] || 0).toLocaleString()}
+                </p>
+              </CardBody>
+            </Card>
+          ))}
+        </div>
 
         {/* Alerts Table */}
         <section>
@@ -362,6 +384,7 @@ export default function AlertsPage() {
               <TableColumn key="source" className="w-16 text-center">Src</TableColumn>
               <TableColumn key="details">Alert Details</TableColumn>
               <TableColumn key="severity" align="end">Severity</TableColumn>
+              <TableColumn key="actions" align="end">Action</TableColumn>
             </TableHeader>
             <TableBody 
               items={alerts}

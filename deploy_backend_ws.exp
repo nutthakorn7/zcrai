@@ -1,0 +1,17 @@
+#!/usr/bin/expect -f
+set timeout -1
+
+spawn scp -o StrictHostKeyChecking=no /Users/pop7/Code/zcrAI/backend/api/controllers/realtime.controller.ts root@45.118.132.160:/root/zcrAI/backend/api/controllers/
+expect "password:"
+send "#8#J8YMULd6u8iQ\r"
+expect eof
+
+spawn scp -o StrictHostKeyChecking=no /Users/pop7/Code/zcrAI/backend/api/index.ts root@45.118.132.160:/root/zcrAI/backend/api/
+expect "password:"
+send "#8#J8YMULd6u8iQ\r"
+expect eof
+
+spawn ssh -o StrictHostKeyChecking=no root@45.118.132.160 "pm2 restart zcrai-api"
+expect "password:"
+send "#8#J8YMULd6u8iQ\r"
+expect eof

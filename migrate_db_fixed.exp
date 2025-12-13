@@ -1,0 +1,19 @@
+#!/usr/bin/expect -f
+
+set timeout 300
+set pass "#8#J8YMULd6u8iQ"
+set host "root@45.118.132.160"
+
+# Run Migration with full path
+spawn ssh -o StrictHostKeyChecking=no $host "cd /root/zcrAI/backend/api && /root/.bun/bin/bun run db:migrate"
+expect {
+    "password:" { send "$pass\r"; exp_continue }
+    eof
+}
+
+# Restart PM2
+spawn ssh -o StrictHostKeyChecking=no $host "pm2 restart zcrai-api"
+expect {
+    "password:" { send "$pass\r"; exp_continue }
+    eof
+}

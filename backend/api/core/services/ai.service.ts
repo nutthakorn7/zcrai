@@ -273,7 +273,7 @@ ${context || 'No specific context provided.'}
       }]
       
       const geminiModel = genAI.getGenerativeModel({ 
-        model: aiConfig.model || 'gemini-1.5-pro',
+        model: aiConfig.model || 'gemini-2.0-flash',
         systemInstruction: systemPrompt,
         tools: geminiTools as any
       })

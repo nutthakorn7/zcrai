@@ -1,0 +1,51 @@
+#!/usr/bin/expect -f
+
+set timeout 60
+set pass "#8#J8YMULd6u8iQ"
+set host "root@45.118.132.160"
+
+# Add uploads location to api.zcr.ai nginx config
+spawn ssh -o StrictHostKeyChecking=no $host "cat > /etc/nginx/sites-available/api.zcr.ai << 'EOF'
+server {
+    listen 80;
+    server_name api.zcr.ai;
+    return 301 https://\$host\$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    server_name api.zcr.ai;
+
+    ssl_certificate /etc/letsencrypt/live/api.zcr.ai/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/api.zcr.ai/privkey.pem;
+
+    # Proxy to Backend
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+
+    # Serve uploaded files
+    location /uploads/ {
+        alias /var/uploads/;
+        autoindex off;
+        expires 30d;
+        add_header Cache-Control \"public, immutable\";
+    }
+}
+EOF
+"
+expect {
+    "password:" { send "$pass\r"; exp_continue }
+    eof
+}
+
+# Reload Nginx
+spawn ssh -o StrictHostKeyChecking=no $host "nginx -t && systemctl reload nginx"
+expect {
+    "password:" { send "$pass\r"; exp_continue }
+    eof
+}

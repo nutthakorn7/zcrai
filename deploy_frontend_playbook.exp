@@ -1,0 +1,26 @@
+#!/usr/bin/expect -f
+
+set timeout 300
+set pass "#8#J8YMULd6u8iQ"
+set host "root@45.118.132.160"
+
+# 1. Rotate old dist
+spawn ssh -o StrictHostKeyChecking=no $host "rm -rf /var/www/zcr-ai_old && mv /var/www/zcr-ai /var/www/zcr-ai_old"
+expect {
+    "password:" { send "$pass\r"; exp_continue }
+    eof
+}
+
+# 2. Upload new dist (as dist)
+spawn scp -r -o StrictHostKeyChecking=no /Users/pop7/Code/zcrAI/frontend/dist $host:/var/www/
+expect {
+    "password:" { send "$pass\r"; exp_continue }
+    eof
+}
+
+# 3. Rename dist to zcr-ai
+spawn ssh -o StrictHostKeyChecking=no $host "mv /var/www/dist /var/www/zcr-ai && systemctl reload nginx"
+expect {
+    "password:" { send "$pass\r"; exp_continue }
+    eof
+}

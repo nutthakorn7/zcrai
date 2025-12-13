@@ -1,0 +1,34 @@
+#!/usr/bin/expect -f
+
+set timeout 60
+set pass "#8#J8YMULd6u8iQ"
+set host "root@45.118.132.160"
+
+# Upload Service
+spawn scp -o StrictHostKeyChecking=no /Users/pop7/Code/zcrAI/backend/api/core/services/playbook.service.ts $host:/root/zcrAI/backend/api/core/services/
+expect {
+    "password:" { send "$pass\r"; exp_continue }
+    eof
+}
+
+# Upload Controller
+spawn scp -o StrictHostKeyChecking=no /Users/pop7/Code/zcrAI/backend/api/controllers/playbook.controller.ts $host:/root/zcrAI/backend/api/controllers/
+expect {
+    "password:" { send "$pass\r"; exp_continue }
+    eof
+}
+
+# Upload Index (Registration)
+spawn scp -o StrictHostKeyChecking=no /Users/pop7/Code/zcrAI/backend/api/index.ts $host:/root/zcrAI/backend/api/
+expect {
+    "password:" { send "$pass\r"; exp_continue }
+    eof
+}
+
+# Restart API
+spawn ssh -o StrictHostKeyChecking=no $host "pm2 restart zcrai-api"
+expect {
+    "password:" { send "$pass\r"; exp_continue }
+    "Done" { }
+    eof
+}

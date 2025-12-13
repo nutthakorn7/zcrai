@@ -1,0 +1,34 @@
+#!/usr/bin/expect -f
+
+set timeout 60
+set pass "#8#J8YMULd6u8iQ"
+set host "root@45.118.132.160"
+
+# Upload generated migration
+spawn scp -o StrictHostKeyChecking=no /Users/pop7/Code/zcrAI/backend/api/drizzle/0006_dark_dakota_north.sql $host:/root/zcrAI/backend/api/drizzle/
+expect {
+    "password:" { send "$pass\r"; exp_continue }
+    eof
+}
+
+# Upload updated meta folder (recursive)
+spawn scp -o StrictHostKeyChecking=no -r /Users/pop7/Code/zcrAI/backend/api/drizzle/meta $host:/root/zcrAI/backend/api/drizzle/
+expect {
+    "password:" { send "$pass\r"; exp_continue }
+    eof
+}
+
+# Run migration using bun (full path)
+spawn ssh -o StrictHostKeyChecking=no $host "cd /root/zcrAI/backend/api && ~/.bun/bin/bun run db:migrate"
+expect {
+    "password:" { send "$pass\r"; exp_continue }
+    "Done" { }
+    eof
+}
+
+# Restart API to ensure schema changes are picked up (optional but good practice)
+spawn ssh -o StrictHostKeyChecking=no $host "pm2 restart zcrai-api"
+expect {
+    "password:" { send "$pass\r"; exp_continue }
+    eof
+}

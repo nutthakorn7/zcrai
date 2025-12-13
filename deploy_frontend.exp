@@ -1,0 +1,25 @@
+#!/usr/bin/expect -f
+
+set timeout 300
+set pass "#8#J8YMULd6u8iQ"
+set host "root@45.118.132.160"
+
+# 1. Upload dist to temp folder
+spawn ssh -o StrictHostKeyChecking=no $host "rm -rf /root/temp_dist"
+expect {
+    "password:" { send "$pass\r"; exp_continue }
+    eof
+}
+
+spawn scp -o StrictHostKeyChecking=no -r /Users/pop7/Code/zcrAI/frontend/dist $host:/root/temp_dist
+expect {
+    "password:" { send "$pass\r"; exp_continue }
+    eof
+}
+
+# 2. Deploy to web root
+spawn ssh -o StrictHostKeyChecking=no $host "rm -rf /var/www/zcr-ai/* && cp -r /root/temp_dist/* /var/www/zcr-ai/ && chown -R www-data:www-data /var/www/zcr-ai"
+expect {
+    "password:" { send "$pass\r"; exp_continue }
+    eof
+}

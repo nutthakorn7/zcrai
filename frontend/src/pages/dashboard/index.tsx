@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Button, Tooltip as HerouiTooltip } from "@heroui/react";
+import { Button, Tooltip as HerouiTooltip, Card, CardBody, CardHeader, Chip } from "@heroui/react";
 import { api } from "../../shared/api/api";
 import { usePageContext } from "../../contexts/PageContext";
 import { DateRangePicker } from "../../components/DateRangePicker";
@@ -358,499 +358,444 @@ export default function DashboardPage() {
       
       {/* Summary Stats */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8 animate-fade-in">
-        {/* Critical */}
-        <div className="bg-content1 border border-white/5 hover:border-white/10 rounded-xl p-5 group transition-all" style={{ backgroundColor: `${severityColors.critical}15` }}>
-          <div className="flex items-start justify-between mb-6">
-            <p className="text-sm text-foreground/50">Critical</p>
-            {(() => {
-              const current = summary?.critical || 0;
-              const previous = previousSummary?.critical || 0;
-              const { change, isIncrease } = calculateChange(current, previous);
-              return (
-                <div className={`flex items-center gap-1 text-xs font-medium ${isIncrease ? 'text-green-500' : change < 0 ? 'text-red-500' : 'text-foreground/30'}`}>
-                  {change !== 0 && (
-                    isIncrease ? 
-                      <Icon.TrendingUp className="w-3 h-3" /> : 
-                      <Icon.TrendingDown className="w-3 h-3" />
-                  )}
-                  <span>{Math.abs(change).toFixed(1)}%</span>
-                </div>
-              );
-            })()}
-          </div>
-          <div>
-            <p className="text-3xl font-semibold text-foreground">
-              {summary?.critical?.toLocaleString() || 0}
-            </p>
-          </div>
-        </div>
-        
-        {/* High */}
-        <div className="bg-content1 border border-white/5 hover:border-white/10 rounded-xl p-5 group transition-all" style={{ backgroundColor: `${severityColors.high}15` }}>
-          <div className="flex items-start justify-between mb-6">
-            <p className="text-sm text-foreground/50">High</p>
-            {(() => {
-              const current = summary?.high || 0;
-              const previous = previousSummary?.high || 0;
-              const { change, isIncrease } = calculateChange(current, previous);
-              return (
-                <div className={`flex items-center gap-1 text-xs font-medium ${isIncrease ? 'text-green-500' : change < 0 ? 'text-red-500' : 'text-foreground/30'}`}>
-                  {change !== 0 && (
-                    isIncrease ? 
-                      <Icon.TrendingUp className="w-3 h-3" /> : 
-                      <Icon.TrendingDown className="w-3 h-3" />
-                  )}
-                  <span>{Math.abs(change).toFixed(1)}%</span>
-                </div>
-              );
-            })()}
-          </div>
-          <div>
-            <p className="text-3xl font-semibold text-foreground">
-              {summary?.high?.toLocaleString() || 0}
-            </p>
-          </div>
-        </div>
-        
-        {/* Medium */}
-        <div className="bg-content1 border border-white/5 hover:border-white/10 rounded-xl p-5 group transition-all" style={{ backgroundColor: `${severityColors.medium}15` }}>
-          <div className="flex items-start justify-between mb-6">
-            <p className="text-sm text-foreground/50">Medium</p>
-            {(() => {
-              const current = summary?.medium || 0;
-              const previous = previousSummary?.medium || 0;
-              const { change, isIncrease } = calculateChange(current, previous);
-              return (
-                <div className={`flex items-center gap-1 text-xs font-medium ${isIncrease ? 'text-green-500' : change < 0 ? 'text-red-500' : 'text-foreground/30'}`}>
-                  {change !== 0 && (
-                    isIncrease ? 
-                      <Icon.TrendingUp className="w-3 h-3" /> : 
-                      <Icon.TrendingDown className="w-3 h-3" />
-                  )}
-                  <span>{Math.abs(change).toFixed(1)}%</span>
-                </div>
-              );
-            })()}
-          </div>
-          <div>
-            <p className="text-3xl font-semibold text-foreground">
-              {summary?.medium?.toLocaleString() || 0}
-            </p>
-          </div>
-        </div>
-        
-        {/* Low */}
-        <div className="bg-content1 border border-white/5 hover:border-white/10 rounded-xl p-5 group transition-all" style={{ backgroundColor: `${severityColors.low}15` }}>
-          <div className="flex items-start justify-between mb-6">
-            <p className="text-sm text-foreground/50">Low</p>
-            {(() => {
-              const current = summary?.low || 0;
-              const previous = previousSummary?.low || 0;
-              const { change, isIncrease } = calculateChange(current, previous);
-              return (
-                <div className={`flex items-center gap-1 text-xs font-medium ${isIncrease ? 'text-green-500' : change < 0 ? 'text-red-500' : 'text-foreground/30'}`}>
-                  {change !== 0 && (
-                    isIncrease ? 
-                      <Icon.TrendingUp className="w-3 h-3" /> : 
-                      <Icon.TrendingDown className="w-3 h-3" />
-                  )}
-                  <span>{Math.abs(change).toFixed(1)}%</span>
-                </div>
-              );
-            })()}
-          </div>
-          <div>
-            <p className="text-3xl font-semibold text-foreground">
-              {summary?.low?.toLocaleString() || 0}
-            </p>
-          </div>
-        </div>
-        
-        {/* Total */}
-        <div className="bg-primary/[0.08] border-2 border-primary/30 hover:border-primary/50 rounded-xl p-5 group transition-all shadow-lg shadow-primary/10">
-          <div className="flex items-start justify-between mb-6">
-            <p className="text-sm text-primary font-medium">Total Events</p>
-            {(() => {
-              const current = summary?.total || 0;
-              const previous = previousSummary?.total || 0;
-              const { change, isIncrease } = calculateChange(current, previous);
-              return (
-                <div className={`flex items-center gap-1 text-xs font-medium ${isIncrease ? 'text-green-500' : change < 0 ? 'text-red-500' : 'text-foreground/30'}`}>
-                  {change !== 0 && (
-                    isIncrease ? 
-                      <Icon.TrendingUp className="w-3 h-3" /> : 
-                      <Icon.TrendingDown className="w-3 h-3" />
-                  )}
-                  <span>{Math.abs(change).toFixed(1)}%</span>
-                </div>
-              );
-            })()}
-          </div>
-          <div>
-            <p className="text-3xl font-semibold text-foreground">
-              {summary?.total?.toLocaleString() || 0}
-            </p>
-          </div>
-        </div>
+        {[
+          { label: 'Critical', key: 'critical', color: severityColors.critical },
+          { label: 'High', key: 'high', color: severityColors.high },
+          { label: 'Medium', key: 'medium', color: severityColors.medium },
+          { label: 'Low', key: 'low', color: severityColors.low },
+          { label: 'Total Events', key: 'total', color: 'var(--color-primary)' } // Special case for Total
+        ].map((item) => (
+          <Card 
+            key={item.key}
+            className={`border ${item.key === 'total' ? 'border-primary/30 shadow-lg shadow-primary/10' : 'border-white/5 hover:border-white/10'} transition-all`}
+            style={{ 
+              backgroundColor: item.key === 'total' ? 'rgba(var(--color-primary), 0.08)' : `${item.color}15` 
+            }}
+          >
+            <CardBody className="p-5 overflow-hidden">
+              <div className="flex items-start justify-between mb-4">
+                <p className={`text-sm font-medium ${item.key === 'total' ? 'text-primary' : 'text-foreground/50'}`}>
+                  {item.label}
+                </p>
+                {(() => {
+                  // @ts-ignore
+                  const current = summary?.[item.key] || 0;
+                  // @ts-ignore
+                  const previous = previousSummary?.[item.key] || 0;
+                  const { change, isIncrease } = calculateChange(current, previous);
+                  return (
+                    <div className={`flex items-center gap-1 text-xs font-medium ${isIncrease ? 'text-success' : change < 0 ? 'text-danger' : 'text-foreground/30'}`}>
+                      {change !== 0 && (
+                        isIncrease ? <Icon.TrendingUp className="w-3 h-3" /> : <Icon.TrendingDown className="w-3 h-3" />
+                      )}
+                      <span>{Math.abs(change).toFixed(1)}%</span>
+                    </div>
+                  );
+                })()}
+              </div>
+              <p className="text-3xl font-semibold text-foreground">
+                {/* @ts-ignore */}
+                {(summary?.[item.key] || 0).toLocaleString()}
+              </p>
+            </CardBody>
+          </Card>
+        ))}
       </div>
 
       {/* Bento Grid: Timeline + Sources */}
       <div className="grid grid-cols-12 gap-3 mb-6 animate-fade-in">
         {/* Timeline Chart - 8 columns */}
-        <div className="col-span-12 lg:col-span-8 bg-content1 border border-white/5 rounded-xl p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-base font-semibold text-foreground">Events Timeline</h2>
-            {/* Legend เรียบง่าย - logo + ชื่อ provider */}
-            <div className="flex gap-4">
-              {timelineSources.includes('crowdstrike') && (
-                <div className="flex items-center gap-2">
-                  <img src={providerLogos['crowdstrike']} alt="CrowdStrike" className="w-5 h-5 object-contain" />
-                  <div className="w-5 h-1 rounded" style={{ backgroundColor: '#EF4444' }} />
-                  <span className="text-xs text-foreground/70">CrowdStrike</span>
-                </div>
-              )}
-              {timelineSources.includes('sentinelone') && (
-                <div className="flex items-center gap-2">
-                  <img src={providerLogos['sentinelone']} alt="SentinelOne" className="w-5 h-5 object-contain" />
-                  <div className="w-5 h-1 rounded" style={{ backgroundColor: '#A855F7' }} />
-                  <span className="text-xs text-foreground/70">SentinelOne</span>
-                </div>
-              )}
+        <Card className="col-span-12 lg:col-span-8 border border-white/5 bg-content1/50">
+          <CardBody className="p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
+                <Icon.Chart className="w-4 h-4 text-primary" />
+                Events Timeline
+              </h2>
+              {/* Legend */}
+              <div className="flex gap-4">
+                {timelineSources.includes('crowdstrike') && (
+                  <Chip size="sm" variant="flat" classNames={{ base: "bg-danger/10", content: "text-danger" }} startContent={<div className="w-2 h-2 rounded-full bg-danger animate-pulse" />}>
+                    CrowdStrike
+                  </Chip>
+                )}
+                {timelineSources.includes('sentinelone') && (
+                  <Chip size="sm" variant="flat" classNames={{ base: "bg-purple-500/10", content: "text-purple-500" }} startContent={<div className="w-2 h-2 rounded-full bg-purple-500 animate-pulse" />}>
+                    SentinelOne
+                  </Chip>
+                )}
+              </div>
             </div>
-          </div>
-          <div className="h-[250px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-            <XAxis dataKey="time" stroke="#4A4D50" fontSize={10} tickLine={false} axisLine={false} />
-            <YAxis stroke="#4A4D50" fontSize={10} tickLine={false} axisLine={false} />
-            <Tooltip 
-              content={({ active, payload, label }) => {
-                if (!active || !payload || payload.length === 0) return null;
-                const data = payload[0]?.payload || {};
-                return (
-                  <div className="bg-[#1A1D1F] border border-white/10 rounded-xl p-3 shadow-xl min-w-[200px]">
-                    <p className="text-sm font-semibold text-foreground mb-2">{label}</p>
-                    {/* CrowdStrike Section */}
-                    {data.crowdstrike_total > 0 && (
-                      <div className="mb-2">
-                        <div className="flex items-center gap-2 mb-1">
-                          <img src={providerLogos['crowdstrike']} alt="CrowdStrike" className="w-4 h-4" />
-                          <span className="text-xs font-medium text-foreground">CrowdStrike</span>
-                          <span className="text-xs font-bold text-[#EF4444] ml-auto">{data.crowdstrike_total}</span>
+            <div className="h-[280px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                  <XAxis dataKey="time" stroke="#4A4D50" fontSize={10} tickLine={false} axisLine={false} />
+                  <YAxis stroke="#4A4D50" fontSize={10} tickLine={false} axisLine={false} />
+                  <Tooltip 
+                    content={({ active, payload, label }) => {
+                      if (!active || !payload || payload.length === 0) return null;
+                      const data = payload[0]?.payload || {};
+                      return (
+                        <div className="bg-[#1A1D1F] border border-white/10 rounded-xl p-3 shadow-xl min-w-[200px]">
+                          <p className="text-sm font-semibold text-foreground mb-2 border-b border-white/5 pb-2">{label}</p>
+                          {/* CrowdStrike Section */}
+                          {data.crowdstrike_total > 0 && (
+                            <div className="mb-2">
+                              <div className="flex items-center gap-2 mb-1">
+                                <img src={providerLogos['crowdstrike']} alt="CrowdStrike" className="w-4 h-4" />
+                                <span className="text-xs font-medium text-foreground">CrowdStrike</span>
+                                <span className="text-xs font-bold text-[#EF4444] ml-auto">{data.crowdstrike_total}</span>
+                              </div>
+                            </div>
+                          )}
+                          {/* SentinelOne Section */}
+                          {data.sentinelone_total > 0 && (
+                            <div>
+                              <div className="flex items-center gap-2 mb-1">
+                                <img src={providerLogos['sentinelone']} alt="SentinelOne" className="w-4 h-4" />
+                                <span className="text-xs font-medium text-foreground">SentinelOne</span>
+                                <span className="text-xs font-bold text-[#A855F7] ml-auto">{data.sentinelone_total}</span>
+                              </div>
+                            </div>
+                          )}
                         </div>
-                        <div className="flex gap-2 ml-6 text-[10px]">
-                          {data.crowdstrike_critical > 0 && <span className="text-[#FF0202]">Crit: {data.crowdstrike_critical}</span>}
-                          {data.crowdstrike_high > 0 && <span className="text-[#FFA735]">High: {data.crowdstrike_high}</span>}
-                          {data.crowdstrike_medium > 0 && <span className="text-[#FFEE00]">Med: {data.crowdstrike_medium}</span>}
-                          {data.crowdstrike_low > 0 && <span className="text-[#BBF0FF]">Low: {data.crowdstrike_low}</span>}
-                        </div>
-                      </div>
-                    )}
-                    {/* SentinelOne Section */}
-                    {data.sentinelone_total > 0 && (
-                      <div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <img src={providerLogos['sentinelone']} alt="SentinelOne" className="w-4 h-4" />
-                          <span className="text-xs font-medium text-foreground">SentinelOne</span>
-                          <span className="text-xs font-bold text-[#A855F7] ml-auto">{data.sentinelone_total}</span>
-                        </div>
-                        <div className="flex gap-2 ml-6 text-[10px]">
-                          {data.sentinelone_critical > 0 && <span className="text-[#FF0202]">Crit: {data.sentinelone_critical}</span>}
-                          {data.sentinelone_high > 0 && <span className="text-[#FFA735]">High: {data.sentinelone_high}</span>}
-                          {data.sentinelone_medium > 0 && <span className="text-[#FFEE00]">Med: {data.sentinelone_medium}</span>}
-                          {data.sentinelone_low > 0 && <span className="text-[#BBF0FF]">Low: {data.sentinelone_low}</span>}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              }}
-            />
-            {/* แค่ 2 เส้น - Total ของแต่ละ provider */}
-            <Line type="monotone" dataKey="crowdstrike_total" name="crowdstrike_total" stroke="#EF4444" strokeWidth={2.5} dot={false} />
-            <Line type="monotone" dataKey="sentinelone_total" name="sentinelone_total" stroke="#A855F7" strokeWidth={2.5} dot={false} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
+                      );
+                    }}
+                  />
+                  <Line type="monotone" dataKey="crowdstrike_total" name="crowdstrike_total" stroke="#EF4444" strokeWidth={2.5} dot={false} activeDot={{ r: 6, fill: '#EF4444' }} />
+                  <Line type="monotone" dataKey="sentinelone_total" name="sentinelone_total" stroke="#A855F7" strokeWidth={2.5} dot={false} activeDot={{ r: 6, fill: '#A855F7' }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </CardBody>
+        </Card>
 
         {/* Sources Distribution - 4 columns */}
-        <div className="col-span-12 lg:col-span-4 bg-content1 border border-white/5 rounded-xl p-5 flex flex-col">
-          <div className="flex items-center gap-2 mb-4">
-            <Icon.Chart className="w-4 h-4 text-primary" />
-            <h2 className="text-sm font-semibold text-foreground">Sources</h2>
-          </div>
-          <div className="flex-1 min-h-[200px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={50}
-                  outerRadius={70}
-                  dataKey="value"
-                  paddingAngle={4}
-                  label={({ cx, x, y, percent, name }: any) => {
-                    return (
-                      <text 
-                        x={x} 
-                        y={y} 
-                        fill="#ECEDEE" 
-                        textAnchor={x > cx ? 'start' : 'end'} 
-                        dominantBaseline="central"
-                        fontSize={11}
-                      >
-                        {`${name} ${(percent * 100).toFixed(0)}%`}
-                      </text>
-                    );
-                  }}
-                  labelLine={{ stroke: '#4A4D50', strokeWidth: 1 }}
-                >
-                  {pieData.map((_, i) => (
-                    <Cell key={i} fill={['rgb(239, 68, 68)', 'rgb(245, 158, 11)', 'rgb(99, 102, 241)', 'rgb(34, 197, 94)', 'rgb(100, 116, 139)'][i % 5]} strokeWidth={0} />
-                  ))}
-                </Pie>
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'hsl(var(--heroui-content1))', 
-                    border: '1px solid rgba(255,255,255,0.05)', 
-                    borderRadius: 12,
-                  }}
-                  itemStyle={{ color: 'hsl(var(--heroui-foreground))' }}
-                  formatter={(value: number, name: string) => [value.toLocaleString(), name]}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
+        <Card className="col-span-12 lg:col-span-4 border border-white/5 bg-content1/50">
+          <CardBody className="p-6 flex flex-col">
+            <div className="flex items-center gap-2 mb-4">
+              <Icon.Chart className="w-4 h-4 text-primary" />
+              <h2 className="text-base font-semibold text-foreground">Source Distribution</h2>
+            </div>
+            <div className="flex-1 min-h-[250px] flex items-center justify-center">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={80}
+                    dataKey="value"
+                    paddingAngle={4}
+                    stroke="none"
+                  >
+                    {pieData.map((_, i) => (
+                      <Cell key={i} fill={['#EF4444', '#A855F7', '#3B82F6', '#22C55E'][i % 4]} />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: '#18181b', 
+                      border: '1px solid rgba(255,255,255,0.1)', 
+                      borderRadius: 12,
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.5)'
+                    }}
+                    itemStyle={{ color: '#e4e4e7' }}
+                    formatter={(value: number, name: string) => [value.toLocaleString(), name]}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            {/* Custom Legend */}
+            <div className="grid grid-cols-2 gap-2 mt-4">
+               {pieData.map((entry, index) => (
+                 <div key={index} className="flex items-center gap-2 p-2 rounded-lg bg-content2/50">
+                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: ['#EF4444', '#A855F7', '#3B82F6', '#22C55E'][index % 4] }} />
+                    <span className="text-xs text-foreground/70 capitalize truncate">{entry.name}</span>
+                    <span className="text-xs font-bold ml-auto">{entry.value}</span>
+                 </div>
+               ))}
+            </div>
+          </CardBody>
+        </Card>
       </div>
 
       {/* Main Grid: Recent Detections, Hosts, Users */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-6 animate-fade-in">
         {/* Most Recent Detections */}
-        <div className="bg-content1 border border-white/5 rounded-xl p-5 h-[400px] flex flex-col">
-          <div className="flex items-center justify-between mb-4 flex-shrink-0">
-            <div className="flex items-center gap-2">
-              <Icon.ShieldAlert className="w-4 h-4 text-primary" />
-              <h2 className="text-sm font-semibold text-foreground">Recent Detections</h2>
+        <Card className="bg-content1/50 border border-white/5 h-[450px]">
+          <CardHeader className="flex gap-3 px-5 pt-5">
+            <div className="p-2 rounded-lg bg-primary/10">
+              <Icon.ShieldAlert className="w-5 h-5 text-primary" />
             </div>
-          </div>
-          <div className="space-y-2 overflow-y-auto scrollbar-thin flex-1 pr-2">
-            {recentDetections.length > 0 ? (
-              recentDetections.map((detection) => {
-                const severityColor = severityColors[detection.severity.toLowerCase() as keyof typeof severityColors] || severityColors.low;
-                const source = detection.source?.toLowerCase() || '';
-                const sourceColor = sourceColors[source] || '#6B7280';
-                const sourceLogo = source === 'crowdstrike' ? crowdstrikeLogo : source === 'sentinelone' ? sentineloneLogo : null;
-                
-                return (
-                  <div
-                    key={detection.id}
-                    className="relative flex items-center justify-between p-3 rounded-lg bg-content2/50 hover:bg-content2 transition-all group overflow-hidden"
-                  >
-                    {/* Left colored border */}
-                    <div 
-                      className="absolute left-0 top-0 bottom-0 w-1 rounded-l-lg"
-                      style={{ backgroundColor: sourceColor }}
-                    />
-                    
-                    <div className="flex items-center gap-3 flex-1 min-w-0 pl-2">
-                      <div
-                        className="w-2 h-2 rounded-full flex-shrink-0"
-                        style={{ backgroundColor: severityColor }}
+            <div className="flex flex-col">
+              <p className="text-md font-bold text-foreground">Recent Detections</p>
+              <p className="text-small text-default-500">Latest security events</p>
+            </div>
+          </CardHeader>
+          <CardBody className="px-5 pb-5">
+            <div className="space-y-2 overflow-y-auto scrollbar-thin h-full pr-2">
+              {recentDetections.length > 0 ? (
+                recentDetections.map((detection) => {
+                  const severityColor = severityColors[detection.severity.toLowerCase() as keyof typeof severityColors] || severityColors.low;
+                  const source = detection.source?.toLowerCase() || '';
+                  const sourceColor = sourceColors[source] || '#6B7280';
+                  const sourceLogo = source === 'crowdstrike' ? crowdstrikeLogo : source === 'sentinelone' ? sentineloneLogo : null;
+                  
+                  return (
+                    <div
+                      key={detection.id}
+                      className="relative flex items-center justify-between p-3 rounded-xl bg-content2/30 hover:bg-content2 transition-all group overflow-hidden border border-transparent hover:border-white/5"
+                    >
+                      {/* Left colored border indicator */}
+                      <div 
+                        className="absolute left-0 top-0 bottom-0 w-1 rounded-l-lg"
+                        style={{ backgroundColor: sourceColor }}
                       />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span
-                            className="text-xs font-medium px-2 py-0.5 rounded-full capitalize"
-                            style={{ backgroundColor: `${severityColor}15`, color: severityColor }}
-                          >
-                            {detection.severity}
-                          </span>
-                        </div>
-                        <span className="text-sm font-medium text-foreground truncate block mb-1">
-                          {detection.mitre_technique || 'Unknown'}
-                        </span>
-                        <div className="flex items-center gap-1.5 text-xs text-foreground/50">
-                          <Icon.Clock className="w-3 h-3" />
-                          <span className="truncate">
-                            {new Date(detection.timestamp).toLocaleDateString('en-US', { 
-                              month: 'short', 
-                              day: 'numeric' 
-                            })} {new Date(detection.timestamp).toLocaleTimeString('en-US', { 
-                              hour: '2-digit', 
-                              minute: '2-digit',
-                              hour12: false 
-                            })}
+                      
+                      <div className="flex items-center gap-3 flex-1 min-w-0 pl-2">
+                        {sourceLogo && (
+                          <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center p-1.5 flex-shrink-0">
+                            <img 
+                              src={sourceLogo} 
+                              alt={detection.source} 
+                              className="w-full h-full object-contain"
+                            />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-0.5">
+                             <Chip 
+                              size="sm" 
+                              variant="flat"
+                              classNames={{ 
+                                base: "h-5 px-1", 
+                                content: "text-[10px] font-bold uppercase px-1" 
+                              }}
+                              style={{ 
+                                backgroundColor: `${severityColor}20`, 
+                                color: severityColor 
+                              }}
+                            >
+                              {detection.severity}
+                            </Chip>
+                            <span className="text-xs text-default-400">
+                              {new Date(detection.timestamp).toLocaleTimeString([], { hour: '2-digit', minute:'2-digit' })}
+                            </span>
+                          </div>
+                          <span className="text-sm font-medium text-foreground truncate block">
+                            {detection.mitre_technique || 'Unknown Threat'}
                           </span>
                         </div>
                       </div>
                     </div>
-                    
-                    {/* Source logo on the right */}
-                    {sourceLogo && (
-                      <div className="ml-2 flex-shrink-0">
-                        <img 
-                          src={sourceLogo} 
-                          alt={detection.source} 
-                          className="w-5 h-5 object-contain opacity-60 group-hover:opacity-100 transition-opacity"
-                        />
-                      </div>
-                    )}
-                  </div>
-                );
-              })
-            ) : (
-              <p className="text-xs text-foreground/50 text-center py-4">No recent detections</p>
-            )}
-          </div>
-        </div>
+                  );
+                })
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full text-default-400 gap-2">
+                  <Icon.Shield className="w-8 h-8 opacity-20" />
+                  <p className="text-xs">No recent detections</p>
+                </div>
+              )}
+            </div>
+          </CardBody>
+        </Card>
 
         {/* Top Hosts */}
-        <div className="bg-content1 border border-white/5 rounded-xl p-5 h-[400px] flex flex-col">
-          <div className="flex items-center gap-2 mb-4 flex-shrink-0">
-            <Icon.Server className="w-4 h-4 text-primary" />
-            <h2 className="text-sm font-semibold text-foreground">Top Hosts</h2>
-          </div>
-          <div className="space-y-2 overflow-y-auto scrollbar-thin flex-1 pr-2">
-            {topHosts.map((host, i) => (
-              <div 
-                key={i} 
-                className="flex items-center justify-between p-3 rounded-lg bg-content2/50 hover:bg-content2 transition-all cursor-pointer group"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
-                    {i + 1}
+        <Card className="bg-content1/50 border border-white/5 h-[450px]">
+          <CardHeader className="flex gap-3 px-5 pt-5">
+            <div className="p-2 rounded-lg bg-secondary/10">
+              <Icon.Server className="w-5 h-5 text-secondary" />
+            </div>
+            <div className="flex flex-col">
+              <p className="text-md font-bold text-foreground">Top Hosts</p>
+              <p className="text-small text-default-500">Most targeted endpoints</p>
+            </div>
+          </CardHeader>
+          <CardBody className="px-5 pb-5">
+            <div className="space-y-2 overflow-y-auto scrollbar-thin h-full pr-2">
+              {topHosts.map((host, i) => (
+                <div 
+                  key={i} 
+                  className="flex items-center justify-between p-3 rounded-xl bg-content2/30 hover:bg-content2 transition-all cursor-pointer group border border-transparent hover:border-white/5"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-content3 flex items-center justify-center text-xs font-bold text-foreground/70">
+                      {i + 1}
+                    </div>
+                    <div>
+                      <span className="text-sm font-medium text-foreground block truncate max-w-[120px]">{host.host_name}</span>
+                      <span className="text-[10px] text-default-400 font-mono">{host.count} Alerts</span>
+                    </div>
                   </div>
-                  <span className="text-sm truncate max-w-[120px] text-foreground group-hover:text-foreground/80 transition-colors">{host.host_name}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-foreground/50">{parseInt(host.count).toLocaleString()}</span>
                   {parseInt(host.critical) > 0 && (
-                    <span className="px-2 py-0.5 text-xs rounded-full font-medium" style={{ backgroundColor: `${severityColors.critical}15`, color: severityColors.critical }}>
-                      {host.critical}
-                    </span>
+                     <Chip size="sm" color="danger" variant="flat" className="h-6">
+                        {host.critical} Crit
+                     </Chip>
                   )}
                 </div>
-              </div>
-            ))}
-            {topHosts.length === 0 && <p className="text-xs text-foreground/50 text-center py-4">No hosts data</p>}
-          </div>
-        </div>
+              ))}
+              {topHosts.length === 0 && (
+                <div className="flex flex-col items-center justify-center h-full text-default-400 gap-2">
+                  <Icon.Server className="w-8 h-8 opacity-20" />
+                  <p className="text-xs">No host data available</p>
+                </div>
+              )}
+            </div>
+          </CardBody>
+        </Card>
 
         {/* Top Users */}
-        <div className="bg-content1 border border-white/5 rounded-xl p-5 h-[400px] flex flex-col">
-          <div className="flex items-center gap-2 mb-4 flex-shrink-0">
-            <Icon.Users className="w-4 h-4 text-primary" />
-            <h2 className="text-sm font-semibold text-foreground">Top Users</h2>
-          </div>
-          <div className="space-y-2 overflow-y-auto scrollbar-thin flex-1 pr-2">
-            {topUsers.map((u, i) => (
-              <div 
-                key={i} 
-                className="flex items-center justify-between p-3 rounded-lg bg-content2/50 hover:bg-content2 transition-all cursor-pointer group"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-secondary/10 flex items-center justify-center text-xs font-bold text-secondary">
-                    {i + 1}
+        <Card className="bg-content1/50 border border-white/5 h-[450px]">
+          <CardHeader className="flex gap-3 px-5 pt-5">
+            <div className="p-2 rounded-lg bg-warning/10">
+              <Icon.Users className="w-5 h-5 text-warning" />
+            </div>
+            <div className="flex flex-col">
+              <p className="text-md font-bold text-foreground">Top Users</p>
+              <p className="text-small text-default-500">Most targeted identities</p>
+            </div>
+          </CardHeader>
+          <CardBody className="px-5 pb-5">
+             <div className="space-y-2 overflow-y-auto scrollbar-thin h-full pr-2">
+              {topUsers.map((u, i) => (
+                <div 
+                  key={i} 
+                  className="flex items-center justify-between p-3 rounded-xl bg-content2/30 hover:bg-content2 transition-all cursor-pointer group border border-transparent hover:border-white/5"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-content3 flex items-center justify-center text-xs font-bold text-foreground/70">
+                      {i + 1}
+                    </div>
+                    <div>
+                      <span className="text-sm font-medium text-foreground block truncate max-w-[120px]">{u.user_name}</span>
+                      <span className="text-[10px] text-default-400 font-mono">{u.count} Alerts</span>
+                    </div>
                   </div>
-                  <span className="text-sm truncate max-w-[120px] text-foreground group-hover:text-foreground/80 transition-colors">{u.user_name}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-foreground/50">{parseInt(u.count).toLocaleString()}</span>
                   {parseInt(u.critical) > 0 && (
-                    <span className="px-2 py-0.5 text-xs rounded-full font-medium" style={{ backgroundColor: `${severityColors.critical}15`, color: severityColors.critical }}>
-                      {u.critical}
-                    </span>
+                     <Chip size="sm" color="danger" variant="flat" className="h-6">
+                        {u.critical} Crit
+                     </Chip>
                   )}
                 </div>
-              </div>
-            ))}
-            {topUsers.length === 0 && <p className="text-xs text-foreground/50 text-center py-4">No users data</p>}
-          </div>
-        </div>
+              ))}
+              {topUsers.length === 0 && (
+                <div className="flex flex-col items-center justify-center h-full text-default-400 gap-2">
+                   <Icon.Users className="w-8 h-8 opacity-20" />
+                   <p className="text-xs">No user data available</p>
+                </div>
+              )}
+            </div>
+          </CardBody>
+        </Card>
       </div>
 
       {/* Integrations & Sites */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
         {/* Integrations */}
-        <div className="bg-content1 border border-white/5 rounded-xl p-5 h-[400px] flex flex-col">
-          <div className="flex items-center gap-2 mb-4 flex-shrink-0">
-            <Icon.Database className="w-4 h-4 text-primary" />
-            <h2 className="text-sm font-semibold text-foreground">Integrations</h2>
-          </div>
-          <div className="space-y-2 overflow-y-auto scrollbar-thin flex-1 pr-2">
-            {integrations.map((int, i) => (
-              <div 
-                key={i} 
-                className="flex items-center justify-between p-3 rounded-lg bg-content2/50 hover:bg-content2 transition-all"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-white/10 overflow-hidden">
-                    {providerLogos[int.source] ? (
-                      <img src={providerLogos[int.source]} alt={int.source} className="w-6 h-6 object-contain" />
-                    ) : (
-                      <Icon.Database className="w-5 h-5 text-primary" />
-                    )}
+        <Card className="bg-content1/50 border border-white/5 h-[450px]">
+          <CardHeader className="flex gap-3 px-5 pt-5">
+            <div className="p-2 rounded-lg bg-primary/10">
+              <Icon.Database className="w-5 h-5 text-primary" />
+            </div>
+            <div className="flex flex-col">
+              <p className="text-md font-bold text-foreground">Integrations</p>
+              <p className="text-small text-default-500">Connected data sources</p>
+            </div>
+          </CardHeader>
+          <CardBody className="px-5 pb-5">
+            <div className="space-y-2 overflow-y-auto scrollbar-thin h-full pr-2">
+              {integrations.map((int, i) => (
+                <div 
+                  key={i} 
+                  className="flex items-center justify-between p-3 rounded-xl bg-content2/30 hover:bg-content2 transition-all border border-transparent hover:border-white/5"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-white/5 overflow-hidden p-1.5 flex-shrink-0">
+                      {providerLogos[int.source] ? (
+                        <img src={providerLogos[int.source]} alt={int.source} className="w-full h-full object-contain" />
+                      ) : (
+                        <Icon.Database className="w-5 h-5 text-primary" />
+                      )}
+                    </div>
+                    <div>
+                      <span className="text-sm font-medium text-foreground block capitalize">{int.source}</span>
+                      <p className="text-xs text-default-400 mt-0.5">{int.integration_name || int.integration_id.slice(0, 8)}</p>
+                    </div>
                   </div>
-                  <div>
-                    <span className="text-sm font-medium text-foreground block capitalize">{int.source}</span>
-                    <p className="text-xs text-foreground/50 mt-0.5">{int.integration_name || int.integration_id.slice(0, 8)}</p>
-                  </div>
+                  <Chip 
+                    size="sm" 
+                    variant="dot" 
+                    color={int.status === 'active' ? 'success' : 'danger'}
+                    classNames={{ base: "border-none" }}
+                  >
+                    {/* Fallback to 'active' if status is undefined, assuming list filters active ones anyway */}
+                    {int.status || 'active'}
+                  </Chip>
                 </div>
-                <div className="flex flex-col items-end gap-1">
-                  <span className="text-sm font-semibold text-foreground">{parseInt(int.count).toLocaleString()}</span>
-                  {parseInt(int.critical) > 0 && (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium" style={{ backgroundColor: `${severityColors.critical}15`, color: severityColors.critical }}>
-                      {int.critical} Crit
-                    </span>
-                  )}
-                </div>
-              </div>
-            ))}
-            {integrations.length === 0 && <p className="text-sm text-foreground/50 text-center py-8">No integrations found</p>}
-          </div>
-        </div>
+              ))}
+              {integrations.length === 0 && (
+                 <div className="flex flex-col items-center justify-center h-full text-default-400 gap-2">
+                    <Icon.Database className="w-8 h-8 opacity-20" />
+                    <p className="text-xs">No integrations connected</p>
+                 </div>
+              )}
+            </div>
+          </CardBody>
+        </Card>
 
         {/* Sites */}
-        <div className="bg-content1 border border-white/5 rounded-xl p-5 h-[400px] flex flex-col">
-          <div className="flex items-center gap-2 mb-4 flex-shrink-0">
-            <Icon.Global className="w-4 h-4 text-primary" />
-            <h2 className="text-sm font-semibold text-foreground">Sites</h2>
-          </div>
-          <div className="space-y-2 overflow-y-auto scrollbar-thin flex-1 pr-2">
-            {sites.map((site, i) => (
-              <div 
-                key={i} 
-                className="flex items-center justify-between p-3 rounded-lg bg-content2/50 hover:bg-content2 transition-all"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-secondary/10">
-                    <Icon.Server className="w-5 h-5 text-secondary" />
+        <Card className="bg-content1/50 border border-white/5 h-[450px]">
+          <CardHeader className="flex gap-3 px-5 pt-5">
+            <div className="p-2 rounded-lg bg-secondary/10">
+              <Icon.Building className="w-5 h-5 text-secondary" />
+            </div>
+            <div className="flex flex-col">
+              <p className="text-md font-bold text-foreground">Protected Sites</p>
+              <p className="text-small text-default-500">Monitored locations</p>
+            </div>
+          </CardHeader>
+          <CardBody className="px-5 pb-5">
+            <div className="space-y-2 overflow-y-auto scrollbar-thin h-full pr-2">
+              {sites.map((site, i) => (
+                <div 
+                  key={i} 
+                  className="flex items-center justify-between p-3 rounded-xl bg-content2/30 hover:bg-content2 transition-all border border-transparent hover:border-white/5"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-secondary/10 text-secondary">
+                      <Icon.Building className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <span className="text-sm font-medium text-foreground block">{site.host_site_name}</span>
+                      <p className="text-xs text-default-400 mt-0.5">{parseInt(site.count).toLocaleString()} alerts</p>
+                    </div>
                   </div>
-                  <div>
-                    <span className="text-sm font-medium text-foreground block">{site.host_site_name}</span>
-                    <p className="text-xs text-foreground/50 mt-0.5">
-                      {site.host_account_name || '-'}
-                      <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] bg-primary/10 text-primary uppercase">{site.source}</span>
-                    </p>
+                  <div className="flex items-center gap-2">
+                    {parseInt(site.critical) > 0 && (
+                      <Chip size="sm" color="danger" variant="flat" className="h-6">
+                        {site.critical}
+                      </Chip>
+                    )}
+                    {(parseInt(site.high) > 0 && parseInt(site.critical) === 0) && (
+                      <Chip size="sm" color="warning" variant="flat" className="h-6">
+                        {site.high}
+                      </Chip>
+                    )}
                   </div>
                 </div>
-                <div className="flex flex-col items-end gap-1">
-                  <span className="text-sm font-semibold text-foreground">{parseInt(site.count).toLocaleString()}</span>
-                  {parseInt(site.critical) > 0 && (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium" style={{ backgroundColor: `${severityColors.critical}15`, color: severityColors.critical }}>
-                      {site.critical} Crit
-                    </span>
-                  )}
+              ))}
+              {sites.length === 0 && (
+                <div className="flex flex-col items-center justify-center h-full text-default-400 gap-2">
+                   <Icon.Building className="w-8 h-8 opacity-20" />
+                   <p className="text-xs">No sites found</p>
                 </div>
-              </div>
-            ))}
-            {sites.length === 0 && <p className="text-sm text-foreground/50 text-center py-8">No sites found</p>}
-          </div>
-        </div>
+              )}
+            </div>
+          </CardBody>
+        </Card>
       </div>
 
       {/* MITRE ATT&CK */}

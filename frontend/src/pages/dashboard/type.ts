@@ -51,6 +51,7 @@ export interface IntegrationData {
   count: string;
   critical: string;
   high: string;
+  status?: string;
 }
 
 export interface SiteData {

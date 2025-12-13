@@ -1,0 +1,33 @@
+#!/usr/bin/expect -f
+
+set timeout 300
+set pass "#8#J8YMULd6u8iQ"
+set host "root@45.118.132.160"
+
+# Sync Infra (Schema)
+spawn scp -o StrictHostKeyChecking=no -r /Users/pop7/Code/zcrAI/backend/api/infra $host:/root/zcrAI/backend/api/
+expect {
+    "password:" { send "$pass\r"; exp_continue }
+    eof
+}
+
+# Sync Drizzle Migrations
+spawn scp -o StrictHostKeyChecking=no -r /Users/pop7/Code/zcrAI/backend/api/drizzle $host:/root/zcrAI/backend/api/
+expect {
+    "password:" { send "$pass\r"; exp_continue }
+    eof
+}
+
+# Run Migration
+spawn ssh -o StrictHostKeyChecking=no $host "cd /root/zcrAI/backend/api && bun run db:migrate"
+expect {
+    "password:" { send "$pass\r"; exp_continue }
+    eof
+}
+
+# Restart PM2
+spawn ssh -o StrictHostKeyChecking=no $host "pm2 restart zcrai-api"
+expect {
+    "password:" { send "$pass\r"; exp_continue }
+    eof
+}

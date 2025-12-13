@@ -30,7 +30,8 @@
     "otpauth": "^9.4.1",
     "postgres": "latest",
     "qrcode": "^1.5.4",
-    "redis": "latest"
+    "redis": "latest",
+    "resend": "^6.6.0"
   },
   "devDependencies": {
     "@types/qrcode": "^1.5.6",

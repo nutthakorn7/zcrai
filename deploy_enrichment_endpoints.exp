@@ -1,0 +1,20 @@
+#!/usr/bin/expect -f
+set timeout 60
+
+# Upload integration controller
+spawn scp -o StrictHostKeyChecking=no /Users/pop7/Code/zcrAI/backend/api/controllers/integration.controller.ts root@45.118.132.160:/root/zcrAI/backend/api/controllers/
+expect "password:"
+send "gg\r"
+expect eof
+
+# Upload integration service
+spawn scp -o StrictHostKeyChecking=no /Users/pop7/Code/zcrAI/backend/api/core/services/integration.service.ts root@45.118.132.160:/root/zcrAI/backend/api/core/services/
+expect "password:"
+send "gg\r"
+expect eof
+
+# Restart PM2
+spawn ssh -o StrictHostKeyChecking=no root@45.118.132.160 "pm2 restart zcrai-api"
+expect "password:"
+send "gg\r"
+expect eof

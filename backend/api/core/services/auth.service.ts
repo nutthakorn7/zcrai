@@ -3,6 +3,7 @@ import { users, tenants, sessions } from '../../infra/db/schema'
 import { eq, and } from 'drizzle-orm'
 import { redis, lockoutKey, refreshTokenKey, resetTokenKey } from '../../infra/cache/redis'
 import { nanoid } from 'nanoid'
+import { EmailService } from './email.service'
 
 const MAX_LOGIN_ATTEMPTS = 5
 const LOCKOUT_DURATION = 15 * 60 // 15 minutes
@@ -161,6 +162,10 @@ export const AuthService = {
     await redis.setex(resetTokenKey(token), RESET_TOKEN_EXPIRY, JSON.stringify({ userId: user.id, email }))
 
     console.log(`[DEV] Password reset token for ${email}: ${token}`)
+    
+    // Send Email
+    await EmailService.sendPasswordReset(email, token)
+
     return { message: 'If email exists, reset link sent', token }
   },
 

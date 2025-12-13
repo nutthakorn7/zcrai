@@ -1,0 +1,32 @@
+#!/usr/bin/expect -f
+
+set timeout 300
+set pass "#8#J8YMULd6u8iQ"
+set host "root@45.118.132.160"
+
+# 1. Upload Script
+spawn scp -o StrictHostKeyChecking=no /Users/pop7/Code/zcrAI/backup_postgres.sh $host:/root/zcrAI/backup_postgres.sh
+expect {
+    "password:" { send "$pass\r"; exp_continue }
+    eof
+}
+
+# 2. Setup Cron
+spawn ssh -o StrictHostKeyChecking=no $host "
+    chmod +x /root/zcrAI/backup_postgres.sh
+    
+    # Check if cron job exists
+    if ! crontab -l | grep -q 'backup_postgres.sh'; then
+        (crontab -l 2>/dev/null; echo '0 2 * * * /root/zcrAI/backup_postgres.sh >> /var/log/cron_backup.log 2>&1') | crontab -
+        echo 'Cron job added.'
+    else
+        echo 'Cron job already exists.'
+    fi
+    
+    # Run once to test
+    /root/zcrAI/backup_postgres.sh
+"
+expect {
+    "password:" { send "$pass\r"; exp_continue }
+    eof
+}

@@ -90,7 +90,13 @@ export const IntegrationService = {
     
     try {
       const decrypted = Encryption.decrypt(integration.encryptedKey)
-      const parsed = JSON.parse(decrypted)
+      let parsed
+      try {
+        parsed = JSON.parse(decrypted)
+      } catch (e) {
+        // Fallback for legacy/enrichment keys stored as raw strings
+        parsed = { apiKey: decrypted }
+      }
       
       // Return config พร้อม masked sensitive data
       if (integration.provider === 'sentinelone') {
@@ -469,7 +475,24 @@ export const IntegrationService = {
     return integration
   },
 
-  // ... (update function remains the same) ...
+  // ==================== ADD ENRICHMENT PROVIDER ====================
+  async addEnrichment(tenantId: string, provider: string, data: { apiKey: string; label: string }) {
+    // Save Encrypted Key
+    const encryptedKey = Encryption.encrypt(data.apiKey)
+
+    const [integration] = await db.insert(apiKeys).values({
+      tenantId,
+      provider,
+      encryptedKey,
+      label: data.label,
+      lastSyncStatus: 'success', // Enrichment providers show as active immediately
+    }).returning()
+
+    return {
+      message: `${provider === 'virustotal' ? 'VirusTotal' : 'AbuseIPDB'} added successfully`,
+      integration
+    }
+  },
 
   // ==================== TEST CONNECTION (AI) ====================
   async testAIConnection(provider: string, apiKey: string, model?: string) {
@@ -659,7 +682,7 @@ export const IntegrationService = {
         return {
           provider: 'gemini',
           apiKey: process.env.GEMINI_API_KEY,
-          model: 'gemini-1.5-pro'
+          model: 'gemini-2.0-flash'
         }
       }
       return null

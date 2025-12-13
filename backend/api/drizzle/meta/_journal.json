@@ -22,6 +22,34 @@
       "when": 1764435937793,
       "tag": "0002_chilly_magik",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1765604837628,
+      "tag": "0003_cuddly_beast",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1765606659006,
+      "tag": "0004_messy_the_fallen",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1765624751125,
+      "tag": "0005_nasty_pyro",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1765627965622,
+      "tag": "0006_dark_dakota_north",
+      "breakpoints": true
     }
   ]
 }

@@ -1,0 +1,26 @@
+#!/usr/bin/expect -f
+
+set timeout 60
+set pass "#8#J8YMULd6u8iQ"
+set host "root@45.118.132.160"
+
+# Upload missing alert controller
+spawn scp -o StrictHostKeyChecking=no /Users/pop7/Code/zcrAI/backend/api/controllers/alert.controller.ts $host:/root/zcrAI/backend/api/controllers/
+expect {
+    "password:" { send "$pass\r"; exp_continue }
+    eof
+}
+
+# Read .env file to check ClickHouse config
+spawn ssh -o StrictHostKeyChecking=no $host "cat /root/zcrAI/backend/api/.env"
+expect {
+    "password:" { send "$pass\r"; exp_continue }
+    eof
+}
+
+# Restart PM2
+spawn ssh -o StrictHostKeyChecking=no $host "pm2 restart zcrai-api"
+expect {
+    "password:" { send "$pass\r"; exp_continue }
+    eof
+}

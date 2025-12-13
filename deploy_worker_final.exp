@@ -1,0 +1,34 @@
+#!/usr/bin/expect -f
+
+set timeout 60
+set pass "#8#J8YMULd6u8iQ"
+set host "root@45.118.132.160"
+
+# Create workers directory
+spawn ssh -o StrictHostKeyChecking=no $host "mkdir -p /root/zcrAI/backend/api/workers"
+expect {
+    "password:" { send "$pass\r"; exp_continue }
+    eof
+}
+
+# Upload worker file
+spawn scp -o StrictHostKeyChecking=no /Users/pop7/Code/zcrAI/backend/api/workers/enrichment.worker.ts $host:/root/zcrAI/backend/api/workers/
+expect {
+    "password:" { send "$pass\r"; exp_continue }
+    eof
+}
+
+# Start Enrichment Worker
+spawn ssh -o StrictHostKeyChecking=no $host "pm2 start /root/zcrAI/backend/api/workers/enrichment.worker.ts --name enrichment-worker --interpreter ~/.bun/bin/bun"
+expect {
+    "password:" { send "$pass\r"; exp_continue }
+    "script not found" { exp_continue }
+    eof
+}
+
+# Final restart API
+spawn ssh -o StrictHostKeyChecking=no $host "pm2 restart zcrai-api"
+expect {
+    "password:" { send "$pass\r"; exp_continue }
+    eof
+}

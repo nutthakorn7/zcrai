@@ -8,9 +8,17 @@ import { profileController } from './controllers/profile.controller'
 import { integrationController } from './controllers/integration.controller'
 import { dashboardController } from './controllers/dashboard.controller'
 import { logsController } from './controllers/logs.controller'
+import { caseController } from './controllers/case.controller'
+import { alertController } from './controllers/alert.controller'
+import { observableController } from './controllers/observable.controller'
+import { notificationController } from './controllers/notification.controller'
 import { aiController } from './controllers/ai.controller'
 import { adminController } from './controllers/admin.controller'
+import { playbookController } from './controllers/playbook.controller'
+import { analyticsController } from './controllers/analytics.controller';
+import { realtimeController } from './controllers/realtime.controller';
 import { SchedulerService } from './core/services/scheduler.service'
+import { EnrichmentWorker } from './workers/enrichment.worker'
 import { db } from './infra/db'
 import { users, tenants } from './infra/db/schema'
 import { eq } from 'drizzle-orm'
@@ -67,6 +75,10 @@ async function seedSuperAdmin() {
 seedSuperAdmin()
 SchedulerService.init()
 
+// Start enrichment worker
+const enrichmentWorker = new EnrichmentWorker()
+enrichmentWorker.start()
+
 const app = new Elysia()
   .use(swagger({
     documentation: {
@@ -89,7 +101,14 @@ const app = new Elysia()
   .use(profileController)
   .use(integrationController)
   .use(dashboardController)
+  .use(playbookController)
+  .use(analyticsController)
+  .use(realtimeController)
   .use(logsController)
+  .use(caseController)
+  .use(alertController)
+  .use(observableController)
+  .use(notificationController)
   .use(aiController)
   .use(adminController) // Super Admin routes
   .get('/health', () => ({ status: 'ok', timestamp: new Date().toISOString() }))

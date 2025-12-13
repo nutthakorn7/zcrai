@@ -75,7 +75,8 @@ import {
   CpuChipIcon,
   SignalIcon,
   GlobeAltIcon,
-  WrenchIcon
+  WrenchIcon,
+  BriefcaseIcon
 } from '@heroicons/react/24/outline';
 
 import {
@@ -168,7 +169,8 @@ export const Icon = {
   Cpu: CpuChipIcon,
   Signal: SignalIcon,
   Global: GlobeAltIcon,
-  Wrench: WrenchIcon
+  Wrench: WrenchIcon,
+  Briefcase: BriefcaseIcon
 } as const;
 
 /**

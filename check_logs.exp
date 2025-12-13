@@ -1,0 +1,12 @@
+#!/usr/bin/expect -f
+
+set timeout 60
+set pass "#8#J8YMULd6u8iQ"
+set host "root@45.118.132.160"
+
+# Check PM2 Logs
+spawn ssh -o StrictHostKeyChecking=no $host "pm2 logs zcrai-api --lines 50 --nostream"
+expect {
+    "password:" { send "$pass\r"; exp_continue }
+    eof
+}

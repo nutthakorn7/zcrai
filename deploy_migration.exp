@@ -1,0 +1,26 @@
+#!/usr/bin/expect -f
+
+set timeout 300
+set pass "#8#J8YMULd6u8iQ"
+set host "root@45.118.132.160"
+
+# 1. Upload Schema
+spawn scp -o StrictHostKeyChecking=no /Users/pop7/Code/zcrAI/backend/api/infra/db/schema.ts $host:/root/zcrAI/backend/api/infra/db/
+expect {
+    "password:" { send "$pass\r"; exp_continue }
+    eof
+}
+
+# 2. Upload Migrations Folder
+spawn scp -o StrictHostKeyChecking=no -r /Users/pop7/Code/zcrAI/backend/api/drizzle $host:/root/zcrAI/backend/api/
+expect {
+    "password:" { send "$pass\r"; exp_continue }
+    eof
+}
+
+# 3. Run Migration on VPS
+spawn ssh -o StrictHostKeyChecking=no $host "cd /root/zcrAI/backend/api && /root/.bun/bin/bun run db:migrate"
+expect {
+    "password:" { send "$pass\r"; exp_continue }
+    eof
+}
