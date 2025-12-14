@@ -131,4 +131,29 @@ export const alertController = new Elysia({ prefix: '/alerts' })
 
     const stats = await AlertService.getStats(user.tenantId);
     return { success: true, data: stats };
+  })
+
+  // Record analyst feedback (for FP reduction)
+  .post('/:id/feedback', async ({ params, body, user }: any) => {
+    if (!user) throw new Error('Unauthorized');
+    
+    const { AlertFeedbackService } = await import('../core/services/alert-feedback.service');
+    
+    await AlertFeedbackService.recordFeedback(user.tenantId, user.id, {
+      alertId: params.id,
+      feedback: body.feedback,
+      reason: body.reason
+    });
+
+    return { success: true, message: 'Feedback recorded' };
+  })
+
+  // Get FP tuning recommendations
+  .get('/tuning/recommendations', async ({ user }: any) => {
+    if (!user) throw new Error('Unauthorized');
+    
+    const { AlertFeedbackService } = await import('../core/services/alert-feedback.service');
+    
+    const recommendations = await AlertFeedbackService.getTuningRecommendations(user.tenantId);
+    return { success: true, data: recommendations };
   });
