@@ -31,6 +31,7 @@ import { cloudController } from './controllers/cloud.controller'
 import { widgetController } from './controllers/widget.controller'
 import { riskController } from './controllers/risk.controller'
 import { mitreController } from './controllers/mitre.controller'
+import { graphController } from './controllers/graph.controller'
 import { SchedulerService } from './core/services/scheduler.service'
 import { LogRetentionService } from './core/services/log-retention.service'
 import { EnrichmentWorker } from './workers/enrichment.worker'
@@ -156,6 +157,7 @@ const app = new Elysia()
   .use(widgetController) // Custom Widget Builder
   .use(riskController) // Predictive Risk Analysis
   .use(mitreController) // MITRE ATT&CK Coverage
+  .use(graphController) // Investigation Graph
   .get('/health', () => ({ status: 'ok', timestamp: new Date().toISOString() }))
 
 if (import.meta.main) {

@@ -224,7 +224,7 @@ export default function CaseDetailPage() {
                 <span className="text-xs font-normal text-white/50">Space/Scroll to Zoom • Drag to Pan</span>
             </ModalHeader>
             <ModalBody className="h-full w-full">
-                {isGraphOpen && <InvestigationGraph caseId={caseItem.id} width={window.innerWidth} height={window.innerHeight - 100} />}
+                {isGraphOpen && <InvestigationGraph caseId={caseItem.id} className="h-full" />}
             </ModalBody>
         </ModalContent>
       </Modal>
