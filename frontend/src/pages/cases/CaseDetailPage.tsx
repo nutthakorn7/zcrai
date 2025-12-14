@@ -8,6 +8,7 @@ import { useAuth } from '../../shared/store/useAuth';
 import { PlaybookWidget } from '../../components/PlaybookWidget';
 import { EvidenceWidget } from '../../components/EvidenceWidget';
 import { EvidenceTab } from '../../components/EvidenceTab';
+import { ForensicsTab } from '../../components/ForensicsTab';
 import { InvestigationGraph } from '../../components/InvestigationGraph';
 import { useCaseSocket } from '../../shared/hooks/useCaseSocket';
 import Markdown from 'react-markdown';
@@ -317,6 +318,12 @@ export default function CaseDetailPage() {
                 <Tab key="evidence" title="Evidence">
                     <div className="mt-4">
                         <EvidenceTab caseId={caseItem.id} />
+                    </div>
+                </Tab>
+
+                <Tab key="forensics" title="Forensics">
+                    <div className="mt-4">
+                        <ForensicsTab caseId={caseItem.id} />
                     </div>
                 </Tab>
             </Tabs>
