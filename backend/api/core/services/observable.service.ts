@@ -1,6 +1,7 @@
 import { db } from '../../infra/db';
 import { observables, enrichmentQueue } from '../../infra/db/schema';
 import { eq, and, desc, or, sql } from 'drizzle-orm';
+import { DGADetector } from '../ml/dga-detector';
 
 // IOC extraction patterns
 const IOC_PATTERNS = {
@@ -52,11 +53,23 @@ export class ObservableService {
       return updated;
     }
 
+    // ML: DGA Detection for domains
+    let dgaAnalysis = null;
+    if (data.type === 'domain') {
+      const dgaResult = DGADetector.detect(data.value);
+      if (dgaResult.isDGA && dgaResult.confidence > 0.6) {
+        data.isMalicious = true; // Auto-flag as malicious if high-confidence DGA
+        dgaAnalysis = dgaResult;
+        data.tags = [...(data.tags || []), 'dga', `dga-confidence-${Math.round(dgaResult.confidence * 100)}`];
+      }
+    }
+
     // Create new observable
     const [observable] = await db.insert(observables).values({
       ...data,
       tags: data.tags || [],
       sightingCount: '1',
+      enrichmentData: dgaAnalysis ? { dga: dgaAnalysis } as any : undefined,
     }).returning();
 
     // Queue for enrichment (if external enrichment is needed)
