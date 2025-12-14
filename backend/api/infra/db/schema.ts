@@ -206,6 +206,35 @@ export const notificationRulesRelations = relations(notificationRules, ({ one })
   }),
 }))
 
+// Notification Channels (Slack, Teams, Webhooks)
+export const notificationChannels = pgTable('notification_channels', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  tenantId: uuid('tenant_id').references(() => tenants.id).notNull(),
+  name: text('name').notNull(), // "SOC Team Slack", "Incident Response Teams"
+  type: text('type').notNull(), // 'slack', 'teams', 'webhook'
+  webhookUrl: text('webhook_url').notNull(), // Webhook URL
+  enabled: boolean('enabled').default(true).notNull(),
+  
+  // Filters
+  minSeverity: text('min_severity'), // Only send if >= threshold
+  eventTypes: jsonb('event_types'), // ['alert', 'case_assigned', 'case_status_changed']
+  
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => {
+  return {
+    tenantIdx: index('notification_channels_tenant_idx').on(table.tenantId),
+    enabledIdx: index('notification_channels_enabled_idx').on(table.enabled),
+  }
+})
+
+export const notificationChannelsRelations = relations(notificationChannels, ({ one }) => ({
+  tenant: one(tenants, {
+    fields: [notificationChannels.tenantId],
+    references: [tenants.id],
+  }),
+}))
+
 // Alerts
 export const alerts = pgTable('alerts', {
   id: uuid('id').defaultRandom().primaryKey(),

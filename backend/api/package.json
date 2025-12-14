@@ -22,6 +22,7 @@
     "@elysiajs/swagger": "latest",
     "@google/generative-ai": "^0.24.1",
     "@types/cron": "^2.4.3",
+    "axios": "^1.13.2",
     "cron": "^4.3.4",
     "drizzle-orm": "latest",
     "elysia": "latest",

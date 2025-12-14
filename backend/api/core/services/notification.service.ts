@@ -2,6 +2,7 @@ import { db } from '../../infra/db'
 import { notifications, notificationRules, users } from '../../infra/db/schema'
 import { eq, and, desc } from 'drizzle-orm'
 import { EmailService } from './email.service'
+import { NotificationChannelService } from './notification-channel.service'
 
 export const NotificationService = {
   // Create and dispatch notification
@@ -38,7 +39,20 @@ export const NotificationService = {
       if (rule.channel === 'email') {
         await this.sendEmail(data.userId, data.title, data.message, data.metadata)
       }
-      // Future: Slack, Teams, etc.
+    }
+
+    // 4. Send to external channels (Slack, Teams, etc.) - NEW
+    try {
+      await NotificationChannelService.send(data.tenantId, {
+        type: data.type as any,
+        severity: data.metadata?.severity,
+        title: data.title,
+        message: data.message,
+        metadata: data.metadata
+      });
+    } catch (error) {
+      console.error('Failed to send external notifications:', error);
+      // Don't fail the whole notification if external send fails
     }
 
     return notification
