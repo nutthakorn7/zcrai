@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Card, Button, Input, Textarea, Select, SelectItem, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Chip, useDisclosure } from '@heroui/react';
 import { Plus, Edit, Trash2, TestTube } from 'lucide-react';
-import api from '../../shared/api';
+import { api } from '../../shared/api/api';
 import toast from 'react-hot-toast';
 
 interface Parser {
@@ -202,9 +202,9 @@ export default function ParsersPage() {
                 selectedKeys={[formData.type]}
                 onSelectionChange={(keys) => setFormData({ ...formData, type: Array.from(keys)[0] as any })}
               >
-                <SelectItem key="regex" value="regex">Regex</SelectItem>
-                <SelectItem key="json_path" value="json_path">JSON Path</SelectItem>
-                <SelectItem key="grok" value="grok">Grok (Coming Soon)</SelectItem>
+                <SelectItem key="regex">Regex</SelectItem>
+                <SelectItem key="json_path">JSON Path</SelectItem>
+                <SelectItem key="grok">Grok (Coming Soon)</SelectItem>
               </Select>
               <Textarea
                 label="Pattern"
