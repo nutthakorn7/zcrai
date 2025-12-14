@@ -1,26 +1,9 @@
 import { Elysia } from 'elysia';
-import { jwt } from '@elysiajs/jwt';
+import { withAuth } from '../middleware/auth';
 import { ObservableService } from '../core/services/observable.service';
 
 export const observableController = new Elysia({ prefix: '/observables' })
-  .use(
-    jwt({
-        name: 'jwt',
-        secret: process.env.JWT_SECRET || 'super_secret_dev_key',
-        exp: '1h'
-    })
-  )
-  .derive(async ({ jwt, cookie: { access_token } }) => {
-    if (!access_token.value || typeof access_token.value !== 'string') return { user: null }
-    const payload = await jwt.verify(access_token.value)
-    return { user: payload }
-  })
-  .onBeforeHandle(({ user, set }) => {
-    if (!user) {
-        set.status = 401
-        return { error: 'Unauthorized' }
-    }
-  })
+  .use(withAuth)
   // List observables
   .get('/', async ({ query, user }: any) => {
     if (!user) throw new Error('Unauthorized');

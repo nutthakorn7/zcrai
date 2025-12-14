@@ -1,28 +1,9 @@
 import { Elysia } from 'elysia'
-import { jwt } from '@elysiajs/jwt'
+import { withAuth } from '../middleware/auth'
 import { NotificationService } from '../core/services/notification.service'
 
 export const notificationController = new Elysia({ prefix: '/notifications' })
-  .use(
-    jwt({
-      name: 'jwt',
-      secret: process.env.JWT_SECRET || 'super_secret_dev_key',
-      exp: '1h'
-    })
-  )
-  
-  // Guard: Verify Token
-  .derive(async ({ jwt, cookie: { access_token } }) => {
-    if (!access_token.value || typeof access_token.value !== 'string') return { user: null }
-    const payload = await jwt.verify(access_token.value)
-    return { user: payload }
-  })
-  .onBeforeHandle(({ user, set }) => {
-    if (!user) {
-      set.status = 401
-      return { error: 'Unauthorized' }
-    }
-  })
+  .use(withAuth)
 
   // ==================== LIST NOTIFICATIONS ====================
   .get('/', async ({ user, query }: any) => {

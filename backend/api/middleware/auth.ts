@@ -2,17 +2,22 @@
  * Shared Authentication Middleware
  * 
  * Provides reusable JWT authentication for all controllers.
- * Usage: .use(withAuth) in any controller
+ * This extends the existing middlewares/auth.middleware.ts with simpler aliases
  */
 
 import { Elysia } from 'elysia';
 import { jwt } from '@elysiajs/jwt';
 
+// Re-export from existing middleware for backwards compatibility
+export { authGuard, tenantGuard, auditLogger, protectedRoute } from '../middlewares/auth.middleware';
+export { requireRole, superAdminOnly, tenantAdminOnly, socAnalystOnly, anyAuthenticated } from '../middlewares/auth.middleware';
+
 // User payload type from JWT
 export interface JWTUserPayload {
   userId: string;
+  id?: string;
   email: string;
-  role: 'user' | 'admin' | 'superadmin';
+  role: 'user' | 'admin' | 'superadmin' | 'tenant_admin' | 'soc_analyst' | 'customer';
   tenantId: string;
   iat?: number;
   exp?: number;
@@ -28,7 +33,8 @@ export const jwtConfig = {
 };
 
 /**
- * Base authentication middleware with JWT verification
+ * Simple authentication middleware
+ * Use this for basic auth without role requirements
  * 
  * Usage:
  * ```typescript
@@ -37,12 +43,11 @@ export const jwtConfig = {
  * export const myController = new Elysia({ prefix: '/my' })
  *   .use(withAuth)
  *   .get('/', ({ user }) => {
- *     // user is guaranteed to be authenticated here
  *     return { userId: user.userId };
  *   })
  * ```
  */
-export const withAuth = new Elysia({ name: 'auth-middleware' })
+export const withAuth = new Elysia({ name: 'simple-auth-middleware' })
   .use(jwt(jwtConfig))
   .derive(async ({ jwt, cookie: { access_token } }: any) => {
     if (!access_token?.value || typeof access_token.value !== 'string') {
@@ -65,12 +70,13 @@ export const withAuth = new Elysia({ name: 'auth-middleware' })
 
 /**
  * Admin-only authentication middleware
- * Requires user to have 'admin' or 'superadmin' role
+ * Requires user to have 'admin', 'superadmin', or 'tenant_admin' role
  */
 export const withAdminAuth = new Elysia({ name: 'admin-auth-middleware' })
   .use(withAuth)
   .onBeforeHandle(({ user, set }: any) => {
-    if (!user || (user.role !== 'admin' && user.role !== 'superadmin')) {
+    const adminRoles = ['admin', 'superadmin', 'tenant_admin'];
+    if (!user || !adminRoles.includes(user.role)) {
       set.status = 403;
       return { error: 'Forbidden', message: 'Admin access required' };
     }
