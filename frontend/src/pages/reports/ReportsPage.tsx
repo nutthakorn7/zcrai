@@ -190,7 +190,7 @@ export default function ReportsPage() {
   };
 
   return (
-    <div className="p-8 max-w-[1600px] mx-auto space-y-6">
+    <div className="p-6 min-h-screen bg-background space-y-6">
       {/* Header with Filters */}
       <div className="flex flex-col md:flex-row justify-between items-center bg-content1/50 p-6 rounded-2xl border border-white/5 backdrop-blur-md">
         <div>
