@@ -554,9 +554,7 @@ export default function IntegrationPage() {
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
                         <h3 className="font-semibold text-sm">{config.name}</h3>
-                        {int.lastSyncStatus === 'success' && (
-                          <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
-                        )}
+                        <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
                       </div>
                       <p className="text-xs text-default-400 capitalize">{int.label}</p>
                     </div>
