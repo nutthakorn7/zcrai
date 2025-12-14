@@ -61,9 +61,12 @@ zcrAI is a modern Security Operations Center (SOC) platform designed for MSSPs, 
 - ✅ Action registry for custom integrations
 
 ### 🧠 **AI & Advanced Analytics**
+- ✅ **ML-based threat detection** with Z-score anomaly detection
+- ✅ **Behavioral baselining** - 30-day historical analysis
+- ✅ **Predictive risk analysis** - Linear regression forecasting
+- ✅ **False-positive reduction** - AI-powered tuning recommendations
 - ✅ Generative AI case summarization (Gemini/OpenAI)
 - ✅ AI-powered playbook recommendations
-- ✅ Behavioral baselining and anomaly detection
 - ✅ Mock mode for testing without API costs
 
 ### 📋 **Reporting & Compliance**
