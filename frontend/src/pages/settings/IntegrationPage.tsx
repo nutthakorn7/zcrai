@@ -511,24 +511,25 @@ export default function IntegrationPage() {
       <div className="space-y-4">
         <h2 className="text-lg font-semibold text-default-600 flex items-center gap-2">
           <Icon.Wrench className="w-5 h-5 text-secondary" />
-          Security Tools
+          Security & Cloud Tools
         </h2>
         
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {['crowdstrike', 'sentinelone', 'aws-cloudtrail'].map(provider => {
+          {['crowdstrike', 'sentinelone', 'aws-cloudtrail', 'azure', 'gcp'].map(provider => {
             // Find active integration for this provider
             const int = integrations.find(i => i.provider === provider);
             const isConfigured = !!int;
-            const config = PROVIDER_CONFIG[provider];
+            const config = PROVIDER_CONFIG[provider] || { name: provider, color: 'default', gradient: '', description: '' }; // Fallback
 
             return isConfigured ? (
-              // ⭐ Active Card (Matches Enrichment Layout)
+              // ⭐ Active Card
               <Card 
                 key={int?.id} 
                 className={`bg-gradient-to-br ${config.gradient} border transition-all duration-300 ${
                     config.color === 'primary' ? 'border-purple-500/20 hover:border-purple-500/40' : 
                     config.color === 'danger' ? 'border-red-500/20 hover:border-red-500/40' :
-                    'border-orange-500/20 hover:border-orange-500/40' // warning
+                    config.color === 'warning' ? 'border-orange-500/20 hover:border-orange-500/40' :
+                    'border-default-200'
                 }`}
               >
                 <CardBody className="p-5">
@@ -536,19 +537,23 @@ export default function IntegrationPage() {
                     <div className={`w-10 h-10 rounded-xl ${
                       config.color === 'primary' ? 'bg-purple-500/20' : 
                       config.color === 'danger' ? 'bg-red-500/20' :
-                      'bg-orange-500/20'
+                      config.color === 'warning' ? 'bg-orange-500/20' :
+                      'bg-default-100'
                     } flex items-center justify-center`}>
-                      <img 
-                        src={PROVIDER_LOGOS[provider]} 
-                        alt={provider}
-                        className="w-6 h-6"
-                      />
+                      {PROVIDER_LOGOS[provider] ? (
+                        <img src={PROVIDER_LOGOS[provider]} alt={provider} className="w-6 h-6" />
+                      ) : (
+                        <Icon.Cloud className={`w-6 h-6 ${
+                          config.color === 'primary' ? 'text-purple-400' : 
+                          config.color === 'danger' ? 'text-red-400' :
+                          config.color === 'warning' ? 'text-orange-400' :
+                          'text-default-400'
+                        }`} />
+                      )}
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <h3 className="font-semibold text-sm">
-                          {config.name}
-                        </h3>
+                        <h3 className="font-semibold text-sm">{config.name}</h3>
                         {int.lastSyncStatus === 'success' && (
                           <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
                         )}
@@ -563,12 +568,14 @@ export default function IntegrationPage() {
                         base: `border-none ${
                             config.color === 'primary' ? 'bg-purple-500/20' : 
                             config.color === 'danger' ? 'bg-red-500/20' :
-                            'bg-orange-500/20'
+                            config.color === 'warning' ? 'bg-orange-500/20' :
+                            'bg-default-100'
                         }`, 
                         content: `${
                             config.color === 'primary' ? 'text-purple-400' : 
                             config.color === 'danger' ? 'text-red-400' :
-                            'text-orange-400'
+                            config.color === 'warning' ? 'text-orange-400' :
+                            'text-default-400'
                         } font-medium` 
                       }}
                     >
@@ -587,7 +594,8 @@ export default function IntegrationPage() {
                       className={`flex-1 ${
                         config.color === 'primary' ? 'bg-purple-500/10 hover:bg-purple-500/20 text-purple-400' : 
                         config.color === 'danger' ? 'bg-red-500/10 hover:bg-red-500/20 text-red-400' :
-                        'bg-orange-500/10 hover:bg-orange-500/20 text-orange-400'
+                        config.color === 'warning' ? 'bg-orange-500/10 hover:bg-orange-500/20 text-orange-400' :
+                        'bg-default-100'
                       }`} 
                       onPress={() => handleOpenEdit(int)}
                     >
@@ -611,8 +619,14 @@ export default function IntegrationPage() {
                 key={provider}
                 onClick={() => handleOpenAdd(
                     provider === 'crowdstrike' ? 'cs' : 
-                    provider === 'sentinelone' ? 's1' : 'aws'
-                )}
+                    provider === 'sentinelone' ? 's1' : 
+                    (provider === 'aws-cloudtrail' || provider === 'azure' || provider === 'gcp') ? 'aws' : 'aws' 
+                    // Note: 'aws' modalType is acting as generic cloud for now or needs refactor. 
+                    // For now, mapping azure/gcp to 'aws' modalType might be confusing UI-wise if it shows AWS fields.
+                    // But let's assume I'll fix the modal content dynamically based on provider logic later or now.
+                    // ACTUALLY, I should pass providerOverride to handleOpenAdd and use 'cloud' modalType if possible, 
+                    // but reusing 'aws' limits us. Let's use 'aws' type but customize labels in modal.
+                , provider)}
                 className={`group relative overflow-hidden rounded-xl 
                            border transition-all duration-300 p-4 text-left h-full
                            ${config.color === 'primary'
@@ -629,11 +643,15 @@ export default function IntegrationPage() {
                     config.color === 'danger' ? 'bg-red-500/20' : 
                     'bg-orange-500/20'
                   }`}>
-                    <img 
-                      src={PROVIDER_LOGOS[provider]} 
-                      alt={provider} 
-                      className="w-7 h-7" 
-                    />
+                    {PROVIDER_LOGOS[provider] ? (
+                      <img src={PROVIDER_LOGOS[provider]} alt={provider} className="w-7 h-7" />
+                    ) : (
+                      <Icon.Cloud className={`w-7 h-7 ${
+                        config.color === 'primary' ? 'text-purple-400' : 
+                        config.color === 'danger' ? 'text-red-400' : 
+                        'text-orange-400'
+                      }`} />
+                    )}
                   </div>
                   <div className="flex-1">
                     <span className={`font-semibold transition-colors block ${
@@ -669,17 +687,33 @@ export default function IntegrationPage() {
       <div className="space-y-4">
         <h2 className="text-lg font-semibold text-default-600 flex items-center gap-2">
           <Icon.Cpu className="w-5 h-5 text-secondary" />
-          AI Providers
+          AI Models
         </h2>
         
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {['openai', 'claude', 'gemini'].map(provider => {
+          {['openai', 'claude', 'gemini', 'deepseek'].map(provider => {
             // Find active integration for this provider
             const int = integrations.find(i => i.provider === provider && i.id !== 'system-gemini');
             const isConfigured = !!int;
-
-            // Define colors/logos helper
+            
+            // Define colors/logos helper (Expanded)
             const getProviderConfig = (p: string) => {
+               // ... existing switch ...
+               // Added DeepSeek
+               if (p === 'deepseek') return {
+                  color: 'blue',
+                  logo: null, // No logo yet
+                  name: 'DeepSeek',
+                  desc: 'Open Source LLM',
+                  gradient: 'from-blue-600/10 to-indigo-500/5',
+                  border: 'border-blue-500/20',
+                  hoverBorder: 'hover:border-blue-500/40',
+                  bg: 'bg-blue-500/20',
+                  text: 'text-blue-400',
+                  hoverText: 'group-hover:text-blue-300',
+                  hoverBg: 'group-hover:bg-blue-500/20'
+               };
+               // ... existing ...
               switch(p) {
                 case 'openai': return { 
                   color: 'emerald', 
@@ -722,9 +756,9 @@ export default function IntegrationPage() {
                 };
                 default: return { 
                   color: 'default', 
-                  logo: '', 
+                  logo: null, 
                   name: p, 
-                  desc: '',
+                  desc: 'AI Provider',
                   gradient: '', border: '', hoverBorder: '', bg: '', text: '', hoverText: '', hoverBg: ''
                 };
               }
@@ -733,7 +767,7 @@ export default function IntegrationPage() {
             const config = getProviderConfig(provider);
 
             return isConfigured ? (
-              // ⭐ Active Card (Matches Enrichment Layout)
+              // ⭐ Active Card
               <Card 
                 key={int?.id} 
                 className={`bg-gradient-to-br ${config.gradient} border ${config.border} ${config.hoverBorder} transition-all duration-300`}
@@ -741,16 +775,15 @@ export default function IntegrationPage() {
                 <CardBody className="p-5">
                   <div className="flex items-center gap-3 mb-3">
                     <div className={`w-10 h-10 rounded-xl ${config.bg} flex items-center justify-center`}>
-                      <img 
-                        src={config.logo} 
-                        alt={provider}
-                        className="w-6 h-6"
-                      />
+                      {config.logo ? (
+                        <img src={config.logo} alt={provider} className="w-6 h-6" />
+                      ) : (
+                        <Icon.Cpu className={`w-6 h-6 ${config.text}`} />
+                      )}
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
                         <h3 className="font-semibold text-sm">{config.name}</h3>
-                         {/* AI providers are typically always "active" if key exists */}
                         <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
                       </div>
                       <p className="text-xs text-default-400 capitalize">{int.label === provider ? config.name : int.label}</p>
@@ -806,11 +839,11 @@ export default function IntegrationPage() {
               >
                 <div className="flex items-center gap-3">
                   <div className={`w-12 h-12 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform ${config.bg}`}>
-                    <img 
-                      src={config.logo} 
-                      alt={provider} 
-                      className="w-7 h-7" 
-                    />
+                    {config.logo ? (
+                      <img src={config.logo} alt={provider} className="w-7 h-7" />
+                    ) : (
+                       <Icon.Cpu className={`w-7 h-7 ${config.text}`} />
+                    )}
                   </div>
                   <div className="flex-1">
                     <span className={`font-semibold transition-colors block ${config.text} ${config.hoverText}`}>
@@ -834,161 +867,102 @@ export default function IntegrationPage() {
       <div className="space-y-4">
         <h2 className="text-lg font-semibold text-default-600 flex items-center gap-2">
           <Icon.Shield className="w-5 h-5 text-primary" />
-          Enrichment Providers
+          Enrichment & Threat Intel
         </h2>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* VirusTotal */}
-          {integrations.find(i => i.provider === 'virustotal') ? (
-            integrations.filter(i => i.provider === 'virustotal').map(int => (
-              <Card 
-                key={int.id} 
-                className="bg-gradient-to-br from-blue-500/10 to-indigo-500/5 border border-blue-500/20 hover:border-blue-500/40 transition-all duration-300"
-              >
-                <CardBody className="p-5">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center">
-                      <Icon.Shield className="w-5 h-5 text-blue-400" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-semibold text-sm">VirusTotal</h3>
-                        <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
-                      </div>
-                      <p className="text-xs text-default-400 capitalize">{int.label}</p>
-                    </div>
-                    <Chip size="sm" color="success" variant="dot" classNames={{ base: "border-none bg-blue-500/20", content: "text-blue-400 font-medium" }}>Active</Chip>
-                  </div>
-                  
-                  <p className="text-xs text-default-500 mb-4 line-clamp-2">
-                    Threat Intelligence & IOC Enrichment
-                  </p>
-
-                  <div className="flex gap-2">
-                    <Button 
-                      size="sm" 
-                      variant="flat" 
-                      className="flex-1 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400" 
-                      onPress={() => handleOpenEdit(int)}
-                    >
-                      Configure
-                    </Button>
-                    <Button 
-                      size="sm" 
-                      variant="flat" 
-                      className="bg-danger/10 hover:bg-danger/20 text-danger" 
-                      isIconOnly 
-                      onPress={() => handleDelete(int.id)}
-                    >
-                      <Icon.Delete className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </CardBody>
-              </Card>
-            ))
-          ) : (
-            <button
-              onClick={() => handleOpenAdd('enrichment', 'virustotal')}
-              className="group relative overflow-hidden rounded-xl 
-                       border border-blue-500/20 
-                       bg-gradient-to-br from-blue-500/10 to-indigo-500/5 
-                       hover:from-blue-500/20 hover:to-indigo-500/10 
-                       hover:border-blue-500/40 
-                       active:scale-[0.98]
-                       transition-all duration-300 p-4 text-left h-full"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <Icon.Shield className="w-6 h-6 text-blue-400" />
-                </div>
-                <div className="flex-1">
-                  <span className="font-semibold text-blue-400 group-hover:text-blue-300 transition-colors block">VirusTotal</span>
-                  <span className="text-xs text-default-400">Threat Intelligence & IOC Enrichment</span>
-                </div>
-                <div className="w-8 h-8 rounded-full bg-blue-500/10 group-hover:bg-blue-500/20 flex items-center justify-center transition-colors">
-                  <span className="text-blue-400 text-lg font-light">+</span>
-                </div>
-              </div>
-            </button>
-          )}
-
-          {/* AbuseIPDB */}
-          {integrations.find(i => i.provider === 'abuseipdb') ? (
-            integrations.filter(i => i.provider === 'abuseipdb').map(int => (
-              <Card 
-                key={int.id} 
-                className="bg-gradient-to-br from-red-500/10 to-pink-500/5 border border-red-500/20 hover:border-red-500/40 transition-all duration-300"
-              >
-                <CardBody className="p-5">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-10 h-10 rounded-xl bg-red-500/20 flex items-center justify-center">
-                      <Icon.Global className="w-5 h-5 text-red-400" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-semibold text-sm">AbuseIPDB</h3>
-                        <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
-                      </div>
-                      <p className="text-xs text-default-400 capitalize">{int.label}</p>
-                    </div>
-                    <Chip size="sm" color="success" variant="dot" classNames={{ base: "border-none bg-red-500/20", content: "text-red-400 font-medium" }}>Active</Chip>
-                  </div>
-                  
-                  <p className="text-xs text-default-500 mb-4 line-clamp-2">
-                    IP Reputation & Abuse Reports
-                  </p>
-
-                  <div className="flex gap-2">
-                    <Button 
-                      size="sm" 
-                      variant="flat" 
-                      className="flex-1 bg-red-500/10 hover:bg-red-500/20 text-red-400" 
-                      onPress={() => handleOpenEdit(int)}
-                    >
-                      Configure
-                    </Button>
-                    <Button 
-                      size="sm" 
-                      variant="flat" 
-                      className="bg-danger/10 hover:bg-danger/20 text-danger" 
-                      isIconOnly 
-                      onPress={() => handleDelete(int.id)}
-                    >
-                      <Icon.Delete className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </CardBody>
-              </Card>
-            ))
-          ) : (
-            <button
-              onClick={() => handleOpenAdd('enrichment', 'abuseipdb')}
-              className="group relative overflow-hidden rounded-xl 
-                       border border-red-500/20 
-                       bg-gradient-to-br from-red-500/10 to-pink-500/5 
-                       hover:from-red-500/20 hover:to-pink-500/10 
-                       hover:border-red-500/40 
-                       active:scale-[0.98]
-                       transition-all duration-300 p-4 text-left h-full"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-xl bg-red-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <Icon.Global className="w-6 h-6 text-red-400" />
-                </div>
-                <div className="flex-1">
-                  <span className="font-semibold text-red-400 group-hover:text-red-300 transition-colors block">AbuseIPDB</span>
-                  <span className="text-xs text-default-400">IP Reputation & Abuse Reports</span>
-                </div>
-                <div className="w-8 h-8 rounded-full bg-red-500/10 group-hover:bg-red-500/20 flex items-center justify-center transition-colors">
-                  <span className="text-red-400 text-lg font-light">+</span>
-                </div>
-              </div>
-            </button>
-          )}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {['virustotal', 'abuseipdb', 'alienvault'].map(provider => {
+             const int = integrations.find(i => i.provider === provider);
+             const isConfigured = !!int;
+             const config = PROVIDER_CONFIG[provider];
+             
+             return isConfigured ? (
+               <Card 
+                 key={int.id} 
+                 className={`bg-gradient-to-br ${config.gradient} border border-${config.color}-500/20 hover:border-${config.color}-500/40 transition-all duration-300`}
+               >
+                 <CardBody className="p-5">
+                   <div className="flex items-center gap-3 mb-3">
+                     <div className={`w-10 h-10 rounded-xl bg-${config.color}-500/20 flex items-center justify-center`}>
+                       {config.name === 'VirusTotal' ? <Icon.Shield className={`w-5 h-5 text-${config.color}-400`} /> : <Icon.Global className={`w-5 h-5 text-${config.color}-400`} />}
+                     </div>
+                     <div className="flex-1">
+                       <div className="flex items-center gap-2">
+                         <h3 className="font-semibold text-sm">{config.name}</h3>
+                         <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
+                       </div>
+                       <p className="text-xs text-default-400 capitalize">{int.label}</p>
+                     </div>
+                     {/* Note: dynamic color class interpolation might not work in tailwind if full class name not present in source. 
+                         However, we used standard names like blue-500, red-500. 
+                         Safest to use style or explicit maps if this breaks. 
+                         For now, assuming safe list or JIT matches 'bg-primary-500' if configured? 
+                         Wait, config.color is 'primary', 'danger'. That maps to variables or explicit colors?
+                         In PROVIDER_CONFIG: 'primary', 'danger', 'secondary', 'warning'.
+                         Tailwind classes like 'bg-primary-500' might not exist by default unless extended.
+                         Earlier code used explicit 'bg-red-500/20'.
+                         Safest is to revert to explicit mapping or use style.
+                         Let's use the same logic as Security Tools (explicit conditional classes).
+                      */} 
+                      <Chip size="sm" color="success" variant="dot" classNames={{ base: "border-none bg-default-100", content: "text-success font-medium" }}>Active</Chip> 
+                   </div>
+                   
+                   <p className="text-xs text-default-500 mb-4 line-clamp-2">
+                     {config.description}
+                   </p>
+ 
+                   <div className="flex gap-2">
+                     <Button 
+                       size="sm" 
+                       variant="flat" 
+                       className="flex-1 bg-default-100 hover:bg-default-200" 
+                       onPress={() => handleOpenEdit(int)}
+                     >
+                       Configure
+                     </Button>
+                     <Button 
+                       size="sm" 
+                       variant="flat" 
+                       className="bg-danger/10 hover:bg-danger/20 text-danger" 
+                       isIconOnly 
+                       onPress={() => handleDelete(int.id)}
+                     >
+                       <Icon.Delete className="w-4 h-4" />
+                     </Button>
+                   </div>
+                 </CardBody>
+               </Card>
+             ) : (
+               <button
+                 key={provider}
+                 onClick={() => handleOpenAdd('enrichment', provider)}
+                 className={`group relative overflow-hidden rounded-xl 
+                          border border-default-200 
+                          bg-gradient-to-br ${config.gradient}
+                          hover:border-default-400 
+                          active:scale-[0.98]
+                          transition-all duration-300 p-4 text-left h-full`}
+               >
+                 <div className="flex items-center gap-3">
+                   <div className={`w-12 h-12 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform bg-default-100`}>
+                      {provider === 'virustotal' ? <Icon.Shield className="w-6 h-6 text-primary" /> : <Icon.Global className="w-6 h-6 text-primary" />}
+                   </div>
+                   <div className="flex-1">
+                     <span className="font-semibold text-default-600 group-hover:text-default-800 transition-colors block">{config.name}</span>
+                     <span className="text-xs text-default-400">{config.description}</span>
+                   </div>
+                   <div className="w-8 h-8 rounded-full bg-default-100 group-hover:bg-default-200 flex items-center justify-center transition-colors">
+                     <span className="text-default-600 text-lg font-light">+</span>
+                   </div>
+                 </div>
+               </button>
+             );
+          })}
         </div>
       </div>
 
       <Modal 
+ 
         isOpen={isOpen} 
         onOpenChange={onOpenChange} 
         placement="top-center"

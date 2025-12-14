@@ -80,7 +80,8 @@ import {
   SignalIcon,
   GlobeAltIcon,
   WrenchIcon,
-  BriefcaseIcon
+  BriefcaseIcon,
+  CloudIcon
 } from '@heroicons/react/24/outline';
 
 import {
@@ -134,6 +135,7 @@ export const Icon = {
   // Users
   Users: UsersIcon,
   User: UserIcon,
+  UserCircleIcon,
   UserCircle: UserCircleIcon,
   
   // Charts
@@ -179,7 +181,8 @@ export const Icon = {
   // Devices
   DevicePhoneMobile: DevicePhoneMobileIcon,
   DeviceComputer: ComputerDesktopIcon,
-  Map: MapPinIcon
+  Map: MapPinIcon,
+  Cloud: CloudIcon
 } as const;
 
 /**
