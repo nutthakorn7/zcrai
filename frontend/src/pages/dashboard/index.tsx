@@ -766,6 +766,11 @@ export default function DashboardPage() {
         </Card>
       </div>
 
+      {/* System Metrics */}
+      <div className="mb-8 animate-fade-in">
+        <SystemMetricsCard />
+      </div>
+
       {/* Main Grid: Recent Detections, Hosts, Users */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-6 animate-fade-in">
         {/* Most Recent Detections */}

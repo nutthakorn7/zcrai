@@ -28,7 +28,7 @@ export function SystemMetricsCard() {
   const fetchMetrics = async () => {
     try {
       const response = await api.get('/admin/metrics');
-      setMetrics(response);
+      setMetrics(response.data || response); // Handle both response formats
     } catch (error) {
       console.error('Failed to fetch metrics:', error);
     } finally {
@@ -48,7 +48,7 @@ export function SystemMetricsCard() {
         <CardBody className="p-6">
           <div className="flex items-center gap-3 mb-4">
             <div className="p-2 rounded-lg bg-primary/20">
-              <Icon.Activity className="w-5 h-5 text-primary" />
+              <Icon.Signal className="w-5 h-5 text-primary" />
             </div>
             <h3 className="text-lg font-semibold">System Metrics</h3>
           </div>
@@ -66,7 +66,7 @@ export function SystemMetricsCard() {
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-primary/20">
-              <Icon.Activity className="w-5 h-5 text-primary" />
+              <Icon.Signal className="w-5 h-5 text-primary" />
             </div>
             <h3 className="text-lg font-semibold">System Metrics</h3>
           </div>
@@ -89,7 +89,7 @@ export function SystemMetricsCard() {
           {/* Requests */}
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-sm text-foreground/60">
-              <Icon.Activity className="w-4 h-4" />
+              <Icon.Signal className="w-4 h-4" />
               Requests/min
             </div>
             <p className="text-2xl font-bold">{metrics.requests.lastMinute}</p>
@@ -101,7 +101,7 @@ export function SystemMetricsCard() {
           {/* Response Time */}
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-sm text-foreground/60">
-              <Icon.Zap className="w-4 h-4" />
+              <Icon.ArrowUpRight className="w-4 h-4" />
               Avg Response
             </div>
             <p className="text-2xl font-bold">{metrics.requests.avgResponseTime}ms</p>
@@ -141,7 +141,7 @@ export function SystemMetricsCard() {
         {metrics.errors.count > 0 && (
           <div className="mt-4 p-3 bg-danger/10 border border-danger/20 rounded-lg">
             <div className="flex items-center gap-2 text-sm">
-              <Icon.AlertTriangle className="w-4 h-4 text-danger" />
+              <Icon.Alert className="w-4 h-4 text-danger" />
               <span className="text-danger font-medium">
                 {metrics.errors.count} errors ({(metrics.errors.rate * 100).toFixed(2)}% error rate)
               </span>
