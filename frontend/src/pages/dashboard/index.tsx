@@ -22,6 +22,7 @@ import {
   SiteData, 
   RecentDetection 
 } from './type.ts';
+import { SystemMetricsCard } from '../../components/SystemMetricsCard';
 
 // Import logos
 import sentineloneLogo from '../../assets/logo/sentinelone.png';
