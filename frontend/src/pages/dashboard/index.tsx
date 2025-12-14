@@ -84,6 +84,7 @@ export default function DashboardPage() {
 
   // Available providers for filter buttons
   const [availableProviders, setAvailableProviders] = useState<string[]>([]);
+  const [autoRefresh, setAutoRefresh] = useState(false);
   const navigate = useNavigate();
 
   const handleTimelineClick = (data: any) => {
@@ -107,7 +108,28 @@ export default function DashboardPage() {
     loadDashboard();
   }, [startDate, endDate, selectedProvider]);
 
+  // Auto-refresh effect
+  useEffect(() => {
+    if (!autoRefresh) return;
+    
+    const interval = setInterval(() => {
+      loadDashboard();
+    }, 30000); // Refresh every 30 seconds
+    
+    return () => clearInterval(interval);
+  }, [autoRefresh, startDate, endDate, selectedProvider]);
+
   const handleDateChange = (start: Date, end: Date) => {
+    setStartDate(start);
+    setEndDate(end);
+  };
+
+  // Quick date preset helpers
+  const setDatePreset = (days: number) => {
+    const end = new Date();
+    end.setDate(end.getDate() + 1); // Include today
+    const start = new Date();
+    start.setDate(start.getDate() - days);
     setStartDate(start);
     setEndDate(end);
   };
@@ -474,6 +496,37 @@ export default function DashboardPage() {
             )}
           </div>
 
+          {/* Quick Date Presets */}
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant={startDate && (Date.now() - startDate.getTime()) < 8 * 24 * 60 * 60 * 1000 ? 'solid' : 'flat'}
+              color="primary"
+              className="text-xs"
+              onPress={() => setDatePreset(7)}
+            >
+              Last 7d
+            </Button>
+            <Button
+              size="sm"
+              variant={startDate && (Date.now() - startDate.getTime()) > 8 * 24 * 60 * 60 * 1000 && (Date.now() - startDate.getTime()) < 31 * 24 * 60 * 60 * 1000 ? 'solid' : 'flat'}
+              color="primary"
+              className="text-xs"
+              onPress={() => setDatePreset(30)}
+            >
+              Last 30d
+            </Button>
+            <Button
+              size="sm"
+              variant={startDate && (Date.now() - startDate.getTime()) > 85 * 24 * 60 * 60 * 1000 ? 'solid' : 'flat'}
+              color="primary"
+              className="text-xs"
+              onPress={() => setDatePreset(90)}
+            >
+              Last 90d
+            </Button>
+          </div>
+
           <DateRangePicker 
             startDate={startDate}
             endDate={endDate}
@@ -489,6 +542,20 @@ export default function DashboardPage() {
           >
             Export PDF
           </Button>
+
+          {/* Auto-refresh Toggle */}
+          <HerouiTooltip content={autoRefresh ? 'Auto-refresh ON (30s)' : 'Auto-refresh OFF'}>
+            <Button 
+              size="sm"
+              isIconOnly
+              color={autoRefresh ? 'success' : 'default'}
+              variant={autoRefresh ? 'solid' : 'flat'}
+              className={autoRefresh ? '' : 'bg-transparent hover:bg-white/5 text-foreground/60 hover:text-foreground border-0'}
+              onPress={() => setAutoRefresh(!autoRefresh)}
+            >
+              <Icon.Clock className="w-4 h-4" />
+            </Button>
+          </HerouiTooltip>
 
           <Button 
             size="sm"
