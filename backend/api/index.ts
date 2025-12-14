@@ -90,6 +90,9 @@ if (process.env.NODE_ENV !== 'test') {
   // Start enrichment worker
   const enrichmentWorker = new EnrichmentWorker()
   enrichmentWorker.start()
+
+  // Register Built-in Actions (SOAR)
+  import('./core/actions/builtin').then(m => m.registerBuiltInActions());
 }
 
 const app = new Elysia()

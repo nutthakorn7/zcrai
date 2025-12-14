@@ -71,3 +71,16 @@ export const playbookController = new Elysia({ prefix: '/playbooks' })
     const result = await PlaybookService.updateStepStatus(user.tenantId, executionId, stepId, body.status, body.result)
     return { success: true, data: result }
   }, { body: UpdateExecutionStepSchema })
+
+  // ==================== LIST AVAILABLE ACTIONS ====================
+  .get('/actions', async () => {
+    // Dynamic import to avoid circular dep issues during init if any
+    const { ActionRegistry } = await import('../core/actions/registry');
+    return { success: true, data: ActionRegistry.list() }
+  })
+
+  // ==================== EXECUTE STEP (AUTOMATION) ====================
+  .post('/executions/:executionId/steps/:stepId/execute', async ({ user, params: { executionId, stepId } }: any) => {
+    const result = await PlaybookService.executeStep(user.tenantId, executionId, stepId)
+    return { success: true, data: result }
+  })

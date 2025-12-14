@@ -157,22 +157,72 @@ export class PlaybookService {
   }
 
   static async updateStepStatus(tenantId: string, executionId: string, stepId: string, status: string, result?: any) {
-    // update execution step status
-    // Note: stepId here refers to the `playbookExecutionSteps.stepId` (which is link to original step) 
-    // OR `playbookExecutionSteps.id`?
-    // Let's assume the API passes the `playbookExecutionSteps.id` for precision.
-    
     await db.update(playbookExecutionSteps)
       .set({
-        status, // 'completed', 'skipped', 'failed'
+        status, // 'completed', 'skipped', 'failed', 'in_progress'
         result,
-        completedAt: status === 'completed' ? new Date() : null
+        completedAt: ['completed', 'failed', 'skipped'].includes(status) ? new Date() : null
       })
-      .where(eq(playbookExecutionSteps.id, stepId)) // Assuming stepId is the execution_step id
+      .where(eq(playbookExecutionSteps.id, stepId))
 
-    // Check if all steps completed to mark execution as done
-    // (Skipping for MVP shortness)
-    
     return { success: true }
+  }
+
+  // ==================== AUTOMATED EXECUTION ====================
+  static async executeStep(tenantId: string, executionId: string, stepId: string) {
+    // 1. Get Step Details
+    const step = await db.query.playbookExecutionSteps.findFirst({
+      where: eq(playbookExecutionSteps.id, stepId),
+      with: {
+        step: true, // Config is in the template step
+        execution: true // To get caseId
+      }
+    });
+
+    if (!step || !step.step) throw new Error('Step not found');
+
+    // 2. Check if automation
+    if (step.step.type !== 'automation') {
+       throw new Error('Cannot auto-execute manual step');
+    }
+
+    // 3. Update Status to Running
+    await this.updateStepStatus(tenantId, executionId, stepId, 'in_progress');
+
+    try {
+        // 4. Resolve Action
+        const actionId = step.step.actionId;
+        const config = step.step.config as Record<string, any>; // Inputs
+
+        if (!actionId) throw new Error('No Action ID configured');
+
+        // Import Registry dynamically or ensure it's loaded
+        const { ActionRegistry } = await import('../actions/registry');
+        
+        // 5. Execute
+        const result = await ActionRegistry.execute(actionId, {
+            tenantId,
+            caseId: step.execution.caseId,
+            executionId,
+            userId: step.execution.startedBy || undefined,
+            inputs: config || {}
+        });
+
+        // 6. Save Result & Update Status
+        await this.updateStepStatus(
+            tenantId, 
+            executionId, 
+            stepId, 
+            result.success ? 'completed' : 'failed', 
+            result
+        );
+
+        return result;
+
+    } catch (e: any) {
+        console.error('Automation Failed:', e);
+        await this.updateStepStatus(tenantId, executionId, stepId, 'failed', { error: e.message });
+        return { success: false, error: e.message };
+    }
   }
 }

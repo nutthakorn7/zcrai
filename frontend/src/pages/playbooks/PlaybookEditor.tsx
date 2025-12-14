@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Button, Card, CardBody, Input, Chip, 
   Textarea, Select, SelectItem, Tabs, Tab
 } from "@heroui/react";
 import { Icon } from '../../shared/ui';
-import { Playbook, PlaybookStep, PlaybooksAPI } from '../../shared/api/playbooks';
+import { Playbook, PlaybookStep, PlaybooksAPI, Action } from '../../shared/api/playbooks';
 
 interface PlaybookEditorProps {
     playbook: Playbook;
@@ -17,13 +17,17 @@ export default function PlaybookEditor({ playbook, onClose, onUpdate, onDelete }
     const [localPlaybook, setLocalPlaybook] = useState<Playbook>(playbook);
     const [activeTab, setActiveTab] = useState('editor');
     const [isSaving, setIsSaving] = useState(false);
+    const [availableActions, setAvailableActions] = useState<Action[]>([]);
     
     // Step Form State
     const [newStepName, setNewStepName] = useState('');
     const [newStepType, setNewStepType] = useState<'manual' | 'automation'>('manual');
+    const [newStepActionId, setNewStepActionId] = useState('');
+    const [newStepConfig, setNewStepConfig] = useState('');
 
-    // Update local state when prop changes
-    // useEffect(() => setLocalPlaybook(playbook), [playbook]); 
+    useEffect(() => {
+        PlaybooksAPI.getActions().then(setAvailableActions).catch(console.error);
+    }, []);
 
     const handleSave = async () => {
         try {
@@ -32,8 +36,7 @@ export default function PlaybookEditor({ playbook, onClose, onUpdate, onDelete }
                 title: localPlaybook.title,
                 description: localPlaybook.description,
                 isActive: localPlaybook.isActive,
-                // In a real app, we would also save steps here if the API supported it
-                // steps: localPlaybook.steps 
+                steps: localPlaybook.steps 
             });
             onUpdate(updated);
         } catch (e) {
@@ -60,17 +63,32 @@ export default function PlaybookEditor({ playbook, onClose, onUpdate, onDelete }
 
     const addStep = () => {
         if (!newStepName) return;
+
+        let parsedConfig = {};
+        if (newStepType === 'automation' && newStepConfig) {
+            try {
+                parsedConfig = JSON.parse(newStepConfig);
+            } catch (e) {
+                alert('Invalid JSON Configuration');
+                return;
+            }
+        }
+
         const newSteps = [...(localPlaybook.steps || []), {
             name: newStepName,
             type: newStepType,
             order: (localPlaybook.steps?.length || 0) + 1,
-            description: newStepType === 'manual' ? 'Manual instruction' : undefined
+            description: newStepType === 'manual' ? 'Manual instruction' : `Executes ${newStepActionId}`,
+            actionId: newStepType === 'automation' ? newStepActionId : undefined,
+            config: newStepType === 'automation' ? parsedConfig : undefined
         }];
         setLocalPlaybook({ ...localPlaybook, steps: newSteps });
+        
+        // Reset Form
         setNewStepName('');
         setNewStepType('manual');
-        // Note: We aren't saving to backend yet until handleSave is called (if backend supported it)
-        // or we need a separate addStep API call.
+        setNewStepActionId('');
+        setNewStepConfig('');
     };
 
     const removeStep = (index: number) => {
@@ -180,26 +198,62 @@ export default function PlaybookEditor({ playbook, onClose, onUpdate, onDelete }
 
                             {/* Add Button */}
                             <div className="flex justify-center flex-col items-center gap-4">
-                                <div className="flex gap-2 items-end bg-content1 p-4 rounded-lg border border-white/10">
-                                    <Input 
-                                        label="New Step Name" 
-                                        size="sm"
-                                        value={newStepName}
-                                        onValueChange={setNewStepName}
-                                        className="w-48"
-                                    />
-                                    <Select 
-                                        label="Type" 
-                                        size="sm" 
-                                        className="w-32"
-                                        selectedKeys={[newStepType]}
-                                        onChange={(e) => setNewStepType(e.target.value as any)}
-                                    >
-                                        <SelectItem key="manual">Manual</SelectItem>
-                                        <SelectItem key="automation">Automation</SelectItem>
-                                    </Select>
-                                    <Button size="sm" color="primary" onPress={addStep} startContent={<Icon.Add className="w-4 h-4"/>}>Add</Button>
-                                </div>
+                                <Card className="w-full max-w-lg border border-white/10 bg-content1/50 p-4">
+                                    <h4 className="text-sm font-semibold mb-3">Add Step</h4>
+                                    <div className="flex flex-col gap-3">
+                                        <div className="flex gap-2">
+                                            <Input 
+                                                label="Step Name" 
+                                                size="sm"
+                                                value={newStepName}
+                                                onValueChange={setNewStepName}
+                                                className="flex-grow"
+                                            />
+                                            <Select 
+                                                label="Type" 
+                                                size="sm" 
+                                                className="w-40"
+                                                selectedKeys={[newStepType]}
+                                                onChange={(e) => setNewStepType(e.target.value as any)}
+                                            >
+                                                <SelectItem key="manual">Manual</SelectItem>
+                                                <SelectItem key="automation">Automation</SelectItem>
+                                            </Select>
+                                        </div>
+
+                                        {newStepType === 'automation' && (
+                                            <div className="flex flex-col gap-3 p-3 bg-white/5 rounded border border-white/10">
+                                                <Select 
+                                                    label="Select Action" 
+                                                    size="sm"
+                                                    selectedKeys={newStepActionId ? [newStepActionId] : []}
+                                                    onChange={(e) => setNewStepActionId(e.target.value)}
+                                                >
+                                                    {availableActions.map(a => (
+                                                        <SelectItem key={a.id} textValue={a.name}>
+                                                            {a.name}
+                                                        </SelectItem>
+                                                    ))}
+                                                </Select>
+                                                
+                                                {newStepActionId && (
+                                                    <Textarea
+                                                        label="Configuration (JSON)"
+                                                        placeholder='{"ip": "1.2.3.4"}'
+                                                        minRows={3}
+                                                        value={newStepConfig}
+                                                        onValueChange={setNewStepConfig}
+                                                        description="Enter parameters required by the action."
+                                                    />
+                                                )}
+                                            </div>
+                                        )}
+
+                                        <Button color="primary" onPress={addStep} startContent={<Icon.Add className="w-4 h-4"/>} isDisabled={!newStepName}>
+                                            Add Step
+                                        </Button>
+                                    </div>
+                                </Card>
                             </div>
                         </div>
                     )}

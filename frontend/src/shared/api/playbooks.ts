@@ -40,9 +40,25 @@ export interface PlaybookExecutionStep {
   completedAt?: string;
 }
 
+export interface Action {
+  id: string;
+  name: string;
+  description: string;
+  version: string;
+  schema: any;
+}
+
 export const PlaybooksAPI = {
+  // ... existing methods ...
   list: async () => {
     const res = await api.get<Playbook[]>('/playbooks');
+    return res.data;
+  },
+  
+  // ...
+  
+  getActions: async () => {
+    const res = await api.get<Action[]>('/playbooks/actions');
     return res.data;
   },
 
