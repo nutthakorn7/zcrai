@@ -89,6 +89,27 @@ const PROVIDER_CONFIG: Record<string, { name: string; color: string; gradient: s
     description: 'IP Reputation & Abuse Reports',
     category: 'Enrichment'
   },
+  alienvault: {
+    name: 'AlienVault OTX',
+    color: 'secondary',
+    gradient: 'from-cyan-500/20 to-blue-500/10',
+    description: 'Open Threat Exchange Intelligence',
+    category: 'Enrichment'
+  },
+  azure: {
+    name: 'Microsoft Azure',
+    color: 'primary',
+    gradient: 'from-blue-600/20 to-blue-400/10',
+    description: 'Azure Activity Logs & Security Center',
+    category: 'Cloud'
+  },
+  gcp: {
+    name: 'Google Cloud',
+    color: 'warning',
+    gradient: 'from-yellow-500/20 to-red-500/10',
+    description: 'GCP Audit Logs & Security Command Center',
+    category: 'Cloud'
+  },
 };
 
 // ⭐ Type สำหรับ Fetch Settings
