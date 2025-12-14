@@ -131,8 +131,8 @@ zcrAI is a modern Security Operations Center (SOC) platform designed for MSSPs, 
 
 **1. Clone the repository**
 ```bash
-git clone https://github.com/zrd4y/zcrAI.git
-cd zcrAI
+git clone https://github.com/nutthakorn7/zcrai.git
+cd zcrai
 ```
 
 **2. Backend Setup**
@@ -228,9 +228,9 @@ OPENAI_API_KEY=your_openai_key  # Optional
 
 ## 📖 Documentation
 
-- [Feature Compliance Matrix](/.gemini/antigravity/brain/1bde7bba-e973-4828-a5a4-80d1200ba813/feature_compliance.md) - 88% RFP compliance
-- [Walkthrough](/.gemini/antigravity/brain/1bde7bba-e973-4828-a5a4-80d1200ba813/walkthrough.md) - Development journey
-- [API Documentation](http://localhost:8000/swagger) - OpenAPI Spec
+- **Feature Compliance**: 96% (see table below)
+- **API Documentation**: [Swagger Docs](http://localhost:8000/swagger)
+- **Testing**: `bun test` for backend
 
 ---
 
@@ -316,7 +316,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 👥 Author
 
-**zrd4y** - [GitHub](https://github.com/zrd4y)
+**nutthakorn7** - [GitHub](https://github.com/nutthakorn7)
 
 ---
 
