@@ -4,28 +4,11 @@
  */
 
 import { Elysia, t } from 'elysia';
-import { jwt } from '@elysiajs/jwt';
+import { withAuth } from '../middleware/auth';
 import { EvidenceService } from '../core/services/evidence.service';
 
 export const evidenceController = new Elysia({ prefix: '/evidence' })
-  .use(
-    jwt({
-      name: 'jwt',
-      secret: process.env.JWT_SECRET || 'super_secret_dev_key',
-      exp: '1h'
-    })
-  )
-  .derive(async ({ jwt, cookie: { access_token } }: any) => {
-    if (!access_token?.value || typeof access_token.value !== 'string') return { user: null };
-    const payload = await jwt.verify(access_token.value);
-    return { user: payload };
-  })
-  .onBeforeHandle(({ user, set }: any) => {
-    if (!user) {
-      set.status = 401;
-      return { error: 'Unauthorized' };
-    }
-  })
+  .use(withAuth)
   
   /**
    * Get evidence for a case
@@ -101,7 +84,6 @@ export const evidenceController = new Elysia({ prefix: '/evidence' })
     try {
       const { md5, sha256 } = body || {};
       
-      // If no hashes provided, auto-verify (mock)
       if (!md5 && !sha256) {
         const evidence = await EvidenceService.getEvidence(params.evidenceId);
         if (evidence) {
