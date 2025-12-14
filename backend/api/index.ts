@@ -22,6 +22,10 @@ import { playbookController } from './controllers/playbook.controller'
 import { analyticsController } from './controllers/analytics.controller'
 import { realtimeController } from './controllers/realtime.controller'
 import { parserController } from './controllers/parser.controller'
+import { edrController } from './controllers/edr.controller'
+import { evidenceController } from './controllers/evidence.controller'
+import { forensicsController } from './controllers/forensics.controller'
+import { mlController } from './controllers/ml.controller'
 import { SchedulerService } from './core/services/scheduler.service'
 import { LogRetentionService } from './core/services/log-retention.service'
 import { EnrichmentWorker } from './workers/enrichment.worker'
@@ -138,6 +142,10 @@ const app = new Elysia()
   .use(aiController)
   .use(reportController) // PDF report generation
   .use(adminController) // Super Admin routes
+  .use(edrController) // EDR response actions
+  .use(evidenceController) // Evidence chain-of-custody
+  .use(forensicsController) // Memory forensics
+  .use(mlController) // ML anomaly detection
   .get('/health', () => ({ status: 'ok', timestamp: new Date().toISOString() }))
 
 if (import.meta.main) {
