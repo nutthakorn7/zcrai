@@ -173,7 +173,7 @@ export class AzureActivityProvider {
         throw new Error(`Azure API error: ${response.status} ${response.statusText}`);
       }
 
-      const data = await response.json();
+      const data: any = await response.json();
       return data.value || [];
     } catch (error: any) {
       console.error('Failed to fetch Azure logs:', error.message);
@@ -203,7 +203,7 @@ export class AzureActivityProvider {
         body: params.toString(),
       });
 
-      const data = await response.json();
+      const data: any = await response.json();
       return data.access_token || null;
     } catch (error) {
       console.error('Failed to get Azure token:', error);

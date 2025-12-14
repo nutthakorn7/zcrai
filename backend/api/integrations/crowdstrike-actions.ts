@@ -154,7 +154,7 @@ export class CrowdStrikeActions {
         body: `client_id=${this.clientId}&client_secret=${this.clientSecret}`,
       });
 
-      const data = await response.json();
+      const data: any = await response.json();
       return data.access_token;
     } catch (error) {
       console.error('Failed to get CrowdStrike token:', error);
@@ -182,7 +182,7 @@ export class CrowdStrikeActions {
       }),
     });
 
-    const data = await response.json();
+    const data: any = await response.json();
 
     if (response.ok) {
       return {
@@ -219,7 +219,7 @@ export class CrowdStrikeActions {
       }),
     });
 
-    const data = await response.json();
+    const data: any = await response.json();
 
     if (response.ok) {
       return {
@@ -261,7 +261,7 @@ export class CrowdStrikeActions {
       },
     });
 
-    const data = await response.json();
+    const data: any = await response.json();
 
     if (response.ok && data.resources?.length > 0) {
       return {

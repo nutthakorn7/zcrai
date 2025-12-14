@@ -88,7 +88,7 @@ const CrowdStrikeIsolateHostAction: Action = {
       provider: 'crowdstrike',
       action: 'isolate_host',
       parameters: ctx.inputs,
-      executionStepId: ctx.executionStepId || '',
+      executionStepId: ctx.executionId || '',
       requiresApproval: true,
     });
     
@@ -120,7 +120,7 @@ const CrowdStrikeLiftContainmentAction: Action = {
       provider: 'crowdstrike',
       action: 'lift_containment',
       parameters: ctx.inputs,
-      executionStepId: ctx.executionStepId || '',
+      executionStepId: ctx.executionId || '',
     });
     
     return {
@@ -151,7 +151,7 @@ const SentinelOneQuarantineHostAction: Action = {
       provider: 'sentinelone',
       action: 'quarantine_host',
       parameters: ctx.inputs,
-      executionStepId: ctx.executionStepId || '',
+      executionStepId: ctx.executionId || '',
       requiresApproval: true,
     });
     
@@ -183,7 +183,7 @@ const SentinelOneUnquarantineHostAction: Action = {
       provider: 'sentinelone',
       action: 'unquarantine_host',
       parameters: ctx.inputs,
-      executionStepId: ctx.executionStepId || '',
+      executionStepId: ctx.executionId || '',
     });
     
     return {
@@ -215,7 +215,7 @@ const SentinelOneBlocklistHashAction: Action = {
       provider: 'sentinelone',
       action: 'blocklist_hash',
       parameters: ctx.inputs,
-      executionStepId: ctx.executionStepId || '',
+      executionStepId: ctx.executionId || '',
     });
     
     return {
