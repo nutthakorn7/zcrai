@@ -7,6 +7,7 @@ import { PlaybooksAPI } from '../../shared/api/playbooks';
 import { useAuth } from '../../shared/store/useAuth';
 import { PlaybookWidget } from '../../components/PlaybookWidget';
 import { EvidenceWidget } from '../../components/EvidenceWidget';
+import { EvidenceTab } from '../../components/EvidenceTab';
 import { InvestigationGraph } from '../../components/InvestigationGraph';
 import { useCaseSocket } from '../../shared/hooks/useCaseSocket';
 import Markdown from 'react-markdown';
@@ -310,6 +311,12 @@ export default function CaseDetailPage() {
                          {(!caseItem.history || caseItem.history.length === 0) && (
                             <div className="text-center p-8 text-gray-500">No audit logs available.</div>
                          )}
+                    </div>
+                </Tab>
+
+                <Tab key="evidence" title="Evidence">
+                    <div className="mt-4">
+                        <EvidenceTab caseId={caseItem.id} />
                     </div>
                 </Tab>
             </Tabs>
