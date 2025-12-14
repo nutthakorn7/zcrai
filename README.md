@@ -287,13 +287,13 @@ npm test
 - [x] MITRE ATT&CK Heatmap
 - [x] Custom Widget Creator
 - [x] Drag-and-drop Dashboard Builder
+- [x] **Investigation Graph visualization**
 
 ### 🔜 Future Enhancements
 - [ ] Advanced cloud integrations (Azure, GCP)
 - [ ] Network traffic analysis (NetFlow, PCAP)
 - [ ] Kubernetes monitoring
 - [ ] Plugin marketplace
-- [ ] Investigation Graph visualization
 
 ---
 
