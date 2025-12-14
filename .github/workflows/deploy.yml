@@ -29,10 +29,29 @@ jobs:
         run: |
           rsync -avz --delete \
             --exclude 'node_modules' \
+            --exclude '.env' \
             --exclude '.git' \
             --exclude 'dist' \
             -e ssh \
             ./ root@45.118.132.160:/root/zcrAI/
+
+      - name: Restore Production Env
+        run: |
+          ssh root@45.118.132.160 "cat > /root/zcrAI/backend/api/.env <<EOF
+          NODE_ENV=production
+          PORT=8000
+          DATABASE_URL=postgres://postgres:postgres@localhost:5432/zcrai
+          CLICKHOUSE_URL=http://localhost:8123
+          CLICKHOUSE_DB=zcrai
+          REDIS_URL=redis://:redis_password@localhost:6379
+          JWT_SECRET=your_super_secret_jwt_key_change_in_production_min_32_chars
+          JWT_ACCESS_EXPIRY=15m
+          JWT_REFRESH_EXPIRY=7d
+          ENCRYPTION_KEY=your_32_char_encryption_key_here
+          FRONTEND_URL=https://app.zcr.ai
+          SUPERADMIN_EMAIL=superadmin@zcr.ai
+          SUPERADMIN_PASSWORD=123
+          EOF"
 
       - name: Install Backend Dependencies
         run: |
