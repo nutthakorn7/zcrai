@@ -3,18 +3,21 @@ import { enrichmentQueue, observables } from '../infra/db/schema';
 import { eq } from 'drizzle-orm';
 import { VirusTotalProvider } from '../core/enrichment-providers/virustotal';
 import { AbuseIPDBProvider } from '../core/enrichment-providers/abuseipdb';
+import { AlienVaultOTXProvider } from '../integrations/alienvault.provider';
 
 const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
 export class EnrichmentWorker {
   private vtProvider: VirusTotalProvider;
   private abuseIPDBProvider: AbuseIPDBProvider;
+  private otxProvider: AlienVaultOTXProvider;
   private isRunning = false;
   private intervalId?: NodeJS.Timeout;
 
   constructor() {
     this.vtProvider = new VirusTotalProvider();
     this.abuseIPDBProvider = new AbuseIPDBProvider();
+    this.otxProvider = new AlienVaultOTXProvider();
   }
 
   start() {
@@ -97,6 +100,8 @@ export class EnrichmentWorker {
             result = await this.enrichWithVirusTotal(observable);
           } else if (item.provider === 'abuseipdb') {
             result = await this.enrichWithAbuseIPDB(observable);
+          } else if (item.provider === 'alienvault') {
+            result = await this.enrichWithOTX(observable);
           }
 
           // Merge with existing enrichment data
@@ -184,5 +189,20 @@ export class EnrichmentWorker {
       throw new Error('AbuseIPDB only supports IP addresses');
     }
     return await this.abuseIPDBProvider.checkIP(observable.value);
+  }
+
+  private async enrichWithOTX(observable: any) {
+    switch (observable.type) {
+      case 'ip':
+        return await this.otxProvider.enrichIP(observable.value);
+      case 'domain':
+        return await this.otxProvider.enrichDomain(observable.value);
+      case 'url':
+        return await this.otxProvider.enrichURL(observable.value);
+      case 'hash':
+        return await this.otxProvider.enrichHash(observable.value);
+      default:
+        throw new Error(`Unsupported type for AlienVault OTX: ${observable.type}`);
+    }
   }
 }
