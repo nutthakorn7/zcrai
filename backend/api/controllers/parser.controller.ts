@@ -1,5 +1,5 @@
 import { Elysia, t } from 'elysia'
-import { jwt } from '@elysiajs/jwt'
+import { withAuth } from '../middleware/auth'
 import { ParserService } from '../core/services/parser.service'
 
 const CreateParserSchema = t.Object({
@@ -20,22 +20,7 @@ const TestParserSchema = t.Object({
 })
 
 export const parserController = new Elysia({ prefix: '/parsers' })
-  .use(
-    jwt({
-      name: 'jwt',
-      secret: process.env.JWT_SECRET || 'super_secret_dev_key',
-    })
-  )
-
-  // Middleware: Extract user from JWT
-  .derive(async ({ jwt, cookie: { access_token }, set }) => {
-    const payload = await jwt.verify(access_token.value as string) as any
-    if (!payload) {
-      set.status = 401
-      throw new Error('Unauthorized')
-    }
-    return { user: payload }
-  })
+  .use(withAuth)
 
   // ==================== LIST PARSERS ====================
   .get('/', async ({ user }) => {
