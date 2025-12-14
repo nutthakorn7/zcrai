@@ -17,6 +17,7 @@
 - [x] Create tables: api_keys (encrypted), audit_logs
 - [x] Setup Drizzle ORM + migrations
 - [x] Implement Row-Level Security (RLS) for tenant isolation
+- [x] Implement Log Retention Policies (Hot/Warm/Cold)
 
 ### 1.3 Database Schema (ClickHouse)
 - [ ] Design schema for security logs
