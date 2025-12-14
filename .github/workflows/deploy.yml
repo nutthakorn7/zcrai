@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - feature/ai-analytics
+  workflow_dispatch:
 
 jobs:
   deploy:
