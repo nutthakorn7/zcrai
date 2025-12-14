@@ -142,7 +142,7 @@ export default function CaseDetailPage() {
   const { activeUsers, typingUsers, emitTyping } = useCaseSocket(id || '');
 
   return (
-    <div className="p-6 h-full flex flex-col gap-6 max-w-7xl mx-auto w-full">
+    <div className="p-6 h-full flex flex-col gap-6 w-full">
       {/* Header */}
       <div className="flex justify-between items-start">
         <div className="flex flex-col gap-2">

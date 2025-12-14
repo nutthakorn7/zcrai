@@ -153,7 +153,7 @@ export default function NotificationChannelsPage() {
   };
 
   return (
-    <div className="space-y-8 max-w-5xl mx-auto p-6">
+    <div className="space-y-8 w-full p-6">
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-default-500 bg-clip-text text-transparent">

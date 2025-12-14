@@ -341,7 +341,7 @@ export default function AlertsPage() {
         </div>
       </header>
 
-      <div className="p-8 max-w-[1600px] mx-auto w-full animate-fade-in">
+      <div className="p-6 w-full animate-fade-in">
         {/* Summary Metrics */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
           {[

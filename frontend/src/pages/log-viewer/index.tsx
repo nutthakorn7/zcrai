@@ -651,7 +651,7 @@ export default function LogViewerPage() {
       </header>
 
       {/* Content Canvas */}
-      <div className="p-8 max-w-[1800px] mx-auto w-full animate-fade-in flex gap-6">
+      <div className="p-6 w-full animate-fade-in flex gap-6">
         
         {/* Left Sidebar - Facets */}
         <div className="w-64 flex-shrink-0 space-y-6 hidden xl:block">

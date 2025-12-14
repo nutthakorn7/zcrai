@@ -155,7 +155,7 @@ export default function PlaybookEditor({ playbook, onClose, onUpdate, onDelete }
                         <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle, #fff 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
 
                     {activeTab === 'editor' && (
-                        <div className="max-w-4xl mx-auto space-y-8 pb-20">
+                        <div className="w-full px-8 space-y-8 pb-20">
                             {/* Start Node */}
                             <div className="flex flex-col items-center">
                                 <div className="w-16 h-16 rounded-full bg-success/10 border-2 border-success/50 flex items-center justify-center shadow-[0_0_20px_rgba(23,201,100,0.2)] z-10">

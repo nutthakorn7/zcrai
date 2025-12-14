@@ -144,7 +144,7 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6 pb-20 animate-fade-in pt-6">
+    <div className="w-full space-y-6 pb-20 animate-fade-in pt-6">
       {/* Profile Header */}
       <Card className="bg-content1/50 border border-white/5 backdrop-blur-md">
         <CardBody className="p-8 flex flex-row items-center gap-6">
