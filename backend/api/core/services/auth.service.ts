@@ -38,25 +38,35 @@ export const AuthService = {
 
   // ==================== LOGIN ====================
   async login(body: { email: string; password: string }) {
-    const lockout = await this.checkLockout(body.email)
-    if (lockout.locked) {
-      throw new Error(`Account locked. Try again in ${lockout.remainingTime} seconds`)
-    }
+    try {
+      const lockout = await this.checkLockout(body.email)
+      if (lockout.locked) {
+        throw new Error(`Account locked. Try again in ${lockout.remainingTime} seconds`)
+      }
 
-    const [user] = await db.select().from(users).where(eq(users.email, body.email))
-    if (!user) {
-      await this.incrementFailedAttempts(body.email)
-      throw new Error('Invalid credentials')
-    }
+      const [user] = await db.select().from(users).where(eq(users.email, body.email))
+      if (!user) {
+        await this.incrementFailedAttempts(body.email)
+        throw new Error('Invalid credentials')
+      }
 
-    const isValid = await Bun.password.verify(body.password, user.passwordHash)
-    if (!isValid) {
-      await this.incrementFailedAttempts(body.email)
-      throw new Error('Invalid credentials')
-    }
+      const isValid = await Bun.password.verify(body.password, user.passwordHash)
+      if (!isValid) {
+        await this.incrementFailedAttempts(body.email)
+        throw new Error('Invalid credentials')
+      }
 
-    await this.resetFailedAttempts(body.email)
-    return user
+      await this.resetFailedAttempts(body.email)
+      return user
+    } catch (error: any) {
+      // Sanitize database errors - don't leak raw SQL to frontend
+      if (error.message?.includes('Invalid credentials') || 
+          error.message?.includes('Account locked')) {
+        throw error // Re-throw known auth errors
+      }
+      console.error('Login error:', error.message)
+      throw new Error('Authentication failed. Please try again.')
+    }
   },
 
   // ==================== LOCKOUT ====================
