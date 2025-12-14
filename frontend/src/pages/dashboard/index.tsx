@@ -23,6 +23,7 @@ import {
   RecentDetection 
 } from './type.ts';
 import { SystemMetricsCard } from '../../components/SystemMetricsCard';
+import { AnomalyDashboardCard } from '../../components/AnomalyDashboardCard';
 
 // Import logos
 import sentineloneLogo from '../../assets/logo/sentinelone.png';
@@ -769,6 +770,11 @@ export default function DashboardPage() {
       {/* System Metrics */}
       <div className="mb-8 animate-fade-in">
         <SystemMetricsCard />
+      </div>
+
+      {/* ML Anomaly Detection */}
+      <div className="mb-8 animate-fade-in">
+        <AnomalyDashboardCard />
       </div>
 
       {/* Main Grid: Recent Detections, Hosts, Users */}
