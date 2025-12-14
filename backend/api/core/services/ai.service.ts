@@ -1,4 +1,4 @@
-import { AIProvider } from "../ai/types";
+import { AIProvider, AIPlaybookSuggestion } from "../ai/types";
 import { MockAIProvider } from "../ai/mock.provider";
 import { GeminiProvider } from "../ai/gemini.provider";
 
@@ -43,5 +43,42 @@ ${caseData.alerts?.map((a: any) => `- [${a.severity}] ${a.title}: ${a.descriptio
 **Tone**: Professional, Urgent if high severity.
 `;
         return this.provider.generateText(prompt);
+    }
+
+    static async suggestPlaybook(caseData: any, playbooks: any[]): Promise<AIPlaybookSuggestion> {
+        if (!this.provider) this.initialize();
+
+        const pbList = playbooks.map(p => `- [ID: ${p.id}] "${p.title}": ${p.description}`).join('\n');
+
+        const prompt = `
+You are a SOAR Expert.
+Analyze the following Security Incident Case and available Playbooks.
+Recommend the ONE most suitable playbook to run.
+
+**Case**:
+- Title: ${caseData.title}
+- Description: ${caseData.description}
+- Severity: ${caseData.severity}
+- Alerts: ${caseData.alerts?.map((a: any) => a.title).join(', ')}
+
+**Available Playbooks**:
+${pbList}
+
+**Instruction**:
+Return valid JSON only. Format:
+{
+  "playbookId": "UUID" or null,
+  "confidence": number (0-100),
+  "reasoning": "Short explanation"
+}
+`;
+        const text = await this.provider.generateText(prompt);
+        try {
+            const jsonStr = text.replace(/```json\n?|\n?```/g, '').trim();
+            return JSON.parse(jsonStr);
+        } catch (e) {
+            console.error("Failed to parse AI JSON", text);
+            return { playbookId: null, confidence: 0, reasoning: "Failed to parse AI response." };
+        }
     }
 }

@@ -15,3 +15,9 @@ export interface AISummaizationRequest {
         description: string;
     }>;
 }
+
+export interface AIPlaybookSuggestion {
+    playbookId: string | null;
+    confidence: number;
+    reasoning: string;
+}

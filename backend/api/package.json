@@ -27,6 +27,8 @@
     "cron": "^4.3.4",
     "drizzle-orm": "latest",
     "elysia": "latest",
+    "geoip-lite": "^1.4.10",
+    "haversine": "^1.1.1",
     "ioredis": "^5.8.2",
     "nanoid": "^5.1.6",
     "openai": "^6.9.1",
@@ -38,9 +40,12 @@
     "resend": "^6.6.0"
   },
   "devDependencies": {
+    "@types/geoip-lite": "^1.4.4",
+    "@types/haversine": "^1.1.8",
     "@types/qrcode": "^1.5.6",
     "bun-types": "latest",
     "drizzle-kit": "latest",
-    "ioredis-mock": "^8.13.1"
+    "ioredis-mock": "^8.13.1",
+    "typescript": "^5.9.3"
   }
 }

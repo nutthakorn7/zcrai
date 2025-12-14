@@ -2,6 +2,7 @@ import { Elysia } from 'elysia'
 import { jwt } from '@elysiajs/jwt'
 import { AuthService } from '../core/services/auth.service'
 import { MFAService } from '../core/services/mfa.service'
+import { analyticsService } from '../core/services/analytics.service'
 import { 
   LoginSchema, 
   RegisterSchema, 
@@ -51,7 +52,11 @@ export const authController = new Elysia({ prefix: '/auth' })
       })
 
       const userAgent = request.headers.get('user-agent') || undefined
+      const ip = request.headers.get('x-forwarded-for') || '127.0.0.1' // Simple fallback
       const refreshTokenValue = await AuthService.createRefreshToken(user.id, userAgent)
+      
+      // UEBA: Track Login
+      analyticsService.trackLogin(user.id, ip, userAgent || '')
 
       access_token.set({
         value: accessToken,
@@ -98,7 +103,7 @@ export const authController = new Elysia({ prefix: '/auth' })
         throw new Error('Unauthorized')
       }
       
-      const payload = await jwt.verify(access_token.value)
+      const payload = (await jwt.verify(access_token.value)) as any
       if (!payload) throw new Error('Invalid token')
 
       const user = await AuthService.getUserById(payload.id as string)
@@ -181,10 +186,10 @@ export const authController = new Elysia({ prefix: '/auth' })
   // ==================== MFA SETUP ====================
   .post('/mfa/setup', async ({ jwt, cookie: { access_token }, set }) => {
     try {
-      const payload = await jwt.verify(access_token.value)
+      const payload = (await jwt.verify(access_token.value)) as any
       if (!payload) throw new Error('Unauthorized')
 
-      const user = await AuthService.getUserById(payload.id as string)
+      const user = await AuthService.getUserById((payload as any).id)
       if (!user) throw new Error('User not found')
 
       return await MFAService.setup(user.id, user.email)
@@ -197,7 +202,7 @@ export const authController = new Elysia({ prefix: '/auth' })
   // ==================== MFA VERIFY ====================
   .post('/mfa/verify', async ({ body, jwt, cookie: { access_token }, set }) => {
     try {
-      const payload = await jwt.verify(access_token.value)
+      const payload = (await jwt.verify(access_token.value)) as any
       if (!payload) throw new Error('Unauthorized')
 
       return await MFAService.verifyAndEnable(
@@ -215,7 +220,7 @@ export const authController = new Elysia({ prefix: '/auth' })
   // ==================== MFA DISABLE ====================
   .post('/mfa/disable', async ({ body, jwt, cookie: { access_token }, set }) => {
     try {
-      const payload = await jwt.verify(access_token.value)
+      const payload = (await jwt.verify(access_token.value)) as any
       if (!payload) throw new Error('Unauthorized')
 
       return await MFAService.disable(payload.id as string, body.password)

@@ -7,6 +7,19 @@ export class MockAIProvider implements AIProvider {
         // Simulate latency
         await new Promise(resolve => setTimeout(resolve, 1500));
 
+        if (prompt.includes('Which playbook')) {
+             // Mock JSON response
+             // Try to find a playbook ID in the prompt to "recommend"
+             const match = prompt.match(/ID: ([a-f0-9-]+)/);
+             const recommendedId = match ? match[1] : null;
+
+             return JSON.stringify({
+                 playbookId: recommendedId,
+                 confidence: 85,
+                 reasoning: "Analysis suggests this playbook matches the 'high severity' criteria detected in the logs."
+             });
+        }
+
         return `## 🤖 AI Analysis (Mock)
 
 **Summary**:

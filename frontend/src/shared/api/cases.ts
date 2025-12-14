@@ -60,5 +60,10 @@ export const CasesAPI = {
   summarize: async (id: string) => {
     const res = await api.post<{ success: boolean; data: { summary: string } }>(`/cases/${id}/ai/summarize`);
     return res.data;
+  },
+
+  suggestPlaybook: async (id: string) => {
+    const res = await api.post<{ success: boolean; data: { playbookId: string | null; confidence: number; reasoning: string } }>(`/cases/${id}/ai/suggest-playbook`);
+    return res.data;
   }
 };

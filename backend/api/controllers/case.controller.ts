@@ -90,3 +90,29 @@ export const caseController = new Elysia({ prefix: '/cases' })
     const summary = await AIService.summarizeCase(caseDetail);
     return { success: true, data: { summary } };
   })
+
+  // ==================== AI SUGGEST PLAYBOOK ====================
+  .post('/:id/ai/suggest-playbook', async ({ user, params: { id } }: any) => {
+    const { AIService } = await import('../core/services/ai.service');
+    const { PlaybookService } = await import('../core/services/playbook.service');
+
+    const caseDetail = await CaseService.getById(user.tenantId, id);
+    if (!caseDetail) throw new Error('Case not found');
+
+    const playbooks = await PlaybookService.list(user.tenantId);
+    
+    // Pass only active playbooks? 
+    // PlaybookService.list returns all. We might filter for isActive?
+    // Let's filter in memory for now.
+    const activePlaybooks = playbooks.filter((p: any) => p.isActive !== false);
+
+    const suggestion = await AIService.suggestPlaybook(caseDetail, activePlaybooks);
+    
+    let playbookTitle = null;
+    if (suggestion.playbookId) {
+        const pb = playbooks.find((p: any) => p.id === suggestion.playbookId);
+        if (pb) playbookTitle = pb.title;
+    }
+
+    return { success: true, data: { ...suggestion, playbookTitle } };
+  })

@@ -1,5 +1,5 @@
 import { relations, sql } from 'drizzle-orm'
-import { pgTable, uuid, text, varchar, timestamp, boolean, jsonb, integer, index } from 'drizzle-orm/pg-core'
+import { pgTable, uuid, text, varchar, timestamp, boolean, jsonb, integer, real, index } from 'drizzle-orm/pg-core'
 
 // Tenants
 export const tenants = pgTable('tenants', {
@@ -50,6 +50,26 @@ export const sessions = pgTable('sessions', {
   isValid: boolean('is_valid').default(true).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 })
+
+// Login History (UEBA)
+export const loginHistory = pgTable('login_history', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').references(() => users.id).notNull(),
+  ipAddress: text('ip_address').notNull(),
+  userAgent: text('user_agent'),
+  country: text('country'),
+  city: text('city'),
+  latitude: real('latitude'),
+  longitude: real('longitude'),
+  timestamp: timestamp('timestamp').defaultNow().notNull(),
+})
+
+export const loginHistoryRelations = relations(loginHistory, ({ one }) => ({
+  user: one(users, {
+    fields: [loginHistory.userId],
+    references: [users.id],
+  }),
+}))
 
 // API Keys
 export const apiKeys = pgTable('api_keys', {

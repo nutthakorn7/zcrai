@@ -64,6 +64,13 @@
       "when": 1765691023749,
       "tag": "0008_sloppy_namorita",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1765693859229,
+      "tag": "0009_square_hitman",
+      "breakpoints": true
     }
   ]
 }

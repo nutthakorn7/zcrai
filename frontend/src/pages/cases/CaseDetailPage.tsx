@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardBody, Button, Chip, Select, SelectItem, Textarea, Spinner, Modal, ModalContent, ModalHeader, ModalBody, useDisclosure, Avatar, AvatarGroup, Tooltip, Tabs, Tab, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell } from "@heroui/react";
 import { Icon } from '../../shared/ui';
 import { CasesAPI } from '../../shared/api/cases';
+import { PlaybooksAPI } from '../../shared/api/playbooks';
 import { useAuth } from '../../shared/store/useAuth';
 import { PlaybookWidget } from '../../components/PlaybookWidget';
 import { EvidenceWidget } from '../../components/EvidenceWidget';
@@ -22,6 +23,7 @@ export default function CaseDetailPage() {
 
   // AI State
   const [aiSummary, setAiSummary] = useState('');
+  const [aiSuggestion, setAiSuggestion] = useState<any>(null);
   const [aiLoading, setAiLoading] = useState(false);
 
   const fetchCase = async () => {
@@ -42,13 +44,28 @@ export default function CaseDetailPage() {
     if (!caseItem) return;
     try {
       setAiLoading(true);
-      const res = await CasesAPI.summarize(caseItem.id);
-      setAiSummary(res.data.summary);
+      const [sumRes, sugRes] = await Promise.all([
+        CasesAPI.summarize(caseItem.id),
+        CasesAPI.suggestPlaybook(caseItem.id)
+      ]);
+      setAiSummary(sumRes.data.summary);
+      setAiSuggestion(sugRes.data);
     } catch (e) {
       console.error('AI Error:', e);
     } finally {
       setAiLoading(false);
     }
+  };
+
+  const handleRunSuggestion = async (playbookId: string) => {
+      if (!caseItem) return;
+      try {
+          await PlaybooksAPI.run(caseItem.id, playbookId);
+          // Refresh? Or show success toast?
+          fetchCase(); 
+      } catch (e) {
+          console.error("Run Playbook Failed", e);
+      }
   };
 
   useEffect(() => {
@@ -335,6 +352,35 @@ export default function CaseDetailPage() {
                          <div className="mt-4 flex justify-end">
                              <Button size="sm" variant="light" color="secondary" onPress={handleGenerateAI} isLoading={aiLoading} startContent={<Icon.Refresh className="w-3 h-3"/>}>Re-analyze</Button>
                          </div>
+                    </div>
+                )}
+
+                {aiSuggestion && (
+                    <div className="mt-4 border-t border-white/10 pt-4">
+                        <div className="flex items-center gap-2 mb-2">
+                             <h4 className="text-sm font-semibold text-gray-300">Recommended Action</h4>
+                             <Chip size="sm" color="warning" variant="flat">{aiSuggestion.confidence}% Confidence</Chip>
+                        </div>
+                        <div className="bg-white/5 p-3 rounded-lg border border-white/10">
+                            <div className="flex justify-between items-start mb-2">
+                                <span className="font-bold text-primary text-sm block mb-1">{aiSuggestion.playbookTitle || 'Unknown Playbook'}</span>
+                            </div>
+                            <p className="text-xs text-gray-400 mb-3">{aiSuggestion.reasoning}</p>
+                            
+                            {aiSuggestion.playbookId ? (
+                                <Button 
+                                    size="sm" 
+                                    color="primary" 
+                                    className="w-full"
+                                    onPress={() => handleRunSuggestion(aiSuggestion.playbookId)}
+                                    startContent={<Icon.Cpu className="w-3 h-3" />}
+                                >
+                                    Run Playbook
+                                </Button>
+                            ) : (
+                                <p className="text-xs text-center text-gray-500 italic">No specific playbook matched.</p>
+                            )}
+                        </div>
                     </div>
                 )}
 
