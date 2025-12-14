@@ -1,5 +1,5 @@
-import { pgTable, uuid, text, timestamp, boolean, jsonb, integer } from 'drizzle-orm/pg-core'
-import { relations } from 'drizzle-orm'
+import { relations, sql } from 'drizzle-orm'
+import { pgTable, uuid, text, varchar, timestamp, boolean, jsonb, integer, index } from 'drizzle-orm/pg-core'
 
 // Tenants
 export const tenants = pgTable('tenants', {
@@ -210,19 +210,30 @@ export const notificationRulesRelations = relations(notificationRules, ({ one })
 export const alerts = pgTable('alerts', {
   id: uuid('id').defaultRandom().primaryKey(),
   tenantId: uuid('tenant_id').references(() => tenants.id).notNull(),
-  source: text('source').notNull(), // 'logs', 'sentinelone', 'crowdstrike', 'custom'
-  severity: text('severity').notNull(), // 'critical', 'high', 'medium', 'low', 'info'
+  source: text('source').notNull(), // 'sentinelone', 'crowdstrike', 'manual'
+  severity: text('severity').default('medium').notNull(), // 'critical', 'high', 'medium', 'low', 'info'
   title: text('title').notNull(),
-  description: text('description').notNull(),
-  status: text('status').default('new').notNull(), // 'new', 'reviewing', 'dismissed', 'promoted'
-  rawData: jsonb('raw_data'), // Original alert payload
-  correlationId: uuid('correlation_id'), // Link to correlation group
-  reviewedBy: uuid('reviewed_by').references(() => users.id),
-  reviewedAt: timestamp('reviewed_at'),
-  dismissReason: text('dismiss_reason'),
-  promotedCaseId: uuid('promoted_case_id').references(() => cases.id),
+  description: text('description'),
+  status: text('status').default('new').notNull(), // 'new', 'investigating', 'resolved', 'dismissed'
+  caseId: uuid('case_id').references(() => cases.id), // Link to case if escalated
+  rawData: jsonb('raw_data'), // Original event from source
+  
+  // Deduplication fields
+  fingerprint: varchar('fingerprint', { length: 64 }).notNull(), // SHA256 hash for deduplication
+  duplicateCount: integer('duplicate_count').default(1).notNull(), // Number of occurrences
+  firstSeenAt: timestamp('first_seen_at').defaultNow().notNull(), // Original alert time
+  lastSeenAt: timestamp('last_seen_at').defaultNow().notNull(), // Most recent occurrence
+  
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => {
+  return {
+    tenantIdx: index('alerts_tenant_idx').on(table.tenantId),
+    statusIdx: index('alerts_status_idx').on(table.status),
+    severityIdx: index('alerts_severity_idx').on(table.severity),
+    fingerprintIdx: index('alerts_fingerprint_idx').on(table.fingerprint),
+    lastSeenIdx: index('alerts_last_seen_idx').on(table.lastSeenAt),
+  }
 })
 
 export const alertsRelations = relations(alerts, ({ one }) => ({
@@ -230,12 +241,8 @@ export const alertsRelations = relations(alerts, ({ one }) => ({
     fields: [alerts.tenantId],
     references: [tenants.id],
   }),
-  reviewer: one(users, {
-    fields: [alerts.reviewedBy],
-    references: [users.id],
-  }),
-  promotedCase: one(cases, {
-    fields: [alerts.promotedCaseId],
+  case: one(cases, {
+    fields: [alerts.caseId],
     references: [cases.id],
   }),
 }))

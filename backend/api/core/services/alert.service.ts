@@ -2,9 +2,33 @@ import { db } from '../../infra/db';
 import { alerts, alertCorrelations, cases } from '../../infra/db/schema';
 import { eq, and, desc, inArray, sql, or, gte, lte } from 'drizzle-orm';
 import { ObservableService } from './observable.service';
+import crypto from 'crypto';
 
 export class AlertService {
-  // Create new alert
+  /**
+   * Generate fingerprint for alert deduplication
+   * Fingerprint is based on: source + severity + title + observables
+   */
+  private static generateFingerprint(data: {
+    source: string;
+    severity: string;
+    title: string;
+    observables?: string[];
+  }): string {
+    const parts = [
+      data.source.toLowerCase().trim(),
+      data.severity.toLowerCase().trim(),
+      data.title.toLowerCase().trim(),
+      ...(data.observables || []).sort() // Sort for consistency
+    ];
+    
+    return crypto
+      .createHash('sha256')
+      .update(parts.join('|'))
+      .digest('hex');
+  }
+
+  // Create new alert with deduplication
   static async create(data: {
     tenantId: string;
     source: string;
@@ -12,10 +36,61 @@ export class AlertService {
     title: string;
     description: string;
     rawData?: any;
+    observables?: string[]; // For fingerprint generation
   }) {
+    // 1. Generate fingerprint for deduplication
+    const fingerprint = this.generateFingerprint({
+      source: data.source,
+      severity: data.severity,
+      title: data.title,
+      observables: data.observables
+    });
+
+    // 2. Check for existing alert with same fingerprint in last 24 hours
+    const dedupeWindow = new Date(Date.now() - 24 * 60 * 60 * 1000); // 24h ago
+    const existingAlerts = await db
+      .select()
+      .from(alerts)
+      .where(and(
+        eq(alerts.tenantId, data.tenantId),
+        eq(alerts.fingerprint, fingerprint),
+        gte(alerts.lastSeenAt, dedupeWindow)
+      ))
+      .limit(1);
+
+    // 3. If duplicate found, increment count and update timestamp
+    if (existingAlerts.length > 0) {
+      const existingAlert = existingAlerts[0];
+      
+      const [updatedAlert] = await db
+        .update(alerts)
+        .set({
+          duplicateCount: sql`${alerts.duplicateCount} + 1`,
+          lastSeenAt: new Date(),
+          updatedAt: new Date(),
+          // Also update description with latest info
+          description: data.description,
+          rawData: data.rawData
+        })
+        .where(eq(alerts.id, existingAlert.id))
+        .returning();
+
+      return updatedAlert;
+    }
+
+    // 4. Otherwise, create new alert
     const [alert] = await db.insert(alerts).values({
-      ...data,
+      tenantId: data.tenantId,
+      source: data.source,
+      severity: data.severity,
+      title: data.title,
+      description: data.description,
+      rawData: data.rawData,
       status: 'new',
+      fingerprint,
+      duplicateCount: 1,
+      firstSeenAt: new Date(),
+      lastSeenAt: new Date(),
     }).returning();
 
     // Auto-extract IOCs from description + rawData
@@ -80,166 +155,39 @@ export class AlertService {
     return { ...alert, correlations };
   }
 
-  // Mark as reviewing
-  static async review(id: string, tenantId: string, userId: string) {
+  // Update alert status
+  static async updateStatus(alertId: string, tenantId: string, status: string) {
     const [updated] = await db
       .update(alerts)
-      .set({
-        status: 'reviewing',
-        reviewedBy: userId,
-        reviewedAt: new Date(),
-        updatedAt: new Date(),
+      .set({ 
+        status, 
+        updatedAt: new Date() 
       })
-      .where(and(eq(alerts.id, id), eq(alerts.tenantId, tenantId)))
+      .where(and(
+        eq(alerts.id, alertId),
+        eq(alerts.tenantId, tenantId)
+      ))
       .returning();
 
     return updated;
   }
 
-  // Dismiss alert
-  static async dismiss(
-    id: string,
-    tenantId: string,
-    userId: string,
-    reason: string
-  ) {
-    const [updated] = await db
+  // Link alert to case
+  static async linkToCase(alertId: string, tenantId: string, caseId: string) {
+    const [linked] = await db
       .update(alerts)
-      .set({
-        status: 'dismissed',
-        reviewedBy: userId,
-        reviewedAt: new Date(),
-        dismissReason: reason,
-        updatedAt: new Date(),
+      .set({ 
+        caseId,
+        status: 'investigating',
+        updatedAt: new Date() 
       })
-      .where(and(eq(alerts.id, id), eq(alerts.tenantId, tenantId)))
+      .where(and(
+        eq(alerts.id, alertId),
+        eq(alerts.tenantId, tenantId)
+      ))
       .returning();
 
-    return updated;
-  }
-
-  // Promote to case
-  static async promoteToCase(
-    alertId: string,
-    tenantId: string,
-    userId: string,
-    caseData?: {
-      title?: string;
-      description?: string;
-      priority?: string;
-    }
-  ) {
-    const alert = await this.getById(alertId, tenantId);
-
-    // Create case
-    const [newCase] = await db.insert(cases).values({
-      tenantId,
-      title: caseData?.title || alert.title,
-      description: caseData?.description || alert.description,
-      severity: alert.severity,
-      priority: caseData?.priority || 'normal',
-      status: 'open',
-      reporterId: userId,
-    }).returning();
-
-    // Update alert
-    await db
-      .update(alerts)
-      .set({
-        status: 'promoted',
-        reviewedBy: userId,
-        reviewedAt: new Date(),
-        promotedCaseId: newCase.id,
-        updatedAt: new Date(),
-      })
-      .where(eq(alerts.id, alertId));
-
-    return { alert, case: newCase };
-  }
-
-  // Bulk dismiss
-  static async bulkDismiss(
-    alertIds: string[],
-    tenantId: string,
-    userId: string,
-    reason: string
-  ) {
-    const updated = await db
-      .update(alerts)
-      .set({
-        status: 'dismissed',
-        reviewedBy: userId,
-        reviewedAt: new Date(),
-        dismissReason: reason,
-        updatedAt: new Date(),
-      })
-      .where(
-        and(
-          inArray(alerts.id, alertIds),
-          eq(alerts.tenantId, tenantId)
-        )
-      )
-      .returning();
-
-    return updated;
-  }
-
-  // Bulk promote
-  static async bulkPromote(
-    alertIds: string[],
-    tenantId: string,
-    userId: string,
-    caseData: {
-      title: string;
-      description: string;
-      priority?: string;
-    }
-  ) {
-    // Get all alerts
-    const alertList = await db
-      .select()
-      .from(alerts)
-      .where(
-        and(
-          inArray(alerts.id, alertIds),
-          eq(alerts.tenantId, tenantId)
-        )
-      );
-
-    if (alertList.length === 0) throw new Error('No alerts found');
-
-    // Determine highest severity
-    const severities = ['critical', 'high', 'medium', 'low', 'info'];
-    const highestSeverity = alertList.reduce((highest, alert) => {
-      const currentIndex = severities.indexOf(alert.severity);
-      const highestIndex = severities.indexOf(highest);
-      return currentIndex < highestIndex ? alert.severity : highest;
-    }, 'info');
-
-    // Create single case
-    const [newCase] = await db.insert(cases).values({
-      tenantId,
-      title: caseData.title,
-      description: caseData.description,
-      severity: highestSeverity,
-      priority: caseData.priority || 'normal',
-      status: 'open',
-      reporterId: userId,
-    }).returning();
-
-    // Update all alerts
-    await db
-      .update(alerts)
-      .set({
-        status: 'promoted',
-        reviewedBy: userId,
-        reviewedAt: new Date(),
-        promotedCaseId: newCase.id,
-        updatedAt: new Date(),
-      })
-      .where(inArray(alerts.id, alertIds));
-
-    return { alerts: alertList, case: newCase };
+    return linked;
   }
 
   // Correlate alert with similar ones
