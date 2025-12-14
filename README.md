@@ -2,8 +2,8 @@
 
 **Enterprise-grade SOC/SIEM platform with AI-powered threat detection, automated response, and comprehensive compliance reporting.**
 
-[![Build Status](https://github.com/zrd4y/zcrAI/actions/workflows/test.yml/badge.svg)](https://github.com/zrd4y/zcrAI/actions)
-[![Production Build](https://github.com/zrd4y/zcrAI/actions/workflows/deploy.yml/badge.svg)](https://github.com/zrd4y/zcrAI/actions)
+[![Build Status](https://github.com/nutthakorn7/zcrai/actions/workflows/test.yml/badge.svg)](https://github.com/nutthakorn7/zcrai/actions)
+[![Production Build](https://github.com/nutthakorn7/zcrai/actions/workflows/deploy.yml/badge.svg)](https://github.com/nutthakorn7/zcrai/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ---
