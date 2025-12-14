@@ -82,6 +82,9 @@ export { seedSuperAdmin }
 if (process.env.NODE_ENV !== 'test') {
   SchedulerService.init()
   
+  // Initialize Scheduler
+  // The import for SchedulerService is already at the top of the file.
+  // The SchedulerService.init() call is already present above.
   // Start enrichment worker
   const enrichmentWorker = new EnrichmentWorker()
   enrichmentWorker.start()

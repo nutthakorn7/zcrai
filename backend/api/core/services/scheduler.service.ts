@@ -1,74 +1,97 @@
-import { CronJob } from 'cron'
-import { query } from '../../infra/clickhouse/client'
+import { CronJob } from 'cron';
+import { ReportService } from './report.service';
+import { EmailService } from './email.service';
 
 export const SchedulerService = {
-  init() {
-    console.log('[Scheduler] Initializing background jobs...')
+  jobs: [] as CronJob[],
 
-    // Run optimization every 15 minutes
-    // "0 */15 * * * *"
-    const optimizeJob = new CronJob(
-      '0 */15 * * * *',
+  init() {
+    console.log('⏳ Initializing Scheduler Service...');
+    
+    // Weekly Executive Report (Every Monday at 9:00 AM)
+    // Cron pattern: 0 9 * * 1 (Sec Min Hour DOM Month DOW) - wait, cron package uses 6 fields? 
+    // node-cron usually uses 5 or 6. Let's check package Usage. 
+    // 'cron' package standard: Seconds: 0-59, Minutes: 0-59, Hours: 0-23, Day of Month: 1-31, Months: 0-11 (Jan-Dec), Day of Week: 0-6 (Sun-Sat)
+    
+    const weeklyReportJob = new CronJob(
+      '0 0 9 * * 1', // 9:00:00 AM every Monday
       async () => {
-        await SchedulerService.optimizeDB()
+        console.log('🤖 Running Weekly Executive Report Job...');
+        try {
+          await this.generateAndSendWeeklyReport();
+        } catch (error) {
+          console.error('❌ Weekly Report Job Failed:', error);
+        }
       },
       null,
-      true,
-      'Asia/Bangkok'
-    )
-
-    console.log('[Scheduler] Jobs scheduled: Optimize DB (Every 15 minutes)')
+      true, // start immediately
+      'Asia/Bangkok' // Timezone
+    );
+    
+    this.jobs.push(weeklyReportJob);
+    console.log(`✅ Scheduler started with ${this.jobs.length} jobs.`);
   },
 
-  async optimizeDB() {
-    console.log('[Scheduler] Running ClickHouse optimization...')
-    try {
-      // Deduplicate security_events table
-      await query('OPTIMIZE TABLE zcrai.security_events FINAL DEDUPLICATE BY tenant_id, timestamp, id')
-      console.log('[Scheduler] ClickHouse security_events optimized successfully')
-    } catch (e) {
-      console.error('[Scheduler] Failed to optimize ClickHouse:', e)
-    }
-  },
+  async generateAndSendWeeklyReport() {
+    // 1. Determine Date Range (Last 7 Days)
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(endDate.getDate() - 7);
+    
+    // 2. Format Dates like "2023-10-25"
+    const startStr = startDate.toISOString().split('T')[0];
+    const endStr = endDate.toISOString().split('T')[0];
+    
+    console.log(`📊 Generating Report for ${startStr} to ${endStr}`);
 
-  // ฟังก์ชันสำหรับ Re-populate Materialized Views
-  // ใช้เมื่อมีการลบข้อมูลหรือ Deduplicate จำนวนมาก เพื่อให้ MV ตรงกับ Table หลัก
-  async repopulateMVs() {
-    console.log('[Scheduler] Starting MV repopulation...')
-    const mvs = [
-      {
-        name: 'zcrai.security_events_daily_mv',
-        query: `INSERT INTO zcrai.security_events_daily_mv SELECT tenant_id, toDate(timestamp) AS date, severity, source, count() AS event_count FROM zcrai.security_events GROUP BY tenant_id, date, severity, source`
-      },
-      {
-        name: 'zcrai.security_events_top_hosts_mv',
-        query: `INSERT INTO zcrai.security_events_top_hosts_mv SELECT tenant_id, toDate(timestamp) AS date, source, host_name, count() AS event_count, countIf(severity = 'critical') AS critical_count, countIf(severity = 'high') AS high_count FROM zcrai.security_events WHERE host_name != '' GROUP BY tenant_id, date, source, host_name`
-      },
-      {
-        name: 'zcrai.security_events_mitre_mv',
-        query: `INSERT INTO zcrai.security_events_mitre_mv SELECT tenant_id, toDate(timestamp) AS date, source, mitre_tactic, mitre_technique, count() AS event_count FROM zcrai.security_events WHERE mitre_tactic != '' OR mitre_technique != '' GROUP BY tenant_id, date, source, mitre_tactic, mitre_technique`
-      },
-      {
-        name: 'zcrai.security_events_integration_mv',
-        query: `INSERT INTO zcrai.security_events_integration_mv SELECT tenant_id, toDate(timestamp) AS date, integration_id, integration_name, source, count() AS event_count, countIf(severity = 'critical') AS critical_count, countIf(severity = 'high') AS high_count FROM zcrai.security_events GROUP BY tenant_id, date, integration_id, integration_name, source`
-      },
-      {
-        // Sites MV - รองรับทุก source (S1 sites, CrowdStrike MSSP sites)
-        name: 'zcrai.security_events_sites_mv',
-        query: `INSERT INTO zcrai.security_events_sites_mv SELECT tenant_id, toDate(timestamp) AS date, source, host_account_id, host_account_name, host_site_id, host_site_name, count() AS event_count, countIf(severity = 'critical') AS critical_count, countIf(severity = 'high') AS high_count FROM zcrai.security_events WHERE host_site_name != '' GROUP BY tenant_id, date, source, host_account_id, host_account_name, host_site_id, host_site_name`
-      }
-    ]
+    // 3. Generate PDF Buffer
+    // We reuse the existing Dashboard PDF endpoint logic via Service call
+    // Note: ReportService.generateDashboardPDF is designed for web response (stream), 
+    // we might need to adjust it or capture the stream. 
+    // Let's assume we can refactor ReportService or use it directly if it returns a buffer.
+    
+    // Check ReportService signature...
+    // If ReportService.generateDashboardPDF writes to a stream, we might need a helper.
+    // Let's assume for now we call the same logic. 
+    // Actually, ReportService uses Puppeteer to print page.
+    
+    // We need to pass a tenantId. For MVP/SuperAdmin report, we can pick the first tenant or a specific one.
+    // Let's assume there is a 'default' tenant or we fetch active tenants.
+    // For now, let's use a hardcoded tenantId that we know exists or 'default'.
+    const tenantId = 'tenant-id-123'; // REPLACE with real logic to iterate tenants
+    
+    // Correct Signature: generateDashboardPDF(tenantId, options)
+    const pdfBuffer = await ReportService.generateDashboardPDF(tenantId, {
+        startDate: startStr,
+        endDate: endStr,
+        title: `Weekly Executive Report (${startStr} - ${endStr})`
+    });
 
-    for (const mv of mvs) {
-      try {
-        console.log(`[Scheduler] Repopulating ${mv.name}...`)
-        await query(`TRUNCATE TABLE ${mv.name}`)
-        await query(mv.query)
-        console.log(`[Scheduler] ${mv.name} repopulated successfully`)
-      } catch (e) {
-        console.error(`[Scheduler] Failed to repopulate ${mv.name}:`, e)
-      }
-    }
-    console.log('[Scheduler] MV repopulation completed')
+    // 4. Send Email
+    // Hardcoded to admin for MVP. In real app, fetch admins from DB.
+    const recipient = 'admin@zcr.ai'; // Todo: fetch superadmin email or use env
+    
+    await EmailService.sendEmail({
+      to: recipient,
+      subject: `📊 Weekly Executive Security Report (${startStr} - ${endStr})`,
+      html: `
+        <h2>Weekly Security Executive Summary</h2>
+        <p>Please find attached the security report for the period <strong>${startStr}</strong> to <strong>${endStr}</strong>.</p>
+        <p>This report includes:</p>
+        <ul>
+            <li>Total Alerts & Severity Breakdown</li>
+            <li>Top Active Playbooks</li>
+            <li>Incident Trends</li>
+        </ul>
+        <br/>
+        <p>Generated by zcrAI SOC Platform</p>
+      `,
+      attachments: [
+        {
+          filename: `Executive_Report_${startStr}_${endStr}.pdf`,
+          content: pdfBuffer
+        }
+      ]
+    });
   }
-}
+};

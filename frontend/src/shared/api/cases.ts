@@ -48,5 +48,12 @@ export const CasesAPI = {
   addComment: async (id: string, content: string) => {
     const res = await api.post(`/cases/${id}/comments`, { content });
     return res.data;
+  },
+
+  exportPDF: async (id: string) => {
+    const res = await api.get(`/reports/cases/${id}/pdf`, {
+      responseType: 'blob'
+    });
+    return res.data;
   }
 };

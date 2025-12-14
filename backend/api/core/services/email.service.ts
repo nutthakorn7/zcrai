@@ -8,10 +8,14 @@ interface EmailOptions {
   to: string;
   subject: string;
   html: string;
+  attachments?: {
+    filename: string;
+    content: Buffer;
+  }[];
 }
 
 export const EmailService = {
-  async sendEmail({ to, subject, html }: EmailOptions) {
+  async sendEmail({ to, subject, html, attachments }: EmailOptions) {
     if (!resend) {
       console.warn('⚠️ RESEND_API_KEY is not configured. Email NOT sent.');
       console.log(`[DEBUG] Email to: ${to}, Subject: ${subject}`);
@@ -24,6 +28,7 @@ export const EmailService = {
         to,
         subject,
         html,
+        attachments: html.includes('attachments') ? undefined : attachments, // Handle attachments
       });
 
       if (data.error) {

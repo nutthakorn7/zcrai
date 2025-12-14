@@ -7,6 +7,7 @@ import { DateRangePicker } from "../../components/DateRangePicker";
 import { Icon } from '../../shared/ui';
 import sentineloneLogo from '../../assets/logo/sentinelone.png';
 import crowdstrikeLogo from '../../assets/logo/crowdstrike.png';
+import { Copy } from 'lucide-react';
 
 // Severity color mapping
 const severityColors = {
@@ -47,6 +48,7 @@ interface Alert {
   timestamp: string;
   host_name?: string;
   user_name?: string;
+  duplicateCount?: number;
 }
 
 interface Summary {
@@ -177,6 +179,11 @@ export default function AlertsPage() {
           <div className="flex flex-col gap-1">
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium text-foreground/80">{alert.title}</span>
+              {alert.duplicateCount && alert.duplicateCount > 1 && (
+                <Chip size="sm" variant="flat" color="warning" className="h-5 px-1 bg-warning/10 text-warning" startContent={<Copy className="w-3 h-3" />}>
+                    +{alert.duplicateCount - 1}
+                </Chip>
+              )}
             </div>
             <div className="flex items-center gap-3 text-xs text-foreground/50">
               {alert.host_name && (

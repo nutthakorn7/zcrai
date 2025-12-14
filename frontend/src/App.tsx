@@ -16,6 +16,7 @@ import ReportsPage from "./pages/reports/ReportsPage";
 import UserPage from "./pages/settings/UserPage";
 import ProfilePage from "./pages/settings/ProfilePage";
 import TenantPage from "./pages/settings/TenantPage";
+import NotificationChannelsPage from "./pages/settings/NotificationChannelsPage";
 import CaseBoardPage from "./pages/cases";
 import CaseDetailPage from "./pages/cases/CaseDetailPage";
 import AlertQueuePage from "./pages/alerts/AlertQueuePage";
@@ -211,7 +212,9 @@ function App() {
           <Route index element={<Navigate to="profile" replace />} />
           <Route path="profile" element={<ProfilePage />} />
           <Route path="mfa" element={<MFASetupPage />} />
+          <Route path="mfa" element={<MFASetupPage />} />
           <Route path="integrations" element={<IntegrationPage />} />
+          <Route path="notifications" element={<NotificationChannelsPage />} />
           <Route path="users" element={<UserPage />} />
           <Route path="tenants" element={<TenantPage />} />
         </Route>

@@ -51,6 +51,7 @@ export default function DashboardPage() {
   const { setPageContext } = usePageContext();
   
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
   // Date Range State
   const [startDate, setStartDate] = useState(() => {
     const d = new Date();
@@ -254,6 +255,34 @@ export default function DashboardPage() {
     }
   };
 
+  const handleExportPDF = async () => {
+    try {
+      setExporting(true);
+      const dateParams = `startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}`;
+      
+      const response = await api.get(`/reports/dashboard/pdf?${dateParams}`, {
+        responseType: 'blob'
+      });
+      
+      // Create download link
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `dashboard-report-${new Date().toISOString().split('T')[0]}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      
+      // Cleanup
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error('Failed to export PDF:', e);
+      // You could add a toast notification here
+    } finally {
+      setExporting(false);
+    }
+  };
+
 
   // Transform timeline data for chart - รวม data ตาม time และแยก source
   // Output format: { time: 'Jan 1', crowdstrike_total: 10, crowdstrike_critical: 2, sentinelone_total: 50, ... }
@@ -432,6 +461,16 @@ export default function DashboardPage() {
             endDate={endDate}
             onChange={handleDateChange}
           />
+
+          <Button
+            size="sm"
+            isLoading={exporting}
+            className="bg-content2 hover:bg-content3 text-foreground border border-white/5"
+            startContent={!exporting && <Icon.Document className="w-4 h-4" />}
+            onPress={handleExportPDF}
+          >
+            Export PDF
+          </Button>
 
           <Button 
             size="sm"

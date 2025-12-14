@@ -16,6 +16,7 @@ export default function CaseDetailPage() {
   const { user } = useAuth();
   const [caseItem, setCaseItem] = useState<any>(null); // Use any for now because fetch returns & { comments: ... }
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
   const [newComment, setNewComment] = useState('');
 
   const fetchCase = async () => {
@@ -47,6 +48,30 @@ export default function CaseDetailPage() {
     await CasesAPI.addComment(caseItem.id, newComment);
     setNewComment('');
     fetchCase(); // Refresh to see comment
+  };
+
+  const handleExportPDF = async () => {
+    if (!caseItem) return;
+    try {
+      setExporting(true);
+      const blob = await CasesAPI.exportPDF(caseItem.id);
+      
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `case-${caseItem.id}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      
+      // Cleanup
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error('Failed to export PDF:', e);
+    } finally {
+      setExporting(false);
+    }
   };
 
   const { isOpen: isGraphOpen, onOpen: onGraphOpen, onClose: onGraphClose } = useDisclosure();
@@ -125,6 +150,14 @@ export default function CaseDetailPage() {
         <div className="flex gap-2">
              <Button color="secondary" variant="flat" startContent={<Icon.Global className="w-4 h-4" />} onPress={onGraphOpen}>
                 Graph View
+             </Button>
+             <Button 
+                variant="flat" 
+                startContent={!exporting && <Icon.Document className="w-4 h-4" />} 
+                isLoading={exporting}
+                onPress={handleExportPDF}
+             >
+                Export PDF
              </Button>
              <Select 
                 aria-label="Status"
