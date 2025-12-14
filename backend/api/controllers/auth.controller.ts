@@ -17,7 +17,7 @@ export const authController = new Elysia({ prefix: '/auth' })
     jwt({
       name: 'jwt',
       secret: process.env.JWT_SECRET || 'super_secret_dev_key',
-      exp: '1h' // Session expires after 1 hour of inactivity
+      exp: process.env.JWT_ACCESS_EXPIRY || '7d' // Extended default to 7 days
     })
   )
 
@@ -63,7 +63,7 @@ export const authController = new Elysia({ prefix: '/auth' })
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
-        maxAge: 60 * 60, // 1 hour
+        maxAge: 7 * 24 * 60 * 60, // 7 days (Matches token expiry)
         path: '/'
       })
 

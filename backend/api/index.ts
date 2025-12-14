@@ -4,6 +4,7 @@ import { cors } from '@elysiajs/cors'
 import { rateLimit } from 'elysia-rate-limit'
 import { helmet } from 'elysia-helmet'
 import { authController } from './controllers/auth.controller'
+import { ssoController } from './controllers/sso.controller'
 import { tenantController } from './controllers/tenant.controller'
 import { userController } from './controllers/user.controller'
 import { profileController } from './controllers/profile.controller'
@@ -26,6 +27,8 @@ import { edrController } from './controllers/edr.controller'
 import { evidenceController } from './controllers/evidence.controller'
 import { forensicsController } from './controllers/forensics.controller'
 import { mlController } from './controllers/ml.controller'
+import { cloudController } from './controllers/cloud.controller'
+import { widgetController } from './controllers/widget.controller'
 import { SchedulerService } from './core/services/scheduler.service'
 import { LogRetentionService } from './core/services/log-retention.service'
 import { EnrichmentWorker } from './workers/enrichment.worker'
@@ -124,6 +127,7 @@ const app = new Elysia()
      max: 100 // 100 requests per minute
   }))
   .use(authController)
+  .use(ssoController)
   .use(tenantController)
   .use(userController)
   .use(profileController)
@@ -146,6 +150,8 @@ const app = new Elysia()
   .use(evidenceController) // Evidence chain-of-custody
   .use(forensicsController) // Memory forensics
   .use(mlController) // ML anomaly detection
+  .use(cloudController) // Cloud Integrations (AWS)
+  .use(widgetController) // Custom Widget Builder
   .get('/health', () => ({ status: 'ok', timestamp: new Date().toISOString() }))
 
 if (import.meta.main) {

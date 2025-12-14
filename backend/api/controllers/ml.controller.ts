@@ -4,8 +4,9 @@
  */
 
 import { Elysia, t } from 'elysia';
-import { withAuth } from '../middleware/auth';
+import { tenantGuard } from '../middlewares/auth.middleware';
 import { AnomalyDetectionService } from '../core/services/anomaly.service';
+import { MLAnalyticsService } from '../core/services/ml-analytics.service';
 
 interface AnomalyMetric {
   metric: string;
@@ -19,26 +20,32 @@ interface AnomalyMetric {
 }
 
 export const mlController = new Elysia({ prefix: '/ml' })
-  .use(withAuth)
+  .use(tenantGuard)
   
   /**
    * Get current anomaly status for all metrics
    */
-  .get('/anomalies', async () => {
+  .get('/anomalies', async (context) => {
     try {
+      const user = (context as any).user;
+      // Fetch Real Data
+      const loginStats = await MLAnalyticsService.getLoginFailureStats(user.tenantId);
+      const alertStats = await MLAnalyticsService.getAlertVolumeStats(user.tenantId);
+
       const metrics = [
         {
           name: 'Alert Volume',
-          current: Math.floor(Math.random() * 100) + 380,
-          historicalAvg: 145,
-          history: [120, 130, 145, 160, 150, 140, 155, 148, 142, 138],
+          current: alertStats.current,
+          historicalAvg: alertStats.average,
+          history: alertStats.history,
         },
         {
           name: 'Login Failures',
-          current: Math.floor(Math.random() * 30) + 70,
-          historicalAvg: 12,
-          history: [8, 10, 12, 15, 11, 13, 9, 14, 12, 10],
+          current: loginStats.current,
+          historicalAvg: loginStats.average,
+          history: loginStats.history,
         },
+        // Mocks for unavailable data sources
         {
           name: 'Network Traffic',
           current: 2.4 + Math.random() * 0.4,

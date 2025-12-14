@@ -5,12 +5,12 @@ import RegisterPage from "./pages/register";
 import ForgotPasswordPage from "./pages/auth/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/auth/ResetPasswordPage";
 import DashboardPage from "./pages/dashboard";
+import DashboardBuilder from "./components/dashboard/DashboardBuilder";
 import LogViewerPage from "./pages/log-viewer";
 import AlertsPage from "./pages/alerts";
 import AdminDashboard from "./pages/admin";
 import SettingsLayout from "./layouts/SettingsLayout";
-import MFASetupPage from "./pages/settings/MFASetupPage";
-import IntegrationPage from "./pages/settings/IntegrationPage";
+import SSOPage from "./pages/settings/SSOPage";
 import PlaybooksPage from "./pages/playbooks/PlaybooksPage";
 import ReportsPage from "./pages/reports/ReportsPage";
 import UserPage from "./pages/settings/UserPage";
@@ -20,10 +20,13 @@ import NotificationChannelsPage from "./pages/settings/NotificationChannelsPage"
 import RetentionSettingsPage from "./pages/settings/RetentionSettingsPage";
 import ParsersPage from "./pages/settings/ParsersPage";
 import EDRActionsPage from "./pages/settings/EDRActionsPage";
+import AuditLogsPage from "./pages/settings/AuditLogsPage";
 import CaseBoardPage from "./pages/cases";
 import CaseDetailPage from "./pages/cases/CaseDetailPage";
 import AlertQueuePage from "./pages/alerts/AlertQueuePage";
 import ObservablesPage from "./pages/observables/ObservablesPage";
+import MFASetupPage from "./pages/settings/MFASetupPage";
+import IntegrationPage from "./pages/settings/IntegrationPage";
 import { useAuth } from "./shared/store/useAuth";
 import { ChatWidget } from "./components/ChatWidget";
 import { SidebarLayout } from "./components/Sidebar";
@@ -125,6 +128,16 @@ function App() {
           } 
         />
         <Route 
+          path="/dashboard/builder" 
+          element={
+            <ProtectedRoute>
+              <div className="p-6">
+                <DashboardBuilder />
+              </div>
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
           path="/logs" 
           element={
             <ProtectedRoute>
@@ -214,6 +227,7 @@ function App() {
         >
           <Route index element={<Navigate to="profile" replace />} />
           <Route path="profile" element={<ProfilePage />} />
+          <Route path="sso" element={<SSOPage />} />
           <Route path="mfa" element={<MFASetupPage />} />
           <Route path="integrations" element={<IntegrationPage />} />
           <Route path="notifications" element={<NotificationChannelsPage />} />
@@ -222,6 +236,7 @@ function App() {
           <Route path="retention" element={<RetentionSettingsPage />} />
           <Route path="parsers" element={<ParsersPage />} />
           <Route path="edr-actions" element={<EDRActionsPage />} />
+          <Route path="audit-logs" element={<AuditLogsPage />} />
         </Route>
       </Routes>
       </BrowserRouter>

@@ -1,6 +1,7 @@
 import { Elysia } from 'elysia'
 import { jwt } from '@elysiajs/jwt'
 import { DashboardService } from '../core/services/dashboard.service'
+import { DashboardLayoutService } from '../core/services/dashboard-layout.service'
 import { tenantAdminOnly } from '../middlewares/auth.middleware'
 
 import { SchedulerService } from '../core/services/scheduler.service'
@@ -44,6 +45,34 @@ export const dashboardController = new Elysia({ prefix: '/dashboard' })
     secret: process.env.JWT_SECRET || 'super_secret_dev_key',
   }))
   .use(tenantAdminOnly)
+
+  // ==================== LAYOUT ====================
+  .get('/layout', async ({ jwt, cookie: { access_token }, set }) => {
+    try {
+      const payload = await jwt.verify(access_token.value)
+      if (!payload) throw new Error('Unauthorized')
+      
+      // Layout is user-specific, not tenant-specific (even for superadmin impersonating)
+      // Though if we want "Tenant Default", we might need logic. 
+      // For now, per-user layout.
+      return await DashboardLayoutService.getLayout(payload.id as string)
+    } catch (e: any) {
+      set.status = 400
+      return { error: e.message }
+    }
+  })
+
+  .put('/layout', async ({ jwt, cookie: { access_token }, body, set }) => {
+    try {
+      const payload = await jwt.verify(access_token.value)
+      if (!payload) throw new Error('Unauthorized')
+
+      return await DashboardLayoutService.saveLayout(payload.id as string, body as any[])
+    } catch (e: any) {
+      set.status = 400
+      return { error: e.message }
+    }
+  })
 
   // ==================== OPTIMIZE DB (Manual Trigger) ====================
   .post('/optimize', async ({ jwt, cookie: { access_token }, set, query }) => {

@@ -345,7 +345,7 @@
 - [x] Dockerfile for each service
 - [x] Docker Compose for production
 - [x] Nginx reverse proxy config
-- [ ] SSL/TLS certificates (Let's Encrypt)
+- [x] SSL/TLS certificates (Let's Encrypt)
 - [x] Environment variables setup
 
 ### 13.2 CI/CD

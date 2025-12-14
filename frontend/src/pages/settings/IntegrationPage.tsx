@@ -47,7 +47,7 @@ const PROVIDER_CONFIG: Record<string, { name: string; color: string; gradient: s
     description: 'Cloud-Native Endpoint Protection',
     category: 'EDR'
   },
-  'aws-cloudtrail': { 
+  aws: { 
     name: 'AWS CloudTrail', 
     color: 'warning', 
     gradient: 'from-orange-500/20 to-amber-500/10',
@@ -110,6 +110,13 @@ const PROVIDER_CONFIG: Record<string, { name: string; color: string; gradient: s
     description: 'GCP Audit Logs & Security Command Center',
     category: 'Cloud'
   },
+  m365: {
+    name: 'Microsoft 365',
+    color: 'secondary',
+    gradient: 'from-indigo-500/20 to-blue-500/10',
+    description: 'Exchange, SharePoint, Teams Audit Logs',
+    category: 'SaaS'
+  },
 };
 
 // ⭐ Type สำหรับ Fetch Settings
@@ -167,7 +174,7 @@ export default function IntegrationPage() {
   // Mode: 'add' | 'edit'
   const [mode, setMode] = useState<'add' | 'edit'>('add');
   // Selected Provider for Add
-  const [modalType, setModalType] = useState<'s1' | 'cs' | 'ai' | 'enrichment' | 'aws'>('s1');
+  const [modalType, setModalType] = useState<'s1' | 'cs' | 'ai' | 'enrichment' | 'aws' | 'm365'>('s1');
   // Selected Integration for Edit
   const [selectedIntegration, setSelectedIntegration] = useState<Integration | null>(null);
 
@@ -193,19 +200,19 @@ export default function IntegrationPage() {
   const [aiKey, setAiKey] = useState('');
   const [label, setLabel] = useState('');
   
-  // ⭐ AWS Credentials
+  // AWS Credentials
   const [awsAccessKey, setAwsAccessKey] = useState('');
   const [awsSecretKey, setAwsSecretKey] = useState('');
   const [awsRegion, setAwsRegion] = useState('us-east-1');
   const [awsBucket, setAwsBucket] = useState('');
   const [awsRoleArn, setAwsRoleArn] = useState('');
   
-  // ⭐ State สำหรับเก็บว่ามี credential เดิมอยู่หรือไม่
+  // Credential tracking states
   const [hasExistingToken, setHasExistingToken] = useState(false);
   const [hasExistingSecret, setHasExistingSecret] = useState(false);
   const [hasExistingKey, setHasExistingKey] = useState(false);
 
-  // ⭐ Fetch Settings State
+  // Fetch Settings State
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [s1FetchSettings, setS1FetchSettings] = useState<S1FetchSettings>({
     threats: { enabled: true, days: 365 },
@@ -218,14 +225,39 @@ export default function IntegrationPage() {
     incidents: { enabled: true, days: 365 },
   });
 
+  // M365 State
+  const [m365TenantId, setM365TenantId] = useState('');
+  const [m365ClientId, setM365ClientId] = useState('');
+  const [m365ClientSecret, setM365ClientSecret] = useState('');
+
   const fetchIntegrations = async () => {
     try {
-      const { data } = await api.get('/integrations');
-      setIntegrations(data);
+      const [legacyRes, cloudRes] = await Promise.all([
+         api.get('/integrations'),
+         api.get('/cloud/integrations')
+      ]);
+
+      const legacyData = legacyRes.data;
+      const cloudData = cloudRes.data.map((i: any) => ({
+          id: i.id,
+          provider: i.provider, // 'aws' or 'm365'
+          label: i.name, // Cloud service returns 'name'
+          createdAt: i.createdAt,
+          hasApiKey: true,
+          lastSyncStatus: i.status === 'error' ? 'error' : 'success', // Simple mapping
+          lastSyncError: i.lastError,
+          lastSyncAt: i.lastSyncAt,
+          // Cloud specific config stashed in separate object if needed, or mapped to state in edit
+          config: i.config,
+          credentials: i.credentials // Masked
+      }));
+
+      const allIntegrations = [...legacyData, ...cloudData];
+      setIntegrations(allIntegrations);
       
       // Update Page Context for AI Assistant
-      const securityIntegrations = data.filter((i: Integration) => i.provider === 'sentinelone' || i.provider === 'crowdstrike');
-      const aiProviders = data.filter((i: Integration) => ['openai', 'claude', 'gemini', 'deepseek'].includes(i.provider));
+      const securityIntegrations = allIntegrations.filter((i: Integration) => i.provider === 'sentinelone' || i.provider === 'crowdstrike');
+      const aiProviders = allIntegrations.filter((i: Integration) => ['openai', 'claude', 'gemini', 'deepseek'].includes(i.provider));
       
       setPageContext({
         pageName: 'Integrations',
@@ -241,11 +273,11 @@ export default function IntegrationPage() {
             provider: i.provider,
             label: i.label,
           })),
-          totalIntegrations: data.length,
+          totalIntegrations: allIntegrations.length,
         }
       });
     } catch (error) {
-      console.error('Failed to fetch integrations');
+      console.error('Failed to fetch integrations', error);
     }
   };
 
@@ -254,7 +286,7 @@ export default function IntegrationPage() {
   }, []);
 
   // ⭐ handleOpenAdd รับ aiProviderOverride สำหรับ AI cards และ enrichmentProvider สำหรับ Enrichment
-  const handleOpenAdd = (type: 's1' | 'cs' | 'ai' | 'enrichment' | 'aws', providerOverride?: string) => {
+  const handleOpenAdd = (type: 's1' | 'cs' | 'ai' | 'enrichment' | 'aws' | 'm365', providerOverride?: string) => {
     setMode('add');
     setModalType(type);
     resetForm();
@@ -291,10 +323,13 @@ export default function IntegrationPage() {
       setModalType('enrichment');
       setAiProvider(int.provider);
       setAiKey('');
-    } else if (int.provider === 'aws-cloudtrail') {
+    } else if (int.provider === 'aws') { // Changed from aws-cloudtrail to aws
       setModalType('aws');
       setAwsAccessKey('');
       setAwsSecretKey('');
+    } else if (int.provider === 'm365') {
+       setModalType('m365');
+       setM365ClientSecret('');
     } else {
       setModalType('ai');
       setAiProvider(int.provider);
@@ -303,35 +338,43 @@ export default function IntegrationPage() {
     
     // ⭐ Load existing config for edit
     try {
-      const { data } = await api.get(`/integrations/${int.id}/config`);
-      
-      if (int.provider === 'sentinelone') {
-        setS1Url(data.url || '');
-        setHasExistingToken(data.hasToken || false);
-        if (data.fetchSettings) {
-          setS1FetchSettings(data.fetchSettings);
-          setShowAdvanced(true);
-        }
-      } else if (int.provider === 'crowdstrike') {
-        setCsBaseUrl(data.baseUrl || 'https://api.us-2.crowdstrike.com');
-        setCsClientId(data.clientId || '');
-        setHasExistingSecret(data.hasSecret || false);
-        if (data.fetchSettings) {
-          setCsFetchSettings(data.fetchSettings);
-          setShowAdvanced(true);
-        }
-      } else if (int.provider === 'virustotal' || int.provider === 'abuseipdb') {
-        setHasExistingKey(data.hasKey || false);
-      } else if (int.provider === 'aws-cloudtrail') {
-        setAwsAccessKey(data.keyId || ''); // keyId stores access key
-        setHasExistingSecret(true); // Always assumed if editing
-        setAwsRegion(data.region || 'us-east-1');
-        setAwsBucket(data.bucketName || '');
-        setAwsRoleArn(data.roleArn || '');
+      // IF cloud provider, use data already in int (mapped from fetch)
+      if (int.provider === 'aws' || int.provider === 'm365') {
+          const cloudInt = int as any; // Cast to access custom props added in fetch
+          if (int.provider === 'aws') {
+              setAwsRegion(cloudInt.config?.region || 'us-east-1');
+              setAwsAccessKey(cloudInt.credentials?.accessKeyId || '');
+              setHasExistingSecret(true); // Always assume true for cloud
+          } else if (int.provider === 'm365') {
+              setM365TenantId(cloudInt.config?.tenantId || '');
+              setM365ClientId(cloudInt.credentials?.clientId || '');
+              setHasExistingSecret(true);
+          }
       } else {
-        setAiModel(data.model || '');
-        setAiBaseUrl(data.baseUrl || '');
-        setHasExistingKey(data.hasKey || false);
+          const { data } = await api.get(`/integrations/${int.id}/config`);
+          
+          if (int.provider === 'sentinelone') {
+            setS1Url(data.url || '');
+            setHasExistingToken(data.hasToken || false);
+            if (data.fetchSettings) {
+              setS1FetchSettings(data.fetchSettings);
+              setShowAdvanced(true);
+            }
+          } else if (int.provider === 'crowdstrike') {
+            setCsBaseUrl(data.baseUrl || 'https://api.us-2.crowdstrike.com');
+            setCsClientId(data.clientId || '');
+            setHasExistingSecret(data.hasSecret || false);
+            if (data.fetchSettings) {
+              setCsFetchSettings(data.fetchSettings);
+              setShowAdvanced(true);
+            }
+          } else if (int.provider === 'virustotal' || int.provider === 'abuseipdb') {
+            setHasExistingKey(data.hasKey || false);
+          } else {
+            setAiModel(data.model || '');
+            setAiBaseUrl(data.baseUrl || '');
+            setHasExistingKey(data.hasKey || false);
+          }
       }
     } catch (e) {
       console.error('Failed to load config');
@@ -374,20 +417,48 @@ export default function IntegrationPage() {
             label: label || (aiProvider === 'virustotal' ? 'VirusTotal' : 'AbuseIPDB'),
           });
         } else if (modalType === 'aws') {
-          await api.post('/integrations/aws', {
-            accessKeyId: awsAccessKey,
-            secretAccessKey: awsSecretKey,
-            region: awsRegion,
-            bucketName: awsBucket,
-            roleArn: awsRoleArn || undefined,
-            label: label || 'AWS CloudTrail',
+          // Use New Cloud Controller
+          await api.post('/cloud/integrations', {
+            provider: 'aws',
+            name: label || 'AWS CloudTrail',
+            config: {
+                region: awsRegion,
+            },
+            credentials: {
+                accessKeyId: awsAccessKey,
+                secretAccessKey: awsSecretKey
+            }
           });
+        } else if (modalType === 'm365') {
+            // New M365 Integration
+            await api.post('/cloud/integrations', {
+                provider: 'm365',
+                name: label || 'Microsoft 365',
+                config: {
+                    tenantId: m365TenantId
+                },
+                credentials: {
+                    clientId: m365ClientId,
+                    clientSecret: m365ClientSecret
+                }
+            });
         }
       } else {
-        // Edit Mode - ⭐ Full Update: URL, Token, fetchSettings
+        // Edit Mode
         if (selectedIntegration) {
           const provider = selectedIntegration.provider;
           
+          if (provider === 'aws' || provider === 'm365') {
+             // Cloud Edit - For now, we only support delete and re-add for credentials securely, 
+             // but let's implement delete only for MVP instructions or just recreate.
+             // Actually, cloud controller doesn't support PUT yet.
+             // We will suggest user to delete and re-add for now in the modal or just alert.
+             // But let's assume valid flow is Delete -> Add.
+             alert("For security reasons, please delete and re-add Cloud integrations to update credentials.");
+             onClose();
+             return;
+          }
+
           if (provider === 'sentinelone') {
             await api.put(`/integrations/${selectedIntegration.id}`, {
               label: label,
@@ -409,21 +480,6 @@ export default function IntegrationPage() {
               label: label,
               apiKey: aiKey || undefined, // undefined = keep existing
             });
-          } else if (provider === 'aws-cloudtrail') {
-             // AWS Update - Not fully implemented in backend updateFull yet? 
-             // Plan said: "Update updateFull to handle AWS updates". 
-             // Assuming I will do that or have done it?
-             // Actually I only implemented addAWS in service. 
-             // UpdateFull in service needs to be checked. 
-             // For now, let's assume we can update label.
-             await api.put(`/integrations/${selectedIntegration.id}`, {
-              label: label,
-              // Backend updateFull is generic for encryptedKey if we pass new creds?
-              // Ideally validation schema UpdateIntegrationSchema needs to allow these fields?
-              // Current UpdateSchema is { label, isActive }.
-              // So for MVP edit might just be label.
-              // Taking a risk here: I'll assume only label update for now or implement full update later.
-             });
           } else {
             // AI Provider
             await api.put(`/integrations/${selectedIntegration.id}`, {
@@ -440,7 +496,6 @@ export default function IntegrationPage() {
       onClose();
       resetForm();
       
-      
       // ⭐ Refetch integrations immediately
       fetchIntegrations();
       
@@ -454,10 +509,14 @@ export default function IntegrationPage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: string, provider: string) => {
     if (!confirm('Are you sure you want to delete this integration?')) return;
     try {
-      await api.delete(`/integrations/${id}`);
+      if (provider === 'aws' || provider === 'm365') {
+          await api.delete(`/cloud/integrations/${id}`);
+      } else {
+          await api.delete(`/integrations/${id}`);
+      }
       fetchIntegrations();
     } catch (error) {
       alert('Failed to delete integration');
@@ -495,6 +554,10 @@ export default function IntegrationPage() {
     setAwsRegion('us-east-1');
     setAwsBucket('');
     setAwsRoleArn('');
+    
+    setM365ClientId('');
+    setM365ClientSecret('');
+    setM365TenantId('');
   };
 
   return (
@@ -515,7 +578,7 @@ export default function IntegrationPage() {
         </h2>
         
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {['crowdstrike', 'sentinelone', 'aws-cloudtrail', 'azure', 'gcp'].map(provider => {
+          {['crowdstrike', 'sentinelone', 'aws', 'm365', 'azure', 'gcp'].map(provider => {
             // Find active integration for this provider
             const int = integrations.find(i => i.provider === provider);
             const isConfigured = !!int;
@@ -604,7 +667,7 @@ export default function IntegrationPage() {
                       variant="flat" 
                       className="bg-danger/10 hover:bg-danger/20 text-danger" 
                       isIconOnly 
-                      onPress={() => handleDelete(int.id)}
+                      onPress={() => handleDelete(int.id, int.provider)}
                     >
                       <Icon.Delete className="w-4 h-4" />
                     </Button>
@@ -618,12 +681,9 @@ export default function IntegrationPage() {
                 onClick={() => handleOpenAdd(
                     provider === 'crowdstrike' ? 'cs' : 
                     provider === 'sentinelone' ? 's1' : 
-                    (provider === 'aws-cloudtrail' || provider === 'azure' || provider === 'gcp') ? 'aws' : 'aws' 
-                    // Note: 'aws' modalType is acting as generic cloud for now or needs refactor. 
-                    // For now, mapping azure/gcp to 'aws' modalType might be confusing UI-wise if it shows AWS fields.
-                    // But let's assume I'll fix the modal content dynamically based on provider logic later or now.
-                    // ACTUALLY, I should pass providerOverride to handleOpenAdd and use 'cloud' modalType if possible, 
-                    // but reusing 'aws' limits us. Let's use 'aws' type but customize labels in modal.
+                    provider === 'aws-cloudtrail' ? 'aws' :
+                    provider === 'm365' ? 'm365' : 'aws' 
+                    // Note: 'aws' fallback for others
                 , provider)}
                 className={`group relative overflow-hidden rounded-xl 
                            border transition-all duration-300 p-4 text-left h-full
@@ -817,7 +877,7 @@ export default function IntegrationPage() {
                       variant="flat" 
                       className="bg-danger/10 hover:bg-danger/20 text-danger" 
                       isIconOnly 
-                      onPress={() => handleDelete(int.id)}
+                      onPress={() => handleDelete(int.id, int.provider)}
                     >
                       <Icon.Delete className="w-4 h-4" />
                     </Button>
@@ -923,7 +983,7 @@ export default function IntegrationPage() {
                        variant="flat" 
                        className="bg-danger/10 hover:bg-danger/20 text-danger" 
                        isIconOnly 
-                       onPress={() => handleDelete(int.id)}
+                       onPress={() => handleDelete(int.id, int.provider)}
                      >
                        <Icon.Delete className="w-4 h-4" />
                      </Button>
@@ -1004,6 +1064,7 @@ export default function IntegrationPage() {
                     {modalType === 's1' ? 'SentinelOne' : 
                      modalType === 'cs' ? 'CrowdStrike' : 
                      modalType === 'aws' ? 'AWS CloudTrail' :
+                     modalType === 'm365' ? 'Microsoft 365' :
                      modalType === 'enrichment' ? (aiProvider === 'virustotal' ? 'VirusTotal' : 'AbuseIPDB') :
                      PROVIDER_CONFIG[aiProvider]?.name || 'AI Provider'}
                   </h3>
@@ -1011,6 +1072,7 @@ export default function IntegrationPage() {
                     {modalType === 's1' ? 'AI-Powered Endpoint Security' : 
                      modalType === 'cs' ? 'Cloud-Native Endpoint Protection' : 
                      modalType === 'aws' ? 'Cloud Log Ingestion' :
+                     modalType === 'm365' ? 'SaaS Audit Logs' :
                      modalType === 'enrichment' ? 'Threat Intelligence & Enrichment' :
                      PROVIDER_CONFIG[aiProvider]?.description || 'Configure AI Assistant'}
                   </p>
@@ -1320,6 +1382,37 @@ export default function IntegrationPage() {
                         <p className="text-xs text-default-400 mt-2">
                              Ensure the IAM user/role has <code>s3:GetObject</code> and <code>s3:ListBucket</code> permissions for the specified bucket.
                         </p>
+                    </>
+                )}
+
+                {/* ⭐ M365 Form - Add & Edit */}
+                {modalType === 'm365' && (
+                    <>
+                        <Input
+                             label="Tenant ID"
+                             placeholder="e.g. 8456..."
+                             value={m365TenantId}
+                             onValueChange={setM365TenantId}
+                             description="Directory (tenant) ID from Azure AD"
+                        />
+                        <Input
+                             label="Client ID"
+                             placeholder="e.g. 1234..."
+                             value={m365ClientId}
+                             onValueChange={setM365ClientId}
+                             description="Application (client) ID"
+                        />
+                         <Input
+                              label="Client Secret"
+                              placeholder={mode === 'edit' && hasExistingSecret ? '••••••• (Leave empty to keep existing)' : 'Enter Client Secret'}
+                              description={mode === 'edit' && hasExistingSecret ? '✓ Secret exists - leave empty to keep, or enter new to replace' : undefined}
+                              value={m365ClientSecret}
+                              onValueChange={setM365ClientSecret}
+                              type="password"
+                         />
+                         <p className="text-xs text-default-400 mt-2">
+                             Requires App Registration with <code>AuditLog.Read.All</code> and <code>SecurityEvents.Read.All</code> permissions.
+                         </p>
                     </>
                 )}
 

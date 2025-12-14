@@ -28,13 +28,33 @@ export const users = pgTable('users', {
   marketingOptIn: boolean('marketing_opt_in').default(false).notNull(),
   emailAlertsEnabled: boolean('email_alerts_enabled').default(true).notNull(),
   status: text('status').default('active').notNull(),
+  ssoProvider: text('sso_provider').default('local').notNull(), // 'local', 'google', 'okta'
+  ssoId: text('sso_id'), // Provider's User ID
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 })
 
-export const usersRelations = relations(users, ({ one }) => ({
+// ... relations ...
+
+// SSO Configurations
+export const ssoConfigs = pgTable('sso_configs', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  tenantId: uuid('tenant_id').references(() => tenants.id).notNull(),
+  provider: text('provider').notNull(), // 'google', 'okta', 'oidc'
+  clientId: text('client_id').notNull(),
+  clientSecret: text('client_secret').notNull(), // Should be encrypted in production
+  issuer: text('issuer').notNull(), // OIDC Issuer URL
+  authorizationEndpoint: text('authorization_endpoint'), // Optional override
+  tokenEndpoint: text('token_endpoint'), // Optional override
+  userInfoEndpoint: text('user_info_endpoint'), // Optional override
+  isEnabled: boolean('is_enabled').default(true).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+})
+
+// Relations
+export const ssoConfigsRelations = relations(ssoConfigs, ({ one }) => ({
   tenant: one(tenants, {
-    fields: [users.tenantId],
+    fields: [ssoConfigs.tenantId],
     references: [tenants.id],
   }),
 }))
@@ -497,3 +517,115 @@ export const parsers = pgTable('parsers', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 })
 
+// ==================== DETECTION ENGINE ====================
+export const detectionRules = pgTable('detection_rules', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  tenantId: uuid('tenant_id').references(() => tenants.id).notNull(),
+  name: text('name').notNull(),
+  description: text('description'),
+  severity: text('severity').default('medium').notNull(), // 'critical', 'high', 'medium', 'low'
+  query: text('query').notNull(), // ClickHouse SQL WHERE clause
+  isEnabled: boolean('is_enabled').default(true).notNull(),
+  runIntervalSeconds: integer('run_interval_seconds').default(60).notNull(),
+  lastRunAt: timestamp('last_run_at'),
+  mitreTechnique: text('mitre_technique'), // e.g., 'T1059.001'
+  createdBy: uuid('created_by').references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+})
+
+export const detectionRulesRelations = relations(detectionRules, ({ one }) => ({
+  tenant: one(tenants, {
+    fields: [detectionRules.tenantId],
+    references: [tenants.id],
+  }),
+  creator: one(users, {
+    fields: [detectionRules.createdBy],
+    references: [users.id],
+  }),
+}))
+
+// ==================== REPORTING ====================
+export const reportSchedules = pgTable('report_schedules', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  tenantId: uuid('tenant_id').references(() => tenants.id).notNull(),
+  reportType: text('report_type').notNull(), // 'dashboard', 'iso27001', 'nist', 'pdpa'
+  frequency: text('frequency').notNull(), // 'daily', 'weekly', 'monthly'
+  recipients: jsonb('recipients').notNull(), // Array of emails ["admin@example.com"]
+  isEnabled: boolean('is_enabled').default(true).notNull(),
+  lastRunAt: timestamp('last_run_at'),
+  nextRunAt: timestamp('next_run_at').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+})
+
+export const reportSchedulesRelations = relations(reportSchedules, ({ one }) => ({
+  tenant: one(tenants, {
+    fields: [reportSchedules.tenantId],
+    references: [tenants.id],
+  }),
+}))
+
+// ==================== CLOUD INTEGRATIONS ====================
+export const cloudIntegrations = pgTable('cloud_integrations', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  tenantId: uuid('tenant_id').references(() => tenants.id).notNull(),
+  provider: text('provider').notNull(), // 'aws', 'azure', 'gcp'
+  name: text('name').notNull(),
+  config: jsonb('config').notNull(), // Region, etc.
+  credentials: jsonb('credentials').notNull(), // Encrypted keys
+  status: text('status').default('active').notNull(), // 'active', 'error', 'disabled'
+  lastSyncAt: timestamp('last_sync_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+})
+
+export const cloudIntegrationsRelations = relations(cloudIntegrations, ({ one }) => ({
+  tenant: one(tenants, {
+    fields: [cloudIntegrations.tenantId],
+    references: [tenants.id],
+  }),
+}))
+
+// ==================== DASHBOARD ====================
+export const dashboardLayouts = pgTable('dashboard_layouts', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').references(() => users.id).notNull(),
+  name: text('name').default('Default Dashboard').notNull(),
+  layout: jsonb('layout').notNull(), // Array of widgets: { i, x, y, w, h }
+  isDefault: boolean('is_default').default(false).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+})
+
+export const dashboardLayoutsRelations = relations(dashboardLayouts, ({ one }) => ({
+  user: one(users, {
+    fields: [dashboardLayouts.userId],
+    references: [users.id],
+  }),
+}))
+
+// ==================== CUSTOM WIDGETS ====================
+export const customWidgets = pgTable('custom_widgets', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').references(() => users.id).notNull(),
+  tenantId: uuid('tenant_id').references(() => tenants.id).notNull(),
+  name: text('name').notNull(),
+  description: text('description'),
+  config: jsonb('config').notNull(), // WidgetConfig object
+  chartType: text('chart_type').notNull(), // 'bar' | 'line' | 'pie' | 'donut' | 'table'
+  isShared: boolean('is_shared').default(false).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+})
+
+export const customWidgetsRelations = relations(customWidgets, ({ one }) => ({
+  user: one(users, {
+    fields: [customWidgets.userId],
+    references: [users.id],
+  }),
+  tenant: one(tenants, {
+    fields: [customWidgets.tenantId],
+    references: [tenants.id],
+  }),
+}))

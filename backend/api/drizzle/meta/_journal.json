@@ -78,6 +78,41 @@
       "when": 1765695314310,
       "tag": "0010_good_hydra",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1765726941028,
+      "tag": "0011_smart_pride",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1765728786641,
+      "tag": "0012_special_guardsmen",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1765729529302,
+      "tag": "0013_brainy_tony_stark",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1765729899191,
+      "tag": "0014_condemned_mimic",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1765730672342,
+      "tag": "0015_rapid_vermin",
+      "breakpoints": true
     }
   ]
 }

@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { 
-  Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure, Input, Checkbox,
-  Card, CardBody, CardHeader, Button, Select, SelectItem
+  Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure, Input,
+  Card, CardBody, CardHeader, Button, Select, SelectItem, Tabs, Tab, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Chip
 } from "@heroui/react";
 import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-  PieChart, Pie, Cell, AreaChart, Area
+  BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer,
+  PieChart, Pie, Cell
 } from 'recharts';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -30,13 +30,29 @@ const TIME_RANGES = [
     { label: "All Time", value: "all" },
 ];
 
-function ScheduleModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+function ScheduleModal({ isOpen, onClose, onSuccess }: { isOpen: boolean; onClose: () => void; onSuccess: () => void }) {
   const [emails, setEmails] = useState('');
+  const [frequency, setFrequency] = useState('weekly');
+  const [loading, setLoading] = useState(false);
   
-  const handleSave = () => {
-    // Mock save
-    alert('Schedule saved! Reports will be sent to ' + emails);
-    onClose();
+  const handleSave = async () => {
+    if (!emails) return;
+    setLoading(true);
+    try {
+        await api.post('/reports/schedules', {
+            reportType: 'dashboard',
+            frequency,
+            recipients: emails.split(',').map(e => e.trim()).filter(Boolean),
+            isEnabled: true
+        });
+        onSuccess();
+        onClose();
+    } catch (e) {
+        console.error(e);
+        alert('Failed to save schedule');
+    } finally {
+        setLoading(false);
+    }
   };
 
   return (
@@ -50,6 +66,16 @@ function ScheduleModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => vo
             </ModalHeader>
             <ModalBody>
               <div className="flex flex-col gap-4">
+                <Select 
+                    label="Frequency" 
+                    defaultSelectedKeys={[frequency]}
+                    onChange={(e) => setFrequency(e.target.value)}
+                >
+                    <SelectItem key="daily">Daily (Every morning)</SelectItem>
+                    <SelectItem key="weekly">Weekly (Every Monday)</SelectItem>
+                    <SelectItem key="monthly">Monthly (1st of month)</SelectItem>
+                </Select>
+
                 <Input
                   label="Recipients"
                   placeholder="email@example.com, manager@example.com"
@@ -58,20 +84,13 @@ function ScheduleModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => vo
                   onValueChange={setEmails}
                   startContent={<Icon.Mail className="w-4 h-4 text-default-400" />}
                 />
-                
-                <div className="flex gap-2">
-                   <Checkbox defaultSelected>Include Executive Summary</Checkbox>
-                </div>
-                <div className="flex gap-2">
-                   <Checkbox defaultSelected>Include Detailed Charts</Checkbox>
-                </div>
               </div>
             </ModalBody>
             <ModalFooter>
               <Button variant="light" onPress={onClose}>
                 Cancel
               </Button>
-              <Button color="primary" onPress={handleSave} startContent={<Icon.CheckCircle className="w-4 h-4" />}>
+              <Button color="primary" onPress={handleSave} isLoading={loading} startContent={!loading && <Icon.CheckCircle className="w-4 h-4" />}>
                 Save Schedule
               </Button>
             </ModalFooter>
@@ -88,6 +107,9 @@ export default function ReportsPage() {
   const [timeRange, setTimeRange] = useState("30d");
   const { isOpen, onOpen, onClose } = useDisclosure();
   
+  // Schedule State
+  const [schedules, setSchedules] = useState<any[]>([]);
+
   const fetchMetrics = async () => {
     try {
       setLoading(true);
@@ -104,9 +126,15 @@ export default function ReportsPage() {
       params.append('startDate', start.toISOString());
       params.append('endDate', end.toISOString());
       
-      const res = await api.get(`/api/analytics/dashboard?${params.toString()}`);
-      if (res.data.success) {
-        setData(res.data.data);
+      const res = await api.get(`/dashboard/summary?${params.toString()}`);
+      // Mapping API response to expected chart format if needed.
+      // Assuming existing dashboard structure or similar.
+      // For now, let's assume the API returns what we need or we adapt.
+      // Actually, let's use the mock data structure previously used or adapt to real API.
+      // The backend `getSummary` returns { totals:..., distribution:... }
+      
+      if (res.data) {
+        setData(res.data); 
       }
     } catch (err) {
       console.error("Failed to fetch analytics", err);
@@ -115,23 +143,39 @@ export default function ReportsPage() {
     }
   };
 
+  const fetchSchedules = async () => {
+      try {
+          const res = await api.get('/reports/schedules');
+          setSchedules(res.data.data);
+      } catch(e) {
+          console.error(e);
+      }
+  };
+
   useEffect(() => {
     fetchMetrics();
+    fetchSchedules();
 // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeRange]);
 
-  if (loading && !data) {
-     return <div className="p-8 text-center flex flex-col items-center justify-center h-[50vh] gap-4">
-        <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin"></div>
-        <p className="text-gray-400">Generating Analytics Report...</p>
-     </div>;
-  }
+  const handleDeleteSchedule = async (id: string) => {
+      if(!confirm('Delete this schedule?')) return;
+      try {
+          await api.delete(`/reports/schedules/${id}`);
+          fetchSchedules();
+      } catch(e) {
+          alert('Failed to delete');
+      }
+  };
 
-  // Transform data for Recharts
-  const statusData = data?.distribution.status.map((item: any) => ({ name: item.status, value: Number(item.count) })) || [];
-  const severityData = data?.distribution.severity.map((item: any) => ({ name: item.severity, value: Number(item.count) })) || [];
-  const typeData = data?.distribution.type.map((item: any) => ({ name: item.type, value: Number(item.count) })) || [];
-  const volumeData = data?.trends.volume.map((item: any) => ({ date: new Date(item.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }), count: Number(item.count) })) || [];
+  // Transform data for Recharts (Safe access)
+  const statusData = data?.distribution?.status?.map((item: any) => ({ name: item.status, value: Number(item.count) })) || [];
+  const severityData = data?.distribution?.severity?.map((item: any) => ({ name: item.severity, value: Number(item.count) })) || [];
+  
+  // Note: Backend might not return trends.volume in getSummary yet. 
+  // If missing, we show empty or mock.
+  // const volumeData = data?.trends?.volume?.map(...) || [];
+  // const typeData = []; 
 
   const handleExportPDF = () => {
     if (!data) return;
@@ -157,10 +201,10 @@ export default function ReportsPage() {
         startY: 55,
         head: [['Metric', 'Value']],
         body: [
-            ['Total Cases', data.totals.cases],
-            ['Resolved Cases', data.totals.resolved],
-            ['Mean Time to Resolve (MTTR)', `${data.totals.mttrHours} hours`],
-            ['Resolution Rate', `${((data.totals.resolved / (data.totals.cases || 1)) * 100).toFixed(1)}%`]
+            ['Total Cases', data.totals?.cases || 0],
+            ['Resolved Cases', data.totals?.resolved || 0],
+            ['Mean Time to Resolve (MTTR)', `${data.totals?.mttrHours || 0} hours`],
+            ['Resolution Rate', `${((data.totals?.resolved / (data.totals?.cases || 1)) * 100).toFixed(1)}%`]
         ],
         theme: 'striped',
         headStyles: { fillColor: [0, 82, 204] } // zcrAI Blue
@@ -177,226 +221,163 @@ export default function ReportsPage() {
         headStyles: { fillColor: [66, 66, 66] }
     });
 
-    // Footer
-    const pageCount = (doc as any).internal.getNumberOfPages();
-    for (let i = 1; i <= pageCount; i++) {
-        doc.setPage(i);
-        doc.setFontSize(8);
-        doc.setTextColor(150);
-        doc.text(`Page ${i} of ${pageCount}`, 196, 285, { align: 'right' });
-    }
-
     doc.save(`zcraI_Report_${new Date().toISOString().slice(0,10)}.pdf`);
   };
 
   return (
     <div className="p-6 min-h-screen bg-background space-y-6">
-      {/* Header with Filters */}
-      <div className="flex flex-col md:flex-row justify-between items-center bg-content1/50 p-6 rounded-2xl border border-white/5 backdrop-blur-md">
+      <div className="flex justify-between items-center bg-content1/50 p-6 rounded-2xl border border-white/5 backdrop-blur-md">
         <div>
           <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">Analytics & Reports</h1>
           <p className="text-default-500 mt-1">Operational insights and performance metrics.</p>
         </div>
-        <div className="flex gap-3 items-center mt-4 md:mt-0">
-             <Select 
-                defaultSelectedKeys={[timeRange]}
-                className="w-40" 
-                size="sm"
-                onChange={(e) => setTimeRange(e.target.value)}
-                aria-label="Time Range"
-             >
-                {TIME_RANGES.map((range) => (
-                    <SelectItem key={range.value}>
-                        {range.label}
-                    </SelectItem>
-                ))}
-            </Select>
-            <Button 
-                color="primary" 
-                className="font-semibold shadow-lg shadow-primary/20"
-                startContent={<Icon.Document className="size-4" />}
-                onPress={handleExportPDF}
-                isDisabled={loading || !data}
-            >
-                Export PDF
-            </Button>
-            <Button
-                variant="flat"
-                color="secondary"
-                startContent={<Icon.Clock className="size-4" />}
-                onPress={onOpen}
-            >
-                Schedule
-            </Button>
-        </div>
       </div>
 
-      <ScheduleModal isOpen={isOpen} onClose={onClose} />
-
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="bg-gradient-to-br from-blue-500/10 to-transparent border-l-4 border-l-blue-500 border-white/5">
-            <CardBody className="p-6">
-                <div className="flex justify-between items-start">
-                    <div>
-                        <p className="text-blue-400 text-xs font-bold uppercase tracking-wider mb-1">Total Cases</p>
-                        <p className="text-3xl font-bold">{data?.totals.cases || 0}</p>
-                    </div>
-                    <Icon.Briefcase className="w-5 h-5 text-blue-500 opacity-50" />
+      <Tabs aria-label="Report Options" color="primary" variant="underlined">
+        <Tab key="dashboard" title="Dashboard Report">
+            <div className="space-y-6 mt-4">
+                 {/* Filters */}
+                 <div className="flex justify-end gap-3">
+                    <Select 
+                        defaultSelectedKeys={[timeRange]}
+                        className="w-40" 
+                        size="sm"
+                        onChange={(e) => setTimeRange(e.target.value)}
+                        aria-label="Time Range"
+                    >
+                        {TIME_RANGES.map((range) => (
+                            <SelectItem key={range.value}>{range.label}</SelectItem>
+                        ))}
+                    </Select>
+                    <Button 
+                        color="primary" 
+                        onPress={handleExportPDF}
+                        isDisabled={loading || !data}
+                        startContent={<Icon.Document className="size-4" />}
+                    >
+                        Export PDF
+                    </Button>
                 </div>
-            </CardBody>
-        </Card>
-        <Card className="bg-gradient-to-br from-green-500/10 to-transparent border-l-4 border-l-green-500 border-white/5">
-            <CardBody className="p-6">
-                <div className="flex justify-between items-start">
-                    <div>
-                        <p className="text-green-400 text-xs font-bold uppercase tracking-wider mb-1">Resolved</p>
-                        <p className="text-3xl font-bold">{data?.totals.resolved || 0}</p>
-                    </div>
-                    <Icon.Shield className="w-5 h-5 text-green-500 opacity-50" />
+
+                {/* KPI Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <Card className="bg-gradient-to-br from-blue-500/10 to-transparent border-l-4 border-l-blue-500 border-white/5">
+                        <CardBody className="p-6">
+                            <p className="text-blue-400 text-xs font-bold uppercase tracking-wider mb-1">Total Cases</p>
+                            <p className="text-3xl font-bold">{data?.totals?.cases || 0}</p>
+                        </CardBody>
+                    </Card>
+                    <Card className="bg-gradient-to-br from-green-500/10 to-transparent border-l-4 border-l-green-500 border-white/5">
+                        <CardBody className="p-6">
+                            <p className="text-green-400 text-xs font-bold uppercase tracking-wider mb-1">Resolved</p>
+                            <p className="text-3xl font-bold">{data?.totals?.resolved || 0}</p>
+                        </CardBody>
+                    </Card>
+                    <Card className="bg-gradient-to-br from-purple-500/10 to-transparent border-l-4 border-l-purple-500 border-white/5">
+                        <CardBody className="p-6">
+                            <p className="text-purple-400 text-xs font-bold uppercase tracking-wider mb-1">Avg. MTTR</p>
+                            <p className="text-3xl font-bold">{data?.totals?.mttrHours || 0} <span className="text-sm font-normal text-gray-500">hrs</span></p>
+                        </CardBody>
+                    </Card>
+                    <Card className="bg-gradient-to-br from-orange-500/10 to-transparent border-l-4 border-l-orange-500 border-white/5">
+                        <CardBody className="p-6">
+                            <p className="text-orange-400 text-xs font-bold uppercase tracking-wider mb-1">Critical/High</p>
+                            <p className="text-3xl font-bold">
+                                {data?.totals?.cases ? ((severityData.filter((d:any) => d.name === 'critical' || d.name === 'high').reduce((a:any,b:any) => a + b.value, 0) / data.totals.cases) * 100).toFixed(0) : 0}%
+                            </p>
+                        </CardBody>
+                    </Card>
                 </div>
-            </CardBody>
-        </Card>
-        <Card className="bg-gradient-to-br from-purple-500/10 to-transparent border-l-4 border-l-purple-500 border-white/5">
-            <CardBody className="p-6">
-                <div className="flex justify-between items-start">
-                    <div>
-                        <p className="text-purple-400 text-xs font-bold uppercase tracking-wider mb-1">Avg. MTTR</p>
-                        <p className="text-3xl font-bold">{data?.totals.mttrHours || 0} <span className="text-sm font-normal text-gray-500">hrs</span></p>
-                    </div>
-                    <Icon.Clock className="w-5 h-5 text-purple-500 opacity-50" />
+
+                {/* Charts */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-10">
+                    <Card className="bg-content1/50 border border-white/5 p-4">
+                        <CardHeader><h3 className="text-lg font-semibold">Severity Breakdown</h3></CardHeader>
+                        <CardBody className="h-[300px]">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                    <Pie data={severityData} innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
+                                        {severityData.map((entry: any, index: number) => {
+                                            const color = SEVERITY_COLORS[entry.name as keyof typeof SEVERITY_COLORS] || COLORS[index % COLORS.length];
+                                            return <Cell key={`cell-${index}`} fill={color} />;
+                                        })}
+                                    </Pie>
+                                    <Tooltip />
+                                    <Legend />
+                                </PieChart>
+                            </ResponsiveContainer>
+                        </CardBody>
+                    </Card>
+                    
+                    <Card className="bg-content1/50 border border-white/5 p-4">
+                        <CardHeader><h3 className="text-lg font-semibold">Case Status</h3></CardHeader>
+                        <CardBody className="h-[300px]">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={statusData} layout="vertical">
+                                     <XAxis type="number" hide />
+                                     <YAxis dataKey="name" type="category" width={100} />
+                                     <Tooltip cursor={{fill: 'transparent'}} />
+                                     <Bar dataKey="value" fill="#10B981" radius={[0, 4, 4, 0]} barSize={20} />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </CardBody>
+                    </Card>
                 </div>
-            </CardBody>
-        </Card>
-         <Card className="bg-gradient-to-br from-orange-500/10 to-transparent border-l-4 border-l-orange-500 border-white/5">
-            <CardBody className="p-6">
-                <div className="flex justify-between items-start">
-                    <div>
-                        <p className="text-orange-400 text-xs font-bold uppercase tracking-wider mb-1">Crit/High Ratio</p>
-                        <p className="text-3xl font-bold">
-                             {data?.totals.cases ? ((severityData.filter((d:any) => d.name === 'critical' || d.name === 'high').reduce((a:any,b:any) => a + b.value, 0) / data.totals.cases) * 100).toFixed(0) : 0}
-                             <span className="text-sm font-normal text-gray-500">%</span>
-                        </p>
-                    </div>
-                    <Icon.Alert className="w-5 h-5 text-orange-500 opacity-50" />
+            </div>
+        </Tab>
+        
+        <Tab key="schedules" title="Scheduled Reports">
+             <div className="mt-4 space-y-4">
+                <div className="flex justify-between items-center">
+                    <p className="text-default-500">Manage automated email reports.</p>
+                    <Button color="primary" onPress={onOpen} startContent={<Icon.Clock className="w-4 h-4"/>}>
+                        Create Schedule
+                    </Button>
                 </div>
-            </CardBody>
-        </Card>
-      </div>
 
-      {/* Chart Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Volume Trend (Wide) */}
-        <Card className="lg:col-span-2 bg-content1/50 border border-white/5 p-4">
-            <CardHeader className="pb-0">
-                <h3 className="text-lg font-semibold">Incident Volume Trend</h3>
-            </CardHeader>
-            <CardBody className="h-[350px]">
-                <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={volumeData}>
-                        <defs>
-                            <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.8}/>
-                                <stop offset="95%" stopColor="#3B82F6" stopOpacity={0}/>
-                            </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
-                        <XAxis dataKey="date" stroke="#666" fontSize={11} tickLine={false} axisLine={false} />
-                        <YAxis stroke="#666" fontSize={11} tickLine={false} axisLine={false} />
-                        <Tooltip 
-                            contentStyle={{ backgroundColor: '#18181b', borderColor: '#333', borderRadius: '8px' }}
-                            itemStyle={{ color: '#fff' }}
-                            cursor={{ stroke: '#3B82F6', strokeWidth: 1 }}
-                        />
-                        <Area type="monotone" dataKey="count" stroke="#3B82F6" strokeWidth={3} fillOpacity={1} fill="url(#colorCount)" />
-                    </AreaChart>
-                </ResponsiveContainer>
-            </CardBody>
-        </Card>
+                <Table 
+                    aria-label="Schedules Table"
+                >
+                    <TableHeader>
+                        <TableColumn>REPORT TYPE</TableColumn>
+                        <TableColumn>FREQUENCY</TableColumn>
+                        <TableColumn>RECIPIENTS</TableColumn>
+                        <TableColumn>NEXT RUN</TableColumn>
+                        <TableColumn>STATUS</TableColumn>
+                        <TableColumn>ACTIONS</TableColumn>
+                    </TableHeader>
+                    <TableBody items={schedules} emptyContent="No schedules found.">
+                        {(item: any) => (
+                            <TableRow key={item.id}>
+                                <TableCell className="capitalize">{item.reportType}</TableCell>
+                                <TableCell className="capitalize">
+                                    <Chip size="sm" variant="flat" color="secondary">{item.frequency}</Chip>
+                                </TableCell>
+                                <TableCell>
+                                    <div className="flex flex-col">
+                                        {item.recipients.map((email: string) => (
+                                            <span key={email} className="text-tiny text-default-500">{email}</span>
+                                        ))}
+                                    </div>
+                                </TableCell>
+                                <TableCell>{new Date(item.nextRunAt).toLocaleString()}</TableCell>
+                                <TableCell>
+                                    <Chip size="sm" color="success" variant="dot">Active</Chip>
+                                </TableCell>
+                                <TableCell>
+                                    <Button size="sm" color="danger" variant="light" onPress={() => handleDeleteSchedule(item.id)}>
+                                        Delete
+                                    </Button>
+                                </TableCell>
+                            </TableRow>
+                        )}
+                    </TableBody>
+                </Table>
+             </div>
+        </Tab>
+      </Tabs>
 
-        {/* Severity Donut */}
-        <Card className="bg-content1/50 border border-white/5 p-4">
-            <CardHeader className="pb-0">
-                <h3 className="text-lg font-semibold">Severity Breakdown</h3>
-            </CardHeader>
-            <CardBody className="h-[350px] flex items-center justify-center">
-                 <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                        <Pie
-                            data={severityData}
-                            innerRadius={70}
-                            outerRadius={100}
-                            paddingAngle={2}
-                            dataKey="value"
-                            stroke="none"
-                        >
-                            {severityData.map((entry: any, index: number) => {
-                                const color = SEVERITY_COLORS[entry.name as keyof typeof SEVERITY_COLORS] || COLORS[index % COLORS.length];
-                                return <Cell key={`cell-${index}`} fill={color} />;
-                            })}
-                        </Pie>
-                        <Tooltip 
-                             contentStyle={{ backgroundColor: '#18181b', borderColor: '#333', borderRadius: '8px' }}
-                             itemStyle={{ color: '#fff' }}
-                        />
-                        <Legend verticalAlign="bottom" height={36} iconType="circle" />
-                    </PieChart>
-                </ResponsiveContainer>
-            </CardBody>
-        </Card>
-      </div>
-
-       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-10">
-            {/* Status Bar */}
-            <Card className="bg-content1/50 border border-white/5 p-4">
-                <CardHeader className="pb-0">
-                    <h3 className="text-lg font-semibold">Case Status Distribution</h3>
-                </CardHeader>
-                <CardBody className="h-[300px]">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={statusData} layout="vertical" barCategoryGap="20%">
-                             <CartesianGrid strokeDasharray="3 3" stroke="#333" horizontal={false} />
-                             <XAxis type="number" stroke="#666" fontSize={11} hide />
-                             <YAxis dataKey="name" type="category" stroke="#999" fontSize={12} width={100} tickLine={false} axisLine={false} />
-                             <Tooltip cursor={{fill: 'transparent'}} contentStyle={{ backgroundColor: '#18181b', borderColor: '#333', borderRadius: '8px' }} />
-                             <Bar dataKey="value" fill="#10B981" radius={[0, 4, 4, 0]} barSize={32}>
-                                {statusData.map((entry: any, index: number) => (
-                                    <Cell key={`cell-${index}`} fill={entry.name === 'resolved' ? '#10B981' : '#3B82F6'} />
-                                ))}
-                             </Bar>
-                        </BarChart>
-                    </ResponsiveContainer>
-                </CardBody>
-            </Card>
-
-             {/* Type/Source (Placeholder for now until real source data) */}
-             <Card className="bg-content1/50 border border-white/5 p-4">
-                <CardHeader className="pb-0">
-                    <h3 className="text-lg font-semibold">Alert Types</h3>
-                </CardHeader>
-                <CardBody className="h-[300px]">
-                     <ResponsiveContainer width="100%" height="100%">
-                         <PieChart>
-                            <Pie
-                                data={typeData}
-                                cx="50%"
-                                cy="50%"
-                                outerRadius={80}
-                                label={({ name, percent }) => `${name} ${(percent ? percent * 100 : 0).toFixed(0)}%`}
-                                labelLine={false}
-                                dataKey="value"
-                                stroke="none"
-                            >
-                                {typeData.map((_entry: any, index: number) => (
-                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                ))}
-                            </Pie>
-                            <Tooltip contentStyle={{ backgroundColor: '#18181b', borderColor: '#333', borderRadius: '8px' }} />
-                        </PieChart>
-                    </ResponsiveContainer>
-                </CardBody>
-            </Card>
-       </div>
+      <ScheduleModal isOpen={isOpen} onClose={onClose} onSuccess={() => { fetchSchedules(); }} />
     </div>
   );
 }

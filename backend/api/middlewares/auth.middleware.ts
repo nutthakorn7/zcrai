@@ -37,6 +37,7 @@ export const authGuard = new Elysia({ name: 'authGuard' })
       set.status = 401
       throw new Error('Invalid token')
     }
+    // console.log('AUTH GUARD PAYLOAD:', payload); 
 
     return {
       user: payload as unknown as JWTPayload,

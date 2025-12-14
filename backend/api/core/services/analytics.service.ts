@@ -1,7 +1,8 @@
 import { db } from '../../infra/db';
-import { cases, loginHistory, alerts, tenants } from '../../infra/db/schema';
+import { cases, loginHistory, alerts, tenants, users } from '../../infra/db/schema';
 import { eq, and, gte, lte, sql, count, desc } from 'drizzle-orm';
 import { GeoIPService } from './geoip.service';
+import { AlertService } from './alert.service';
 import { nanoid } from 'nanoid';
 
 export class AnalyticsService {
@@ -146,9 +147,11 @@ export class AnalyticsService {
       distance: number, 
       speed: number
   ) {
-      const user = await db.query.users.findFirst({
-          where: (users, { eq }) => eq(users.id, userId),
-      });
+      // Fetch user to get tenantId
+      const [user] = await db
+          .select()
+          .from(users) // Assuming 'users' is imported from schema
+          .where(eq(users.id, userId));
 
       if (!user || !user.tenantId) return;
 
@@ -163,32 +166,30 @@ User logged in from two locations that are physically impossible to travel betwe
 - **Implied Speed**: ${Math.round(speed)} mph
       `.trim();
 
-      const fingerprint = `impossible-travel-${userId}-${currentIp}-${lastLogin.ipAddress}`;
-      
-      // Upsert Alert (using fingerprint)? 
-      // For now just insert. `alerts` schema has fingerprint unique index?
-      // Step 2915: `fingerprint` is varchar, index exists. Unique?
-      // `fingerprint: varchar('fingerprint', { length: 64 }).notNull()`
-      // It has `fingerprintIdx`. It is NOT unique constraint in schema definition shown.
-      // But `duplicates` logic implies we want to deduplicate.
-      // I'll skip complex upsert for now and just insert.
-
-      await db.insert(alerts).values({
+      // Use AlertService for robust handling (deduplication, fingerprinting)
+      await AlertService.create({
           tenantId: user.tenantId,
-          source: 'uebau_analytics',
+          source: 'ueba_analytics',
           severity: 'high',
-          title: 'Impossible Travel Alert',
+          title: 'Impossible Travel Detected',
           description,
-          status: 'new',
-          fingerprint,
-          duplicateCount: 1,
           rawData: {
               userId,
               speed,
               distance,
-              prev: lastLogin,
-              curr: { ip: currentIp, ...currentGeo }
-          }
+              prev: {
+                 ip: lastLogin.ipAddress,
+                 city: lastLogin.city,
+                 country: lastLogin.country, 
+                 timestamp: lastLogin.timestamp 
+              },
+              curr: { 
+                 ip: currentIp, 
+                 ...currentGeo,
+                 timestamp: new Date().toISOString()
+              }
+          },
+          observables: [currentIp, lastLogin.ipAddress, userId]
       });
   }
 }

@@ -1,6 +1,9 @@
 import { CronJob } from 'cron';
 import { ReportService } from './report.service';
 import { EmailService } from './email.service';
+import { DetectionService } from './detection.service';
+import { RetentionService } from './retention.service';
+import { ReportSchedulerService } from './report-scheduler.service';
 
 export const SchedulerService = {
   jobs: [] as CronJob[],
@@ -29,6 +32,60 @@ export const SchedulerService = {
     );
     
     this.jobs.push(weeklyReportJob);
+
+    // Detection Engine Job (Every 1 minute)
+    // Runs active detection rules against new logs
+    const detectionJob = new CronJob(
+        '*/1 * * * *', // Every minute
+        async () => {
+            try {
+                await DetectionService.runAllDueRules();
+            } catch (error) {
+                console.error('❌ Detection Job Failed:', error);
+            }
+        },
+        null,
+        true,
+        'Asia/Bangkok'
+    );
+    this.jobs.push(detectionJob);
+
+    // Retention Policy Enforcement Job (Every Midnight)
+    // Deletes old logs from ClickHouse
+    const retentionJob = new CronJob(
+        '0 0 0 * * *', // Midnight
+        async () => {
+             console.log('🧹 Running Daily Retention Job...');
+             try {
+                 await RetentionService.enforceRetention();
+             } catch (error) {
+                 console.error('❌ Retention Job Failed:', error);
+             }
+        },
+        null,
+        true,
+        'Asia/Bangkok'
+    );
+    this.jobs.push(retentionJob);
+
+    // Scheduled Reporting Job (Every Hour)
+    // Checks for reports due to be sent
+    const reportJob = new CronJob(
+        '0 * * * *', // Every hour
+        async () => {
+             console.log('📬 Checking for scheduled reports...');
+             try {
+                 await ReportSchedulerService.processDueReports();
+             } catch (error) {
+                 console.error('❌ Report Scheduler Job Failed:', error);
+             }
+        },
+        null,
+        true,
+        'Asia/Bangkok'
+    );
+    this.jobs.push(reportJob);
+
     console.log(`✅ Scheduler started with ${this.jobs.length} jobs.`);
   },
 

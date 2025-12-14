@@ -32,6 +32,15 @@ export default function SettingsLayout() {
               Security (MFA)
             </NavLink>
 
+            <NavLink 
+              to="/settings/sso"
+              className={({ isActive }) => 
+                `px-4 py-2 rounded-lg transition-colors ${isActive ? 'bg-primary/20 text-primary' : 'hover:bg-default-100'}`
+              }
+            >
+              Single Sign-On
+            </NavLink>
+
             {isTenantAdmin && (
               <>
                 <div className="my-2 border-t border-default-200" />
@@ -44,6 +53,15 @@ export default function SettingsLayout() {
                   }
                 >
                   User Management
+                </NavLink>
+
+                <NavLink 
+                  to="/settings/audit-logs"
+                  className={({ isActive }) => 
+                    `px-4 py-2 rounded-lg transition-colors ${isActive ? 'bg-primary/20 text-primary' : 'hover:bg-default-100'}`
+                  }
+                >
+                  Audit Logs
                 </NavLink>
 
                 <NavLink 
