@@ -1,6 +1,8 @@
 import { Elysia } from 'elysia'
 import { swagger } from '@elysiajs/swagger'
 import { cors } from '@elysiajs/cors'
+import { rateLimit } from 'elysia-rate-limit'
+import { helmet } from 'elysia-helmet'
 import { authController } from './controllers/auth.controller'
 import { tenantController } from './controllers/tenant.controller'
 import { userController } from './controllers/user.controller'
@@ -110,6 +112,11 @@ const app = new Elysia()
     credentials: true,
     allowedHeaders: ['Content-Type', 'Authorization'],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  }))
+  .use(helmet())
+  .use(rateLimit({
+     duration: 60000, // 1 minute
+     max: 100 // 100 requests per minute
   }))
   .use(authController)
   .use(tenantController)

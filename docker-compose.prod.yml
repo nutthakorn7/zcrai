@@ -58,6 +58,34 @@ services:
       - ./vector.toml:/etc/vector/vector.toml
       - vector_data:/var/lib/vector
 
+
+  backend:
+    build: ./backend/api
+    container_name: zcrai_backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./backend/api/.env
+    environment:
+      - DATABASE_URL=postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-zcrai}
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-redis_password}@redis:6379
+      - NODE_ENV=production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    container_name: zcrai_frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
 volumes:
   postgres_data:
   clickhouse_data:

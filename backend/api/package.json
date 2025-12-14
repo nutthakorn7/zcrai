@@ -27,6 +27,8 @@
     "cron": "^4.3.4",
     "drizzle-orm": "latest",
     "elysia": "latest",
+    "elysia-helmet": "^3.0.0",
+    "elysia-rate-limit": "^4.4.2",
     "geoip-lite": "^1.4.10",
     "haversine": "^1.1.1",
     "ioredis": "^5.8.2",
