@@ -53,5 +53,5 @@ jobs:
       - name: Health Check
         run: |
           sleep 5
-          curl -f http://45.118.132.160/health || exit 1
+          curl -f https://app.zcr.ai/health || exit 1
           echo "✅ Deployment successful!"
