@@ -55,5 +55,10 @@ export const CasesAPI = {
       responseType: 'blob'
     });
     return res.data;
+  },
+
+  summarize: async (id: string) => {
+    const res = await api.post<{ success: boolean; data: { summary: string } }>(`/cases/${id}/ai/summarize`);
+    return res.data;
   }
 };

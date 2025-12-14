@@ -1,14 +1,15 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Card, CardBody, Button, Chip, Select, SelectItem, Textarea, Spinner } from "@heroui/react";
+import { Card, CardBody, Button, Chip, Select, SelectItem, Textarea, Spinner, Modal, ModalContent, ModalHeader, ModalBody, useDisclosure, Avatar, AvatarGroup, Tooltip, Tabs, Tab, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell } from "@heroui/react";
 import { Icon } from '../../shared/ui';
 import { CasesAPI } from '../../shared/api/cases';
 import { useAuth } from '../../shared/store/useAuth';
 import { PlaybookWidget } from '../../components/PlaybookWidget';
 import { EvidenceWidget } from '../../components/EvidenceWidget';
 import { InvestigationGraph } from '../../components/InvestigationGraph';
-import { Modal, ModalContent, ModalHeader, ModalBody, useDisclosure, Avatar, AvatarGroup, Tooltip, Tabs, Tab, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell } from "@heroui/react";
 import { useCaseSocket } from '../../shared/hooks/useCaseSocket';
+import Markdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 export default function CaseDetailPage() {
   const { id } = useParams();
@@ -18,6 +19,10 @@ export default function CaseDetailPage() {
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [newComment, setNewComment] = useState('');
+
+  // AI State
+  const [aiSummary, setAiSummary] = useState('');
+  const [aiLoading, setAiLoading] = useState(false);
 
   const fetchCase = async () => {
     if (!id) return;
@@ -30,6 +35,19 @@ export default function CaseDetailPage() {
       // navigate('/cases');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGenerateAI = async () => {
+    if (!caseItem) return;
+    try {
+      setAiLoading(true);
+      const res = await CasesAPI.summarize(caseItem.id);
+      setAiSummary(res.data.summary);
+    } catch (e) {
+      console.error('AI Error:', e);
+    } finally {
+      setAiLoading(false);
     }
   };
 
@@ -103,9 +121,6 @@ export default function CaseDetailPage() {
   };
 
   const { activeUsers, typingUsers, emitTyping } = useCaseSocket(id || '');
-
-  if (loading) return <div className="flex justify-center p-10"><Spinner /></div>;
-  if (!caseItem) return <div className="p-10 text-center">Case not found</div>;
 
   return (
     <div className="p-6 h-full flex flex-col gap-6 max-w-7xl mx-auto w-full">
@@ -285,6 +300,51 @@ export default function CaseDetailPage() {
 
          {/* Right: Meta & Evidence */}
          <div className="flex flex-col gap-4">
+            
+            {/* AI Investigator Widget */}
+            <Card className="p-4 border border-secondary/20 bg-secondary/5">
+                <div className="flex justify-between items-center mb-4">
+                    <div className="flex items-center gap-2">
+                        <Icon.Cpu className="w-5 h-5 text-secondary animate-pulse" />
+                        <h3 className="font-bold text-secondary">AI Investigator</h3>
+                    </div>
+                     {!aiSummary && (
+                        <Button 
+                            size="sm" 
+                            color="secondary" 
+                            variant="flat" 
+                            isLoading={aiLoading}
+                            onPress={handleGenerateAI}
+                        >
+                            Analyze Case
+                        </Button>
+                    )}
+                </div>
+
+                {aiLoading && (
+                    <div className="space-y-2 animate-pulse">
+                         <div className="h-4 bg-secondary/10 rounded w-3/4"></div>
+                         <div className="h-4 bg-secondary/10 rounded w-full"></div>
+                         <div className="h-4 bg-secondary/10 rounded w-5/6"></div>
+                    </div>
+                )}
+
+                {aiSummary && (
+                    <div className="prose prose-invert prose-sm max-w-none max-h-96 overflow-y-auto">
+                         <Markdown remarkPlugins={[remarkGfm]}>{aiSummary}</Markdown>
+                         <div className="mt-4 flex justify-end">
+                             <Button size="sm" variant="light" color="secondary" onPress={handleGenerateAI} isLoading={aiLoading} startContent={<Icon.Refresh className="w-3 h-3"/>}>Re-analyze</Button>
+                         </div>
+                    </div>
+                )}
+
+                {!aiSummary && !aiLoading && (
+                    <p className="text-xs text-secondary/70">
+                        Generates a comprehensive summary, including timeline analysis, severity assessment, and recommended remediation steps.
+                    </p>
+                )}
+            </Card>
+
             {/* Playbooks */}
             {id && <PlaybookWidget caseId={id} />}
 
@@ -306,8 +366,6 @@ export default function CaseDetailPage() {
                     <span>{user?.email || 'Unknown'}</span>
                 </div>
             </Card>
-
-
 
             <Card className="p-4 flex flex-col gap-4">
                 <h3 className="font-semibold border-b border-gray-700 pb-2">Attachments</h3>

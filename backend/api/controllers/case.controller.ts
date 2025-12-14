@@ -78,3 +78,15 @@ export const caseController = new Elysia({ prefix: '/cases' })
     // @ts-ignore
     return await CaseService.addAttachment(user.tenantId, id, user.id, file)
   })
+
+  // ==================== AI SUMMARIZE ====================
+  .post('/:id/ai/summarize', async ({ user, params: { id } }: any) => {
+    // Dynamic import to avoid circular deps or init issues
+    const { AIService } = await import('../core/services/ai.service');
+    // Fetch full case context
+    const caseDetail = await CaseService.getById(user.tenantId, id);
+    if (!caseDetail) throw new Error('Case not found');
+    
+    const summary = await AIService.summarizeCase(caseDetail);
+    return { success: true, data: { summary } };
+  })
