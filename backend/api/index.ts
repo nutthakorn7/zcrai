@@ -14,6 +14,35 @@ import { observableController } from './controllers/observable.controller'
 import { notificationController } from './controllers/notification.controller'
 import { aiController } from './controllers/ai.controller'
 import { adminController } from './controllers/admin.controller'
+import { reportController } from './controllers/report.controller'
+
+// ... existing code
+
+app
+  // ... existing imports
+  .use(cors({
+    origin: true, // อนุญาตทุก origin ใน development
+    credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  }))
+  .use(authController)
+  .use(tenantController)
+  .use(userController)
+  .use(profileController)
+  .use(integrationController)
+  .use(dashboardController)
+  .use(playbookController)
+  .use(analyticsController)
+  .use(realtimeController)
+  .use(logsController)
+  .use(caseController)
+  .use(alertController)
+  .use(observableController)
+  .use(notificationController)
+  .use(aiController)
+  .use(reportController) // PDF report generation
+  .use(adminController) // Super Admin routes
 import { playbookController } from './controllers/playbook.controller'
 import { analyticsController } from './controllers/analytics.controller';
 import { realtimeController } from './controllers/realtime.controller';
