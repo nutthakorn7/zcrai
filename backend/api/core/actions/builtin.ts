@@ -67,8 +67,174 @@ const SendEmailAction: Action = {
   }
 };
 
+// --- CrowdStrike: Isolate Host Action ---
+const CrowdStrikeIsolateHostAction: Action = {
+  id: 'crowdstrike_isolate_host',
+  name: 'CrowdStrike: Isolate Host',
+  description: 'Isolate a host from the network using CrowdStrike Falcon',
+  version: '1.0.0',
+  schema: {
+    type: 'object',
+    properties: {
+      deviceId: { type: 'string', description: 'CrowdStrike Device ID' },
+      agentId: { type: 'string', description: 'Agent ID (alternative)' },
+    },
+    required: ['deviceId']
+  },
+  execute: async (ctx: ActionContext): Promise<ActionResult> => {
+    const { EDRActionService } = await import('../services/edr-action.service');
+    
+    const result = await EDRActionService.executeAction({
+      provider: 'crowdstrike',
+      action: 'isolate_host',
+      parameters: ctx.inputs,
+      executionStepId: ctx.executionStepId || '',
+      requiresApproval: true,
+    });
+    
+    return {
+      success: result.success,
+      output: result.data,
+      error: result.error,
+    };
+  }
+};
+
+// --- CrowdStrike: Lift Containment Action ---
+const CrowdStrikeLiftContainmentAction: Action = {
+  id: 'crowdstrike_lift_containment',
+  name: 'CrowdStrike: Lift Containment',
+  description: 'Remove network isolation from a host',
+  version: '1.0.0',
+  schema: {
+    type: 'object',
+    properties: {
+      deviceId: { type: 'string', description: 'CrowdStrike Device ID' },
+    },
+    required: ['deviceId']
+  },
+  execute: async (ctx: ActionContext): Promise<ActionResult> => {
+    const { EDRActionService } = await import('../services/edr-action.service');
+    
+    const result = await EDRActionService.executeAction({
+      provider: 'crowdstrike',
+      action: 'lift_containment',
+      parameters: ctx.inputs,
+      executionStepId: ctx.executionStepId || '',
+    });
+    
+    return {
+      success: result.success,
+      output: result.data,
+      error: result.error,
+    };
+  }
+};
+
+// --- SentinelOne: Quarantine Host Action ---
+const SentinelOneQuarantineHostAction: Action = {
+  id: 'sentinelone_quarantine_host',
+  name: 'SentinelOne: Quarantine Host',
+  description: 'Disconnect a host from the network using SentinelOne',
+  version: '1.0.0',
+  schema: {
+    type: 'object',
+    properties: {
+      agentId: { type: 'string', description: 'SentinelOne Agent ID' },
+    },
+    required: ['agentId']
+  },
+  execute: async (ctx: ActionContext): Promise<ActionResult> => {
+    const { EDRActionService } = await import('../services/edr-action.service');
+    
+    const result = await EDRActionService.executeAction({
+      provider: 'sentinelone',
+      action: 'quarantine_host',
+      parameters: ctx.inputs,
+      executionStepId: ctx.executionStepId || '',
+      requiresApproval: true,
+    });
+    
+    return {
+      success: result.success,
+      output: result.data,
+      error: result.error,
+    };
+  }
+};
+
+// --- SentinelOne: Unquarantine Host Action ---
+const SentinelOneUnquarantineHostAction: Action = {
+  id: 'sentinelone_unquarantine_host',
+  name: 'SentinelOne: Unquarantine Host',
+  description: 'Reconnect a host to the network',
+  version: '1.0.0',
+  schema: {
+    type: 'object',
+    properties: {
+      agentId: { type: 'string', description: 'SentinelOne Agent ID' },
+    },
+    required: ['agentId']
+  },
+  execute: async (ctx: ActionContext): Promise<ActionResult> => {
+    const { EDRActionService } = await import('../services/edr-action.service');
+    
+    const result = await EDRActionService.executeAction({
+      provider: 'sentinelone',
+      action: 'unquarantine_host',
+      parameters: ctx.inputs,
+      executionStepId: ctx.executionStepId || '',
+    });
+    
+    return {
+      success: result.success,
+      output: result.data,
+      error: result.error,
+    };
+  }
+};
+
+// --- SentinelOne: Blocklist Hash Action ---
+const SentinelOneBlocklistHashAction: Action = {
+  id: 'sentinelone_blocklist_hash',
+  name: 'SentinelOne: Blocklist File Hash',
+  description: 'Add a file hash to the global blocklist',
+  version: '1.0.0',
+  schema: {
+    type: 'object',
+    properties: {
+      hash: { type: 'string', description: 'File hash (SHA256/SHA1/MD5)' },
+      scope: { type: 'string', description: 'Scope (site/account)', default: 'site' },
+    },
+    required: ['hash']
+  },
+  execute: async (ctx: ActionContext): Promise<ActionResult> => {
+    const { EDRActionService } = await import('../services/edr-action.service');
+    
+    const result = await EDRActionService.executeAction({
+      provider: 'sentinelone',
+      action: 'blocklist_hash',
+      parameters: ctx.inputs,
+      executionStepId: ctx.executionStepId || '',
+    });
+    
+    return {
+      success: result.success,
+      output: result.data,
+      error: result.error,
+    };
+  }
+};
+
 // --- Register All ---
 export function registerBuiltInActions() {
     ActionRegistry.register(BlockIPAction);
     ActionRegistry.register(SendEmailAction);
+    
+    // EDR Actions
+    ActionRegistry.register(CrowdStrikeIsolateHostAction);
+    ActionRegistry.register(CrowdStrikeLiftContainmentAction);
+    ActionRegistry.register(SentinelOneQuarantineHostAction);
+    ActionRegistry.register(SentinelOneUnquarantineHostAction);
+    ActionRegistry.register(SentinelOneBlocklistHashAction);
 }
