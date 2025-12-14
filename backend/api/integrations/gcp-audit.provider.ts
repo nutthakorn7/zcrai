@@ -232,7 +232,7 @@ export class GCPAuditProvider {
         throw new Error(`GCP API error: ${response.status} ${response.statusText}`);
       }
 
-      const data = await response.json();
+      const data: any = await response.json();
       return data.entries || [];
     } catch (error: any) {
       console.error('Failed to fetch GCP logs:', error.message);

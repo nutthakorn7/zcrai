@@ -156,7 +156,7 @@ export class SentinelOneActions {
       }),
     });
 
-    const data = await response.json();
+    const data: any = await response.json();
 
     if (response.ok && data.data?.affected > 0) {
       return {
@@ -190,7 +190,7 @@ export class SentinelOneActions {
       }),
     });
 
-    const data = await response.json();
+    const data: any = await response.json();
 
     if (response.ok && data.data?.affected > 0) {
       return {
@@ -231,7 +231,7 @@ export class SentinelOneActions {
       }),
     });
 
-    const data = await response.json();
+    const data: any = await response.json();
 
     if (response.ok && data.data?.id) {
       return {
@@ -260,7 +260,7 @@ export class SentinelOneActions {
       },
     });
 
-    const data = await response.json();
+    const data: any = await response.json();
 
     if (response.ok && data.data?.length > 0) {
       return {

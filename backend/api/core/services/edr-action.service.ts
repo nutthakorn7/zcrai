@@ -152,20 +152,19 @@ export class EDRActionService {
 
       if (!step) return;
 
-      const currentOutput = (step.output as any) || {};
-      const auditLog = currentOutput.auditLog || [];
+      const currentResult = (step.result as any) || {};
+      const auditLog = currentResult.auditLog || [];
       auditLog.push(logEntry);
 
-      // Update step output
+      // Update step result
       await db
         .update(playbookExecutionSteps)
         .set({
-          output: {
-            ...currentOutput,
+          result: {
+            ...currentResult,
             auditLog,
             lastAction: logEntry,
           } as any,
-          updatedAt: new Date(),
         })
         .where(eq(playbookExecutionSteps.id, executionStepId));
     } catch (error) {
