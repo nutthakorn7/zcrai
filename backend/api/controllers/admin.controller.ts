@@ -2,6 +2,7 @@ import { Elysia, t } from 'elysia'
 import { jwt } from '@elysiajs/jwt'
 import { AdminService } from '../core/services/admin.service'
 import { LogRetentionService } from '../core/services/log-retention.service'
+import { MetricsService } from '../core/services/metrics.service'
 
 // Middleware: Check if user is superadmin
 const requireSuperAdmin = async (jwt: any, access_token: any) => {
@@ -223,3 +224,15 @@ export const adminController = new Elysia({ prefix: '/admin' })
       return { error: e.message }
     }
   })
+
+  // ==================== SYSTEM METRICS ====================
+  .get('/metrics', async ({ jwt, cookie: { access_token }, set }) => {
+    try {
+      await requireSuperAdmin(jwt, access_token)
+      return { success: true, data: MetricsService.getMetrics() }
+    } catch (e: any) {
+      set.status = e.message === 'Forbidden: Super Admin access required' ? 403 : 401
+      return { error: e.message }
+    }
+  })
+
