@@ -25,38 +25,34 @@ export const notificationController = new Elysia({ prefix: '/notifications' })
   })
 
   // ==================== LIST NOTIFICATIONS ====================
-  .get('/', async ({ user, query }) => {
-    // @ts-ignore
+  .get('/', async ({ user, query }: any) => {
     const isRead = query.isRead === 'true' ? true : query.isRead === 'false' ? false : undefined
-    // @ts-ignore
-    return await NotificationService.list(user.id, { isRead })
+    const notifications = await NotificationService.list(user.id, { isRead })
+    return { success: true, data: notifications }
   })
 
   // ==================== GET UNREAD COUNT ====================
-  .get('/unread-count', async ({ user }) => {
-    // @ts-ignore
+  .get('/unread-count', async ({ user }: any) => {
     const count = await NotificationService.getUnreadCount(user.id)
-    return { count }
+    return { success: true, data: { count } }
   })
 
   // ==================== MARK AS READ ====================
-  .patch('/:id/read', async ({ user, params: { id } }) => {
-    // @ts-ignore
-    await NotificationService.markAsRead(user.id, id)
-    return { success: true }
+  .patch('/:id/read', async ({ user, params: { id } }: any) => {
+    const notification = await NotificationService.markAsRead(user.id, id)
+    return { success: true, data: notification }
   })
 
   // ==================== MARK ALL AS READ ====================
-  .patch('/read-all', async ({ user }) => {
-    // @ts-ignore
-    await NotificationService.markAllAsRead(user.id)
-    return { success: true }
+  .patch('/mark-all-read', async ({ user }: any) => {
+    const result = await NotificationService.markAllAsRead(user.id)
+    return { success: true, data: result }
   })
 
   // ==================== GET NOTIFICATION RULES ====================
-  .get('/rules', async ({ user }) => {
-    // @ts-ignore
-    return await NotificationService.getOrCreateRules(user.id)
+  .get('/rules', async ({ user }: any) => {
+    const rules = await NotificationService.getOrCreateRules(user.id)
+    return { success: true, data: rules }
   })
 
   // ==================== UPDATE NOTIFICATION RULE ====================

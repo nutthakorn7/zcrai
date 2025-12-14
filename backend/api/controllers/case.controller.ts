@@ -26,42 +26,39 @@ export const caseController = new Elysia({ prefix: '/cases' })
   })
 
   // ==================== LIST CASES ====================
-  .get('/', async ({ user, query }) => {
-    // @ts-ignore
-    return await CaseService.list(user.tenantId, {
-      status: query.status as string,
-      assigneeId: query.assigneeId as string
-    })
+  .get('/', async ({ user, query }: any) => {
+    const cases = await CaseService.list(user.tenantId, query)
+    return { success: true, data: cases }
   })
 
-  // ==================== CREATE CASE ====================
-  .post('/', async ({ user, body }) => {
-    // @ts-ignore
-    return await CaseService.create(user.tenantId, user.id, body)
+  //CREATE CASE ====================
+  .post('/', async ({ user, body }: any) => {
+    const newCase = await CaseService.create(user.tenantId, user.id, body)
+    return { success: true, data: newCase }
   }, { body: CreateCaseSchema })
 
   // ==================== GET CASE DETAIL ====================
-  .get('/:id', async ({ user, params: { id } }) => {
-    // @ts-ignore
-    return await CaseService.getById(user.tenantId, id)
+  .get('/:id', async ({ user, params: { id } }: any) => {
+    const caseDetail = await CaseService.getById(id, user.tenantId)
+    if (!caseDetail) throw new Error('Case not found')
+    return { success: true, data: caseDetail }
   })
 
   // ==================== UPDATE CASE ====================
-  .put('/:id', async ({ user, params: { id }, body }) => {
-    // @ts-ignore
-    return await CaseService.update(user.tenantId, id, user.id, body)
+  .put('/:id', async ({ user, params: { id }, body }: any) => {
+    const updated = await CaseService.update(user.tenantId, id, user.id, body)
+    return { success: true, data: updated }
   }, { body: UpdateCaseSchema })
 
   // ==================== ADD COMMENT ====================
-  .post('/:id/comments', async ({ user, params: { id }, body }) => {
-    // @ts-ignore
-    return await CaseService.addComment(user.tenantId, id, user.id, body.content)
+  .post('/:id/comments', async ({ user, params: { id }, body }: any) => {
+    const comment = await CaseService.addComment(id, user.tenantId, user.id, body.content)
+    return { success: true, data: comment }
   }, { body: AddCommentSchema })
 
   // ==================== UPLOAD ATTACHMENT ====================
-  .post('/:id/attachments', async ({ user, params: { id }, body }) => {
+  .post('/:id/attachments', async ({ user, params: { id }, body }: any) => {
     // Elysia auto-parses multipart/form-data
-    // @ts-ignore
     const file = body?.file
     if (!file) {
       throw new Error('No file provided')
