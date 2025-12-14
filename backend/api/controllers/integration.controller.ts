@@ -2,15 +2,24 @@ import { Elysia } from 'elysia'
 import { jwt } from '@elysiajs/jwt'
 import { IntegrationService } from '../core/services/integration.service'
 import { tenantAdminOnly } from '../middlewares/auth.middleware'
-import { AddSentinelOneSchema, AddCrowdStrikeSchema, AddAISchema, UpdateIntegrationSchema } from '../validators/integration.validator'
+import { AddSentinelOneSchema, AddCrowdStrikeSchema, AddAISchema, UpdateIntegrationSchema, AddAWSSchema } from '../validators/integration.validator'
 
 const COLLECTOR_API_KEY = process.env.COLLECTOR_API_KEY || 'dev_collector_key_change_in_production'
+
+interface AddAIBody {
+  apiKey: string;
+  model?: string;
+  baseUrl?: string;
+  label?: string;
+}
 
 export const integrationController = new Elysia({ prefix: '/integrations' })
   .use(jwt({
     name: 'jwt',
     secret: process.env.JWT_SECRET || 'super_secret_dev_key',
   }))
+
+
 
   // ==================== COLLECTOR ENDPOINT (ไม่ต้อง JWT - ใช้ API Key) ====================
   .get('/collector', async ({ query, headers, set }) => {
@@ -121,7 +130,7 @@ export const integrationController = new Elysia({ prefix: '/integrations' })
   // ==================== LIST INTEGRATIONS ====================
   .get('/', async ({ jwt, cookie: { access_token }, set }) => {
     try {
-      const payload = await jwt.verify(access_token.value)
+      const payload = await jwt.verify(access_token.value as string)
       if (!payload) throw new Error('Unauthorized')
 
       return await IntegrationService.list(payload.tenantId as string)
@@ -134,7 +143,7 @@ export const integrationController = new Elysia({ prefix: '/integrations' })
   // ==================== ADD SENTINELONE ====================
   .post('/sentinelone', async ({ body, jwt, cookie: { access_token }, set }) => {
     try {
-      const payload = await jwt.verify(access_token.value)
+      const payload = await jwt.verify(access_token.value as string)
       if (!payload) throw new Error('Unauthorized')
 
       const integration = await IntegrationService.addSentinelOne(payload.tenantId as string, body)
@@ -149,7 +158,7 @@ export const integrationController = new Elysia({ prefix: '/integrations' })
   // ==================== ADD CROWDSTRIKE ====================
   .post('/crowdstrike', async ({ body, jwt, cookie: { access_token }, set }) => {
     try {
-      const payload = await jwt.verify(access_token.value)
+      const payload = await jwt.verify(access_token.value as string)
       if (!payload) throw new Error('Unauthorized')
 
       const integration = await IntegrationService.addCrowdStrike(payload.tenantId as string, body)
@@ -164,7 +173,7 @@ export const integrationController = new Elysia({ prefix: '/integrations' })
   // ==================== ADD AI PROVIDER ====================
   .post('/ai/:provider', async ({ jwt, cookie: { access_token }, params, body, set }) => {
     try {
-      const payload = await jwt.verify(access_token.value)
+      const payload = await jwt.verify(access_token.value as string)
       if (!payload) throw new Error('Unauthorized')
 
       const { apiKey, model, baseUrl, label } = body as AddAIBody
@@ -184,10 +193,41 @@ export const integrationController = new Elysia({ prefix: '/integrations' })
     }
   })
 
+  // ==================== ADD AWS ====================
+  .post('/aws', async ({ jwt, cookie: { access_token }, body, set }) => {
+    try {
+      const payload = await jwt.verify(access_token.value as string)
+      if (!payload) throw new Error('Unauthorized')
+
+      // body type is inferred by schema but for safety we can cast or let it be
+      // @ts-ignore
+      const integration = await IntegrationService.addAWS(payload.tenantId as string, body)
+      set.status = 201
+      return { message: 'AWS integration added successfully', integration }
+    } catch (e: any) {
+      set.status = 400
+      return { error: e.message }
+    }
+  }, { body: AddAWSSchema })
+
+  // ==================== SYNC AWS (Manual Trigger) ====================
+  .post('/aws/sync', async ({ jwt, cookie: { access_token }, set }) => {
+    try {
+      const payload = await jwt.verify(access_token.value as string)
+      if (!payload) throw new Error('Unauthorized')
+
+      const result = await IntegrationService.syncAWS(payload.tenantId as string)
+      return { message: 'AWS CloudTrail Sync Complete', result }
+    } catch (e: any) {
+      set.status = 500
+      return { error: e.message }
+    }
+  })
+
   // ==================== ADD ENRICHMENT PROVIDER (VirusTotal, AbuseIPDB) ====================
   .post('/enrichment/:provider', async ({ jwt, cookie: { access_token }, params, body, set }) => {
     try {
-      const payload = await jwt.verify(access_token.value)
+      const payload = await jwt.verify(access_token.value as string)
       if (!payload) throw new Error('Unauthorized')
 
       const { apiKey, label } = body as { apiKey: string; label?: string }
@@ -211,7 +251,7 @@ export const integrationController = new Elysia({ prefix: '/integrations' })
   // ==================== GET CONFIG (สำหรับ Edit mode) ====================
   .get('/:id/config', async ({ params, jwt, cookie: { access_token }, set }) => {
     try {
-      const payload = await jwt.verify(access_token.value)
+      const payload = await jwt.verify(access_token.value as string)
       if (!payload) throw new Error('Unauthorized')
 
       const config = await IntegrationService.getConfig(params.id, payload.tenantId as string)
@@ -225,7 +265,7 @@ export const integrationController = new Elysia({ prefix: '/integrations' })
   // ==================== UPDATE INTEGRATION (Full update: URL, Token, fetchSettings) ====================
   .put('/:id', async ({ params, body, jwt, cookie: { access_token }, set }) => {
     try {
-      const payload = await jwt.verify(access_token.value)
+      const payload = await jwt.verify(access_token.value as string)
       if (!payload) throw new Error('Unauthorized')
 
       // ⭐ ใช้ updateFull แทน update เพื่อรองรับ full edit
@@ -257,7 +297,7 @@ export const integrationController = new Elysia({ prefix: '/integrations' })
   // ==================== DELETE INTEGRATION ====================
   .delete('/:id', async ({ params, jwt, cookie: { access_token }, set }) => {
     try {
-      const payload = await jwt.verify(access_token.value)
+      const payload = await jwt.verify(access_token.value as string)
       if (!payload) throw new Error('Unauthorized')
 
       // ⭐ เรียก Collector API เพื่อ cancel sync ก่อนลบ

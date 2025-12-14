@@ -40,6 +40,15 @@ export const AddAISchema = t.Object({
   label: t.Optional(t.String()),
 })
 
+export const AddAWSSchema = t.Object({
+  accessKeyId: t.String(),
+  secretAccessKey: t.String(),
+  region: t.String(),
+  bucketName: t.String(),
+  roleArn: t.Optional(t.String()), // Optional for now, maybe required later for AssumeRole
+  label: t.Optional(t.String()),
+})
+
 export const UpdateIntegrationSchema = t.Object({
   label: t.Optional(t.String()),
   isActive: t.Optional(t.Boolean()),

@@ -2,6 +2,7 @@ import { db } from '../../infra/db'
 import { apiKeys, collectorStates } from '../../infra/db/schema'
 import { eq, and } from 'drizzle-orm'
 import { Encryption } from '../../utils/encryption'
+import { AWSCloudTrailProvider } from '../providers/aws-cloudtrail.provider'
 
 export const IntegrationService = {
   // ==================== LIST INTEGRATIONS ====================
@@ -475,6 +476,35 @@ export const IntegrationService = {
     return integration
   },
 
+  // ==================== ADD AWS ====================
+  async addAWS(tenantId: string, data: { accessKeyId: string; secretAccessKey: string; region: string; bucketName: string; roleArn?: string; label?: string }) {
+    if (!data.accessKeyId || !data.secretAccessKey) throw new Error('AWS Credentials are required')
+
+    // Encrypt
+    const encryptedKey = Encryption.encrypt(JSON.stringify({
+      accessKeyId: data.accessKeyId,
+      secretAccessKey: data.secretAccessKey,
+      region: data.region,
+      bucketName: data.bucketName,
+      roleArn: data.roleArn
+    }))
+
+    // Insert
+    const [integration] = await db.insert(apiKeys).values({
+      tenantId,
+      provider: 'aws-cloudtrail',
+      encryptedKey,
+      keyId: data.accessKeyId,
+      label: data.label || 'AWS CloudTrail',
+      lastSyncStatus: 'pending',
+    }).returning()
+
+    // Trigger Initial Sync (Non-blocking)
+    this.syncAWS(tenantId).catch(err => console.error('Initial AWS Sync failed:', err))
+
+    return integration
+  },
+
   // ==================== ADD ENRICHMENT PROVIDER ====================
   async addEnrichment(tenantId: string, provider: string, data: { apiKey: string; label: string }) {
     // Save Encrypted Key
@@ -751,7 +781,6 @@ export const IntegrationService = {
     return state || null
   },
 
-  // อัพเดท state ของ collector (upsert)
   async updateCollectorState(
     tenantId: string, 
     provider: string, 
@@ -791,6 +820,52 @@ export const IntegrationService = {
         })
         .returning()
       return created
+    }
+  },
+
+  // ==================== SYNC AWS CLOUDTRAIL ====================
+  async syncAWS(tenantId: string) {
+    // 1. Get Integration Config
+    const [integration] = await db.select().from(apiKeys)
+      .where(and(eq(apiKeys.tenantId, tenantId), eq(apiKeys.provider, 'aws-cloudtrail')))
+      .limit(1);
+
+    if (!integration) {
+      console.warn(`No AWS integration found for tenant ${tenantId}`);
+      return { processed: 0, alerts: 0, error: 'Integration not found' };
+    }
+
+    let config;
+    try {
+      const decrypted = Encryption.decrypt(integration.encryptedKey);
+      config = JSON.parse(decrypted);
+    } catch (e) {
+      console.error('Failed to decrypt AWS config:', e);
+      return { processed: 0, alerts: 0, error: 'Decryption failed' };
+    }
+
+    const provider = new AWSCloudTrailProvider({
+      accessKeyId: config.accessKeyId,
+      secretAccessKey: config.secretAccessKey,
+      region: config.region,
+      bucketName: config.bucketName,
+      roleArn: config.roleArn
+    });
+    
+    // 2. Fetch Logs
+    try {
+      const logs = await provider.fetchLogs();
+      
+      // 3. Process & Alert
+      const result = await provider.processLogs(tenantId, logs);
+      
+      // 4. Update Sync Status
+      await this.updateSyncStatus(tenantId, 'aws-cloudtrail', 'success');
+      return result;
+    } catch (e: any) {
+      console.error('AWS Sync Error:', e);
+      await this.updateSyncStatus(tenantId, 'aws-cloudtrail', 'error', e.message);
+      return { processed: 0, alerts: 0, error: e.message };
     }
   }
 }

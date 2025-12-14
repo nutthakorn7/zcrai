@@ -26,11 +26,13 @@ import {
 // Import logos
 import sentineloneLogo from '../../assets/logo/sentinelone.png';
 import crowdstrikeLogo from '../../assets/logo/crowdstrike.png';
+import awsLogo from '../../assets/logo/aws.png';
 
 // Logo mapping for providers
 const providerLogos: { [key: string]: string } = {
   sentinelone: sentineloneLogo,
   crowdstrike: crowdstrikeLogo,
+  'aws-cloudtrail': awsLogo,
 };
 
 // Severity color mapping (Can also be moved to a constants file if used elsewhere)
@@ -39,12 +41,14 @@ const severityColors = {
   high: '#FFA735',
   medium: '#FFEE00',
   low: '#BBF0FF',
+  info: '#3B82F6', // Added info for cloud logs usually
 };
 
 // Source color mapping
 const sourceColors: { [key: string]: string } = {
   crowdstrike: '#EF4444', // Red
   sentinelone: '#A855F7', // Purple
+  'aws-cloudtrail': '#F59E0B', // Orange
 };
 
 export default function DashboardPage() {
@@ -145,7 +149,7 @@ export default function DashboardPage() {
       
       const activeProviders = activeIntegrations
         .map((i: any) => i.provider.toLowerCase())
-        .filter((p: string) => ['sentinelone', 'crowdstrike'].includes(p));
+        .filter((p: string) => ['sentinelone', 'crowdstrike', 'aws-cloudtrail'].includes(p));
         
       const uniqueActiveProviders = Array.from(new Set(activeProviders)) as string[];
       setAvailableProviders(uniqueActiveProviders);
@@ -454,6 +458,20 @@ export default function DashboardPage() {
                 </HerouiTooltip>
               </>
             )}
+
+            {(availableProviders.includes('aws-cloudtrail') || selectedProvider === 'aws-cloudtrail') && (
+              <>
+                <div className="w-px bg-white/5 my-1 mx-1" />
+                <HerouiTooltip content="AWS CloudTrail">
+                  <button
+                    onClick={() => setSelectedProvider('aws-cloudtrail')}
+                    className={`p-2 rounded-md transition-all ${selectedProvider === 'aws-cloudtrail' ? 'bg-content2 shadow-sm' : 'opacity-50 hover:opacity-100'}`}
+                  >
+                    <img src={awsLogo} alt="AWS" className="w-5 h-5 object-contain" />
+                  </button>
+                </HerouiTooltip>
+              </>
+            )}
           </div>
 
           <DateRangePicker 
@@ -560,6 +578,11 @@ export default function DashboardPage() {
                     SentinelOne
                   </Chip>
                 )}
+                {timelineSources.includes('aws-cloudtrail') && (
+                  <Chip size="sm" variant="flat" classNames={{ base: "bg-orange-500/10", content: "text-orange-500" }} startContent={<div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />}>
+                    AWS CloudTrail
+                  </Chip>
+                )}
               </div>
             </div>
             <div className="h-[280px]">
@@ -568,7 +591,7 @@ export default function DashboardPage() {
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
                   <XAxis dataKey="time" stroke="#4A4D50" fontSize={10} tickLine={false} axisLine={false} />
                   <YAxis stroke="#4A4D50" fontSize={10} tickLine={false} axisLine={false} />
-                  <Tooltip 
+                <Tooltip 
                     cursor={{ stroke: 'rgba(255,255,255,0.1)', strokeWidth: 2 }}
                     content={({ active, payload, label }) => {
                       if (!active || !payload || payload.length === 0) return null;
@@ -588,11 +611,21 @@ export default function DashboardPage() {
                           )}
                           {/* SentinelOne Section */}
                           {data.sentinelone_total > 0 && (
-                            <div>
+                            <div className="mb-2">
                               <div className="flex items-center gap-2 mb-1">
                                 <img src={providerLogos['sentinelone']} alt="SentinelOne" className="w-4 h-4" />
                                 <span className="text-xs font-medium text-foreground">SentinelOne</span>
                                 <span className="text-xs font-bold text-[#A855F7] ml-auto">{data.sentinelone_total}</span>
+                              </div>
+                            </div>
+                          )}
+                          {/* AWS Section */}
+                          {data['aws-cloudtrail_total'] > 0 && (
+                            <div>
+                              <div className="flex items-center gap-2 mb-1">
+                                <img src={providerLogos['aws-cloudtrail']} alt="AWS" className="w-4 h-4" />
+                                <span className="text-xs font-medium text-foreground">AWS CloudTrail</span>
+                                <span className="text-xs font-bold text-[#F59E0B] ml-auto">{data['aws-cloudtrail_total']}</span>
                               </div>
                             </div>
                           )}
@@ -605,6 +638,7 @@ export default function DashboardPage() {
                   />
                   <Line type="monotone" dataKey="crowdstrike_total" name="crowdstrike_total" stroke="#EF4444" strokeWidth={2.5} dot={false} activeDot={{ r: 6, fill: '#EF4444' }} />
                   <Line type="monotone" dataKey="sentinelone_total" name="sentinelone_total" stroke="#A855F7" strokeWidth={2.5} dot={false} activeDot={{ r: 6, fill: '#A855F7' }} />
+                  <Line type="monotone" dataKey="aws-cloudtrail_total" name="aws-cloudtrail_total" stroke="#F59E0B" strokeWidth={2.5} dot={false} activeDot={{ r: 6, fill: '#F59E0B' }} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -684,7 +718,7 @@ export default function DashboardPage() {
                   const severityColor = severityColors[detection.severity.toLowerCase() as keyof typeof severityColors] || severityColors.low;
                   const source = detection.source?.toLowerCase() || '';
                   const sourceColor = sourceColors[source] || '#6B7280';
-                  const sourceLogo = source === 'crowdstrike' ? crowdstrikeLogo : source === 'sentinelone' ? sentineloneLogo : null;
+                  const sourceLogo = providerLogos[source] || null;
                   
                   return (
                     <div
