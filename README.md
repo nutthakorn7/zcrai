@@ -36,6 +36,8 @@ zcrAI is a modern Security Operations Center (SOC) platform designed for MSSPs, 
 
 ### 📊 **Monitoring & Dashboards**
 - ✅ Real-time security dashboards with 15+ widgets
+- ✅ **Drag-and-drop Dashboard Builder** with custom layouts
+- ✅ **Custom Widget Creator** - Build your own charts with Query Builder
 - ✅ Customizable Recharts visualizations
 - ✅ Executive and operational views
 - ✅ Timeline reconstruction for incident analysis
@@ -79,9 +81,11 @@ zcrAI is a modern Security Operations Center (SOC) platform designed for MSSPs, 
 
 ### ☁️ **Cloud & Integrations**
 - ✅ AWS CloudTrail integration
+- ✅ **Microsoft 365 / Azure AD** integration
 - ✅ SentinelOne & CrowdStrike EDR connectors
 - ✅ REST API with OpenAPI/Swagger docs
 - ✅ Webhook support for custom integrations
+- ✅ **SSO (OIDC)** - Google, Okta, Azure AD
 
 ---
 
