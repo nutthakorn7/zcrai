@@ -38,10 +38,16 @@ export const caseController = new Elysia({ prefix: '/cases' })
   }, { body: CreateCaseSchema })
 
   // ==================== GET CASE DETAIL ====================
-  .get('/:id', async ({ user, params: { id } }: any) => {
-    const caseDetail = await CaseService.getById(id, user.tenantId)
-    if (!caseDetail) throw new Error('Case not found')
-    return { success: true, data: caseDetail }
+  .get('/:id', async ({ user, params: { id }, set }: any) => {
+    try {
+      const caseDetail = await CaseService.getById(user.tenantId, id) // Fixed: tenantId first
+      if (!caseDetail) throw new Error('Case not found')
+      return { success: true, data: caseDetail }
+    } catch (error: any) {
+      console.error('Get case detail failed:', error.message, error.stack);
+      set.status = 500;
+      return { error: 'Failed to get case', details: error.message };
+    }
   })
 
   // ==================== UPDATE CASE ====================
@@ -51,9 +57,15 @@ export const caseController = new Elysia({ prefix: '/cases' })
   }, { body: UpdateCaseSchema })
 
   // ==================== ADD COMMENT ====================
-  .post('/:id/comments', async ({ user, params: { id }, body }: any) => {
-    const comment = await CaseService.addComment(id, user.tenantId, user.id, body.content)
-    return { success: true, data: comment }
+  .post('/:id/comments', async ({ user, params: { id }, body, set }: any) => {
+    try {
+      const comment = await CaseService.addComment(user.tenantId, id, user.id, body.content) // Fixed: tenantId first
+      return { success: true, data: comment }
+    } catch (error: any) {
+      console.error('Add comment failed:', error.message, error.stack);
+      set.status = 500;
+      return { error: 'Failed to add comment', details: error.message };
+    }
   }, { body: AddCommentSchema })
 
   // ==================== UPLOAD ATTACHMENT ====================

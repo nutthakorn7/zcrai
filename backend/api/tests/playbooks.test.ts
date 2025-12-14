@@ -10,17 +10,18 @@ describe('Playbook Controller', () => {
         headers = await getAuthHeaders()
 
         // Create a case for testing execution
-        const { data, error } = await api.cases.index.post({
+        const { data, error } = await api.cases.post({
             title: 'Test Case for Playbook',
             description: 'This case is used to test playbook execution',
             severity: 'medium',
             status: 'new'
         }, { headers })
 
-        // @ts-ignore
-        createdCaseId = data?.id
+        // @ts-ignore - response format is { success: true, data: { id, ... } }
+        createdCaseId = data?.data?.id
 
         if (!createdCaseId) {
+            console.error('Case creation response:', data, error)
             throw new Error('Case creation failed, ID missing')
         }
     })

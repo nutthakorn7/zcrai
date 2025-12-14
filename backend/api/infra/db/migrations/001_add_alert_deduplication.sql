@@ -2,6 +2,10 @@
 -- Date: 2025-12-14
 -- Description: Adds fingerprinting and deduplication tracking to alerts table
 
+-- Add case_id column if missing
+ALTER TABLE alerts 
+  ADD COLUMN IF NOT EXISTS case_id UUID REFERENCES cases(id);
+
 -- Add new columns
 ALTER TABLE alerts 
   ADD COLUMN IF NOT EXISTS fingerprint VARCHAR(64),

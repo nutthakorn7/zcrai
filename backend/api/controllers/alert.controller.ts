@@ -39,15 +39,20 @@ export const alertController = new Elysia({ prefix: '/alerts' })
   })
 
   // Create alert
-  .post('/', async ({ body, user }: any) => {
+  .post('/', async ({ body, user, set }: any) => {
     if (!user) throw new Error('Unauthorized');
 
-    const alert = await AlertService.create({
-      tenantId: user.tenantId,
-      ...body,
-    });
-
-    return { success: true, data: alert };
+    try {
+      const alert = await AlertService.create({
+        tenantId: user.tenantId,
+        ...body,
+      });
+      return { success: true, data: alert };
+    } catch (error: any) {
+      console.error('Alert creation failed:', error.message, error.stack);
+      set.status = 500;
+      return { error: 'Failed to create alert', details: error.message };
+    }
   }, { body: CreateAlertSchema })
   // Get alert by ID
   .get('/:id', async ({ params, user }: any) => {
@@ -61,10 +66,10 @@ export const alertController = new Elysia({ prefix: '/alerts' })
   .patch('/:id/review', async ({ params, user }: any) => {
     if (!user) throw new Error('Unauthorized');
 
-    const alert = await AlertService.review(
+    const alert = await AlertService.updateStatus(
       params.id,
       user.tenantId,
-      user.id
+      'reviewing'
     );
 
     return { success: true, data: alert };
@@ -74,11 +79,10 @@ export const alertController = new Elysia({ prefix: '/alerts' })
   .patch('/:id/dismiss', async ({ params, body, user }: any) => {
     if (!user) throw new Error('Unauthorized');
 
-    const alert = await AlertService.dismiss(
+    const alert = await AlertService.updateStatus(
       params.id,
       user.tenantId,
-      user.id,
-      body.reason || 'No reason provided'
+      'dismissed'
     );
 
     return { success: true, data: alert };
