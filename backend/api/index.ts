@@ -21,6 +21,7 @@ import { notificationChannelController } from './controllers/notification-channe
 import { playbookController } from './controllers/playbook.controller'
 import { analyticsController } from './controllers/analytics.controller'
 import { realtimeController } from './controllers/realtime.controller'
+import { parserController } from './controllers/parser.controller'
 import { SchedulerService } from './core/services/scheduler.service'
 import { LogRetentionService } from './core/services/log-retention.service'
 import { EnrichmentWorker } from './workers/enrichment.worker'
@@ -127,6 +128,7 @@ const app = new Elysia()
   .use(playbookController)
   .use(analyticsController)
   .use(realtimeController)
+  .use(parserController)
   .use(logsController)
   .use(caseController)
   .use(alertController)

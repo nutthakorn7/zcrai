@@ -480,3 +480,20 @@ export const systemConfig = pgTable('system_config', {
   description: text('description'),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 })
+
+// ==================== CUSTOM PARSERS ====================
+export const parsers = pgTable('parsers', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  tenantId: uuid('tenant_id').references(() => tenants.id).notNull(),
+  name: text('name').notNull(),
+  description: text('description'),
+  type: text('type').notNull(), // 'regex' | 'grok' | 'json_path'
+  pattern: text('pattern').notNull(), // The parsing pattern
+  fieldMappings: jsonb('field_mappings'), // Map extracted fields to log fields
+  testInput: text('test_input'), // Sample log for testing
+  isActive: boolean('is_active').default(true).notNull(),
+  createdBy: uuid('created_by').references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+})
+

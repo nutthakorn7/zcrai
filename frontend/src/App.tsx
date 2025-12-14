@@ -18,6 +18,7 @@ import ProfilePage from "./pages/settings/ProfilePage";
 import TenantPage from "./pages/settings/TenantPage";
 import NotificationChannelsPage from "./pages/settings/NotificationChannelsPage";
 import RetentionSettingsPage from "./pages/settings/RetentionSettingsPage";
+import ParsersPage from "./pages/settings/ParsersPage";
 import CaseBoardPage from "./pages/cases";
 import CaseDetailPage from "./pages/cases/CaseDetailPage";
 import AlertQueuePage from "./pages/alerts/AlertQueuePage";
@@ -218,6 +219,7 @@ function App() {
           <Route path="users" element={<UserPage />} />
           <Route path="tenants" element={<TenantPage />} />
           <Route path="retention" element={<RetentionSettingsPage />} />
+          <Route path="parsers" element={<ParsersPage />} />
         </Route>
       </Routes>
       </BrowserRouter>

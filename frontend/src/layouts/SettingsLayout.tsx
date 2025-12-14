@@ -88,6 +88,15 @@ export default function SettingsLayout() {
                 >
                   Data Retention
                 </NavLink>
+
+                <NavLink 
+                  to="/settings/parsers"
+                  className={({ isActive }) => 
+                    `px-4 py-2 rounded-lg transition-colors ${isActive ? 'bg-primary/20 text-primary' : 'hover:bg-default-100'}`
+                  }
+                >
+                  Custom Parsers
+                </NavLink>
               </>
             )}
           </nav>
