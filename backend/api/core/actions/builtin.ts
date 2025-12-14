@@ -226,6 +226,82 @@ const SentinelOneBlocklistHashAction: Action = {
   }
 };
 
+// --- Memory Forensics: Capture Memory Dump ---
+const CaptureMemoryDumpAction: Action = {
+  id: 'capture_memory_dump',
+  name: 'Forensics: Capture Memory Dump',
+  description: 'Capture memory dump from a target host for forensic analysis',
+  version: '1.0.0',
+  schema: {
+    type: 'object',
+    properties: {
+      hostname: { type: 'string', description: 'Target hostname' },
+      collectedBy: { type: 'string', description: 'Analyst performing collection' },
+      caseId: { type: 'string', description: 'Associated case ID' },
+    },
+    required: ['hostname', 'collectedBy']
+  },
+  execute: async (ctx: ActionContext): Promise<ActionResult> => {
+    const { ForensicsService } = await import('../services/forensics.service');
+    const { EvidenceService } = await import('../services/evidence.service');
+    
+    const { hostname, collectedBy, caseId } = ctx.inputs;
+    
+    // Capture memory dump
+    const result = await ForensicsService.captureMemoryDump(hostname, collectedBy, caseId);
+    
+    // Register as evidence
+    if (caseId) {
+      await EvidenceService.registerEvidence({
+        caseId,
+        type: 'memory_dump',
+        name: `${hostname}-memory-${new Date().toISOString()}`,
+        collectedBy,
+        hash: result.hash,
+        metadata: { hostname, captureMethod: 'EDR-initiated' },
+      });
+    }
+    
+    return {
+      success: true,
+      output: result,
+    };
+  }
+};
+
+// --- Memory Forensics: Analyze Memory Dump ---
+const AnalyzeMemoryDumpAction: Action = {
+  id: 'analyze_memory_dump',
+  name: 'Forensics: Analyze Memory Dump',
+  description: 'Perform forensic analysis on memory dump and extract artifacts',
+  version: '1.0.0',
+  schema: {
+    type: 'object',
+    properties: {
+      dumpId: { type: 'string', description: 'Memory dump identifier' },
+      caseId: { type: 'string', description: 'Associated case ID' },
+    },
+    required: ['dumpId', 'caseId']
+  },
+  execute: async (ctx: ActionContext): Promise<ActionResult> => {
+    const { ForensicsService } = await import('../services/forensics.service');
+    
+    const { dumpId, caseId } = ctx.inputs;
+    
+    const analysis = await ForensicsService.analyzeMemoryDump(dumpId, caseId);
+    
+    return {
+      success: true,
+      output: {
+        summary: analysis.summary,
+        findings: analysis.findings,
+        iocs: analysis.iocs,
+        recommendations: analysis.recommendations,
+      },
+    };
+  }
+};
+
 // --- Register All ---
 export function registerBuiltInActions() {
     ActionRegistry.register(BlockIPAction);
@@ -237,4 +313,8 @@ export function registerBuiltInActions() {
     ActionRegistry.register(SentinelOneQuarantineHostAction);
     ActionRegistry.register(SentinelOneUnquarantineHostAction);
     ActionRegistry.register(SentinelOneBlocklistHashAction);
+    
+    // Forensics Actions
+    ActionRegistry.register(CaptureMemoryDumpAction);
+    ActionRegistry.register(AnalyzeMemoryDumpAction);
 }
