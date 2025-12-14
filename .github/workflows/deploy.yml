@@ -1,19 +1,56 @@
-name: Production Build
+name: Deploy to Production
 
 on:
   push:
-    branches: [ main, master, feature/ai-analytics ]
-  pull_request:
-    branches: [ main, master ]
+    branches:
+      - main
+      - feature/ai-analytics
 
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
+    
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-      - name: Build Docker Images
-        run: docker compose -f docker-compose.prod.yml build
+      - name: Add host to known_hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H 45.118.132.160 >> ~/.ssh/known_hosts
+
+      - name: Deploy Code via Rsync
+        run: |
+          rsync -avz --delete \
+            --exclude 'node_modules' \
+            --exclude '.git' \
+            --exclude 'dist' \
+            -e ssh \
+            ./ root@45.118.132.160:/root/zcrAI/
+
+      - name: Install Backend Dependencies
+        run: |
+          ssh root@45.118.132.160 "export PATH=\$PATH:/root/.bun/bin && cd /root/zcrAI/backend/api && bun install"
+
+      - name: Build Frontend
+        run: |
+          ssh root@45.118.132.160 "cd /root/zcrAI/frontend && npm install --legacy-peer-deps && npm run build"
+
+      - name: Deploy Frontend to Nginx
+        run: |
+          ssh root@45.118.132.160 "cp -r /root/zcrAI/frontend/dist/* /var/www/zcrai/"
+
+      - name: Restart Backend
+        run: |
+          ssh root@45.118.132.160 "export PATH=\$PATH:/root/.bun/bin && pm2 restart zcrAI-backend || pm2 start 'bun run /root/zcrAI/backend/api/index.ts' --name zcrAI-backend"
+
+      - name: Health Check
+        run: |
+          sleep 5
+          curl -f http://45.118.132.160/health || exit 1
+          echo "✅ Deployment successful!"
