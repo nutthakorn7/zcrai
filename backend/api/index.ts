@@ -20,6 +20,7 @@ import { playbookController } from './controllers/playbook.controller'
 import { analyticsController } from './controllers/analytics.controller'
 import { realtimeController } from './controllers/realtime.controller'
 import { SchedulerService } from './core/services/scheduler.service'
+import { LogRetentionService } from './core/services/log-retention.service'
 import { EnrichmentWorker } from './workers/enrichment.worker'
 import { db } from './infra/db'
 import { users, tenants } from './infra/db/schema'
@@ -81,6 +82,7 @@ export { seedSuperAdmin }
 // Don't start background workers during tests (they create Redis connections too early)
 if (process.env.NODE_ENV !== 'test') {
   SchedulerService.init()
+  LogRetentionService.init()
   
   // Initialize Scheduler
   // The import for SchedulerService is already at the top of the file.

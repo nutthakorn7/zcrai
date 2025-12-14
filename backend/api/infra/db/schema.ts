@@ -452,3 +452,11 @@ export const enrichmentQueueRelations = relations(enrichmentQueue, ({ one }) => 
     references: [observables.id],
   }),
 }))
+
+// ==================== SYSTEM CONFIGURATION ====================
+export const systemConfig = pgTable('system_config', {
+  key: text('key').primaryKey(), // e.g. 'retention_audit_logs_days'
+  value: text('value').notNull(),
+  description: text('description'),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+})

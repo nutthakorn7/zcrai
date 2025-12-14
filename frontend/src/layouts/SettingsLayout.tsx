@@ -79,6 +79,15 @@ export default function SettingsLayout() {
                 >
                   Tenant Management
                 </NavLink>
+
+                <NavLink 
+                  to="/settings/retention"
+                  className={({ isActive }) => 
+                    `px-4 py-2 rounded-lg transition-colors ${isActive ? 'bg-primary/20 text-primary' : 'hover:bg-default-100'}`
+                  }
+                >
+                  Data Retention
+                </NavLink>
               </>
             )}
           </nav>

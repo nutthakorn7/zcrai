@@ -1,6 +1,7 @@
 import { Elysia, t } from 'elysia'
 import { jwt } from '@elysiajs/jwt'
 import { AdminService } from '../core/services/admin.service'
+import { LogRetentionService } from '../core/services/log-retention.service'
 
 // Middleware: Check if user is superadmin
 const requireSuperAdmin = async (jwt: any, access_token: any) => {
@@ -166,6 +167,59 @@ export const adminController = new Elysia({ prefix: '/admin' })
       return { message: 'Impersonation cleared' }
     } catch (e: any) {
       set.status = e.message === 'Forbidden: Super Admin access required' ? 403 : 401
+      return { error: e.message }
+    }
+  })
+
+  // ==================== LOG RETENTION SETTINGS ====================
+  // GET Settings
+  .get('/settings/retention', async ({ jwt, cookie: { access_token }, set }) => {
+    try {
+      await requireSuperAdmin(jwt, access_token)
+      // Retrieve current settings
+      const auditLogDays = await LogRetentionService.getConfig('retention.audit_logs_days', 90)
+      const notificationDays = await LogRetentionService.getConfig('retention.notifications_days', 30)
+      const sessionDays = await LogRetentionService.getConfig('retention.sessions_days', 7)
+
+      return { auditLogDays, notificationDays, sessionDays }
+    } catch (e: any) {
+      set.status = 401
+      return { error: e.message }
+    }
+  })
+
+  // UPDATE Settings
+  .put('/settings/retention', async ({ body, jwt, cookie: { access_token }, set }) => {
+    try {
+      await requireSuperAdmin(jwt, access_token)
+      const { auditLogDays, notificationDays, sessionDays } = body as any
+
+      if (auditLogDays) await LogRetentionService.setConfig('retention.audit_logs_days', auditLogDays)
+      if (notificationDays) await LogRetentionService.setConfig('retention.notifications_days', notificationDays)
+      if (sessionDays) await LogRetentionService.setConfig('retention.sessions_days', sessionDays)
+
+      return { message: 'Retention settings updated' }
+    } catch (e: any) {
+      set.status = 401
+      return { error: e.message }
+    }
+  }, {
+    body: t.Object({
+      auditLogDays: t.Optional(t.Number()),
+      notificationDays: t.Optional(t.Number()),
+      sessionDays: t.Optional(t.Number())
+    })
+  })
+
+  // TRIGGER CLeanup
+  .post('/settings/retention/trigger', async ({ jwt, cookie: { access_token }, set }) => {
+    try {
+      await requireSuperAdmin(jwt, access_token)
+      // Trigger background cleanup
+      LogRetentionService.cleanup()
+      return { message: 'Cleanup job triggered in background' }
+    } catch (e: any) {
+      set.status = 401
       return { error: e.message }
     }
   })

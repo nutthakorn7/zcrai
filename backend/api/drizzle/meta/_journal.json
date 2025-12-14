@@ -57,6 +57,13 @@
       "when": 1765643905552,
       "tag": "0007_outgoing_sunspot",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1765691023749,
+      "tag": "0008_sloppy_namorita",
+      "breakpoints": true
     }
   ]
 }
