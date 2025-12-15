@@ -2,10 +2,10 @@ import { useEffect, useState, useMemo } from 'react';
 import { Button, Chip, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure, Textarea, Select, SelectItem, Checkbox } from "@heroui/react";
 import { Icon } from '../../shared/ui';
 import { AlertsAPI, Alert } from '../../shared/api/alerts';
-import { useNavigate } from 'react-router-dom';
 import { DonutCard } from '../../components/DonutCard';
 import { FilterBar } from '../../components/FilterBar';
 import { SEVERITY_COLORS, getSeverityColor, getSeverityDotSize } from '../../constants/severity';
+import { AlertDetailModal } from '../../components/alerts/AlertDetailModal';
 
 import { useSearchParams } from 'react-router-dom';
 
@@ -32,10 +32,11 @@ export default function AlertQueuePage() {
   // Modal states
   const { isOpen: isDismissOpen, onOpen: onDismissOpen, onOpenChange: onDismissChange } = useDisclosure();
   const { isOpen: isPromoteOpen, onOpen: onPromoteOpen, onOpenChange: onPromoteChange } = useDisclosure();
+  const { isOpen: isDetailOpen, onOpen: onDetailOpen, onOpenChange: onDetailChange } = useDisclosure();
   const [dismissReason, setDismissReason] = useState('');
   const [caseData, setCaseData] = useState({ title: '', description: '', priority: 'normal' });
+  const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null);
   
-  const navigate = useNavigate();
 
   const fetchAlerts = async () => {
     try {
@@ -308,7 +309,15 @@ export default function AlertQueuePage() {
       case "actions":
         return (
           <div className="flex gap-1">
-            <Button size="sm" variant="light" onPress={() => navigate(`/alerts/${alert.id}`)} isIconOnly>
+            <Button 
+              size="sm" 
+              variant="light" 
+              onPress={() => {
+                setSelectedAlert(alert);
+                onDetailOpen();
+              }} 
+              isIconOnly
+            >
               <Icon.Eye className="w-4 h-4" />
             </Button>
           </div>
@@ -471,6 +480,16 @@ export default function AlertQueuePage() {
           )}
         </ModalContent>
       </Modal>
+
+      {/* Alert Detail Modal */}
+      <AlertDetailModal 
+        alert={selectedAlert}
+        isOpen={isDetailOpen}
+        onClose={() => {
+          onDetailChange();
+          setSelectedAlert(null);
+        }}
+      />
 
       {/* Promote Modal */}
       <Modal isOpen={isPromoteOpen} onOpenChange={onPromoteChange}>

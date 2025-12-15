@@ -16,7 +16,23 @@ export interface Alert {
   promotedCaseId?: string;
   createdAt: string;
   updatedAt: string;
+  fingerprint?: string;
+  duplicateCount?: number;
+  firstSeenAt?: string;
+  lastSeenAt?: string;
 }
+
+export interface AlertCorrelation {
+  id: string;
+  tenantId: string;
+  primaryAlertId: string;
+  relatedAlertIds: string[];
+  reason: 'time_window' | 'same_source_severity' | 'same_ioc';
+  confidence: string; // Stored as string in DB, e.g. "0.75"
+  createdAt: string;
+  relatedAlerts?: Alert[]; // Populated by API
+}
+
 
 export const AlertsAPI = {
   list: async (params?: {
@@ -88,7 +104,7 @@ export const AlertsAPI = {
 
   getCorrelations: async (id: string) => {
     const response = await api.get(`/alerts/${id}/correlations`);
-    return response.data.data;
+    return response.data.data as AlertCorrelation[];
   },
 
   getStats: async () => {
