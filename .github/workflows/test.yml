@@ -37,6 +37,12 @@ jobs:
         working-directory: ./backend/api
         run: bun install
 
+      - name: Run Migrations
+        working-directory: ./backend/api
+        env:
+          DATABASE_URL: postgres://test_user:test_password@localhost:5432/zcrai_test
+        run: bun run db:push
+
       - name: Run Tests
         working-directory: ./backend/api
         env:
