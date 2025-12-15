@@ -28,17 +28,23 @@ import { eq } from 'drizzle-orm'
 
 export const api = treaty<typeof app>(app)
 
-// DEBUG: Verify Seed
+// FIX: Regenerate password hash to ensure it matches Bun.password.verify expectations
+const TEST_PASSWORD = 'SuperAdmin@123!'
 await (async () => {
     try {
         const [u] = await db.select().from(users).where(eq(users.email, 'superadmin@zcr.ai'))
         if (!u) {
             console.error('❌ FATAL: Superadmin not found in test setup! CI Seeding might have failed.')
         } else {
-            console.log(`✅ Found superadmin: ${u.email} (Hash: ${u.passwordHash.substring(0, 20)}...)`)
+            // Regenerate hash using the SAME Bun.password that auth.service uses
+            const freshHash = await Bun.password.hash(TEST_PASSWORD, { algorithm: 'bcrypt', cost: 10 })
+            await db.update(users).set({ passwordHash: freshHash }).where(eq(users.email, 'superadmin@zcr.ai'))
+            console.log(`✅ Updated superadmin password hash`)
+            console.log(`   Email: ${u.email}`)
+            console.log(`   New Hash: ${freshHash.substring(0, 25)}...`)
         }
     } catch (e) {
-        console.error('❌ Error checking superadmin:', e)
+        console.error('❌ Error updating superadmin:', e)
     }
 })()
 
