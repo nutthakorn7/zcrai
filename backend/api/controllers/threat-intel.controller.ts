@@ -63,8 +63,8 @@ export const threatIntelController = new Elysia({ prefix: '/threat-intel' })
   })
 
   // Get provider status
-  .get('/providers', () => {
-    return ThreatIntelService.getProviderStatus();
+  .get('/providers', async () => {
+    return await ThreatIntelService.getProviderStatus();
   }, {
     detail: {
       tags: ['Threat Intel'],

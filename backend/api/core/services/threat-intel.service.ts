@@ -1,11 +1,16 @@
 /**
  * Threat Intel Service
  * Unified interface for all threat intelligence providers
+ * Supports API keys from both env vars AND Integration settings UI
  */
 
 import { VirusTotalProvider } from '../enrichment-providers/virustotal';
 import { AbuseIPDBProvider } from '../enrichment-providers/abuseipdb';
 import { AlienVaultOTXProvider } from '../enrichment-providers/alienvault-otx';
+import { db } from '../../infra/db';
+import { apiKeys } from '../../infra/db/schema';
+import { eq } from 'drizzle-orm';
+import { Encryption } from '../../utils/encryption';
 
 export interface ThreatIntelResult {
   indicator: string;
@@ -39,10 +44,92 @@ const queryCache = new Map<string, { result: ThreatIntelResult; expiresAt: numbe
 const recentQueries: ThreatIntelResult[] = [];
 const CACHE_TTL = 3600000; // 1 hour
 
+// Cache for API keys from DB
+let apiKeyCache: { keys: Map<string, string>; expiresAt: number } | null = null;
+const KEY_CACHE_TTL = 300000; // 5 minutes
+
 export const ThreatIntelService = {
   virustotal: new VirusTotalProvider(),
   abuseipdb: new AbuseIPDBProvider(),
   otx: new AlienVaultOTXProvider(),
+
+  /**
+   * Get API key from DB or env var
+   */
+  async getApiKey(provider: string): Promise<string | undefined> {
+    // Check cache first
+    if (apiKeyCache && apiKeyCache.expiresAt > Date.now()) {
+      return apiKeyCache.keys.get(provider);
+    }
+
+    // Fetch from DB
+    const keys = new Map<string, string>();
+    
+    try {
+      const dbKeys = await db.select()
+        .from(apiKeys)
+        .where(eq(apiKeys.provider, provider));
+
+      for (const key of dbKeys) {
+        try {
+          const decrypted = Encryption.decrypt(key.encryptedKey);
+          // Handle both raw strings and JSON objects
+          let apiKey: string;
+          try {
+            const parsed = JSON.parse(decrypted);
+            apiKey = parsed.apiKey || decrypted;
+          } catch {
+            apiKey = decrypted;
+          }
+          keys.set(key.provider, apiKey);
+        } catch (e) {
+          console.error(`Failed to decrypt ${provider} key:`, e);
+        }
+      }
+    } catch (e) {
+      // DB not available, fall through to env vars
+    }
+
+    // Also load other threat intel providers
+    for (const p of ['virustotal', 'abuseipdb', 'alienvault-otx']) {
+      if (!keys.has(p)) {
+        try {
+          const dbKeys = await db.select()
+            .from(apiKeys)
+            .where(eq(apiKeys.provider, p));
+          
+          for (const key of dbKeys) {
+            try {
+              const decrypted = Encryption.decrypt(key.encryptedKey);
+              let apiKey: string;
+              try {
+                const parsed = JSON.parse(decrypted);
+                apiKey = parsed.apiKey || decrypted;
+              } catch {
+                apiKey = decrypted;
+              }
+              keys.set(key.provider, apiKey);
+            } catch (e) { /* ignore */ }
+          }
+        } catch (e) { /* ignore */ }
+      }
+    }
+
+    // Cache the results
+    apiKeyCache = { keys, expiresAt: Date.now() + KEY_CACHE_TTL };
+
+    // Return from cache or fall back to env var
+    const dbKey = keys.get(provider);
+    if (dbKey) return dbKey;
+
+    // Fallback to env vars
+    switch (provider) {
+      case 'virustotal': return process.env.VIRUSTOTAL_API_KEY;
+      case 'abuseipdb': return process.env.ABUSEIPDB_API_KEY;
+      case 'alienvault-otx': return process.env.OTX_API_KEY;
+      default: return undefined;
+    }
+  },
 
   /**
    * Lookup an indicator across all threat intel sources
@@ -262,13 +349,49 @@ export const ThreatIntelService = {
   },
 
   /**
-   * Check if providers are configured
+   * Check if providers are configured (from DB or env)
    */
-  getProviderStatus(): { name: string; configured: boolean }[] {
-    return [
-      { name: 'VirusTotal', configured: !!process.env.VIRUSTOTAL_API_KEY },
-      { name: 'AbuseIPDB', configured: !!process.env.ABUSEIPDB_API_KEY },
-      { name: 'AlienVault OTX', configured: !!process.env.OTX_API_KEY },
+  async getProviderStatus(): Promise<{ name: string; configured: boolean; source: 'database' | 'env' | 'none' }[]> {
+    const providers = [
+      { name: 'VirusTotal', provider: 'virustotal', envKey: 'VIRUSTOTAL_API_KEY' },
+      { name: 'AbuseIPDB', provider: 'abuseipdb', envKey: 'ABUSEIPDB_API_KEY' },
+      { name: 'AlienVault OTX', provider: 'alienvault-otx', envKey: 'OTX_API_KEY' },
     ];
+
+    const results = [];
+
+    for (const p of providers) {
+      let configured = false;
+      let source: 'database' | 'env' | 'none' = 'none';
+
+      // Check DB first
+      try {
+        const dbKeys = await db.select()
+          .from(apiKeys)
+          .where(eq(apiKeys.provider, p.provider));
+        
+        if (dbKeys.length > 0) {
+          configured = true;
+          source = 'database';
+        }
+      } catch (e) { /* DB not available */ }
+
+      // Fall back to env
+      if (!configured && process.env[p.envKey]) {
+        configured = true;
+        source = 'env';
+      }
+
+      results.push({ name: p.name, configured, source });
+    }
+
+    return results;
+  },
+
+  /**
+   * Clear API key cache (call after saving new keys)
+   */
+  clearKeyCache() {
+    apiKeyCache = null;
   }
 };
