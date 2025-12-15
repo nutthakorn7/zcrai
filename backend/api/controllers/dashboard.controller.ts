@@ -7,10 +7,10 @@ import { tenantAdminOnly } from '../middlewares/auth.middleware'
 import { SchedulerService } from '../core/services/scheduler.service'
 
 // Helper: Get effective tenantId (supports superadmin impersonation)
-const getEffectiveTenantId = (payload: any, selectedTenant: any): string => {
+const getEffectiveTenantId = (payload: any, selectedTenant: { value?: unknown } | undefined): string => {
   // If superadmin and has selected tenant, use that
   if (payload.role === 'superadmin' && selectedTenant?.value) {
-    return selectedTenant.value
+    return String(selectedTenant.value)
   }
   // Otherwise use user's own tenantId
   if (!payload.tenantId) {
@@ -49,7 +49,7 @@ export const dashboardController = new Elysia({ prefix: '/dashboard' })
   // ==================== LAYOUT ====================
   .get('/layout', async ({ jwt, cookie: { access_token }, set }) => {
     try {
-      const payload = await jwt.verify(access_token.value)
+      const payload = await jwt.verify(access_token.value as string)
       if (!payload) throw new Error('Unauthorized')
       
       // Layout is user-specific, not tenant-specific (even for superadmin impersonating)
@@ -64,7 +64,7 @@ export const dashboardController = new Elysia({ prefix: '/dashboard' })
 
   .put('/layout', async ({ jwt, cookie: { access_token }, body, set }) => {
     try {
-      const payload = await jwt.verify(access_token.value)
+      const payload = await jwt.verify(access_token.value as string)
       if (!payload) throw new Error('Unauthorized')
 
       return await DashboardLayoutService.saveLayout(payload.id as string, body as any[])
@@ -77,15 +77,14 @@ export const dashboardController = new Elysia({ prefix: '/dashboard' })
   // ==================== OPTIMIZE DB (Manual Trigger) ====================
   .post('/optimize', async ({ jwt, cookie: { access_token }, set, query }) => {
     try {
-      const payload = await jwt.verify(access_token.value)
+      const payload = await jwt.verify(access_token.value as string)
       if (!payload) throw new Error('Unauthorized')
 
+      // TODO: Implement database optimization methods in SchedulerService
       if (query.full === 'true') {
-        SchedulerService.repopulateMVs()
-        return { message: 'Full optimization (MV repopulation) started in background' }
+        return { message: 'Full optimization (MV repopulation) - not yet implemented' }
       } else {
-        SchedulerService.optimizeDB()
-        return { message: 'Optimization started in background' }
+        return { message: 'Optimization - not yet implemented' }
       }
     } catch (e: any) {
       set.status = 400
@@ -96,7 +95,7 @@ export const dashboardController = new Elysia({ prefix: '/dashboard' })
   // ==================== SUMMARY ====================
   .get('/summary', async ({ jwt, cookie: { access_token, selected_tenant }, query, set }) => {
     try {
-      const payload = await jwt.verify(access_token.value)
+      const payload = await jwt.verify(access_token.value as string)
       if (!payload) throw new Error('Unauthorized')
 
       const tenantId = getEffectiveTenantId(payload, selected_tenant)
@@ -123,7 +122,7 @@ export const dashboardController = new Elysia({ prefix: '/dashboard' })
   // ==================== TIMELINE ====================
   .get('/timeline', async ({ jwt, cookie: { access_token, selected_tenant }, query, set }) => {
     try {
-      const payload = await jwt.verify(access_token.value)
+      const payload = await jwt.verify(access_token.value as string)
       if (!payload) throw new Error('Unauthorized')
 
       const tenantId = getEffectiveTenantId(payload, selected_tenant)
@@ -149,7 +148,7 @@ export const dashboardController = new Elysia({ prefix: '/dashboard' })
   // ==================== TOP HOSTS ====================
   .get('/top-hosts', async ({ jwt, cookie: { access_token, selected_tenant }, query, set }) => {
     try {
-      const payload = await jwt.verify(access_token.value)
+      const payload = await jwt.verify(access_token.value as string)
       if (!payload) throw new Error('Unauthorized')
 
       const tenantId = getEffectiveTenantId(payload, selected_tenant)
@@ -175,7 +174,7 @@ export const dashboardController = new Elysia({ prefix: '/dashboard' })
   // ==================== TOP USERS ====================
   .get('/top-users', async ({ jwt, cookie: { access_token, selected_tenant }, query, set }) => {
     try {
-      const payload = await jwt.verify(access_token.value)
+      const payload = await jwt.verify(access_token.value as string)
       if (!payload) throw new Error('Unauthorized')
 
       const tenantId = getEffectiveTenantId(payload, selected_tenant)
@@ -201,7 +200,7 @@ export const dashboardController = new Elysia({ prefix: '/dashboard' })
   // ==================== MITRE HEATMAP ====================
   .get('/mitre-heatmap', async ({ jwt, cookie: { access_token, selected_tenant }, query, set }) => {
     try {
-      const payload = await jwt.verify(access_token.value)
+      const payload = await jwt.verify(access_token.value as string)
       if (!payload) throw new Error('Unauthorized')
 
       const tenantId = getEffectiveTenantId(payload, selected_tenant)
@@ -226,7 +225,7 @@ export const dashboardController = new Elysia({ prefix: '/dashboard' })
   // ==================== SOURCES BREAKDOWN ====================
   .get('/sources', async ({ jwt, cookie: { access_token, selected_tenant }, query, set }) => {
     try {
-      const payload = await jwt.verify(access_token.value)
+      const payload = await jwt.verify(access_token.value as string)
       if (!payload) throw new Error('Unauthorized')
 
       const tenantId = getEffectiveTenantId(payload, selected_tenant)
@@ -251,7 +250,7 @@ export const dashboardController = new Elysia({ prefix: '/dashboard' })
   // ==================== INTEGRATIONS BREAKDOWN ====================
   .get('/integrations', async ({ jwt, cookie: { access_token, selected_tenant }, query, set }) => {
     try {
-      const payload = await jwt.verify(access_token.value)
+      const payload = await jwt.verify(access_token.value as string)
       if (!payload) throw new Error('Unauthorized')
 
       const tenantId = getEffectiveTenantId(payload, selected_tenant)
@@ -276,7 +275,7 @@ export const dashboardController = new Elysia({ prefix: '/dashboard' })
   // ==================== SITES BREAKDOWN ====================
   .get('/sites', async ({ jwt, cookie: { access_token, selected_tenant }, query, set }) => {
     try {
-      const payload = await jwt.verify(access_token.value)
+      const payload = await jwt.verify(access_token.value as string)
       if (!payload) throw new Error('Unauthorized')
 
       const tenantId = getEffectiveTenantId(payload, selected_tenant)
@@ -301,7 +300,7 @@ export const dashboardController = new Elysia({ prefix: '/dashboard' })
   // ==================== SUMMARY BY INTEGRATION ====================
   .get('/summary/integration/:integrationId', async ({ jwt, cookie: { access_token, selected_tenant }, params, query, set }) => {
     try {
-      const payload = await jwt.verify(access_token.value)
+      const payload = await jwt.verify(access_token.value as string)
       if (!payload) throw new Error('Unauthorized')
 
       const tenantId = getEffectiveTenantId(payload, selected_tenant)
@@ -316,7 +315,7 @@ export const dashboardController = new Elysia({ prefix: '/dashboard' })
   // ==================== SUMMARY BY SITE ====================
   .get('/summary/site/:siteName', async ({ jwt, cookie: { access_token, selected_tenant }, params, query, set }) => {
     try {
-      const payload = await jwt.verify(access_token.value)
+      const payload = await jwt.verify(access_token.value as string)
       if (!payload) throw new Error('Unauthorized')
 
       const tenantId = getEffectiveTenantId(payload, selected_tenant)
@@ -331,7 +330,7 @@ export const dashboardController = new Elysia({ prefix: '/dashboard' })
   // ==================== RECENT DETECTIONS ====================
   .get('/recent-detections', async ({ jwt, cookie: { access_token, selected_tenant }, query, set }) => {
     try {
-      const payload = await jwt.verify(access_token.value)
+      const payload = await jwt.verify(access_token.value as string)
       if (!payload) throw new Error('Unauthorized')
 
       const tenantId = getEffectiveTenantId(payload, selected_tenant)

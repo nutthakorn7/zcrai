@@ -17,7 +17,7 @@ export const aiController = new Elysia({ prefix: '/ai' })
   // ==================== CHAT STREAM ====================
   .post('/chat', async ({ body, jwt, cookie: { access_token, selected_tenant }, set }) => {
     try {
-      const payload = await jwt.verify(access_token.value)
+      const payload = await jwt.verify(access_token.value as string)
       if (!payload) {
         set.status = 401
         return { error: 'Unauthorized' }

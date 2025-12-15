@@ -329,7 +329,7 @@ export const integrationController = new Elysia({ prefix: '/integrations' })
   // ==================== TEST CONNECTION (Existing) ====================
   .post('/:id/test', async ({ params, jwt, cookie: { access_token }, set }) => {
     try {
-      const payload = await jwt.verify(access_token.value)
+      const payload = await jwt.verify(access_token.value as string)
       if (!payload) throw new Error('Unauthorized')
 
       // Logic to fetch key -> decrypt -> test

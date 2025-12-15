@@ -24,7 +24,7 @@ export const logsController = new Elysia({ prefix: '/logs' })
   // ==================== GET FILTER OPTIONS ====================
   .get('/filters', async ({ jwt, cookie: { access_token, selected_tenant }, set }) => {
     try {
-      const payload = await jwt.verify(access_token.value)
+      const payload = await jwt.verify(access_token.value as string)
       if (!payload) throw new Error('Unauthorized')
 
       const tenantId = getEffectiveTenantId(payload, selected_tenant)
@@ -38,7 +38,7 @@ export const logsController = new Elysia({ prefix: '/logs' })
   // ==================== LIST LOGS ====================
   .get('/', async ({ jwt, cookie: { access_token, selected_tenant }, query, set }) => {
     try {
-      const payload = await jwt.verify(access_token.value)
+      const payload = await jwt.verify(access_token.value as string)
       if (!payload) throw new Error('Unauthorized')
 
       const tenantId = getEffectiveTenantId(payload, selected_tenant)
@@ -79,7 +79,7 @@ export const logsController = new Elysia({ prefix: '/logs' })
   // ==================== GET SINGLE LOG ====================
   .get('/:id', async ({ jwt, cookie: { access_token, selected_tenant }, params, set }) => {
     try {
-      const payload = await jwt.verify(access_token.value)
+      const payload = await jwt.verify(access_token.value as string)
       if (!payload) throw new Error('Unauthorized')
 
       const tenantId = getEffectiveTenantId(payload, selected_tenant)
