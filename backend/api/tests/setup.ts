@@ -22,13 +22,14 @@ console.log('🔗 Using direct app testing (no HTTP)')
 import { db } from '../infra/db'
 import { users, sessions } from '../infra/db/schema'
 import { eq } from 'drizzle-orm'
+import { hashPassword } from '../utils/password'
 
 // Seed call moved to global CI workflow to avoid race conditions in parallel tests
 // await seedSuperAdmin()
 
 export const api = treaty<typeof app>(app)
 
-// FIX: Regenerate password hash to ensure it matches Bun.password.verify expectations
+// FIX: Regenerate password hash to ensure it matches verification
 const TEST_PASSWORD = 'SuperAdmin@123!'
 await (async () => {
     try {
@@ -36,8 +37,8 @@ await (async () => {
         if (!u) {
             console.error('❌ FATAL: Superadmin not found in test setup! CI Seeding might have failed.')
         } else {
-            // Regenerate hash using the SAME Bun.password that auth.service uses
-            const freshHash = await Bun.password.hash(TEST_PASSWORD, { algorithm: 'bcrypt', cost: 10 })
+            // Regenerate hash using centralized utility
+            const freshHash = await hashPassword(TEST_PASSWORD)
             await db.update(users).set({ passwordHash: freshHash }).where(eq(users.email, 'superadmin@zcr.ai'))
             console.log(`✅ Updated superadmin password hash`)
             console.log(`   Email: ${u.email}`)

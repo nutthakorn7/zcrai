@@ -6,6 +6,7 @@
 import { db } from '../infra/db'
 import { users, tenants } from '../infra/db/schema'
 import { eq } from 'drizzle-orm'
+import { hashPassword } from '../utils/password'
 
 const SUPERADMIN_EMAIL = process.env.SUPERADMIN_EMAIL || 'superadmin@zcr.ai'
 const SUPERADMIN_PASSWORD = process.env.SUPERADMIN_PASSWORD || 'SuperAdmin@123!'
@@ -37,10 +38,7 @@ async function seedSuperAdmin() {
     .from(users)
     .where(eq(users.email, email))
 
-  const passwordHash = await Bun.password.hash(password, {
-    algorithm: 'bcrypt',
-    cost: 10,
-  })
+  const passwordHash = await hashPassword(password)
 
   if (existing) {
     if (existing.role === 'superadmin') {

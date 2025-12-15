@@ -39,15 +39,15 @@ import { EnrichmentWorker } from './workers/enrichment.worker'
 import { db } from './infra/db'
 import { users, tenants } from './infra/db/schema'
 import { eq } from 'drizzle-orm'
+import { hashPassword } from './utils/password'
 
-// Auto-seed Super Admin on startup (or reset password if exists)
 // Auto-seed Super Admin on startup (or reset password if exists)
 async function seedSuperAdmin() {
   const email = process.env.SUPERADMIN_EMAIL || 'superadmin@zcr.ai'
   const password = process.env.SUPERADMIN_PASSWORD || 'SuperAdmin@123!'
   
   try {
-    const passwordHash = await Bun.password.hash(password, { algorithm: 'bcrypt', cost: 10 })
+    const passwordHash = await hashPassword(password)
     
     // 1. Check/Create System Tenant
     let tenantId: string | undefined

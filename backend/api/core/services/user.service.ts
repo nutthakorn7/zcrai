@@ -2,6 +2,7 @@ import { db } from '../../infra/db'
 import { users, tenants } from '../../infra/db/schema'
 import { eq, like, and, sql, ne } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
+import { hashPassword } from '../../utils/password'
 
 export const UserService = {
   // ==================== LIST USERS (ภายใน Tenant) ====================
@@ -85,7 +86,7 @@ export const UserService = {
 
     // สร้าง temporary password (user ต้อง reset เอง)
     const tempPassword = nanoid(12)
-    const hashedPassword = await Bun.password.hash(tempPassword)
+    const hashedPassword = await hashPassword(tempPassword)
 
     const [user] = await db.insert(users).values({
       email: data.email,
