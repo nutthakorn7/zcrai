@@ -6,30 +6,31 @@ export const reportController = new Elysia({ prefix: '/reports' })
   .use(tenantGuard)
   
   // List Schedules
-  .get('/schedules', async ({ user }) => {
-      return await ReportSchedulerService.listSchedules(user.tenantId);
+  .get('/schedules', async (ctx: any) => {
+      return await ReportSchedulerService.listSchedules(ctx.user.tenantId);
   })
 
   // Create Schedule
-  .post('/schedules', async ({ user, body }) => {
+  .post('/schedules', async (ctx: any) => {
+      const { user, body } = ctx;
       const schedule = await ReportSchedulerService.createSchedule({
           tenantId: user.tenantId,
           ...body,
           recipients: body.recipients,
-          nextRunAt: new Date() // Will be recalculated by service? Actually service handles it. Pass simple date. Wait, `createSchedule` calculates it.
+          nextRunAt: new Date()
       } as any);
       return schedule;
   }, {
       body: t.Object({
-          reportType: t.String(), // 'dashboard', 'iso27001'
-          frequency: t.String(), // 'daily', 'weekly'
+          reportType: t.String(),
+          frequency: t.String(),
           recipients: t.Array(t.String()),
           isEnabled: t.Boolean()
       }) 
   })
 
   // Delete Schedule
-  .delete('/schedules/:id', async ({ user, params }) => {
-      await ReportSchedulerService.deleteSchedule(params.id, user.tenantId);
+  .delete('/schedules/:id', async (ctx: any) => {
+      await ReportSchedulerService.deleteSchedule(ctx.params.id, ctx.user.tenantId);
       return { success: true };
   });

@@ -37,8 +37,9 @@ export const ssoController = new Elysia({ prefix: '/auth/sso' })
          
          const result = await SSOService.handleCallback(state, 'google', currentUrl);
          
-         const email = result.claims?.email as string;
+         const email = (result.claims as any)?.email as string;
          if (!email) throw new Error('No email provided by IDP');
+
          
          let user = await AuthService.getUserByEmail(email);
          if (!user) {
@@ -88,7 +89,7 @@ export const ssoController = new Elysia({ prefix: '/auth/sso' })
               set.status = 401;
               return { error: 'Unauthorized' };
           }
-          const payload = await ssoJwt.verify(access_token.value) as any;
+          const payload = await ssoJwt.verify(access_token.value as string) as any;
           if (!payload) {
               set.status = 401;
               return { error: 'Invalid Token' };
@@ -129,7 +130,7 @@ export const ssoController = new Elysia({ prefix: '/auth/sso' })
               set.status = 401;
               return { error: 'Unauthorized' };
           }
-          const payload = await ssoJwt.verify(access_token.value) as any;
+          const payload = await ssoJwt.verify(access_token.value as string) as any;
           if (!payload) {
               set.status = 401;
               return { error: 'Invalid Token' };

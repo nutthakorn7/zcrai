@@ -14,7 +14,7 @@ export const userController = new Elysia({ prefix: '/users' })
   // ==================== LIST USERS (ภายใน Tenant) ====================
   .get('/', async ({ query, jwt, cookie: { access_token }, set }) => {
     try {
-      const payload = await jwt.verify(access_token.value)
+      const payload = await jwt.verify(access_token.value as string)
       if (!payload) throw new Error('Unauthorized')
 
       const { search, role, status, page, limit } = query
@@ -34,7 +34,7 @@ export const userController = new Elysia({ prefix: '/users' })
   // ==================== GET USER BY ID ====================
   .get('/:id', async ({ params, jwt, cookie: { access_token }, set }) => {
     try {
-      const payload = await jwt.verify(access_token.value)
+      const payload = await jwt.verify(access_token.value as string)
       if (!payload) throw new Error('Unauthorized')
 
       return await UserService.getById(params.id, payload.tenantId as string)
@@ -47,7 +47,7 @@ export const userController = new Elysia({ prefix: '/users' })
   // ==================== INVITE USER ====================
   .post('/', async ({ body, jwt, cookie: { access_token }, set }) => {
     try {
-      const payload = await jwt.verify(access_token.value)
+      const payload = await jwt.verify(access_token.value as string)
       if (!payload) throw new Error('Unauthorized')
 
       // Role validation
@@ -67,7 +67,7 @@ export const userController = new Elysia({ prefix: '/users' })
   // ==================== UPDATE USER ====================
   .put('/:id', async ({ params, body, jwt, cookie: { access_token }, set }) => {
     try {
-      const payload = await jwt.verify(access_token.value)
+      const payload = await jwt.verify(access_token.value as string)
       if (!payload) throw new Error('Unauthorized')
 
       // Role validation
@@ -86,7 +86,7 @@ export const userController = new Elysia({ prefix: '/users' })
   // ==================== DELETE USER (Soft Delete) ====================
   .delete('/:id', async ({ params, jwt, cookie: { access_token }, set }) => {
     try {
-      const payload = await jwt.verify(access_token.value)
+      const payload = await jwt.verify(access_token.value as string)
       if (!payload) throw new Error('Unauthorized')
 
       await UserService.delete(params.id, payload.tenantId as string)

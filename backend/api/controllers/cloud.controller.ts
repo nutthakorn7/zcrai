@@ -6,12 +6,13 @@ export const cloudController = new Elysia({ prefix: '/cloud' })
   .use(tenantGuard)
 
   // List Integrations
-  .get('/integrations', async ({ user }) => {
-      return await CloudIntegrationService.list(user.tenantId);
+  .get('/integrations', async (ctx: any) => {
+      return await CloudIntegrationService.list(ctx.user.tenantId);
   })
 
   // Create Integration
-  .post('/integrations', async ({ user, body }) => {
+  .post('/integrations', async (ctx: any) => {
+      const { user, body } = ctx;
       const integration = await CloudIntegrationService.create({
           tenantId: user.tenantId,
           provider: body.provider,
@@ -51,12 +52,12 @@ export const cloudController = new Elysia({ prefix: '/cloud' })
   })
 
   // Test Connection
-  .post('/integrations/:id/test', async ({ user, params }) => {
-      return await CloudIntegrationService.testConnection(params.id, user.tenantId);
+  .post('/integrations/:id/test', async (ctx: any) => {
+      return await CloudIntegrationService.testConnection(ctx.params.id, ctx.user.tenantId);
   })
 
   // Delete Integration
-  .delete('/integrations/:id', async ({ user, params }) => {
-      await CloudIntegrationService.delete(params.id, user.tenantId);
+  .delete('/integrations/:id', async (ctx: any) => {
+      await CloudIntegrationService.delete(ctx.params.id, ctx.user.tenantId);
       return { success: true };
   });

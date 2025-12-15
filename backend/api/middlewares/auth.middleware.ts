@@ -26,21 +26,20 @@ export const authGuard = new Elysia({ name: 'authGuard' })
     name: 'jwt',
     secret: process.env.JWT_SECRET || 'super_secret_dev_key',
   }))
-  .derive(async ({ jwt, cookie: { access_token }, set }) => {
-    if (!access_token.value) {
+  .derive(async ({ jwt, cookie: { access_token }, set }: any) => {
+    if (!access_token?.value) {
       set.status = 401
       throw new Error('Unauthorized')
     }
 
-    const payload = await jwt.verify(access_token.value)
+    const payload = await jwt.verify(access_token.value as string)
     if (!payload) {
       set.status = 401
       throw new Error('Invalid token')
     }
-    // console.log('AUTH GUARD PAYLOAD:', payload); 
 
     return {
-      user: payload as unknown as JWTPayload,
+      user: payload as JWTPayload,
     }
   })
 
@@ -48,10 +47,11 @@ export const authGuard = new Elysia({ name: 'authGuard' })
 export const requireRole = (...allowedRoles: Role[]) => {
   return new Elysia({ name: `roleGuard:${allowedRoles.join(',')}` })
     .use(authGuard)
-    .onBeforeHandle(({ user, set }) => {
+    .onBeforeHandle((ctx: any) => {
+      const user = ctx.user as JWTPayload
       const userRole = user.role as Role
       if (!allowedRoles.includes(userRole)) {
-        set.status = 403
+        ctx.set.status = 403
         return { error: 'Forbidden: Insufficient permissions' }
       }
     })
@@ -60,8 +60,10 @@ export const requireRole = (...allowedRoles: Role[]) => {
 // ==================== TENANT GUARD ====================
 export const tenantGuard = new Elysia({ name: 'tenantGuard' })
   .use(authGuard)
-  .derive(({ user }) => {
+  .derive((ctx: any) => {
+    const user = ctx.user as JWTPayload
     return {
+      user,
       checkTenantAccess: (resourceTenantId: string) => {
         if (user.role === 'superadmin') return true
         return user.tenantId === resourceTenantId
@@ -73,19 +75,20 @@ export const tenantGuard = new Elysia({ name: 'tenantGuard' })
 // ==================== AUDIT LOGGER ====================
 export const auditLogger = new Elysia({ name: 'auditLogger' })
   .use(authGuard)
-  .onAfterResponse(async ({ user, request, set }) => {
+  .onAfterResponse(async (ctx: any) => {
+    const user = ctx.user as JWTPayload
     try {
-      const url = new URL(request.url)
+      const url = new URL(ctx.request.url)
       await db.insert(auditLogs).values({
         userId: user.id,
         tenantId: user.tenantId,
-        action: `${request.method} ${url.pathname}`,
+        action: `${ctx.request.method} ${url.pathname}`,
         resource: url.pathname,
-        ipAddress: request.headers.get('x-forwarded-for') || 'unknown',
+        ipAddress: ctx.request.headers.get('x-forwarded-for') || 'unknown',
         details: {
-          method: request.method,
+          method: ctx.request.method,
           path: url.pathname,
-          statusCode: set.status || 200,
+          statusCode: ctx.set.status || 200,
         },
       })
     } catch (error) {
