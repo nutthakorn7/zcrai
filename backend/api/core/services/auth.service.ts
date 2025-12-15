@@ -61,6 +61,13 @@ export const AuthService = {
       }
 
       if (!isValid) {
+        if (process.env.NODE_ENV === 'test') {
+            console.log('❌ [DEBUG AUTH] Password verify failed!')
+            console.log('   Input:', body.password)
+            console.log('   Stored Hash:', user.passwordHash)
+            const rehash = await Bun.password.hash(body.password, { algorithm: 'bcrypt', cost: 10 })
+            console.log('   Re-hash of input:', rehash)
+        }
         await this.incrementFailedAttempts(body.email)
          throw new Error('Invalid credentials')
       }
