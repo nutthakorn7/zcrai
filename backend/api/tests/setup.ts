@@ -1,6 +1,6 @@
 // Must set env vars before ANY imports, as they initialize Redis clients
 process.env.NODE_ENV = 'test'
-process.env.REDIS_URL = 'redis://localhost:6380'
+process.env.REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6380'
 
 // CI detection
 const isCI = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true'
