@@ -51,5 +51,9 @@
     "drizzle-kit": "latest",
     "ioredis-mock": "^8.13.1",
     "typescript": "^5.9.3"
+  },
+  "overrides": {
+    "esbuild": "^0.25.0",
+    "tmp": "^0.2.4"
   }
 }
