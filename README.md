@@ -340,6 +340,11 @@ npm test
 - [x] **Investigation Graph visualization**
 
 ### 🔜 Future Enhancements
+- [ ] **Alert Correlation UI** - Visual grouping of related alerts ← **COMPLETED Dec 2024!** ✅
+- [ ] Case Comments & Collaboration - Team notes with @mentions
+- [ ] Bulk Actions - Multi-select operations for alerts/cases
+- [ ] Recent Activity Widget - Dashboard real-time feed
+- [ ] Saved Searches - Bookmark complex queries
 - [ ] Advanced cloud integrations (Azure, GCP)
 - [ ] Network traffic analysis (NetFlow, PCAP)
 - [ ] Kubernetes monitoring
