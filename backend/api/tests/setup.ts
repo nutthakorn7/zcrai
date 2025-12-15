@@ -14,9 +14,15 @@ import { app } from '../index'
 // OR we can use app.handle() for fetch-like testing
 // Treaty is best for E2E-like 
 
-// Start server for testing on random port to avoid collisions
-app.listen(0)
-const PORT = app.server?.port
+// Start server for testing on fixed port
+try {
+    app.listen(4001)
+    console.log('🚀 Test Server started on port 4001')
+} catch (e) {
+    console.error('❌ Failed to start test server:', e)
+}
+
+const PORT = 4001
 const API_URL = `http://127.0.0.1:${PORT}`
 console.log('🔗 Test API URL:', API_URL)
 
