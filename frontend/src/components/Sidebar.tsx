@@ -55,6 +55,11 @@ export function Sidebar() {
       label: 'Observables', 
       path: '/observables' 
     },
+    { 
+      icon: Icon.Shield, 
+      label: 'Threat Intel', 
+      path: '/threat-intel' 
+    },
 
     // 4. Engineering
     { 

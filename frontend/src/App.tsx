@@ -25,6 +25,7 @@ import CaseBoardPage from "./pages/cases";
 import CaseDetailPage from "./pages/cases/CaseDetailPage";
 import AlertQueuePage from "./pages/alerts/AlertQueuePage";
 import ObservablesPage from "./pages/observables/ObservablesPage";
+import ThreatIntelPage from "./pages/ThreatIntelPage";
 import MFASetupPage from "./pages/settings/MFASetupPage";
 import IntegrationPage from "./pages/settings/IntegrationPage";
 import { useAuth } from "./shared/store/useAuth";
@@ -185,6 +186,15 @@ function App() {
           element={
             <ProtectedRoute>
               <ObservablesPage />
+            </ProtectedRoute>
+          } 
+        />
+
+        <Route 
+          path="/threat-intel" 
+          element={
+            <ProtectedRoute>
+              <ThreatIntelPage />
             </ProtectedRoute>
           } 
         />
