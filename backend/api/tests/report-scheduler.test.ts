@@ -1,9 +1,9 @@
-import { describe, it, expect, spyOn, mock } from 'bun:test';
+import { describe, it, expect, spyOn, mock, beforeAll } from 'bun:test';
 import { ReportSchedulerService } from '../core/services/report-scheduler.service';
 import { EmailService } from '../core/services/email.service';
 import { ReportService } from '../core/services/report.service';
 import { db } from '../infra/db';
-import { reportSchedules } from '../infra/db/schema';
+import { reportSchedules, tenants } from '../infra/db/schema';
 import { eq } from 'drizzle-orm';
 
 describe('Report Scheduler', () => {
@@ -13,7 +13,14 @@ describe('Report Scheduler', () => {
     spyOn(ReportService, 'generateDashboardPDF').mockResolvedValue(Buffer.from('PDF'));
     
     let scheduleId: string;
-    const tenantId = 'e746d022-89dd-4134-a60c-be3583f47f6c'; // Super Admin
+    let tenantId: string;
+
+    beforeAll(async () => {
+        // Fetch valid tenant
+        const [tenant] = await db.select().from(tenants).limit(1);
+        if (!tenant) throw new Error('No tenant found for testing');
+        tenantId = tenant.id;
+    });
 
     it('should create a report schedule', async () => {
         const schedule = await ReportSchedulerService.createSchedule({

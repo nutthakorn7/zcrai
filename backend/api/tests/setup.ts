@@ -24,10 +24,8 @@ import { db } from '../infra/db'
 import { users, sessions } from '../infra/db/schema'
 import { eq } from 'drizzle-orm'
 
-// Only seed in non-CI environments
-if (!isCI) {
-  await seedSuperAdmin()
-}
+// Seed in all environments (including CI)
+await seedSuperAdmin()
 
 export const api = treaty<typeof app>(API_URL)
 
@@ -37,10 +35,8 @@ export const AUTH_CREDENTIALS = {
 }
 
 export async function getAuthHeaders() {
-    // In CI, return mock headers (tests using auth will be skipped)
-    if (isCI) {
-        return { cookie: 'mock-ci-cookie' }
-    }
+    // In CI, we now want REAL auth because we are seeding the DB
+    // if (isCI) { return { cookie: 'mock-ci-cookie' } }
     
     const { response } = await api.auth.login.post({
         email: AUTH_CREDENTIALS.email,
