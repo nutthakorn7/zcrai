@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Card, CardBody, Button, Chip, Select, SelectItem, Textarea, Spinner, Modal, ModalContent, ModalHeader, ModalBody, useDisclosure, Avatar, AvatarGroup, Tooltip, Tabs, Tab, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell } from "@heroui/react";
+import { Card, Button, Chip, Select, SelectItem, Textarea, Spinner, Modal, ModalContent, ModalHeader, ModalBody, useDisclosure, Avatar, AvatarGroup, Tooltip, Tabs, Tab, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell } from "@heroui/react";
 import { Icon } from '../../shared/ui';
 import { CasesAPI } from '../../shared/api/cases';
 import { PlaybooksAPI } from '../../shared/api/playbooks';
@@ -11,6 +11,7 @@ import { EvidenceTab } from '../../components/EvidenceTab';
 import { ForensicsTab } from '../../components/ForensicsTab';
 import { InvestigationGraph } from '../../components/InvestigationGraph';
 import { useCaseSocket } from '../../shared/hooks/useCaseSocket';
+import { ActivityTimeline } from '../../components/cases/ActivityTimeline';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -85,6 +86,26 @@ export default function CaseDetailPage() {
     await CasesAPI.addComment(caseItem.id, newComment);
     setNewComment('');
     fetchCase(); // Refresh to see comment
+  };
+
+  const handleEditComment = async (commentId: string, newContent: string) => {
+    if (!caseItem) return;
+    try {
+      await CasesAPI.editComment(caseItem.id, commentId, newContent);
+      fetchCase();
+    } catch (e) {
+      console.error('Failed to edit comment:', e);
+    }
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    if (!caseItem) return;
+    try {
+      await CasesAPI.deleteComment(caseItem.id, commentId);
+      fetchCase();
+    } catch (e) {
+      console.error('Failed to delete comment:', e);
+    }
   };
 
   const handleExportPDF = async () => {
@@ -264,20 +285,15 @@ export default function CaseDetailPage() {
                                 )}
                             </div>
 
-                            {/* List */}
-                            <div className="flex flex-col gap-4 mt-2">
-                                {caseItem.comments?.map((c: any) => (
-                                    <Card key={c.id} className="bg-content2/50">
-                                        <CardBody className="py-3 px-4">
-                                            <div className="flex justify-between items-center mb-1">
-                                                <span className="font-semibold text-sm">{c.userEmail}</span>
-                                                <span className="text-xs text-gray-500">{new Date(c.createdAt).toLocaleString()}</span>
-                                            </div>
-                                            <p className="text-gray-200 text-sm">{c.content}</p>
-                                        </CardBody>
-                                    </Card>
-                                ))}
-                                {caseItem.comments?.length === 0 && <p className="text-gray-500 text-center py-4">No comments yet.</p>}
+                            {/* Timeline */}
+                            <div className="mt-2">
+                                <ActivityTimeline
+                                    comments={caseItem.comments || []}
+                                    history={caseItem.history || []}
+                                    currentUserEmail={user?.email || ''}
+                                    onEditComment={handleEditComment}
+                                    onDeleteComment={handleDeleteComment}
+                                />
                             </div>
                         </div>
                     </div>
