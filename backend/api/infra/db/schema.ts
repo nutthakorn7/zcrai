@@ -529,6 +529,7 @@ export const detectionRules = pgTable('detection_rules', {
   description: text('description'),
   severity: text('severity').default('medium').notNull(), // 'critical', 'high', 'medium', 'low'
   query: text('query').notNull(), // ClickHouse SQL WHERE clause
+  actions: jsonb('actions'), // { auto_case: boolean, case_title_template: string }
   isEnabled: boolean('is_enabled').default(true).notNull(),
   runIntervalSeconds: integer('run_interval_seconds').default(60).notNull(),
   lastRunAt: timestamp('last_run_at'),

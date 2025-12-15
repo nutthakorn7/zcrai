@@ -1,5 +1,5 @@
 import { db } from '../../infra/db';
-import { detectionRules, alerts } from '../../infra/db/schema';
+import { detectionRules, alerts, cases } from '../../infra/db/schema';
 import { eq, and, lte } from 'drizzle-orm';
 import { query } from '../../infra/clickhouse/client';
 import { AlertService } from './alert.service';
@@ -56,7 +56,7 @@ export const DetectionService = {
             // Create Alert for each hit (or grouped? For now individual for simplicity, can group later)
             // Let's create one alert per hit to be granular, utilizing AlertService dedupe
             for (const hit of hits) {
-                await AlertService.create({
+                const alert = await AlertService.create({
                     tenantId: rule.tenantId,
                     source: 'detection_engine',
                     severity: rule.severity,
@@ -65,6 +65,25 @@ export const DetectionService = {
                     rawData: hit,
                     observables: [] // Todo: extract from hit
                 });
+
+                // Auto-Action: Create Case
+                const actions = rule.actions as any;
+                if (actions?.auto_case && alert) {
+                    // Create a case
+                     const [newCase] = await db.insert(cases).values({
+                        tenantId: rule.tenantId,
+                        title: actions.case_title_template || `[Auto] Investigation: ${rule.name}`,
+                        description: `Automatically created by detection rule "${rule.name}"\n\nAlert ID: ${alert.id}`,
+                        severity: actions.severity_override || rule.severity,
+                        status: 'open',
+                        priority: 'P2',
+                        tags: ['auto-generated', 'detection-rule'],
+                    }).returning();
+
+                    // Link alert to case
+                    await AlertService.linkToCase(alert.id, rule.tenantId, newCase.id);
+                    console.log(`✅ Auto-created case ${newCase.id} for alert ${alert.id}`);
+                }
             }
         }
 

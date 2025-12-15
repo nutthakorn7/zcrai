@@ -68,6 +68,11 @@ export function Sidebar() {
       path: '/playbooks' 
     },
     { 
+      icon: Icon.Eye, // Or another icon like Target/Scan
+      label: 'Detection', 
+      path: '/settings/detection-rules' 
+    },
+    { 
       icon: Icon.Settings, 
       label: 'Settings', 
       path: '/settings' 

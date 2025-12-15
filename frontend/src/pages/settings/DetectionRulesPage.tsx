@@ -1,0 +1,181 @@
+import { useEffect, useState } from 'react';
+import { Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Chip, Button, Switch, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Input, Select, SelectItem, Textarea } from "@heroui/react";
+import { Icon } from '../../shared/ui';
+import { DetectionRulesAPI, DetectionRule } from '../../shared/api/detection-rules';
+
+export default function DetectionRulesPage() {
+  const [rules, setRules] = useState<DetectionRule[]>([]);
+  const [loading, setLoading] = useState(true);
+  
+  // Edit State
+  const [selectedRule, setSelectedRule] = useState<DetectionRule | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editForm, setEditForm] = useState<Partial<DetectionRule>>({});
+
+  const fetchRules = async () => {
+    try {
+      setLoading(true);
+      const data = await DetectionRulesAPI.list();
+      setRules(data);
+    } catch (e) {
+      console.error(e);
+    } finally {
+        setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchRules();
+  }, []);
+
+  const handleToggle = async (rule: DetectionRule) => {
+      try {
+          const updated = await DetectionRulesAPI.update(rule.id, { isEnabled: !rule.isEnabled });
+          setRules(rules.map(r => r.id === rule.id ? updated : r));
+      } catch (e) {
+          console.error(e);
+      }
+  };
+
+  const handleEdit = (rule: DetectionRule) => {
+      setSelectedRule(rule);
+      setEditForm({ ...rule });
+      setIsModalOpen(true);
+  };
+
+  const handleSave = async () => {
+      if (!selectedRule) return;
+      try {
+          // Ensure actions object is structured correctly
+          const actions = editForm.actions || {};
+          
+          await DetectionRulesAPI.update(selectedRule.id, {
+              ...editForm,
+              actions
+          });
+          fetchRules();
+          setIsModalOpen(false);
+      } catch (e) {
+          console.error(e);
+      }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">Detection Rules</h2>
+          <p className="text-foreground/60">Manage SIGMA-based detection logic and automation</p>
+        </div>
+        <Button color="primary" startContent={<Icon.Add className="w-4 h-4"/>}>New Rule</Button>
+      </div>
+
+      <Table aria-label="Detection Rules Table">
+        <TableHeader>
+          <TableColumn>STATUS</TableColumn>
+          <TableColumn>NAME</TableColumn>
+          <TableColumn>SEVERITY</TableColumn>
+          <TableColumn>ACTIONS</TableColumn>
+          <TableColumn>LAST RUN</TableColumn>
+          <TableColumn>MANAGE</TableColumn>
+        </TableHeader>
+        <TableBody items={rules} isLoading={loading}>
+          {(item) => (
+            <TableRow key={item.id}>
+              <TableCell>
+                  <Switch size="sm" isSelected={item.isEnabled} onValueChange={() => handleToggle(item)} />
+              </TableCell>
+              <TableCell>
+                  <div>
+                      <div className="font-medium">{item.name}</div>
+                      <div className="text-xs text-foreground/50">{item.description}</div>
+                  </div>
+              </TableCell>
+              <TableCell>
+                  <Chip size="sm" color={
+                      item.severity === 'critical' ? 'danger' : 
+                      item.severity === 'high' ? 'warning' : 
+                      item.severity === 'medium' ? 'secondary' : 'default'
+                  } variant="flat" className="capitalize">
+                      {item.severity}
+                  </Chip>
+              </TableCell>
+              <TableCell>
+                  <div className="flex gap-2">
+                       {item.actions?.auto_case && (
+                           <Chip size="sm" startContent={<Icon.Cpu className="w-3 h-3"/>} color="primary" variant="flat">Auto-Case</Chip>
+                       )}
+                  </div>
+              </TableCell>
+              <TableCell>
+                  <span className="text-xs text-foreground/50">
+                      {item.lastRunAt ? new Date(item.lastRunAt).toLocaleString() : 'Never'}
+                  </span>
+              </TableCell>
+              <TableCell>
+                  <div className="flex gap-2">
+                      <Button isIconOnly size="sm" variant="light" onPress={() => handleEdit(item)}>
+                          <Icon.Edit className="w-4 h-4"/>
+                      </Button>
+                      <Button isIconOnly size="sm" variant="light" color="danger">
+                          <Icon.Delete className="w-4 h-4"/>
+                      </Button>
+                  </div>
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
+
+      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} size="2xl">
+          <ModalContent>
+              <ModalHeader>Edit Detection Rule</ModalHeader>
+              <ModalBody className="gap-4">
+                  <Input label="Name" value={editForm.name} onValueChange={v => setEditForm({...editForm, name: v})} />
+                  <Textarea label="Description" value={editForm.description} onValueChange={v => setEditForm({...editForm, description: v})} />
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                      <Select label="Severity" selectedKeys={editForm.severity ? [editForm.severity] : []} onChange={e => setEditForm({...editForm, severity: e.target.value as any})}>
+                          <SelectItem key="critical">Critical</SelectItem>
+                          <SelectItem key="high">High</SelectItem>
+                          <SelectItem key="medium">Medium</SelectItem>
+                          <SelectItem key="low">Low</SelectItem>
+                      </Select>
+                      <Input type="number" label="Interval (Seconds)" value={editForm.runIntervalSeconds?.toString()} onValueChange={v => setEditForm({...editForm, runIntervalSeconds: parseInt(v)})} />
+                  </div>
+
+                  <div className="p-4 bg-default-100 rounded-lg">
+                      <h4 className="text-sm font-bold mb-2 flex items-center gap-2">
+                          <Icon.Cpu className="w-4 h-4 text-warning"/> Automation Actions
+                      </h4>
+                      <div className="flex items-center justify-between">
+                          <div>
+                              <div className="text-sm">Auto-Create Case</div>
+                              <div className="text-xs text-foreground/50">Automatically create a case when this rule triggers</div>
+                          </div>
+                          <Switch 
+                              isSelected={editForm.actions?.auto_case} 
+                              onValueChange={v => setEditForm({
+                                  ...editForm, 
+                                  actions: { ...editForm.actions, auto_case: v }
+                              })} 
+                          />
+                      </div>
+                  </div>
+
+                  <Textarea 
+                    label="Query (SQL)" 
+                    classNames={{ input: "font-mono text-xs" }}
+                    value={editForm.query} 
+                    onValueChange={v => setEditForm({...editForm, query: v})} 
+                  />
+              </ModalBody>
+              <ModalFooter>
+                  <Button variant="light" onPress={() => setIsModalOpen(false)}>Cancel</Button>
+                  <Button color="primary" onPress={handleSave}>Save Changes</Button>
+              </ModalFooter>
+          </ModalContent>
+      </Modal>
+    </div>
+  );
+}

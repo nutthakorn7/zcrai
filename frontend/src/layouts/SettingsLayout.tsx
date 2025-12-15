@@ -65,6 +65,15 @@ export default function SettingsLayout() {
                 </NavLink>
 
                 <NavLink 
+                  to="/settings/detection-rules"
+                  className={({ isActive }) => 
+                    `px-4 py-2 rounded-lg transition-colors ${isActive ? 'bg-primary/20 text-primary' : 'hover:bg-default-100'}`
+                  }
+                >
+                  Detection Rules
+                </NavLink>
+
+                <NavLink 
                   to="/settings/integrations"
                   className={({ isActive }) => 
                     `px-4 py-2 rounded-lg transition-colors ${isActive ? 'bg-primary/20 text-primary' : 'hover:bg-default-100'}`
