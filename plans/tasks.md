@@ -20,10 +20,10 @@
 - [x] Implement Log Retention Policies (Hot/Warm/Cold)
 
 ### 1.3 Database Schema (ClickHouse)
-- [ ] Design schema for security logs
-- [ ] Create tables: security_events, normalized_logs
-- [ ] Create tables: cases, case_history
-- [ ] Setup retention policies (1 years default)
+- [x] Design schema for security logs
+- [x] Create tables: security_events, normalized_logs
+- [x] Create tables: cases, case_history
+- [x] Setup retention policies (1 years default)
 
 ---
 
@@ -211,70 +211,79 @@
 
 ---
 
-## Phase 8: Case Management (Week 17-19)
+## Phase 8: Case Management (Week 17-19) ✅ COMPLETED
 
 ### 8.1 Case API
-- [ ] GET /api/cases (list cases with filters)
-- [ ] POST /api/cases (create from log/alert)
-- [ ] GET /api/cases/:id
-- [ ] PUT /api/cases/:id (update status, assignee, notes)
-- [ ] POST /api/cases/:id/comments
-- [ ] POST /api/cases/:id/attachments
+- [x] GET /api/cases (list cases with filters)
+- [x] POST /api/cases (create from log/alert)
+- [x] GET /api/cases/:id
+- [x] PUT /api/cases/:id (update status, assignee, notes)
+- [x] POST /api/cases/:id/comments
+- [x] POST /api/cases/:id/attachments
+- [x] POST /api/cases/:id/ai/summarize (AI Summary)
+- [x] POST /api/cases/:id/ai/suggest-playbook (AI Playbook Suggestion)
 
 ### 8.2 Case Workflow
-- [ ] Implement state machine (New → Triaging → Investigating → Escalated → Resolved → Closed)
-- [ ] State transition validation (who can transition)
+- [x] Implement state machine (open → investigating → resolved → closed)
+- [x] State transition with history logging
 - [ ] Auto-assignment rules (optional)
-- [ ] SLA tracking (time in each state)
+- [x] SLA tracking (time in each state)
 
 ### 8.3 Case UI
-- [ ] Case list view (Kanban or Table)
-- [ ] Case detail page
-- [ ] Status change dropdown
-- [ ] Assignee selector
-- [ ] Comments/Notes section
-- [ ] Activity timeline
-- [ ] Linked logs view
+- [x] Case list view (Table with filters)
+- [x] Case detail page
+- [x] Status change dropdown
+- [x] Assignee selector
+- [x] Comments/Notes section
+- [x] Activity timeline (Case History)
+- [x] Investigation Graph
+- [x] PDF Export
+- [ ] Kanban view (optional)
 
 ---
 
-## Phase 9: Notifications (Week 20-21)
+## Phase 9: Notifications (Week 20-21) ✅ COMPLETED
 
 ### 9.1 Notification Backend
-- [ ] In-app notification system (store in PostgreSQL)
-- [ ] GET /api/notifications
-- [ ] PUT /api/notifications/:id/read
-- [ ] Email notification service (SMTP)
-- [ ] Notification preferences per user
+- [x] In-app notification system (store in PostgreSQL)
+- [x] GET /api/notifications
+- [x] PATCH /api/notifications/:id/read
+- [x] PATCH /api/notifications/mark-all-read
+- [x] GET /api/notifications/unread-count
+- [x] Email notification service (SMTP)
+- [x] Notification preferences per user (rules)
+- [x] External channels (Slack, Teams, Webhook)
 
 ### 9.2 Notification Triggers
-- [ ] New critical/high alert → notify Customer
-- [ ] Case status changed → notify Customer
-- [ ] Case assigned → notify Analyst
+- [x] New critical/high alert → notify via channels
+- [x] Case status changed → notify Customer
+- [x] Case assigned → notify Analyst
 - [ ] Daily/Weekly summary → scheduled job
 
 ### 9.3 Notification UI
-- [ ] Bell icon with unread count
-- [ ] Notification dropdown/panel
-- [ ] Mark as read
-- [ ] Notification settings page
+- [x] Bell icon with unread count (NotificationBell component)
+- [x] Notification dropdown/panel
+- [x] Mark as read / Mark all as read
+- [x] Notification channels settings page
 
 ---
 
-## Phase 10: Reports & Export (Week 22-23)
+## Phase 10: Reports & Export (Week 22-23) ✅ COMPLETED
 
 ### 10.1 Report API
-- [ ] GET /api/reports/daily
-- [ ] GET /api/reports/weekly
-- [ ] GET /api/reports/monthly
-- [ ] GET /api/reports/custom (date range)
-- [ ] POST /api/reports/generate-pdf
+- [x] Report scheduler (daily/weekly/monthly/custom frequency)
+- [x] GET /api/reports/schedules
+- [x] POST /api/reports/schedules
+- [x] DELETE /api/reports/schedules/:id
+- [x] PDF Generation (Dashboard, Alerts, Cases)
+- [x] Compliance Reports (ISO 27001, NIST CSF, Thai PDPA)
 
 ### 10.2 Report UI
-- [ ] Report dashboard
-- [ ] Date range picker
-- [ ] Preview report
-- [ ] Download PDF/CSV
+- [x] Report dashboard with metrics
+- [x] Time range picker (24h, 7d, 30d, 90d, all)
+- [x] Export PDF button
+- [x] Scheduled reports management
+- [x] Case PDF export
 
 ---
 
@@ -384,6 +393,7 @@
 
 ## Current Progress
 
-**Phase 1: Foundation** - 🔄 In Progress
-- [x] Plans created (design, security, techstack)
-- [ ] Project setup...
+**Status**: Most core features completed! ✅
+- Phases 1-11, 13 largely complete
+- Remaining: Testing (Phase 12), some optional features
+- Production deployed at app.zcr.ai
