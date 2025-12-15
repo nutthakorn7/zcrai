@@ -8,10 +8,15 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: 'html',
   
+  // Global setup for auth
+  globalSetup: require.resolve('./tests/auth.setup.ts'),
+
   use: {
     baseURL: process.env.BASE_URL || 'https://app.zcr.ai',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
+    // Tell all tests to load the signed-in state
+    storageState: 'playwright/.auth/user.json',
   },
 
   projects: [

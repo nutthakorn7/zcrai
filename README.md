@@ -241,7 +241,7 @@ OPENAI_API_KEY=your_openai_key  # Optional
 **Comprehensive test suite: 141 tests across 7 categories**
 
 ```bash
-# Run all tests
+# Run all tests (Auto-authenticates via global setup)
 cd e2e && npm run test:all
 
 # Run specific categories
@@ -261,6 +261,9 @@ npm run test:ui
 # Generate HTML report
 npm run report
 ```
+
+**Global Authentication:**
+Tests now use a `global-setup` to authenticate once and reuse the signed-in state, significantly speeding up test execution.
 
 **Test Coverage:**
 - ✅ All routes (28/28)
@@ -293,7 +296,8 @@ bun test
 
 ```bash
 cd frontend
-npm test
+npm run test
+# Runs Vitest in watch mode by default
 ```
 
 ---

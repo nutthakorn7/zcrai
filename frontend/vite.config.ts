@@ -3,12 +3,21 @@ import react from '@vitejs/plugin-react'
 import path from 'path'
 
 // https://vitejs.dev/config/
+
+
+// @ts-expect-error - vitest types are not automatically picked up in config
 export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
+  },
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: './src/test/setup.ts',
+    css: true,
   },
   build: {
     // Let Vite handle chunking automatically to avoid React initialization issues
