@@ -7,6 +7,8 @@
     "dev": "bun run --watch index.ts",
     "start": "bun run index.ts",
     "test": "bun test --workers=1",
+    "test:unit": "bun test tests/unit",
+    "test:integration": "bun test tests/*.test.ts --workers=1",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
     "db:migrate": "drizzle-kit migrate",
