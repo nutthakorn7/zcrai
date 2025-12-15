@@ -41,17 +41,17 @@ jobs:
           ssh root@45.118.132.160 "cat > /root/zcrAI/backend/api/.env <<EOF
           NODE_ENV=production
           PORT=8000
-          DATABASE_URL=postgres://postgres:postgres@localhost:5432/zcrai
+          DATABASE_URL=${{ secrets.DATABASE_URL }}
           CLICKHOUSE_URL=http://localhost:8123
           CLICKHOUSE_DB=zcrai
-          REDIS_URL=redis://:redis_password@localhost:6379
-          JWT_SECRET=your_super_secret_jwt_key_change_in_production_min_32_chars
+          REDIS_URL=${{ secrets.REDIS_URL }}
+          JWT_SECRET=${{ secrets.JWT_SECRET }}
           JWT_ACCESS_EXPIRY=15m
           JWT_REFRESH_EXPIRY=7d
-          ENCRYPTION_KEY=your_32_char_encryption_key_here
+          ENCRYPTION_KEY=${{ secrets.ENCRYPTION_KEY }}
           FRONTEND_URL=https://app.zcr.ai
           SUPERADMIN_EMAIL=superadmin@zcr.ai
-          SUPERADMIN_PASSWORD=123
+          SUPERADMIN_PASSWORD=${{ secrets.SUPERADMIN_PASSWORD }}
           EOF"
 
       - name: Install Backend Dependencies
