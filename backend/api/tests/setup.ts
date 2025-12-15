@@ -17,7 +17,8 @@ import { app } from '../index'
 // Start server for testing on random port to avoid collisions
 app.listen(0)
 const PORT = app.server?.port
-const API_URL = `http://localhost:${PORT}`
+const API_URL = `http://127.0.0.1:${PORT}`
+console.log('🔗 Test API URL:', API_URL)
 
 // Ensure clean DB state for auth
 import { db } from '../infra/db'
@@ -30,10 +31,6 @@ import { eq } from 'drizzle-orm'
 export const api = treaty<typeof app>(API_URL)
 
 // DEBUG: Verify Seed
-import { users } from '../infra/db/schema'
-import { eq } from 'drizzle-orm'
-import { db } from '../infra/db'
-
 await (async () => {
     try {
         const [u] = await db.select().from(users).where(eq(users.email, 'superadmin@zcr.ai'))
