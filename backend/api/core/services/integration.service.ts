@@ -507,8 +507,8 @@ export const IntegrationService = {
 
   // ==================== ADD ENRICHMENT PROVIDER ====================
   async addEnrichment(tenantId: string, provider: string, data: { apiKey: string; label: string }) {
-    // Save Encrypted Key
-    const encryptedKey = Encryption.encrypt(data.apiKey)
+    // Save Encrypted Key (as JSON for consistency)
+    const encryptedKey = Encryption.encrypt(JSON.stringify({ apiKey: data.apiKey }))
 
     const [integration] = await db.insert(apiKeys).values({
       tenantId,
@@ -518,8 +518,14 @@ export const IntegrationService = {
       lastSyncStatus: 'success', // Enrichment providers show as active immediately
     }).returning()
 
+    const providerNames: Record<string, string> = {
+      'virustotal': 'VirusTotal',
+      'abuseipdb': 'AbuseIPDB',
+      'alienvault-otx': 'AlienVault OTX'
+    }
+
     return {
-      message: `${provider === 'virustotal' ? 'VirusTotal' : 'AbuseIPDB'} added successfully`,
+      message: `${providerNames[provider] || provider} added successfully`,
       integration
     }
   },

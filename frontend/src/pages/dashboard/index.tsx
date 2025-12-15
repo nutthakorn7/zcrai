@@ -24,6 +24,7 @@ import {
 } from './type.ts';
 import { SystemMetricsCard } from '../../components/SystemMetricsCard';
 import { AnomalyDashboardCard } from '../../components/AnomalyDashboardCard';
+import { RecentActivityWidget } from './widgets/RecentActivityWidget';
 
 // Import logos
 import sentineloneLogo from '../../assets/logo/sentinelone.png';
@@ -389,8 +390,8 @@ export default function DashboardPage() {
                              {icon}
                          </div>
                          <div>
-                            <p className="text-sm text-default-500 font-medium uppercase tracking-wider">{title}</p>
-                            <h4 className="text-3xl font-bold mt-1" style={{ color: color === 'var(--color-primary)' ? undefined : color }}>{count?.toLocaleString() || 0}</h4>
+                            <p className="text-sm text-default-600 font-medium uppercase tracking-wider">{title}</p>
+                            <h3 className="text-3xl font-bold mt-1" style={{ color: color === 'var(--color-primary)' ? undefined : color }}>{count?.toLocaleString() || 0}</h3>
                             <div className="flex items-center gap-2 mt-1">
                                 <Chip 
                                     size="sm" 
@@ -422,7 +423,7 @@ export default function DashboardPage() {
                style={{ borderTopColor: 'var(--color-primary)' }} />
           <Icon.ShieldAlert className="absolute inset-0 m-auto w-6 h-6 text-primary" />
         </div>
-        <p className="mt-4 text-sm text-foreground/50">Loading security data...</p>
+        <p className="mt-4 text-sm text-foreground/60">Loading security data...</p>
       </div>
     );
   }
@@ -435,7 +436,7 @@ export default function DashboardPage() {
           <h1 className="text-2xl font-bold text-foreground">
             Security Dashboard
           </h1>
-          <p className="text-sm mt-1 text-foreground/50">
+          <p className="text-sm mt-1 text-foreground/60">
             Real-time threat monitoring & analytics
           </p>
         </div>
@@ -446,7 +447,7 @@ export default function DashboardPage() {
             <HerouiTooltip content="All Providers">
               <button
                 onClick={() => setSelectedProvider('all')}
-                className={`p-2 rounded-md transition-all ${selectedProvider === 'all' ? 'bg-content2 text-foreground shadow-sm' : 'text-foreground/50 hover:text-foreground'}`}
+                className={`p-2 rounded-md transition-all ${selectedProvider === 'all' ? 'bg-content2 text-foreground shadow-sm' : 'text-foreground/60 hover:text-foreground'}`}
               >
                 <div className="flex items-center gap-2 px-1">
                   <Icon.Database className="w-4 h-4" />
@@ -571,6 +572,7 @@ export default function DashboardPage() {
       </div>
       
       {/* Summary Stats */}
+      <h2 className="sr-only">Alert Summary</h2>
       {/* Summary Cards with Sparklines */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8 animate-fade-in">
         <div onClick={() => handleSummaryClick('critical')} className="cursor-pointer transition-transform hover:scale-[1.02]">
@@ -778,9 +780,14 @@ export default function DashboardPage() {
       </div>
 
       {/* Main Grid: Recent Detections, Hosts, Users */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-6 animate-fade-in">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-3 mb-6 animate-fade-in">
+        {/* Live Activity Feed */}
+        <div className="lg:col-span-1 h-[450px]">
+          <RecentActivityWidget />
+        </div>
+
         {/* Most Recent Detections */}
-        <Card className="bg-content1/50 border border-white/5 h-[450px]">
+        <Card className="lg:col-span-2 bg-content1/50 border border-white/5 h-[450px]">
           <CardHeader className="flex gap-3 px-5 pt-5">
             <div className="p-2 rounded-lg bg-primary/10">
               <Icon.ShieldAlert className="w-5 h-5 text-primary" />
@@ -1084,7 +1091,7 @@ export default function DashboardPage() {
             </ResponsiveContainer>
           </div>
         ) : (
-          <p className="text-center py-8 text-foreground/50">No MITRE ATT&CK data available</p>
+          <p className="text-center py-8 text-foreground/60">No MITRE ATT&CK data available</p>
         )}
       </div>
     </div>

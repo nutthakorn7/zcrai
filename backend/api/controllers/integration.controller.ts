@@ -224,7 +224,7 @@ export const integrationController = new Elysia({ prefix: '/integrations' })
     }
   })
 
-  // ==================== ADD ENRICHMENT PROVIDER (VirusTotal, AbuseIPDB) ====================
+  // ==================== ADD ENRICHMENT PROVIDER (VirusTotal, AbuseIPDB, AlienVault OTX) ====================
   .post('/enrichment/:provider', async ({ jwt, cookie: { access_token }, params, body, set }) => {
     try {
       const payload = await jwt.verify(access_token.value as string)
@@ -234,13 +234,19 @@ export const integrationController = new Elysia({ prefix: '/integrations' })
       const provider = params.provider.toLowerCase()
 
       if (!apiKey) throw new Error('API Key is required')
-      if (!['virustotal', 'abuseipdb'].includes(provider)) {
-        throw new Error('Invalid enrichment provider. Must be virustotal or abuseipdb')
+      if (!['virustotal', 'abuseipdb', 'alienvault-otx'].includes(provider)) {
+        throw new Error('Invalid enrichment provider. Must be virustotal, abuseipdb, or alienvault-otx')
+      }
+
+      const defaultLabels: Record<string, string> = {
+        'virustotal': 'VirusTotal',
+        'abuseipdb': 'AbuseIPDB',
+        'alienvault-otx': 'AlienVault OTX'
       }
 
       return await IntegrationService.addEnrichment(payload.tenantId as string, provider, {
         apiKey,
-        label: label || (provider === 'virustotal' ? 'VirusTotal' : 'AbuseIPDB')
+        label: label || defaultLabels[provider] || provider
       })
     } catch (e: any) {
       set.status = 400
@@ -323,7 +329,7 @@ export const integrationController = new Elysia({ prefix: '/integrations' })
   // ==================== TEST CONNECTION (Existing) ====================
   .post('/:id/test', async ({ params, jwt, cookie: { access_token }, set }) => {
     try {
-      const payload = await jwt.verify(access_token.value)
+      const payload = await jwt.verify(access_token.value as string)
       if (!payload) throw new Error('Unauthorized')
 
       // Logic to fetch key -> decrypt -> test

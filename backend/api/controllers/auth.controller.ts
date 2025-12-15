@@ -47,6 +47,7 @@ export const authController = new Elysia({ prefix: '/auth' })
 
       const accessToken = await jwt.sign({
         id: user.id,
+        userId: user.id,
         role: user.role,
         tenantId: user.tenantId
       })
@@ -103,7 +104,7 @@ export const authController = new Elysia({ prefix: '/auth' })
         throw new Error('Unauthorized')
       }
       
-      const payload = (await jwt.verify(access_token.value)) as any
+      const payload = (await jwt.verify(access_token.value as string)) as any
       if (!payload) throw new Error('Invalid token')
 
       const user = await AuthService.getUserById(payload.id as string)
@@ -137,6 +138,7 @@ export const authController = new Elysia({ prefix: '/auth' })
 
       const accessToken = await jwt.sign({
         id: user.id,
+        userId: user.id,
         role: user.role,
         tenantId: user.tenantId
       })
@@ -186,7 +188,7 @@ export const authController = new Elysia({ prefix: '/auth' })
   // ==================== MFA SETUP ====================
   .post('/mfa/setup', async ({ jwt, cookie: { access_token }, set }) => {
     try {
-      const payload = (await jwt.verify(access_token.value)) as any
+      const payload = (await jwt.verify(access_token.value as string)) as any
       if (!payload) throw new Error('Unauthorized')
 
       const user = await AuthService.getUserById((payload as any).id)
@@ -202,7 +204,7 @@ export const authController = new Elysia({ prefix: '/auth' })
   // ==================== MFA VERIFY ====================
   .post('/mfa/verify', async ({ body, jwt, cookie: { access_token }, set }) => {
     try {
-      const payload = (await jwt.verify(access_token.value)) as any
+      const payload = (await jwt.verify(access_token.value as string)) as any
       if (!payload) throw new Error('Unauthorized')
 
       return await MFAService.verifyAndEnable(
@@ -220,7 +222,7 @@ export const authController = new Elysia({ prefix: '/auth' })
   // ==================== MFA DISABLE ====================
   .post('/mfa/disable', async ({ body, jwt, cookie: { access_token }, set }) => {
     try {
-      const payload = (await jwt.verify(access_token.value)) as any
+      const payload = (await jwt.verify(access_token.value as string)) as any
       if (!payload) throw new Error('Unauthorized')
 
       return await MFAService.disable(payload.id as string, body.password)

@@ -165,8 +165,8 @@ export default function ProfilePage() {
                  <Chip color="primary" variant="flat" size="sm">Admin</Chip>
                  <Chip color="warning" variant="flat" size="sm">Pro Plan</Chip>
              </div>
-             <p className="text-foreground/50 mt-1">{email} • zcr.ai Organization</p>
-             <div className="flex gap-4 mt-4 text-xs text-foreground/50">
+             <p className="text-foreground/60 mt-1">{email} • zcr.ai Organization</p>
+             <div className="flex gap-4 mt-4 text-xs text-foreground/60">
                  <div className="flex items-center gap-1"><Icon.Map className="w-4 h-4"/> Bangkok, Thailand</div>
                  <div className="flex items-center gap-1"><Icon.Clock className="w-4 h-4"/> Local Time: 14:30 PM</div>
              </div>
@@ -187,7 +187,7 @@ export default function ProfilePage() {
                   <CardHeader className="pb-0 pt-6 px-6 flex justify-between items-start">
                       <div>
                         <h3 className="text-lg font-bold">Personal Information</h3>
-                        <p className="text-sm text-foreground/50">Update your personal details and contact info.</p>
+                        <p className="text-sm text-foreground/60">Update your personal details and contact info.</p>
                       </div>
                       <Icon.User className="w-5 h-5 text-foreground/30" />
                   </CardHeader>
@@ -207,7 +207,7 @@ export default function ProfilePage() {
                   <CardHeader className="pb-0 pt-6 px-6 flex justify-between items-start">
                       <div>
                         <h3 className="text-lg font-bold">Security Center</h3>
-                        <p className="text-sm text-foreground/50">Manage your password and authentication methods.</p>
+                        <p className="text-sm text-foreground/60">Manage your password and authentication methods.</p>
                       </div>
                       <Icon.Shield className="w-5 h-5 text-success" />
                   </CardHeader>
@@ -217,7 +217,7 @@ export default function ProfilePage() {
                               <div className="p-2 rounded bg-primary/10 text-primary"><Icon.Lock className="w-5 h-5"/></div>
                               <div>
                                   <div className="font-semibold">Two-Factor Authentication (2FA)</div>
-                                  <div className="text-sm text-foreground/50">Secure your account with TOTP (Google Authenticator)</div>
+                                  <div className="text-sm text-foreground/60">Secure your account with TOTP (Google Authenticator)</div>
                               </div>
                           </div>
                           <Switch isSelected={mfaEnabled} onValueChange={setMfaEnabled} color="success"/>
@@ -245,7 +245,7 @@ export default function ProfilePage() {
                   <CardHeader className="pb-0 pt-6 px-6">
                       <div>
                         <h3 className="text-lg font-bold">Active Sessions</h3>
-                        <p className="text-sm text-foreground/50">Manage devices logged into your account.</p>
+                        <p className="text-sm text-foreground/60">Manage devices logged into your account.</p>
                       </div>
                   </CardHeader>
                   <CardBody className="p-6">
@@ -262,7 +262,7 @@ export default function ProfilePage() {
                                               {/* For now we don't know current, so hide chip or logic needed */}
                                               {/* {session.current && <Chip size="sm" color="success" variant="flat" className="h-4 text-[10px]">Current</Chip>} */}
                                           </div>
-                                          <div className="text-xs text-foreground/50">
+                                          <div className="text-xs text-foreground/60">
                                             {session.ipAddress || 'Unknown IP'} • <span className="text-foreground/70">{new Date(session.lastActive).toLocaleDateString()} {new Date(session.lastActive).toLocaleTimeString()}</span>
                                           </div>
                                       </div>
@@ -270,7 +270,7 @@ export default function ProfilePage() {
                                   <Button size="sm" color="danger" variant="light" className="opacity-0 group-hover:opacity-100" onPress={() => handleRevokeSession(session.id)}>Revoke</Button>
                               </div>
                           ))}
-                          {sessions.length === 0 && <div className="text-center text-foreground/50 py-4">No active sessions found.</div>}
+                          {sessions.length === 0 && <div className="text-center text-foreground/60 py-4">No active sessions found.</div>}
                       </div>
                   </CardBody>
                </Card>

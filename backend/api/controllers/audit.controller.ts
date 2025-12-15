@@ -6,7 +6,8 @@ export const auditController = new Elysia({ prefix: '/audit-logs' })
   .use(tenantGuard)
 
   // List Audit Logs
-  .get('/', async ({ user, query }) => {
+  .get('/', async (ctx: any) => {
+      const { user, query } = ctx;
       const filters = {
           userId: query.userId,
           action: query.action,

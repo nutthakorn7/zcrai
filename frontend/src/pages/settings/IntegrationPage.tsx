@@ -567,7 +567,7 @@ export default function IntegrationPage() {
         <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-default-500 bg-clip-text text-transparent">
           Integrations
         </h1>
-        <p className="text-default-500 mt-1">Connect your security tools and AI providers</p>
+        <p className="text-default-600 mt-1">Connect your security tools and AI providers</p>
       </div>
 
       {/* ⭐ Security Integrations Section */}
@@ -644,7 +644,7 @@ export default function IntegrationPage() {
                     </Chip>
                   </div>
                   
-                  <p className="text-xs text-default-500 mb-4 line-clamp-2">
+                  <p className="text-xs text-default-600 mb-4 line-clamp-2">
                     {config.description}
                   </p>
 
@@ -859,7 +859,7 @@ export default function IntegrationPage() {
                     </Chip>
                   </div>
                   
-                  <p className="text-xs text-default-500 mb-4 line-clamp-2">
+                  <p className="text-xs text-default-600 mb-4 line-clamp-2">
                     {config.desc} Integration
                   </p>
 
@@ -965,7 +965,7 @@ export default function IntegrationPage() {
                       <Chip size="sm" color="success" variant="dot" classNames={{ base: "border-none bg-default-100", content: "text-success font-medium" }}>Active</Chip> 
                    </div>
                    
-                   <p className="text-xs text-default-500 mb-4 line-clamp-2">
+                   <p className="text-xs text-default-600 mb-4 line-clamp-2">
                      {config.description}
                    </p>
  

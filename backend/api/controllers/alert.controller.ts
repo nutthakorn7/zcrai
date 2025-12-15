@@ -37,6 +37,7 @@ export const alertController = new Elysia({ prefix: '/alerts' })
       return { error: 'Failed to create alert', details: error.message };
     }
   }, { body: CreateAlertSchema })
+  
   // Get alert by ID
   .get('/:id', async ({ params, user }: any) => {
     if (!user) throw new Error('Unauthorized');
@@ -71,46 +72,31 @@ export const alertController = new Elysia({ prefix: '/alerts' })
     return { success: true, data: alert };
   })
 
-  // Promote to case
-  .post('/:id/promote', async ({ params, body, user }: any) => {
+  // Promote to case (TODO: Implement AlertService.promoteToCase)
+  .post('/:id/promote', async ({ params, body, user, set }: any) => {
     if (!user) throw new Error('Unauthorized');
-
-    const result = await AlertService.promoteToCase(
-      params.id,
-      user.tenantId,
-      user.id,
-      body
-    );
-
-    return { success: true, data: result };
+    
+    // TODO: Implement promoteToCase in AlertService
+    set.status = 501;
+    return { success: false, error: 'Not implemented yet' };
   })
 
-  // Bulk dismiss
-  .post('/bulk-dismiss', async ({ body, user }: any) => {
+  // Bulk dismiss (TODO: Implement AlertService.bulkDismiss)
+  .post('/bulk-dismiss', async ({ body, user, set }: any) => {
     if (!user) throw new Error('Unauthorized');
 
-    const alerts = await AlertService.bulkDismiss(
-      body.alertIds,
-      user.tenantId,
-      user.id,
-      body.reason || 'Bulk dismissed'
-    );
-
-    return { success: true, data: alerts };
+    // TODO: Implement bulkDismiss in AlertService
+    set.status = 501;
+    return { success: false, error: 'Not implemented yet' };
   })
 
-  // Bulk promote
-  .post('/bulk-promote', async ({ body, user }: any) => {
+  // Bulk promote (TODO: Implement AlertService.bulkPromote)
+  .post('/bulk-promote', async ({ body, user, set }: any) => {
     if (!user) throw new Error('Unauthorized');
 
-    const result = await AlertService.bulkPromote(
-      body.alertIds,
-      user.tenantId,
-      user.id,
-      body.caseData
-    );
-
-    return { success: true, data: result };
+    // TODO: Implement bulkPromote in AlertService
+    set.status = 501;
+    return { success: false, error: 'Not implemented yet' };
   })
 
   // Get correlations

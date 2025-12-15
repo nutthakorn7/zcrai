@@ -17,7 +17,7 @@ export const aiController = new Elysia({ prefix: '/ai' })
   // ==================== CHAT STREAM ====================
   .post('/chat', async ({ body, jwt, cookie: { access_token, selected_tenant }, set }) => {
     try {
-      const payload = await jwt.verify(access_token.value)
+      const payload = await jwt.verify(access_token.value as string)
       if (!payload) {
         set.status = 401
         return { error: 'Unauthorized' }
@@ -33,54 +33,21 @@ export const aiController = new Elysia({ prefix: '/ai' })
 
       console.log(`[AI Chat] Request from Tenant: ${tenantId} (User: ${payload.role})`)
 
-      // Create a native ReadableStream
-      const stream = new ReadableStream({
-        async start(controller) {
-          const encoder = new TextEncoder()
-          try {
-            const result = await AIService.chatStream(tenantId, messages, context)
-            
-            if (result.type === 'anthropic') {
-              // Handle Anthropic Stream
-              for await (const chunk of result.stream as any) {
-                if (chunk.type === 'content_block_delta' && chunk.delta?.type === 'text_delta') {
-                  controller.enqueue(encoder.encode(chunk.delta.text))
-                }
-              }
-            } else if (result.type === 'gemini') {
-              // Handle Gemini Stream
-              for await (const chunk of result.stream as any) {
-                const text = chunk.text()
-                if (text) {
-                  controller.enqueue(encoder.encode(text))
-                }
-              }
-            } else {
-              // Handle OpenAI Stream
-              for await (const chunk of result.stream as any) {
-                const content = chunk.choices[0]?.delta?.content || ''
-                if (content) {
-                  controller.enqueue(encoder.encode(content))
-                }
-              }
-            }
-          } catch (error: any) {
-            console.error('[AI Chat] Stream Error:', error)
-            controller.enqueue(encoder.encode(`\n\n**Error:** ${error.message}`))
-          } finally {
-            controller.close()
-          }
-        }
+      // Use synchronous summarize instead of stream for now
+      // TODO: Implement proper streaming with AIService.chatStream
+      const lastMessage = messages[messages.length - 1]?.content || ''
+      const response = await AIService.summarizeCase({
+        title: 'Chat Query',
+        description: lastMessage,
+        severity: 'info',
+        alerts: context ? [{ severity: 'info', title: 'Context', description: context }] : []
       })
 
-      // Return native Response with streaming
-      return new Response(stream, {
-        headers: {
-          'Content-Type': 'text/plain; charset=utf-8',
-          'Cache-Control': 'no-cache',
-          'Connection': 'keep-alive',
-        }
-      })
+      return { 
+        success: true, 
+        response,
+        message: 'AI response generated'
+      }
 
     } catch (e: any) {
       set.status = 400

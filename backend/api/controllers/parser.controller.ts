@@ -1,5 +1,5 @@
 import { Elysia, t } from 'elysia'
-import { withAuth } from '../middleware/auth'
+import { withAuth, JWTUserPayload } from '../middleware/auth'
 import { ParserService } from '../core/services/parser.service'
 
 const CreateParserSchema = t.Object({
@@ -23,55 +23,61 @@ export const parserController = new Elysia({ prefix: '/parsers' })
   .use(withAuth)
 
   // ==================== LIST PARSERS ====================
-  .get('/', async ({ user }) => {
+  .get('/', async (ctx) => {
+    const user = (ctx as any).user as JWTUserPayload
     const parsers = await ParserService.list(user.tenantId)
     return { success: true, data: parsers }
   })
 
   // ==================== GET PARSER ====================
-  .get('/:id', async ({ user, params: { id }, set }) => {
+  .get('/:id', async (ctx) => {
+    const user = (ctx as any).user as JWTUserPayload
+    const { id } = ctx.params
     const parser = await ParserService.getById(user.tenantId, id)
     if (!parser) {
-      set.status = 404
+      ctx.set.status = 404
       return { success: false, error: 'Parser not found' }
     }
     return { success: true, data: parser }
   })
 
   // ==================== CREATE PARSER ====================
-  .post('/', async ({ user, body, set }) => {
+  .post('/', async (ctx) => {
+    const user = (ctx as any).user as JWTUserPayload
     try {
-      const parser = await ParserService.create(user.tenantId, user.id, body)
-      set.status = 201
+      const parser = await ParserService.create(user.tenantId, user.userId || user.id || '', ctx.body)
+      ctx.set.status = 201
       return { success: true, data: parser }
     } catch (e: any) {
-      set.status = 400
+      ctx.set.status = 400
       return { success: false, error: e.message }
     }
   }, { body: CreateParserSchema })
 
   // ==================== UPDATE PARSER ====================
-  .put('/:id', async ({ user, params: { id }, body, set }) => {
+  .put('/:id', async (ctx) => {
+    const user = (ctx as any).user as JWTUserPayload
     try {
-      const parser = await ParserService.update(user.tenantId, id, body)
+      const parser = await ParserService.update(user.tenantId, ctx.params.id, ctx.body)
       if (!parser) {
-        set.status = 404
+        ctx.set.status = 404
         return { success: false, error: 'Parser not found' }
       }
       return { success: true, data: parser }
     } catch (e: any) {
-      set.status = 400
+      ctx.set.status = 400
       return { success: false, error: e.message }
     }
   }, { body: UpdateParserSchema })
 
   // ==================== DELETE PARSER ====================
-  .delete('/:id', async ({ user, params: { id }, set }) => {
+  .delete('/:id', async (ctx) => {
+    const user = (ctx as any).user as JWTUserPayload
     try {
-      await ParserService.delete(user.tenantId, id)
+      await ParserService.delete(user.tenantId, ctx.params.id)
       return { success: true, message: 'Parser deleted' }
     } catch (e: any) {
-      set.status = 400
+      ctx.set.status = 400
       return { success: false, error: e.message }
     }
   })

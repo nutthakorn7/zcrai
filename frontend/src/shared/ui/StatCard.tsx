@@ -33,7 +33,7 @@ export function StatCard({
       onClick={onClick}
     >
       <div className="flex items-start justify-between mb-6">
-        <p className="text-sm text-foreground/50">{label}</p>
+        <p className="text-sm text-foreground/60">{label}</p>
         {trend && (
           <div
             className={`flex items-center gap-1 text-xs font-medium ${

@@ -215,7 +215,7 @@ export default function ObservablesPage() {
       <header className="sticky top-0 z-40 w-full backdrop-blur-xl bg-background/60 border-b border-white/5 h-16 flex items-center justify-between px-8">
          <div className="flex items-center gap-3">
            <h1 className="text-2xl font-bold tracking-tight text-foreground">Observables</h1>
-           <span className="text-sm text-foreground/50 border-l border-white/10 pl-3">Indicator Management</span>
+           <span className="text-sm text-foreground/60 border-l border-white/10 pl-3">Indicator Management</span>
          </div>
          
          <div className="flex items-center gap-3">
@@ -241,7 +241,7 @@ export default function ObservablesPage() {
               size="sm"
               value={searchQuery}
               onValueChange={setSearchQuery}
-              startContent={<Icon.Search className="w-4 h-4 text-foreground/50" />}
+              startContent={<Icon.Search className="w-4 h-4 text-foreground/60" />}
               className="w-64"
               classNames={{
                   input: "text-sm",
@@ -259,7 +259,7 @@ export default function ObservablesPage() {
             {/* Quick Stats */}
             <div className="bg-gradient-to-br from-content1 to-background border border-white/5 rounded-xl p-4">
                 <div className="flex justify-between items-center mb-2">
-                    <span className="text-xs font-bold text-foreground/50 uppercase">Total IOCs</span>
+                    <span className="text-xs font-bold text-foreground/60 uppercase">Total IOCs</span>
                     <Icon.Database className="w-4 h-4 text-primary" />
                 </div>
                 <div className="text-2xl font-bold font-mono">{observables.length}</div>

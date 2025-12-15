@@ -136,17 +136,17 @@ export default function PlaybooksPage() {
        <div className="w-80 border-r border-white/5 bg-content1/50 flex flex-col pt-16">
            <div className="p-4 border-b border-white/5">
                <h2 className="font-bold flex items-center gap-2 text-foreground"><Icon.Briefcase className="w-5 h-5 text-primary"/> Library</h2>
-               <Input placeholder="Search playbooks..." size="sm" className="mt-2" startContent={<Icon.Search className="w-4 h-4 text-foreground/50"/>} />
+               <Input placeholder="Search playbooks..." size="sm" className="mt-2" startContent={<Icon.Search className="w-4 h-4 text-foreground/60"/>} />
            </div>
 
            {/* Enterprise ROI Stats */}
            <div className="p-4 grid grid-cols-2 gap-3 border-b border-white/5 bg-white/5">
                 <div className="bg-content1 rounded-lg p-3 border border-white/5">
-                    <div className="text-[10px] text-foreground/50 uppercase font-bold">Time Saved</div>
+                    <div className="text-[10px] text-foreground/60 uppercase font-bold">Time Saved</div>
                     <div className="text-xl font-mono font-bold text-success">124h</div>
                 </div>
                 <div className="bg-content1 rounded-lg p-3 border border-white/5">
-                    <div className="text-[10px] text-foreground/50 uppercase font-bold">Active</div>
+                    <div className="text-[10px] text-foreground/60 uppercase font-bold">Active</div>
                     <div className="text-xl font-mono font-bold text-primary">{playbooks.filter(p => p.isActive).length}/{playbooks.length}</div>
                 </div>
            </div>
@@ -158,7 +158,7 @@ export default function PlaybooksPage() {
                    <>
                         {playbooks.length > 0 && (
                             <div>
-                                <h3 className="text-xs font-bold text-foreground/50 uppercase mb-2">My Playbooks</h3>
+                                <h3 className="text-xs font-bold text-foreground/60 uppercase mb-2">My Playbooks</h3>
                                 <div className="space-y-2">
                                     {playbooks.map(pb => (
                                         <Card key={pb.id} isPressable onPress={() => setSelectedPlaybook(pb)} className={`border border-white/5 bg-transparent hover:bg-white/5 transition-all ${selectedPlaybook?.id === pb.id ? 'bg-primary/10 border-primary/20' : ''}`}>
@@ -167,7 +167,7 @@ export default function PlaybooksPage() {
                                                     <span className="font-medium text-sm text-foreground">{pb.title}</span>
                                                     {pb.isActive && <div className="w-2 h-2 rounded-full bg-success shadow-[0_0_8px_rgba(23,201,100,0.5)]" />}
                                                 </div>
-                                                <p className="text-xs text-foreground/50 mt-1 line-clamp-1">{pb.description}</p>
+                                                <p className="text-xs text-foreground/60 mt-1 line-clamp-1">{pb.description}</p>
                                             </CardBody>
                                         </Card>
                                     ))}
@@ -176,7 +176,7 @@ export default function PlaybooksPage() {
                         )}
 
                         <div>
-                            <h3 className="text-xs font-bold text-foreground/50 uppercase mb-2">Templates</h3>
+                            <h3 className="text-xs font-bold text-foreground/60 uppercase mb-2">Templates</h3>
                             <div className="space-y-2">
                                 {TEMPLATES.map(t => (
                                     <Card key={t.id} isPressable onPress={() => handleSelectTemplate(t)} className="border border-dashed border-white/10 bg-transparent hover:bg-white/5">
@@ -210,7 +210,7 @@ export default function PlaybooksPage() {
             onDelete={handleDelete}
            />
        ) : (
-           <div className="flex-1 flex flex-col items-center justify-center text-foreground/50 pt-16">
+           <div className="flex-1 flex flex-col items-center justify-center text-foreground/60 pt-16">
                <div className="w-24 h-24 rounded-full bg-white/5 flex items-center justify-center mb-6">
                    <Icon.Briefcase className="w-10 h-10 opacity-50" />
                </div>

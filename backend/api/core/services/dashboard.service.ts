@@ -37,7 +37,7 @@ export const DashboardService = {
       SELECT 
         severity,
         count() as count
-      FROM security_events FINAL
+      FROM security_events
       WHERE tenant_id = {tenantId:String}
         AND toDate(timestamp) >= {startDate:String}
         AND toDate(timestamp) <= {endDate:String}
@@ -84,7 +84,7 @@ export const DashboardService = {
         countIf(severity = 'high') as high,
         countIf(severity = 'medium') as medium,
         countIf(severity = 'low') as low
-      FROM security_events FINAL
+      FROM security_events
       WHERE tenant_id = {tenantId:String}
         AND toDate(timestamp) >= {startDate:String}
         AND toDate(timestamp) <= {endDate:String}
@@ -113,7 +113,7 @@ export const DashboardService = {
         count() as count,
         countIf(severity = 'critical') as critical,
         countIf(severity = 'high') as high
-      FROM security_events FINAL
+      FROM security_events
       WHERE tenant_id = {tenantId:String}
         AND toDate(timestamp) >= {startDate:String}
         AND toDate(timestamp) <= {endDate:String}
@@ -141,7 +141,7 @@ export const DashboardService = {
         count() as count,
         countIf(severity = 'critical') as critical,
         countIf(severity = 'high') as high
-      FROM security_events FINAL
+      FROM security_events
       WHERE tenant_id = {tenantId:String}
         AND toDate(timestamp) >= {startDate:String}
         AND toDate(timestamp) <= {endDate:String}
@@ -168,11 +168,10 @@ export const DashboardService = {
         mitre_tactic,
         mitre_technique,
         count() as count
-      FROM security_events FINAL
+      FROM security_events
       WHERE tenant_id = {tenantId:String}
         AND toDate(timestamp) >= {startDate:String}
         AND toDate(timestamp) <= {endDate:String}
-        AND (mitre_tactic != '' OR mitre_technique != '')
         ${sourceFilter}
       GROUP BY mitre_tactic, mitre_technique
       ORDER BY count DESC
@@ -192,7 +191,7 @@ export const DashboardService = {
       SELECT 
         source,
         count() as count
-      FROM security_events FINAL
+      FROM security_events
       WHERE tenant_id = {tenantId:String}
         AND toDate(timestamp) >= {startDate:String}
         AND toDate(timestamp) <= {endDate:String}
@@ -210,18 +209,18 @@ export const DashboardService = {
     const sql = `
       SELECT 
         integration_id,
-        integration_name,
+        '' as integration_name,
         source,
         count() as count,
         countIf(severity = 'critical') as critical,
         countIf(severity = 'high') as high
-      FROM security_events FINAL
+      FROM security_events
       WHERE tenant_id = {tenantId:String}
         AND toDate(timestamp) >= {startDate:String}
         AND toDate(timestamp) <= {endDate:String}
         AND integration_id != ''
         ${sourceFilter}
-      GROUP BY integration_id, integration_name, source
+      GROUP BY integration_id, source
       ORDER BY count DESC
     `
     return await query<{
@@ -245,18 +244,17 @@ export const DashboardService = {
     const sql = `
       SELECT 
         source,
-        host_account_name,
-        host_site_name,
+        '' as host_account_name,
+        '' as host_site_name,
         count() as count,
         countIf(severity = 'critical') as critical,
         countIf(severity = 'high') as high
-      FROM security_events FINAL
+      FROM security_events
       WHERE tenant_id = {tenantId:String}
         AND toDate(timestamp) >= {startDate:String}
         AND toDate(timestamp) <= {endDate:String}
-        AND host_site_name != ''
         ${sourceFilter}
-      GROUP BY source, host_account_name, host_site_name
+      GROUP BY source
       ORDER BY count DESC
     `
     return await query<{
@@ -275,7 +273,7 @@ export const DashboardService = {
       SELECT 
         severity,
         count() as count
-      FROM security_events FINAL
+      FROM security_events
       WHERE tenant_id = {tenantId:String}
         AND integration_id = {integrationId:String}
         AND timestamp >= now() - INTERVAL {days:UInt32} DAY
@@ -300,7 +298,7 @@ export const DashboardService = {
       SELECT 
         severity,
         count() as count
-      FROM security_events FINAL
+      FROM security_events
       WHERE tenant_id = {tenantId:String}
         AND host_site_name = {siteName:String}
         AND timestamp >= now() - INTERVAL {days:UInt32} DAY
@@ -329,15 +327,15 @@ export const DashboardService = {
         source,
         timestamp,
         severity,
-        title,
-        description,
+        '' as title,
+        '' as description,
         mitre_tactic,
         mitre_technique,
         host_name,
         user_name,
-        threat_name,
-        console_link
-      FROM security_events FINAL
+        '' as threat_name,
+        '' as console_link
+      FROM security_events
       WHERE tenant_id = {tenantId:String}
         AND toDate(timestamp) >= {startDate:String}
         AND toDate(timestamp) <= {endDate:String}

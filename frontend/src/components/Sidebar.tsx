@@ -55,6 +55,11 @@ export function Sidebar() {
       label: 'Observables', 
       path: '/observables' 
     },
+    { 
+      icon: Icon.Shield, 
+      label: 'Threat Intel', 
+      path: '/threat-intel' 
+    },
 
     // 4. Engineering
     { 
@@ -150,7 +155,7 @@ export function Sidebar() {
                   flex items-center gap-3 w-full
                   ${active 
                     ? 'bg-content2 text-foreground' 
-                    : 'text-foreground/50 hover:text-foreground hover:bg-content2/50'
+                    : 'text-foreground/60 hover:text-foreground hover:bg-content2/50'
                   }
                   ${isExpanded ? 'justify-start' : 'justify-center'}
                 `}

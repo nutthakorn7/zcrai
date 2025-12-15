@@ -377,7 +377,7 @@ export default function LogViewerPage() {
       
       case "site":
         return (
-          <span className="text-xs text-foreground/50 truncate">
+          <span className="text-xs text-foreground/60 truncate">
             {log.host_site_name || '-'}
           </span>
         );
@@ -501,7 +501,7 @@ export default function LogViewerPage() {
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-3">
           <h1 className="text-2xl font-bold tracking-tight text-foreground">Log Viewer</h1>
-          <span className="text-sm text-foreground/50 border-l border-white/10 pl-3">Real-time log feed</span>
+          <span className="text-sm text-foreground/60 border-l border-white/10 pl-3">Real-time log feed</span>
             <Button
                 size="sm"
                 variant={isLive ? "flat" : "light"}
@@ -521,7 +521,7 @@ export default function LogViewerPage() {
             <Tooltip content="All Providers">
               <button
                 onClick={() => setSelectedProvider('all')}
-                className={`p-2 rounded-md transition-all ${selectedProvider === 'all' ? 'bg-content2 text-foreground shadow-sm' : 'text-foreground/50 hover:text-foreground'}`}
+                className={`p-2 rounded-md transition-all ${selectedProvider === 'all' ? 'bg-content2 text-foreground shadow-sm' : 'text-foreground/60 hover:text-foreground'}`}
               >
                 <div className="flex items-center gap-2 px-1">
                   <Icon.Database className="w-4 h-4" />
@@ -572,11 +572,11 @@ export default function LogViewerPage() {
             radius="md"
             variant="bordered"
             classNames={{
-              input: "text-sm text-foreground placeholder:text-foreground/50",
+              input: "text-sm text-foreground placeholder:text-foreground/60",
               inputWrapper: "bg-content1 border-foreground/20 hover:border-primary/50 data-[hover=true]:border-primary/50 h-9",
             }}
             startContent={
-              <Icon.Search className="w-4 h-4 text-foreground/50" />
+              <Icon.Search className="w-4 h-4 text-foreground/60" />
             }
             className="w-96"
           />
@@ -599,7 +599,7 @@ export default function LogViewerPage() {
                 {severity ? (
                   <span className="capitalize">{severity}</span>
                 ) : (
-                  <span className="text-foreground/50">All Severity</span>
+                  <span className="text-foreground/60">All Severity</span>
                 )}
               </Button>
             </DropdownTrigger>

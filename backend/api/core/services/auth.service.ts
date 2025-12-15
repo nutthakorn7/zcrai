@@ -4,6 +4,7 @@ import { eq, and } from 'drizzle-orm'
 import { redis, lockoutKey, refreshTokenKey, resetTokenKey } from '../../infra/cache/redis'
 import { nanoid } from 'nanoid'
 import { EmailService } from './email.service'
+import { writeFileSync } from 'fs';
 
 const MAX_LOGIN_ATTEMPTS = 5
 const LOCKOUT_DURATION = 15 * 60 // 15 minutes
@@ -45,15 +46,30 @@ export const AuthService = {
       }
 
       const [user] = await db.select().from(users).where(eq(users.email, body.email))
+      
       if (!user) {
         await this.incrementFailedAttempts(body.email)
         throw new Error('Invalid credentials')
       }
 
-      const isValid = await Bun.password.verify(body.password, user.passwordHash)
+      let isValid = false;
+      try {
+        isValid = await Bun.password.verify(body.password, user.passwordHash);
+      } catch (verifyErr: any) {
+        console.error('[AUTH] Verification error:', verifyErr.message);
+        throw verifyErr;
+      }
+
       if (!isValid) {
+        if (process.env.NODE_ENV === 'test') {
+            console.log('❌ [DEBUG AUTH] Password verify failed!')
+            console.log('   Input:', body.password)
+            console.log('   Stored Hash:', user.passwordHash)
+            const rehash = await Bun.password.hash(body.password, { algorithm: 'bcrypt', cost: 10 })
+            console.log('   Re-hash of input:', rehash)
+        }
         await this.incrementFailedAttempts(body.email)
-        throw new Error('Invalid credentials')
+         throw new Error('Invalid credentials')
       }
 
       await this.resetFailedAttempts(body.email)

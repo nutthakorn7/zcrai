@@ -1,0 +1,95 @@
+# Page snapshot
+
+```yaml
+- main [ref=e4]:
+  - generic [ref=e5]:
+    - navigation "Main navigation" [ref=e6]:
+      - generic [ref=e7]:
+        - button "Go to dashboard" [ref=e8] [cursor=pointer]:
+          - img "zcrAI Logo" [ref=e10]
+        - generic: zcrAI
+      - navigation "Primary navigation" [ref=e11]:
+        - button "Dashboard" [ref=e12] [cursor=pointer]:
+          - img [ref=e13]
+          - generic: Dashboard
+        - button "Reports" [ref=e15] [cursor=pointer]:
+          - img [ref=e16]
+          - generic: Reports
+        - button "Cases" [ref=e18] [cursor=pointer]:
+          - img [ref=e19]
+          - generic: Cases
+        - button "Alerts" [ref=e21] [cursor=pointer]:
+          - img [ref=e23]
+          - generic: Alerts
+        - button "Logs" [ref=e25] [cursor=pointer]:
+          - img [ref=e26]
+          - generic: Logs
+        - button "Observables" [ref=e28] [cursor=pointer]:
+          - img [ref=e29]
+          - generic: Observables
+        - button "Threat Intel" [ref=e31] [cursor=pointer]:
+          - img [ref=e32]
+          - generic: Threat Intel
+        - button "Playbooks" [ref=e34] [cursor=pointer]:
+          - img [ref=e35]
+          - generic: Playbooks
+        - button "Settings" [ref=e37] [cursor=pointer]:
+          - img [ref=e38]
+          - generic: Settings
+        - button "Admin" [ref=e41] [cursor=pointer]:
+          - img [ref=e42]
+          - generic: Admin
+      - button "Logout" [ref=e45] [cursor=pointer]:
+        - img [ref=e46]
+        - generic: Logout
+    - generic [ref=e48]:
+      - button [ref=e50] [cursor=pointer]:
+        - img [ref=e51]
+      - main [ref=e53]:
+        - generic [ref=e54]:
+          - generic [ref=e55]:
+            - generic [ref=e56]:
+              - heading "Alerts" [level=1] [ref=e57]
+              - generic [ref=e58]: Real-time incident feed
+            - generic [ref=e59]:
+              - button "All" [ref=e61] [cursor=pointer]:
+                - generic [ref=e62]:
+                  - img [ref=e63]
+                  - generic [ref=e65]: All
+              - button "Dec 8, 2025 - Dec 15, 2025" [ref=e66] [cursor=pointer]:
+                - img [ref=e67]
+                - text: Dec 8, 2025 - Dec 15, 2025
+              - button [ref=e69] [cursor=pointer]:
+                - img [ref=e70]
+          - generic [ref=e72]:
+            - generic [ref=e73]:
+              - generic [ref=e75]:
+                - paragraph [ref=e76]: Critical
+                - paragraph [ref=e77]: "0"
+              - generic [ref=e79]:
+                - paragraph [ref=e80]: High
+                - paragraph [ref=e81]: "0"
+              - generic [ref=e83]:
+                - paragraph [ref=e84]: Medium
+                - paragraph [ref=e85]: "0"
+              - generic [ref=e87]:
+                - paragraph [ref=e88]: Low
+                - paragraph [ref=e89]: "0"
+              - generic [ref=e91]:
+                - paragraph [ref=e92]: Total Alerts
+                - paragraph [ref=e93]: "0"
+            - grid "Alerts table" [ref=e97]:
+              - rowgroup [ref=e98]:
+                - row "Time Src Alert Details Severity Action" [ref=e99] [cursor=pointer]:
+                  - columnheader "Time" [ref=e100]
+                  - columnheader "Src" [ref=e101]
+                  - columnheader "Alert Details" [ref=e102]
+                  - columnheader "Severity" [ref=e103]
+                  - columnheader "Action" [ref=e104]
+                - row [ref=e105]
+              - rowgroup [ref=e106]:
+                - row "No alerts found for the selected date range" [ref=e107]:
+                  - gridcell "No alerts found for the selected date range" [ref=e108]:
+                    - paragraph [ref=e110]: No alerts found for the selected date range
+  - button "🤖" [ref=e112] [cursor=pointer]
+```

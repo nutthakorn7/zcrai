@@ -15,12 +15,13 @@ export const edrController = new Elysia({ prefix: '/edr' })
    */
   .post('/execute', async ({ body, set }: any) => {
     try {
-      const { provider, action, parameters } = body;
+      const { provider, action, parameters, executionStepId } = body;
 
       const result = await EDRActionService.executeAction({
         provider,
         action,
         parameters,
+        executionStepId: executionStepId || 'manual-' + Date.now(), // Default for manual executions
       });
 
       return {
@@ -40,6 +41,7 @@ export const edrController = new Elysia({ prefix: '/edr' })
       provider: t.String(),
       action: t.String(),
       parameters: t.Record(t.String(), t.Any()),
+      executionStepId: t.Optional(t.String()),
     }),
   })
 

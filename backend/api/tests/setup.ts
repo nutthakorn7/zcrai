@@ -1,35 +1,52 @@
 // Must set env vars before ANY imports, as they initialize Redis clients
 process.env.NODE_ENV = 'test'
-process.env.REDIS_URL = 'redis://localhost:6380'
+process.env.REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6380'
 
 // CI detection
 const isCI = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true'
 
 import { treaty } from '@elysiajs/eden'
-import { app, seedSuperAdmin } from '../index'
-export { seedSuperAdmin }
+import { app } from '../index'
+
 
 // Connect to the running server or in-memory
 // Since we export 'app' which has .listen(), we can test against localhost if running
 // OR we can use app.handle() for fetch-like testing
 // Treaty is best for E2E-like 
 
-// Start server for testing on random port to avoid collisions
-app.listen(0)
-const PORT = app.server?.port
-const API_URL = `http://localhost:${PORT}`
+// Use treaty with app directly (no HTTP server needed)
+// This bypasses network entirely and tests Elysia routing directly
+console.log('🔗 Using direct app testing (no HTTP)')
 
 // Ensure clean DB state for auth
 import { db } from '../infra/db'
 import { users, sessions } from '../infra/db/schema'
 import { eq } from 'drizzle-orm'
 
-// Only seed in non-CI environments
-if (!isCI) {
-  await seedSuperAdmin()
-}
+// Seed call moved to global CI workflow to avoid race conditions in parallel tests
+// await seedSuperAdmin()
 
-export const api = treaty<typeof app>(API_URL)
+export const api = treaty<typeof app>(app)
+
+// FIX: Regenerate password hash to ensure it matches Bun.password.verify expectations
+const TEST_PASSWORD = 'SuperAdmin@123!'
+await (async () => {
+    try {
+        const [u] = await db.select().from(users).where(eq(users.email, 'superadmin@zcr.ai'))
+        if (!u) {
+            console.error('❌ FATAL: Superadmin not found in test setup! CI Seeding might have failed.')
+        } else {
+            // Regenerate hash using the SAME Bun.password that auth.service uses
+            const freshHash = await Bun.password.hash(TEST_PASSWORD, { algorithm: 'bcrypt', cost: 10 })
+            await db.update(users).set({ passwordHash: freshHash }).where(eq(users.email, 'superadmin@zcr.ai'))
+            console.log(`✅ Updated superadmin password hash`)
+            console.log(`   Email: ${u.email}`)
+            console.log(`   New Hash: ${freshHash.substring(0, 25)}...`)
+        }
+    } catch (e) {
+        console.error('❌ Error updating superadmin:', e)
+    }
+})()
 
 export const AUTH_CREDENTIALS = {
     email: 'superadmin@zcr.ai',
@@ -37,10 +54,8 @@ export const AUTH_CREDENTIALS = {
 }
 
 export async function getAuthHeaders() {
-    // In CI, return mock headers (tests using auth will be skipped)
-    if (isCI) {
-        return { cookie: 'mock-ci-cookie' }
-    }
+    // In CI, we now want REAL auth because we are seeding the DB
+    // if (isCI) { return { cookie: 'mock-ci-cookie' } }
     
     const { response } = await api.auth.login.post({
         email: AUTH_CREDENTIALS.email,

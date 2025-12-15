@@ -108,7 +108,7 @@ export default function PlaybookEditor({ playbook, onClose, onUpdate, onDelete }
                     </div>
                     <div>
                         <h1 className="text-lg font-bold text-foreground">{localPlaybook.title}</h1>
-                        <div className="flex items-center gap-2 text-xs text-foreground/50">
+                        <div className="flex items-center gap-2 text-xs text-foreground/60">
                             <span className={localPlaybook.isActive ? 'text-success' : 'text-default-500'}>
                                 {localPlaybook.isActive ? 'Active' : 'Inactive'}
                             </span>
@@ -261,7 +261,7 @@ export default function PlaybookEditor({ playbook, onClose, onUpdate, onDelete }
                     {activeTab === 'runs' && (
                             <div className="max-w-4xl mx-auto">
                                 <Card className="bg-content1/50 border border-white/5">
-                                    <CardBody className="p-6 text-center text-foreground/50">
+                                    <CardBody className="p-6 text-center text-foreground/60">
                                     <Icon.Clock className="w-8 h-8 mx-auto mb-2 opacity-50"/>
                                     <p>Run history verification is currently supported only within a Case context.</p>
                                     <p className="text-xs mt-2">To view executions, go to a Case and run a playbook.</p>
@@ -288,7 +288,7 @@ export default function PlaybookEditor({ playbook, onClose, onUpdate, onDelete }
                                     <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
                                         <div>
                                             <div className="font-medium text-sm">Active Status</div>
-                                            <div className="text-xs text-foreground/50">Enable or disable this playbook</div>
+                                            <div className="text-xs text-foreground/60">Enable or disable this playbook</div>
                                         </div>
                                         <Chip color={localPlaybook.isActive ? "success" : "default"} variant="flat">{localPlaybook.isActive ? "Enabled" : "Disabled"}</Chip>
                                     </div>

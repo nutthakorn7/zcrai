@@ -49,6 +49,12 @@ interface Alert {
   host_name?: string;
   user_name?: string;
   duplicateCount?: number;
+  aiAnalysis?: {
+    classification: 'FALSE_POSITIVE' | 'TRUE_POSITIVE';
+    confidence: number;
+    reasoning: string;
+    suggested_action: string;
+  };
 }
 
 interface Summary {
@@ -173,6 +179,26 @@ export default function AlertsPage() {
       
       case "source":
         return <VendorLogo source={alert.source} />;
+
+      case "ai":
+        if (!alert.aiAnalysis) return <span className="text-xs text-gray-500">-</span>;
+        
+        const isSafe = alert.aiAnalysis.classification === 'FALSE_POSITIVE';
+        const color = isSafe ? (alert.aiAnalysis.confidence > 80 ? 'default' : 'warning') : 'danger';
+        const label = isSafe ? 'Noise' : 'Critical';
+        
+        return (
+          <Tooltip content={
+             <div className="px-1 py-2 max-w-xs">
+               <div className="font-bold mb-1">{alert.aiAnalysis.classification} ({alert.aiAnalysis.confidence}%)</div>
+               <div className="text-xs">{alert.aiAnalysis.reasoning}</div>
+             </div>
+          }>
+            <Chip size="sm" color={color} variant="flat" className="cursor-help">
+               AI: {label}
+            </Chip>
+          </Tooltip>
+        );
       
       case "details":
         return (
@@ -185,7 +211,7 @@ export default function AlertsPage() {
                 </Chip>
               )}
             </div>
-            <div className="flex items-center gap-3 text-xs text-foreground/50">
+            <div className="flex items-center gap-3 text-xs text-foreground/60">
               {alert.host_name && (
                 <div className="flex items-center gap-1.5">
                   <Icon.Server className="w-3 h-3" />
@@ -267,7 +293,7 @@ export default function AlertsPage() {
                style={{ borderTopColor: 'var(--color-primary)' }} />
           <Icon.ShieldAlert className="absolute inset-0 m-auto w-6 h-6 text-primary" />
         </div>
-        <p className="mt-4 text-sm text-foreground/50">Loading alerts...</p>
+        <p className="mt-4 text-sm text-foreground/60">Loading alerts...</p>
       </div>
     );
   }
@@ -278,7 +304,7 @@ export default function AlertsPage() {
       <header className="sticky top-0 z-40 w-full backdrop-blur-xl bg-background/60 border-b border-white/5 h-16 flex items-center justify-between px-8">
         <div className="flex items-center gap-3">
           <h1 className="text-2xl font-bold tracking-tight text-foreground">Alerts</h1>
-          <span className="text-sm text-foreground/50 border-l border-white/10 pl-3">Real-time incident feed</span>
+          <span className="text-sm text-foreground/60 border-l border-white/10 pl-3">Real-time incident feed</span>
         </div>
         
         <div className="flex items-center gap-3">
@@ -287,7 +313,7 @@ export default function AlertsPage() {
             <Tooltip content="All Providers">
               <button
                 onClick={() => setSelectedProvider('all')}
-                className={`p-2 rounded-md transition-all ${selectedProvider === 'all' ? 'bg-content2 text-foreground shadow-sm' : 'text-foreground/50 hover:text-foreground'}`}
+                className={`p-2 rounded-md transition-all ${selectedProvider === 'all' ? 'bg-content2 text-foreground shadow-sm' : 'text-foreground/60 hover:text-foreground'}`}
               >
                 <div className="flex items-center gap-2 px-1">
                   <Icon.Database className="w-4 h-4" />
@@ -359,7 +385,7 @@ export default function AlertsPage() {
               }}
             >
               <CardBody className="p-5 overflow-hidden">
-                <p className={`text-sm font-medium mb-4 ${item.key === 'total' ? 'text-primary' : 'text-foreground/50'}`}>
+                <p className={`text-sm font-medium mb-4 ${item.key === 'total' ? 'text-primary' : 'text-foreground/60'}`}>
                   {item.label}
                 </p>
                 <p className="text-3xl font-semibold text-foreground">
@@ -377,7 +403,7 @@ export default function AlertsPage() {
             aria-label="Alerts table"
             classNames={{
               wrapper: "bg-transparent shadow-none border border-white/5 rounded-lg",
-              th: "bg-transparent text-[10px] font-bold text-foreground/50 uppercase tracking-widest border-b border-white/5",
+              th: "bg-transparent text-[10px] font-bold text-foreground/60 uppercase tracking-widest border-b border-white/5",
               td: "py-4 group-hover:text-foreground",
               tr: "hover:bg-content1 border-b border-white/5 last:border-0 cursor-pointer transition-colors",
             }}
@@ -390,14 +416,15 @@ export default function AlertsPage() {
               <TableColumn key="time" className="w-32">Time</TableColumn>
               <TableColumn key="source" className="w-16 text-center">Src</TableColumn>
               <TableColumn key="details">Alert Details</TableColumn>
-              <TableColumn key="severity" align="end">Severity</TableColumn>
+              <TableColumn key="severity" width={100}>Severity</TableColumn>
+              <TableColumn key="ai" width={120}>AI Analysis</TableColumn>
               <TableColumn key="actions" align="end">Action</TableColumn>
             </TableHeader>
-            <TableBody 
+            <TableBody
               items={alerts}
               emptyContent={
                 <div className="py-12 text-center">
-                  <p className="text-foreground/50">No alerts found for the selected date range</p>
+                  <p className="text-foreground/60">No alerts found for the selected date range</p>
                 </div>
               }
             >

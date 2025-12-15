@@ -1,7 +1,8 @@
 import Redis from 'ioredis'
 
 // Use mock Redis in test environment to avoid auth issues
-const RedisClient = process.env.NODE_ENV === 'test' 
+// Use mock Redis in test environment ONLY if not in CI (CI provides real Redis)
+const RedisClient = process.env.NODE_ENV === 'test' && !process.env.CI
   ? (await import('ioredis-mock')).default 
   : Redis
 

@@ -1,0 +1,24 @@
+{
+  "name": "zcrai-e2e",
+  "version": "1.0.0",
+  "scripts": {
+    "test": "playwright test",
+    "test:all": "playwright test --workers=4",
+    "test:sequential": "playwright test --workers=1",
+    "test:production": "BASE_URL=https://app.zcr.ai playwright test",
+    "test:functional": "playwright test tests/dashboard.spec.ts tests/alerts.spec.ts tests/cases.spec.ts tests/settings.spec.ts",
+    "test:mobile": "playwright test tests/mobile_responsive.spec.ts",
+    "test:a11y": "playwright test tests/accessibility.spec.ts",
+    "test:performance": "playwright test tests/performance.spec.ts",
+    "test:security": "playwright test tests/security_testing.spec.ts",
+    "test:visual": "playwright test tests/visual_regression.spec.ts",
+    "test:headed": "playwright test --headed",
+    "test:debug": "playwright test --debug",
+    "test:ui": "playwright test --ui",
+    "report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.11.0",
+    "@playwright/test": "^1.40.0"
+  }
+}

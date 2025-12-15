@@ -16,7 +16,7 @@ export const profileController = new Elysia({ prefix: '/profile' })
   // ==================== GET PROFILE ====================
   .get('/', async ({ jwt, cookie: { access_token }, set }) => {
     try {
-      const payload = await jwt.verify(access_token.value)
+      const payload = await jwt.verify(access_token.value as string)
       if (!payload) throw new Error('Unauthorized')
 
       return await ProfileService.get(payload.id as string)
@@ -29,7 +29,7 @@ export const profileController = new Elysia({ prefix: '/profile' })
   // ==================== GET ACTIVE SESSIONS ====================
   .get('/sessions', async ({ jwt, cookie: { access_token }, set }) => {
     try {
-      const payload = await jwt.verify(access_token.value)
+      const payload = await jwt.verify(access_token.value as string)
       if (!payload) throw new Error('Unauthorized')
 
       // We need to mark which session is "current". 
@@ -48,7 +48,7 @@ export const profileController = new Elysia({ prefix: '/profile' })
   // ==================== REVOKE SESSION ====================
   .delete('/sessions/:id', async ({ params, jwt, cookie: { access_token }, set }) => {
     try {
-      const payload = await jwt.verify(access_token.value)
+      const payload = await jwt.verify(access_token.value as string)
       if (!payload) throw new Error('Unauthorized')
 
       return await SessionService.revoke(params.id, payload.id as string)
@@ -61,7 +61,7 @@ export const profileController = new Elysia({ prefix: '/profile' })
   // ==================== UPDATE PROFILE ====================
   .put('/', async ({ body, jwt, cookie: { access_token }, set }) => {
     try {
-      const payload = await jwt.verify(access_token.value)
+      const payload = await jwt.verify(access_token.value as string)
       if (!payload) throw new Error('Unauthorized')
 
       const profile = await ProfileService.update(payload.id as string, body)
@@ -75,7 +75,7 @@ export const profileController = new Elysia({ prefix: '/profile' })
   // ==================== CHANGE PASSWORD ====================
   .put('/password', async ({ body, jwt, cookie: { access_token }, set }) => {
     try {
-      const payload = await jwt.verify(access_token.value)
+      const payload = await jwt.verify(access_token.value as string)
       if (!payload) throw new Error('Unauthorized')
 
       return await ProfileService.changePassword(
@@ -92,7 +92,7 @@ export const profileController = new Elysia({ prefix: '/profile' })
   // ==================== MFA SETUP ====================
   .post('/mfa/setup', async ({ jwt, cookie: { access_token }, set }) => {
     try {
-      const payload = await jwt.verify(access_token.value)
+      const payload = await jwt.verify(access_token.value as string)
       if (!payload) throw new Error('Unauthorized')
 
       const profile = await ProfileService.get(payload.id as string)
@@ -106,7 +106,7 @@ export const profileController = new Elysia({ prefix: '/profile' })
   // ==================== MFA VERIFY ====================
   .post('/mfa/verify', async ({ body, jwt, cookie: { access_token }, set }) => {
     try {
-      const payload = await jwt.verify(access_token.value)
+      const payload = await jwt.verify(access_token.value as string)
       if (!payload) throw new Error('Unauthorized')
 
       return await MFAService.verifyAndEnable(
@@ -124,7 +124,7 @@ export const profileController = new Elysia({ prefix: '/profile' })
   // ==================== MFA DISABLE ====================
   .post('/mfa/disable', async ({ body, jwt, cookie: { access_token }, set }) => {
     try {
-      const payload = await jwt.verify(access_token.value)
+      const payload = await jwt.verify(access_token.value as string)
       if (!payload) throw new Error('Unauthorized')
 
       return await MFAService.disable(payload.id as string, body.password)
