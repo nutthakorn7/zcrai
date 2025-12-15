@@ -65,5 +65,15 @@ export const CasesAPI = {
   suggestPlaybook: async (id: string) => {
     const res = await api.post<{ success: boolean; data: { playbookId: string | null; confidence: number; reasoning: string } }>(`/cases/${id}/ai/suggest-playbook`);
     return res.data;
+  },
+
+  editComment: async (caseId: string, commentId: string, content: string) => {
+    const res = await api.patch(`/cases/${caseId}/comments/${commentId}`, { content });
+    return res.data;
+  },
+
+  deleteComment: async (caseId: string, commentId: string) => {
+    const res = await api.delete(`/cases/${caseId}/comments/${commentId}`);
+    return res.data;
   }
 };
