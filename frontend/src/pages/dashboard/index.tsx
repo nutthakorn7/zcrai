@@ -24,6 +24,7 @@ import {
 } from './type.ts';
 import { SystemMetricsCard } from '../../components/SystemMetricsCard';
 import { AnomalyDashboardCard } from '../../components/AnomalyDashboardCard';
+import { RecentActivityWidget } from './widgets/RecentActivityWidget';
 
 // Import logos
 import sentineloneLogo from '../../assets/logo/sentinelone.png';
@@ -779,9 +780,14 @@ export default function DashboardPage() {
       </div>
 
       {/* Main Grid: Recent Detections, Hosts, Users */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-6 animate-fade-in">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-3 mb-6 animate-fade-in">
+        {/* Live Activity Feed */}
+        <div className="lg:col-span-1 h-[450px]">
+          <RecentActivityWidget />
+        </div>
+
         {/* Most Recent Detections */}
-        <Card className="bg-content1/50 border border-white/5 h-[450px]">
+        <Card className="lg:col-span-2 bg-content1/50 border border-white/5 h-[450px]">
           <CardHeader className="flex gap-3 px-5 pt-5">
             <div className="p-2 rounded-lg bg-primary/10">
               <Icon.ShieldAlert className="w-5 h-5 text-primary" />

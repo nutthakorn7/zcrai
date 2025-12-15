@@ -155,6 +155,24 @@ export function AlertDetailModal({ alert, isOpen, onClose }: AlertDetailModalPro
                 </CardBody>
               </Card>
 
+              {/* AI Investigation Report */}
+              {alert.aiAnalysis?.investigationReport && (
+                <Card className="bg-content2/50 border border-white/5 mb-4">
+                  <CardHeader className="border-b border-white/5 px-4 py-3 flex gap-2">
+                    <Icon.Search className="w-5 h-5 text-primary" />
+                    <h4 className="text-sm font-semibold">Automated Investigation Report</h4>
+                    <Chip size="sm" variant="flat" color="primary">AI Findings</Chip>
+                  </CardHeader>
+                  <CardBody className="p-4">
+                    <div className="prose prose-sm prose-invert max-w-none">
+                        <pre className="whitespace-pre-wrap font-sans text-sm text-foreground/80">
+                            {alert.aiAnalysis.investigationReport}
+                        </pre>
+                    </div>
+                  </CardBody>
+                </Card>
+              )}
+
               {/* Related Alerts Section */}
               <Card className="bg-content2/50 border border-white/5">
                 <CardHeader className="border-b border-white/5 px-4 py-3">

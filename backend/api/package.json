@@ -48,7 +48,7 @@
     "@types/haversine": "^1.1.8",
     "@types/qrcode": "^1.5.6",
     "bun-types": "latest",
-    "drizzle-kit": "latest",
+    "drizzle-kit": "^0.31.8",
     "ioredis-mock": "^8.13.1",
     "typescript": "^5.9.3"
   },

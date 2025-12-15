@@ -20,6 +20,16 @@ export interface Alert {
   duplicateCount?: number;
   firstSeenAt?: string;
   lastSeenAt?: string;
+  
+  // AI Auto-Triage
+  aiAnalysis?: {
+    classification: 'FALSE_POSITIVE' | 'TRUE_POSITIVE';
+    confidence: number;
+    reasoning: string;
+    suggested_action: string;
+    investigationReport?: string; // Phase 3: Investigation Summary
+  };
+  aiTriageStatus?: 'pending' | 'processed' | 'failed';
 }
 
 export interface AlertCorrelation {

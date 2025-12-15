@@ -2,6 +2,7 @@ import { Elysia } from 'elysia'
 import { jwt } from '@elysiajs/jwt'
 import { DashboardService } from '../core/services/dashboard.service'
 import { DashboardLayoutService } from '../core/services/dashboard-layout.service'
+import { ActivityService } from '../core/services/activity.service'
 import { tenantAdminOnly } from '../middlewares/auth.middleware'
 
 import { SchedulerService } from '../core/services/scheduler.service'
@@ -376,6 +377,22 @@ export const dashboardController = new Elysia({ prefix: '/dashboard' })
       }
 
       return await DashboardService.getRecentDetections(tenantId, startDate, endDate, limit, sources)
+    } catch (e: any) {
+      set.status = 400
+      return { error: e.message }
+    }
+  })
+
+  // ==================== ACTIVITY FEED ====================
+  .get('/activity', async ({ jwt, cookie: { access_token, selected_tenant }, query, set }) => {
+    try {
+      const payload = await jwt.verify(access_token.value as string)
+      if (!payload) throw new Error('Unauthorized')
+
+      const tenantId = getEffectiveTenantId(payload, selected_tenant)
+      const limit = parseInt(query.limit as string) || 20
+      
+      return await ActivityService.getRecentActivity(tenantId, limit)
     } catch (e: any) {
       set.status = 400
       return { error: e.message }

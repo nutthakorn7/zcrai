@@ -293,6 +293,10 @@ export const alerts = pgTable('alerts', {
   firstSeenAt: timestamp('first_seen_at').defaultNow().notNull(), // Original alert time
   lastSeenAt: timestamp('last_seen_at').defaultNow().notNull(), // Most recent occurrence
   
+  // AI Auto-Triage
+  aiAnalysis: jsonb('ai_analysis'), // { score: number, classification: string, reasoning: string }
+  aiTriageStatus: text('ai_triage_status').default('pending'), // 'pending', 'processed', 'failed'
+  
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => {
