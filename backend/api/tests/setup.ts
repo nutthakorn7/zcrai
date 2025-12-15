@@ -29,6 +29,24 @@ import { eq } from 'drizzle-orm'
 
 export const api = treaty<typeof app>(API_URL)
 
+// DEBUG: Verify Seed
+import { users } from '../infra/db/schema'
+import { eq } from 'drizzle-orm'
+import { db } from '../infra/db'
+
+await (async () => {
+    try {
+        const [u] = await db.select().from(users).where(eq(users.email, 'superadmin@zcr.ai'))
+        if (!u) {
+            console.error('❌ FATAL: Superadmin not found in test setup! CI Seeding might have failed.')
+        } else {
+            console.log(`✅ Found superadmin: ${u.email} (Hash: ${u.passwordHash.substring(0, 20)}...)`)
+        }
+    } catch (e) {
+        console.error('❌ Error checking superadmin:', e)
+    }
+})()
+
 export const AUTH_CREDENTIALS = {
     email: 'superadmin@zcr.ai',
     password: 'SuperAdmin@123!' // Default seeded password
