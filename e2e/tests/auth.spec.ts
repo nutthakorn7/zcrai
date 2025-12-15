@@ -7,7 +7,8 @@ test.describe('Authentication', () => {
     // Check login page elements
     await expect(page.locator('input[type="email"], input[name="email"]')).toBeVisible();
     await expect(page.locator('input[type="password"]')).toBeVisible();
-    await expect(page.getByRole('button', { name: /sign in|login|เข้าสู่ระบบ/i })).toBeVisible();
+    // Use first() to get main submit button, not SSO button
+    await expect(page.locator('button[type="submit"]')).toBeVisible();
   });
 
   test('should show error for invalid credentials', async ({ page }) => {

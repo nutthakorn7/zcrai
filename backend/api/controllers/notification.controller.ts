@@ -8,6 +8,11 @@ export const notificationController = new Elysia({ prefix: '/notifications' })
   // ==================== LIST NOTIFICATIONS ====================
   .get('/', async (ctx: any) => {
     const user = ctx.user as JWTUserPayload
+    if (!user) {
+      console.error('[Notification] User missing in context');
+      ctx.set.status = 401;
+      return { error: 'Unauthorized' };
+    }
     const isRead = ctx.query.isRead === 'true' ? true : ctx.query.isRead === 'false' ? false : undefined
     const notifications = await NotificationService.list(user.userId || user.id || '', { isRead })
     return { success: true, data: notifications }

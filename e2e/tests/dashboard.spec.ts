@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 // Test credentials - use environment variables or test account
 const TEST_EMAIL = process.env.TEST_EMAIL || 'superadmin@zcr.ai';
-const TEST_PASSWORD = process.env.TEST_PASSWORD || 'Admin123!';
+const TEST_PASSWORD = process.env.TEST_PASSWORD || 'SuperAdminQ123!';
 
 test.describe('Dashboard (Authenticated)', () => {
   test.beforeEach(async ({ page }) => {
@@ -12,24 +12,25 @@ test.describe('Dashboard (Authenticated)', () => {
     await page.fill('input[type="password"]', TEST_PASSWORD);
     await page.click('button[type="submit"]');
     
-    // Wait for redirect to dashboard
+    // Wait for redirect to dashboard and ensure header is visible (SPA loaded)
     await page.waitForURL(/dashboard|\/$/);
+    await expect(page.locator('text=Security Dashboard')).toBeVisible({ timeout: 20000 });
   });
 
   test('should display dashboard after login', async ({ page }) => {
     await expect(page).toHaveURL(/dashboard|\/$/);
     
     // Dashboard should have key elements
-    await expect(page.locator('text=/dashboard|แดชบอร์ด/i').first()).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('text=Security Dashboard')).toBeVisible();
   });
 
   test('should display security metrics cards', async ({ page }) => {
     // Look for severity cards or metrics
-    const criticalCard = page.locator('text=/critical|วิกฤต/i').first();
-    const highCard = page.locator('text=/high|สูง/i').first();
+    const totalEvents = page.getByText('Total Events', { exact: false }).first();
+    const criticalText = page.getByText('Critical', { exact: false }).first();
     
     // At least one metric should be visible
-    await expect(criticalCard.or(highCard)).toBeVisible({ timeout: 10000 });
+    await expect(totalEvents.or(criticalText).first()).toBeVisible({ timeout: 10000 });
   });
 
   test('should have navigation sidebar', async ({ page }) => {

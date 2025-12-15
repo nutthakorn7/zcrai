@@ -92,6 +92,35 @@ export const dashboardController = new Elysia({ prefix: '/dashboard' })
     }
   })
 
+  // ==================== SEED DATA (Test Only) ====================
+  .post('/seed', async ({ body, set }) => {
+      try {
+        const { tenantId, severity } = body as any
+        const id = crypto.randomUUID()
+        const sql = `
+            INSERT INTO security_events (
+                id, tenant_id, timestamp, severity, source, event_type,
+                host_name, user_name, mitre_tactic, mitre_technique
+            ) VALUES (
+                '${id}', '${tenantId}', now(), '${severity}', 'simulation', 'alert',
+                'host-1', 'user-1', 'Initial Access', 'T1078'
+            )
+        `
+        // Direct import of clickhouse instance would be better, but we can try using the query helper or import it.
+        // DashboardService does not export clickhouse client. 
+        // We need to import it at top of file. 
+        
+        // For now, I'll assume I can add the import.
+        await import('../infra/clickhouse/client').then(m => m.clickhouse.command({ query: sql }))
+        
+        return { success: true, id }
+      } catch (e: any) {
+         console.error('Seed error:', e)
+         set.status = 500
+         return { error: e.message }
+      }
+  })
+
   // ==================== SUMMARY ====================
   .get('/summary', async ({ jwt, cookie: { access_token, selected_tenant }, query, set }) => {
     try {

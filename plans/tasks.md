@@ -1,4 +1,4 @@
-# zcrAI - Development Tasks
+  # zcrAI - Development Tasks
 
 ## Phase 1: Foundation (Week 1-2)
 
@@ -335,7 +335,7 @@
 ### 12.2 Frontend Testing
 - [ ] Unit tests (Vitest) - components, hooks
 - [ ] E2E tests (Playwright) - critical flows
-- [ ] Login/Logout flow
+- [x] Login/Logout flow
 - [ ] Dashboard navigation
 - [ ] Case management flow
 

@@ -13,6 +13,8 @@ export default defineConfig({
   build: {
     // Let Vite handle chunking automatically to avoid React initialization issues
     chunkSizeWarningLimit: 1000,
+    minify: false,
+    sourcemap: true,
   },
   server: {
     port: 5173,

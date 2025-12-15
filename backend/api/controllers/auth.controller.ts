@@ -47,6 +47,7 @@ export const authController = new Elysia({ prefix: '/auth' })
 
       const accessToken = await jwt.sign({
         id: user.id,
+        userId: user.id,
         role: user.role,
         tenantId: user.tenantId
       })
@@ -137,6 +138,7 @@ export const authController = new Elysia({ prefix: '/auth' })
 
       const accessToken = await jwt.sign({
         id: user.id,
+        userId: user.id,
         role: user.role,
         tenantId: user.tenantId
       })

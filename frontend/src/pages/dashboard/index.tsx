@@ -389,8 +389,8 @@ export default function DashboardPage() {
                              {icon}
                          </div>
                          <div>
-                            <p className="text-sm text-default-500 font-medium uppercase tracking-wider">{title}</p>
-                            <h4 className="text-3xl font-bold mt-1" style={{ color: color === 'var(--color-primary)' ? undefined : color }}>{count?.toLocaleString() || 0}</h4>
+                            <p className="text-sm text-default-600 font-medium uppercase tracking-wider">{title}</p>
+                            <h3 className="text-3xl font-bold mt-1" style={{ color: color === 'var(--color-primary)' ? undefined : color }}>{count?.toLocaleString() || 0}</h3>
                             <div className="flex items-center gap-2 mt-1">
                                 <Chip 
                                     size="sm" 
@@ -571,6 +571,7 @@ export default function DashboardPage() {
       </div>
       
       {/* Summary Stats */}
+      <h2 className="sr-only">Alert Summary</h2>
       {/* Summary Cards with Sparklines */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8 animate-fade-in">
         <div onClick={() => handleSummaryClick('critical')} className="cursor-pointer transition-transform hover:scale-[1.02]">
