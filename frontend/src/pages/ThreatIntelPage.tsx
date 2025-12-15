@@ -24,7 +24,7 @@ import {
   LinkIcon,
 } from '@heroicons/react/24/outline';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import axios from 'axios';
+import { api } from '../shared/api/api';
 
 interface Source {
   name: string;
@@ -86,7 +86,7 @@ export default function ThreatIntelPage() {
   const { data: summary } = useQuery<ThreatSummary>({
     queryKey: ['threat-intel-summary'],
     queryFn: async () => {
-      const res = await axios.get('/api/threat-intel/summary');
+      const res = await api.get('/threat-intel/summary');
       return res.data;
     },
     refetchInterval: 30000,
@@ -96,7 +96,7 @@ export default function ThreatIntelPage() {
   const { data: providers } = useQuery<ProviderStatus[]>({
     queryKey: ['threat-intel-providers'],
     queryFn: async () => {
-      const res = await axios.get('/api/threat-intel/providers');
+      const res = await api.get('/threat-intel/providers');
       return res.data;
     },
   });
@@ -104,7 +104,7 @@ export default function ThreatIntelPage() {
   // Lookup mutation
   const lookupMutation = useMutation({
     mutationFn: async ({ indicator, type }: { indicator: string; type: string }) => {
-      const res = await axios.post('/api/threat-intel/lookup', { indicator, type });
+      const res = await api.post('/threat-intel/lookup', { indicator, type });
       return res.data;
     },
     onSuccess: (data) => {
