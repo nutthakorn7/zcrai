@@ -6,8 +6,8 @@ process.env.REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6380'
 const isCI = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true'
 
 import { treaty } from '@elysiajs/eden'
-import { app, seedSuperAdmin } from '../index'
-export { seedSuperAdmin }
+import { app } from '../index'
+
 
 // Connect to the running server or in-memory
 // Since we export 'app' which has .listen(), we can test against localhost if running
@@ -24,8 +24,8 @@ import { db } from '../infra/db'
 import { users, sessions } from '../infra/db/schema'
 import { eq } from 'drizzle-orm'
 
-// Seed in all environments (including CI)
-await seedSuperAdmin()
+// Seed call moved to global CI workflow to avoid race conditions in parallel tests
+// await seedSuperAdmin()
 
 export const api = treaty<typeof app>(API_URL)
 
