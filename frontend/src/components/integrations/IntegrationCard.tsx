@@ -1,7 +1,7 @@
 // IntegrationCard Component - Displays active or unconfigured integration cards
 import { Card, CardBody, Button, Chip } from "@heroui/react";
 import { Icon } from '../../shared/ui';
-import { Integration, PROVIDER_CONFIG, PROVIDER_LOGOS, ProviderConfig, getColorClasses } from './integration.types';
+import { Integration, PROVIDER_CONFIG, PROVIDER_LOGOS, getColorClasses } from './integration.types';
 
 interface IntegrationCardProps {
   integration?: Integration;
@@ -115,7 +115,7 @@ export function IntegrationCard({ integration, provider, onEdit, onDelete, onAdd
       <div className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
         <div className={`text-xs ${colors.text} flex items-center gap-1`}>
           <span>Connect</span>
-          <Icon.ArrowRight className="w-3 h-3" />
+          <Icon.ChevronRight className="w-3 h-3" />
         </div>
       </div>
     </button>
@@ -145,7 +145,7 @@ export function AIProviderCard({ provider, integration, onEdit, onDelete, onAdd 
               {logo ? (
                 <img src={logo} alt={provider} className="w-6 h-6" />
               ) : (
-                <Icon.Sparkles className={`w-6 h-6 ${colors.text}`} />
+                <Icon.Settings className={`w-6 h-6 ${colors.text}`} />
               )}
             </div>
             <div className="flex-1">
@@ -177,7 +177,7 @@ export function AIProviderCard({ provider, integration, onEdit, onDelete, onAdd 
           {logo ? (
             <img src={logo} alt={provider} className="w-6 h-6" />
           ) : (
-            <Icon.Sparkles className={`w-6 h-6 ${colors.text}`} />
+            <Icon.Settings className={`w-6 h-6 ${colors.text}`} />
           )}
         </div>
         <div>
