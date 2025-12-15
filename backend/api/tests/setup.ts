@@ -14,11 +14,9 @@ import { app } from '../index'
 // OR we can use app.handle() for fetch-like testing
 // Treaty is best for E2E-like 
 
-// Start server for testing on random port to avoid collisions
-app.listen(0)
-const PORT = app.server?.port
-const API_URL = `http://127.0.0.1:${PORT}`
-console.log('🔗 Test API URL:', API_URL)
+// Use treaty with app directly (no HTTP server needed)
+// This bypasses network entirely and tests Elysia routing directly
+console.log('🔗 Using direct app testing (no HTTP)')
 
 // Ensure clean DB state for auth
 import { db } from '../infra/db'
@@ -28,7 +26,7 @@ import { eq } from 'drizzle-orm'
 // Seed call moved to global CI workflow to avoid race conditions in parallel tests
 // await seedSuperAdmin()
 
-export const api = treaty<typeof app>(API_URL)
+export const api = treaty<typeof app>(app)
 
 // DEBUG: Verify Seed
 await (async () => {
