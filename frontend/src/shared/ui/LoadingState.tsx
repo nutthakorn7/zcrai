@@ -10,7 +10,7 @@ export function LoadingState({ message = 'Loading...', size = 'lg' }: LoadingSta
     <div className="flex flex-col items-center justify-center py-12">
       <Spinner size={size} color="primary" />
       {message && (
-        <p className="mt-4 text-sm text-foreground/50">{message}</p>
+        <p className="mt-4 text-sm text-foreground/60">{message}</p>
       )}
     </div>
   );

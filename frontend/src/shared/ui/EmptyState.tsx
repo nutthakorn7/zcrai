@@ -24,7 +24,7 @@ export function EmptyState({
       </div>
       <h3 className="text-base font-medium text-foreground mb-2">{title}</h3>
       {description && (
-        <p className="text-sm text-foreground/50 text-center max-w-sm mb-4">
+        <p className="text-sm text-foreground/60 text-center max-w-sm mb-4">
           {description}
         </p>
       )}

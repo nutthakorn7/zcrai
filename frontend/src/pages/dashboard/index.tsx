@@ -422,7 +422,7 @@ export default function DashboardPage() {
                style={{ borderTopColor: 'var(--color-primary)' }} />
           <Icon.ShieldAlert className="absolute inset-0 m-auto w-6 h-6 text-primary" />
         </div>
-        <p className="mt-4 text-sm text-foreground/50">Loading security data...</p>
+        <p className="mt-4 text-sm text-foreground/60">Loading security data...</p>
       </div>
     );
   }
@@ -435,7 +435,7 @@ export default function DashboardPage() {
           <h1 className="text-2xl font-bold text-foreground">
             Security Dashboard
           </h1>
-          <p className="text-sm mt-1 text-foreground/50">
+          <p className="text-sm mt-1 text-foreground/60">
             Real-time threat monitoring & analytics
           </p>
         </div>
@@ -446,7 +446,7 @@ export default function DashboardPage() {
             <HerouiTooltip content="All Providers">
               <button
                 onClick={() => setSelectedProvider('all')}
-                className={`p-2 rounded-md transition-all ${selectedProvider === 'all' ? 'bg-content2 text-foreground shadow-sm' : 'text-foreground/50 hover:text-foreground'}`}
+                className={`p-2 rounded-md transition-all ${selectedProvider === 'all' ? 'bg-content2 text-foreground shadow-sm' : 'text-foreground/60 hover:text-foreground'}`}
               >
                 <div className="flex items-center gap-2 px-1">
                   <Icon.Database className="w-4 h-4" />
@@ -1085,7 +1085,7 @@ export default function DashboardPage() {
             </ResponsiveContainer>
           </div>
         ) : (
-          <p className="text-center py-8 text-foreground/50">No MITRE ATT&CK data available</p>
+          <p className="text-center py-8 text-foreground/60">No MITRE ATT&CK data available</p>
         )}
       </div>
     </div>

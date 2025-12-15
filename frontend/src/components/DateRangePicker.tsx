@@ -206,7 +206,7 @@ export function DateRangePicker({ startDate, endDate, onChange }: DateRangePicke
         <div className="flex">
           {/* Presets */}
           <div className="w-36 border-r border-white/5 p-3">
-            <p className="text-xs text-foreground/50 mb-2 font-medium">Quick Select</p>
+            <p className="text-xs text-foreground/60 mb-2 font-medium">Quick Select</p>
             <div className="space-y-1">
               {PRESETS.map((preset) => (
                 <button
@@ -225,13 +225,13 @@ export function DateRangePicker({ startDate, endDate, onChange }: DateRangePicke
             {/* Month Navigation */}
             <div className="flex items-center justify-between mb-4">
               <button onClick={prevMonth} className="p-1 hover:bg-content2 rounded transition-colors">
-                <Icon.ChevronLeft className="w-4 h-4 text-foreground/50" />
+                <Icon.ChevronLeft className="w-4 h-4 text-foreground/60" />
               </button>
               <span className="text-sm font-medium text-foreground">
                 {monthNames[viewingMonth.getMonth()]} {viewingMonth.getFullYear()}
               </span>
               <button onClick={nextMonth} className="p-1 hover:bg-content2 rounded transition-colors">
-                <Icon.ChevronRight className="w-4 h-4 text-foreground/50" />
+                <Icon.ChevronRight className="w-4 h-4 text-foreground/60" />
               </button>
             </div>
 
@@ -253,11 +253,11 @@ export function DateRangePicker({ startDate, endDate, onChange }: DateRangePicke
             <div className="mt-4 pt-4 border-t border-white/5">
               <div className="flex items-center justify-between text-sm">
                 <div>
-                  <span className="text-foreground/50">From: </span>
+                  <span className="text-foreground/60">From: </span>
                   <span className="text-foreground">{formatDate(tempStart)}</span>
                 </div>
                 <div>
-                  <span className="text-foreground/50">To: </span>
+                  <span className="text-foreground/60">To: </span>
                   <span className="text-foreground">{formatDate(tempEnd)}</span>
                 </div>
               </div>

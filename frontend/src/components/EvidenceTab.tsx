@@ -461,7 +461,7 @@ export function EvidenceTab({ caseId }: EvidenceTabProps) {
                             By {event.performedBy} at {event.location}
                           </p>
                           {event.notes && (
-                            <p className="text-xs text-foreground/50 mt-1">{event.notes}</p>
+                            <p className="text-xs text-foreground/60 mt-1">{event.notes}</p>
                           )}
                         </div>
                       </div>

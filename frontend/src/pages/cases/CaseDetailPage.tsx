@@ -258,7 +258,7 @@ export default function CaseDetailPage() {
                                     <Button color="primary" className="h-[64px]" onPress={handleComment} isDisabled={!newComment.trim()}>Post</Button>
                                 </div>
                                 {typingUsers.length > 0 && (
-                                    <div className="text-xs text-foreground/50 italic animate-pulse px-1">
+                                    <div className="text-xs text-foreground/60 italic animate-pulse px-1">
                                         {typingUsers.join(', ')} {typingUsers.length === 1 ? 'is' : 'are'} typing...
                                     </div>
                                 )}

@@ -64,7 +64,7 @@ export default function ForgotPasswordPage() {
             Reset Password
           </h1>
           {!isSent && (
-            <p className="text-foreground/50 text-sm mt-1 max-w-[300px]">
+            <p className="text-foreground/60 text-sm mt-1 max-w-[300px]">
               Enter your email to receive instructions
             </p>
           )}
@@ -79,7 +79,7 @@ export default function ForgotPasswordPage() {
                 <IconSolid.CheckCircle className="w-10 h-10 text-emerald-500" />
               </div>
               <h3 className="text-xl font-bold mb-2 text-foreground">Check your inbox</h3>
-              <p className="text-foreground/50 text-center mb-8 text-sm leading-relaxed px-4">
+              <p className="text-foreground/60 text-center mb-8 text-sm leading-relaxed px-4">
                 If an account exists for <span className="text-primary ">{email}</span>, 
                 we've sent a password reset link.
               </p>
@@ -93,7 +93,7 @@ export default function ForgotPasswordPage() {
 
               <button 
                 onClick={() => { setIsSent(false); setEmail(''); }} 
-                className="mt-6 text-xs text-foreground/50 hover:text-foreground/80 transition-colors"
+                className="mt-6 text-xs text-foreground/60 hover:text-foreground/80 transition-colors"
               >
                 Try different email
               </button>
@@ -117,11 +117,11 @@ export default function ForgotPasswordPage() {
                 value={email}
                 onValueChange={setEmail}
                 placeholder="example@company.com"
-                startContent={<Icon.Mail className="w-5 h-5 text-foreground/50" />}
+                startContent={<Icon.Mail className="w-5 h-5 text-foreground/60" />}
                 classNames={{
-                  label: "text-xs font-semibold text-foreground/50 uppercase tracking-wider ",
+                  label: "text-xs font-semibold text-foreground/60 uppercase tracking-wider ",
                   inputWrapper: "bg-content1 border border-content4 hover:border-primary/50 data-[hover=true]:border-primary/50 group-data-[focus=true]:border-primary h-[56px]",
-                  input: " text-base placeholder:text-foreground/50"
+                  input: " text-base placeholder:text-foreground/60"
                 }}
               />
 
@@ -138,7 +138,7 @@ export default function ForgotPasswordPage() {
                 <button
                   type="button"
                   onClick={() => navigate('/login')}
-                  className="flex items-center gap-2 text-foreground/50 hover:text-primary transition-colors text-sm group"
+                  className="flex items-center gap-2 text-foreground/60 hover:text-primary transition-colors text-sm group"
                 >
                   <Icon.ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
                   Back to Login
