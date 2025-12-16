@@ -17,13 +17,36 @@ const getEffectiveTenantId = (payload: any, selectedTenant: any): string => {
 export const logsController = new Elysia({ prefix: '/logs' })
   .use(tenantAdminOnly)
 
-  // ==================== GET FILTER OPTIONS ====================
+  /**
+   * Get available filter options for logs
+   * @route GET /logs/filters
+   * @access Protected - Admin only
+   * @returns {Object} Available filter values (sources, severities, hosts, users)
+   * @description Used to populate filter dropdowns in UI
+   */
   .get('/filters', async ({ user, cookie: { selected_tenant } }: any) => {
     const tenantId = getEffectiveTenantId(user, selected_tenant)
     return await LogsService.getFilterOptions(tenantId)
   })
 
-  // ==================== LIST LOGS ====================
+  /**
+   * Search and filter security logs
+   * @route GET /logs
+   * @access Protected - Admin only
+   * @query {string} startDate - Start date filter (YYYY-MM-DD)
+   * @query {string} endDate - End date filter (YYYY-MM-DD)
+   * @query {string} severity - Comma-separated severities
+   * @query {string} sources - Comma-separated log sources
+   * @query {string} host - Filter by hostname
+   * @query {string} user - Filter by username
+   * @query {string} search - Free-text search
+   * @query {string} eventType - Filter by event type
+   * @query {number} page - Page number (default: 1)
+   * @query {number} limit - Results per page (max: 100, default: 50)
+   * @query {string} sortBy - Sort field (default: timestamp)
+   * @query {string} sortOrder - Sort direction (asc/desc, default: desc)
+   * @returns {Object} Paginated log entries with total count
+   */
   .get('/', async ({ user, cookie: { selected_tenant }, query }: any) => {
     const tenantId = getEffectiveTenantId(user, selected_tenant)
 
@@ -55,7 +78,14 @@ export const logsController = new Elysia({ prefix: '/logs' })
     return await LogsService.list(tenantId, filters, pagination)
   })
 
-  // ==================== GET SINGLE LOG ====================
+  /**
+   * Get detailed log entry by ID
+   * @route GET /logs/:id
+   * @access Protected - Admin only
+   * @param {string} id - Log entry ID
+   * @returns {Object} Full log entry with all fields
+   * @throws {404} Log not found
+   */
   .get('/:id', async ({ user, cookie: { selected_tenant }, params }: any) => {
     const tenantId = getEffectiveTenantId(user, selected_tenant)
     const log = await LogsService.getById(tenantId, params.id)
