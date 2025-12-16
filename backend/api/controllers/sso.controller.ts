@@ -6,7 +6,6 @@ import { setAccessTokenCookie, setRefreshTokenCookie } from '../config/cookies'
 import { Errors } from '../middleware/error'
 
 export const ssoController = new Elysia({ prefix: '/auth/sso' })
-  // Public Routes (uses ssoJwt for signing tokens in callback)
   .use(
     jwt({
         name: 'ssoJwt',
@@ -14,6 +13,16 @@ export const ssoController = new Elysia({ prefix: '/auth/sso' })
         exp: process.env.JWT_ACCESS_EXPIRY || '7d'
     })
   )
+  
+  /**
+   * Initiate SSO login flow
+   * @route GET /auth/sso/login
+   * @access Public
+   * @query {string} provider - SSO provider (google, azure, okta)
+   * @query {string} tenantId - Tenant ID for SSO configuration
+   * @returns {Redirect} Redirects to SSO provider authorization page
+   * @throws {400} Missing provider or tenantId
+   */
   .get('/login', async ({ query, redirect }: any) => {
     const { provider, tenantId } = query;
     if (!provider || !tenantId) throw Errors.BadRequest('Missing provider or tenantId');
@@ -26,6 +35,17 @@ export const ssoController = new Elysia({ prefix: '/auth/sso' })
           tenantId: t.String()
       })
   })
+  
+  /**
+   * Handle SSO callback from identity provider
+   * @route GET /auth/sso/callback
+   * @access Public
+   * @query {string} state - Tenant ID state parameter
+   * @query {string} code - Authorization code from IDP
+   * @returns {Redirect} Redirects to dashboard with authentication cookies
+   * @throws {400} Missing state or invalid user
+   * @description Exchanges authorization code for tokens and creates user session
+   */
   .get('/callback', async ({ request, query, ssoJwt, cookie: { access_token, refresh_token }, redirect }: any) => {
       const currentUrl = new URL(request.url);
       const state = query.state;
@@ -42,7 +62,6 @@ export const ssoController = new Elysia({ prefix: '/auth/sso' })
           throw Errors.NotFound('User');
       }
       
-      // Sign token including tenantId
       const accessToken = await ssoJwt.sign({
           id: user.id,
           role: user.role,
@@ -58,7 +77,14 @@ export const ssoController = new Elysia({ prefix: '/auth/sso' })
       return redirect('/dashboard');
   })
   
-  // ==================== PROTECTED SETTINGS ROUTES ====================
+  /**
+   * Get SSO configuration for tenant
+   * @route GET /auth/sso/config
+   * @access Protected - Admin/SuperAdmin only
+   * @returns {Object} SSO configuration (provider, clientId, issuer, isEnabled)
+   * @throws {401} Unauthorized
+   * @throws {403} Forbidden (wrong role)
+   */
   .get('/config', async ({ ssoJwt, cookie: { access_token } }: any) => {
       if (!access_token.value) throw Errors.Unauthorized();
       
@@ -88,6 +114,19 @@ export const ssoController = new Elysia({ prefix: '/auth/sso' })
       };
   })
   
+  /**
+   * Update SSO configuration for tenant
+   * @route PUT /auth/sso/config
+   * @access Protected - Admin/SuperAdmin only
+   * @body {string} clientId - OAuth client ID
+   * @body {string} clientSecret - OAuth client secret
+   * @body {string} issuer - IDP issuer URL
+   * @body {string} provider - SSO provider (optional, default: google)
+   * @body {boolean} isEnabled - Enable/disable SSO (optional, default: true)
+   * @returns {Object} Success message with saved configuration
+   * @throws {401} Unauthorized
+   * @throws {403} Forbidden
+   */
   .put('/config', async ({ ssoJwt, cookie: { access_token }, body }: any) => {
       if (!access_token.value) throw Errors.Unauthorized();
       
