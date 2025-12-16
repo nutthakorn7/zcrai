@@ -170,7 +170,6 @@ const app = new Elysia()
   .use(riskController) // Predictive Risk Analysis
   .use(mitreController) // MITRE ATT&CK Coverage
   .use(graphController) // Investigation Graph
-  .use(graphController) // Investigation Graph
   .use(threatIntelController) // Threat Intel Feeds & Retro Scan
   .use(systemController) // System Management (Backups, License)
   .use(billingController) // Billing & Subscription
