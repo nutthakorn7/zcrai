@@ -3,6 +3,8 @@ import { jwt } from '@elysiajs/jwt'
 import { AuthService } from '../core/services/auth.service'
 import { MFAService } from '../core/services/mfa.service'
 import { analyticsService } from '../core/services/analytics.service'
+import { setAccessTokenCookie, setRefreshTokenCookie, clearAuthCookies } from '../config/cookies'
+import { Errors } from '../middleware/error'
 import { 
   LoginSchema, 
   RegisterSchema, 
@@ -23,14 +25,9 @@ export const authController = new Elysia({ prefix: '/auth' })
 
   // ==================== REGISTER ====================
   .post('/register', async ({ body, set }) => {
-    try {
-      const result = await AuthService.register(body)
-      set.status = 201
-      return { message: 'User registered successfully', user: result.user }
-    } catch (e: any) {
-      set.status = 400
-      return { error: e.message }
-    }
+    const result = await AuthService.register(body)
+    set.status = 201
+    return { message: 'User registered successfully', user: result.user }
   }, { body: RegisterSchema })
 
   // ==================== LOGIN ====================
@@ -47,7 +44,6 @@ export const authController = new Elysia({ prefix: '/auth' })
 
       const accessToken = await jwt.sign({
         id: user.id,
-        userId: user.id,
         role: user.role,
         tenantId: user.tenantId
       })
@@ -59,23 +55,8 @@ export const authController = new Elysia({ prefix: '/auth' })
       // UEBA: Track Login
       analyticsService.trackLogin(user.id, ip, userAgent || '')
 
-      access_token.set({
-        value: accessToken,
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 7 * 24 * 60 * 60, // 7 days (Matches token expiry)
-        path: '/'
-      })
-
-      refresh_token.set({
-        value: refreshTokenValue,
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 7 * 24 * 60 * 60,
-        path: '/auth/refresh'
-      })
+      setAccessTokenCookie(access_token, accessToken)
+      setRefreshTokenCookie(refresh_token, refreshTokenValue)
 
       return { 
         message: 'Login successful', 

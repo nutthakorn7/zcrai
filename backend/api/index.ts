@@ -3,6 +3,7 @@ import { swagger } from '@elysiajs/swagger'
 import { cors } from '@elysiajs/cors'
 import { rateLimit } from 'elysia-rate-limit'
 import { helmet } from 'elysia-helmet'
+import { errorHandler } from './middleware/error'
 import { authController } from './controllers/auth.controller'
 import { ssoController } from './controllers/sso.controller'
 import { tenantController } from './controllers/tenant.controller'
@@ -133,6 +134,7 @@ const app = new Elysia()
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   }))
   .use(helmet())
+  .use(errorHandler)  // Global error handler
   .use(rateLimit({
      duration: 60000, // 1 minute
      max: 100 // 100 requests per minute
