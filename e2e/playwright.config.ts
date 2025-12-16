@@ -8,29 +8,31 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: 'html',
   
-  // Global setup for auth
-  globalSetup: require.resolve('./tests/auth.setup.ts'),
-
   use: {
     baseURL: process.env.BASE_URL || 'https://app.zcr.ai',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
-    // Tell all tests to load the signed-in state
-    storageState: 'playwright/.auth/user.json',
   },
 
   projects: [
     {
+      name: 'setup',
+      testMatch: /auth\.setup\.ts/,
+    },
+    {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: { ...devices['Desktop Chrome'], storageState: 'playwright/.auth/user.json' },
+      dependencies: ['setup'],
     },
     {
       name: 'firefox',
-      use: { ...devices['Desktop Firefox'] },
+      use: { ...devices['Desktop Firefox'], storageState: 'playwright/.auth/user.json' },
+      dependencies: ['setup'],
     },
     {
       name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
+      use: { ...devices['Desktop Safari'], storageState: 'playwright/.auth/user.json' },
+      dependencies: ['setup'],
     },
   ],
 
