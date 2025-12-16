@@ -22,171 +22,186 @@
           - button "Alerts" [ref=e22] [cursor=pointer]:
             - img [ref=e23]
             - generic: Alerts
-          - button "Logs" [ref=e25] [cursor=pointer]:
+          - button "Actions" [ref=e25] [cursor=pointer]:
             - img [ref=e26]
-            - generic: Logs
-          - button "Observables" [ref=e28] [cursor=pointer]:
+            - generic: Actions
+          - button "Threat Intel" [ref=e28] [cursor=pointer]:
             - img [ref=e29]
-            - generic: Observables
-          - button "Threat Intel" [ref=e31] [cursor=pointer]:
-            - img [ref=e32]
             - generic: Threat Intel
-          - button "Playbooks" [ref=e34] [cursor=pointer]:
+          - button "Logs" [ref=e31] [cursor=pointer]:
+            - img [ref=e32]
+            - generic: Logs
+          - button "Observables" [ref=e34] [cursor=pointer]:
             - img [ref=e35]
-            - generic: Playbooks
-          - button "Settings" [ref=e37] [cursor=pointer]:
+            - generic: Observables
+          - button "Threat Intel" [ref=e37] [cursor=pointer]:
             - img [ref=e38]
+            - generic: Threat Intel
+          - button "Playbooks" [ref=e40] [cursor=pointer]:
+            - img [ref=e41]
+            - generic: Playbooks
+          - button "Detection" [ref=e43] [cursor=pointer]:
+            - img [ref=e44]
+            - generic: Detection
+          - button "Settings" [ref=e47] [cursor=pointer]:
+            - img [ref=e48]
             - generic: Settings
-          - button "Admin" [ref=e41] [cursor=pointer]:
-            - img [ref=e42]
+          - button "Subscription" [ref=e51] [cursor=pointer]:
+            - img [ref=e52]
+            - generic: Subscription
+          - button "System" [ref=e54] [cursor=pointer]:
+            - img [ref=e55]
+            - generic: System
+          - button "Admin" [ref=e57] [cursor=pointer]:
+            - img [ref=e58]
             - generic: Admin
-        - button "Logout" [ref=e45] [cursor=pointer]:
-          - img [ref=e46]
+        - button "Logout" [ref=e61] [cursor=pointer]:
+          - img [ref=e62]
           - generic: Logout
-      - generic [ref=e48]:
-        - button [ref=e50] [cursor=pointer]:
-          - img [ref=e51]
-        - main [ref=e53]:
-          - generic [ref=e54]:
-            - generic [ref=e55]:
-              - generic [ref=e56]:
-                - heading "Case Management" [level=1] [ref=e57]
-                - paragraph [ref=e58]: 0 cases
-              - generic [ref=e59]:
-                - generic [ref=e60]:
-                  - button "Table" [ref=e61] [cursor=pointer]:
-                    - img [ref=e62]
+      - generic [ref=e64]:
+        - button [ref=e66] [cursor=pointer]:
+          - img [ref=e67]
+        - main [ref=e69]:
+          - generic [ref=e70]:
+            - generic [ref=e71]:
+              - generic [ref=e72]:
+                - heading "Case Management" [level=1] [ref=e73]
+                - paragraph [ref=e74]: 0 cases
+              - generic [ref=e75]:
+                - generic [ref=e76]:
+                  - button "Table" [ref=e77] [cursor=pointer]:
+                    - img [ref=e78]
                     - text: Table
-                  - button "Kanban" [ref=e64] [cursor=pointer]:
-                    - img [ref=e65]
+                  - button "Kanban" [ref=e80] [cursor=pointer]:
+                    - img [ref=e81]
                     - text: Kanban
-                  - button "Graph" [ref=e67] [cursor=pointer]:
-                    - img [ref=e68]
+                  - button "Graph" [ref=e83] [cursor=pointer]:
+                    - img [ref=e84]
                     - text: Graph
-                  - button "Timeline" [ref=e70] [cursor=pointer]:
-                    - img [ref=e71]
+                  - button "Timeline" [ref=e86] [cursor=pointer]:
+                    - img [ref=e87]
                     - text: Timeline
-                - button "New Case" [ref=e73] [cursor=pointer]:
-                  - img [ref=e74]
+                - button "New Case" [ref=e89] [cursor=pointer]:
+                  - img [ref=e90]
                   - text: New Case
-            - generic [ref=e76]:
-              - generic [ref=e78]:
-                - heading "Severity" [level=3] [ref=e79]
-                - application [ref=e84]
-                - generic [ref=e86]:
-                  - generic [ref=e87]: Total
-                  - generic [ref=e88]: "0"
-              - generic [ref=e90]:
-                - heading "Status" [level=3] [ref=e91]
-                - application [ref=e96]
-                - generic [ref=e98]:
-                  - generic [ref=e99]: Total
-                  - generic [ref=e100]: "0"
-              - generic [ref=e102]:
-                - heading "Priority" [level=3] [ref=e103]
-                - application [ref=e108]
-                - generic [ref=e110]:
-                  - generic [ref=e111]: Total
-                  - generic [ref=e112]: "0"
-              - generic [ref=e114]:
-                - heading "Owner" [level=3] [ref=e115]
-                - application [ref=e120]
-                - generic [ref=e122]:
-                  - generic [ref=e123]: Total
-                  - generic [ref=e124]: "0"
-            - generic [ref=e126]:
-              - generic [ref=e127]:
-                - generic [ref=e129]:
+            - generic [ref=e92]:
+              - generic [ref=e94]:
+                - heading "Severity" [level=3] [ref=e95]
+                - application [ref=e100]
+                - generic [ref=e102]:
+                  - generic [ref=e103]: Total
+                  - generic [ref=e104]: "0"
+              - generic [ref=e106]:
+                - heading "Status" [level=3] [ref=e107]
+                - application [ref=e112]
+                - generic [ref=e114]:
+                  - generic [ref=e115]: Total
+                  - generic [ref=e116]: "0"
+              - generic [ref=e118]:
+                - heading "Priority" [level=3] [ref=e119]
+                - application [ref=e124]
+                - generic [ref=e126]:
+                  - generic [ref=e127]: Total
+                  - generic [ref=e128]: "0"
+              - generic [ref=e130]:
+                - heading "Owner" [level=3] [ref=e131]
+                - application [ref=e136]
+                - generic [ref=e138]:
+                  - generic [ref=e139]: Total
+                  - generic [ref=e140]: "0"
+            - generic [ref=e142]:
+              - generic [ref=e143]:
+                - generic [ref=e145]:
                   - text: Saved Filters
-                  - combobox [ref=e130]
-                - button "Select... Saved Filters" [ref=e132] [cursor=pointer]:
+                  - combobox [ref=e146]
+                - button "Select... Saved Filters" [ref=e148] [cursor=pointer]:
                   - generic: Saved Filters
-                  - generic [ref=e134]: Select...
-                  - img [ref=e135]
-              - generic [ref=e137]:
-                - generic [ref=e139]:
-                  - text: Severity
-                  - listbox [ref=e140]:
-                    - option [ref=e141]
-                    - option [ref=e142]: Critical
-                    - option [ref=e143]: High
-                    - option [ref=e144]: Medium
-                    - option [ref=e145]: Low
-                    - option [ref=e146]: Info
-                - button "All Severity" [ref=e148] [cursor=pointer]:
-                  - generic: Severity
-                  - generic [ref=e150]: All
+                  - generic [ref=e150]: Select...
                   - img [ref=e151]
               - generic [ref=e153]:
                 - generic [ref=e155]:
-                  - text: Status
+                  - text: Severity
                   - listbox [ref=e156]:
                     - option [ref=e157]
-                    - option [ref=e158]: Open
-                    - option [ref=e159]: Investigating
-                    - option [ref=e160]: Resolved
-                    - option [ref=e161]: Closed
-                - button "All Status" [ref=e163] [cursor=pointer]:
+                    - option [ref=e158]: Critical
+                    - option [ref=e159]: High
+                    - option [ref=e160]: Medium
+                    - option [ref=e161]: Low
+                    - option [ref=e162]: Info
+                - button "All Severity" [ref=e164] [cursor=pointer]:
+                  - generic: Severity
+                  - generic [ref=e166]: All
+                  - img [ref=e167]
+              - generic [ref=e169]:
+                - generic [ref=e171]:
+                  - text: Status
+                  - listbox [ref=e172]:
+                    - option [ref=e173]
+                    - option [ref=e174]: Open
+                    - option [ref=e175]: Investigating
+                    - option [ref=e176]: Resolved
+                    - option [ref=e177]: Closed
+                - button "All Status" [ref=e179] [cursor=pointer]:
                   - generic: Status
-                  - generic [ref=e165]: All
-                  - img [ref=e166]
-              - generic [ref=e168]:
-                - generic [ref=e170]:
+                  - generic [ref=e181]: All
+                  - img [ref=e182]
+              - generic [ref=e184]:
+                - generic [ref=e186]:
                   - text: Owner
-                  - combobox [ref=e171]
-                - button "All Owner" [ref=e173] [cursor=pointer]:
+                  - combobox [ref=e187]
+                - button "All Owner" [ref=e189] [cursor=pointer]:
                   - generic: Owner
-                  - generic [ref=e175]: All
-                  - img [ref=e176]
-              - generic [ref=e180]:
-                - generic [ref=e181]: Search
-                - generic [ref=e182]:
-                  - img [ref=e183]
-                  - textbox "Search" [ref=e185]:
+                  - generic [ref=e191]: All
+                  - img [ref=e192]
+              - generic [ref=e196]:
+                - generic [ref=e197]: Search
+                - generic [ref=e198]:
+                  - img [ref=e199]
+                  - textbox "Search" [ref=e201]:
                     - /placeholder: Search for something...
-              - generic [ref=e186]:
-                - button "Submit" [ref=e187] [cursor=pointer]
-                - button "Clear filters" [ref=e188] [cursor=pointer]:
-                  - img [ref=e189]
-            - grid "Cases table" [ref=e193]:
-              - rowgroup [ref=e194]:
-                - row "SEVERITY TITLE STATUS SLA ASSIGNEE CREATED ACTIONS" [ref=e195] [cursor=pointer]:
-                  - columnheader "SEVERITY" [ref=e196]
-                  - columnheader "TITLE" [ref=e197]
-                  - columnheader "STATUS" [ref=e198]
-                  - columnheader "SLA" [ref=e199]
-                  - columnheader "ASSIGNEE" [ref=e200]
-                  - columnheader "CREATED" [ref=e201]
-                  - columnheader "ACTIONS" [ref=e202]
-                - row [ref=e203]
-              - rowgroup [ref=e204]:
-                - row "No cases found." [ref=e205]:
-                  - gridcell "No cases found." [ref=e206]
-    - button "🤖" [ref=e208] [cursor=pointer]
-  - dialog "Create New Case" [active] [ref=e211]:
-    - button "Dismiss" [ref=e213] [cursor=pointer]
-    - button "Close" [ref=e214] [cursor=pointer]:
-      - img [ref=e215]
-    - banner [ref=e217]: Create New Case
-    - generic [ref=e218]:
-      - generic [ref=e220]:
-        - generic [ref=e221]: Title
-        - textbox "Title" [ref=e223]:
+              - generic [ref=e202]:
+                - button "Submit" [ref=e203] [cursor=pointer]
+                - button "Clear filters" [ref=e204] [cursor=pointer]:
+                  - img [ref=e205]
+            - grid "Cases table" [ref=e209]:
+              - rowgroup [ref=e210]:
+                - row "SEVERITY TITLE STATUS SLA ASSIGNEE CREATED ACTIONS" [ref=e211] [cursor=pointer]:
+                  - columnheader "SEVERITY" [ref=e212]
+                  - columnheader "TITLE" [ref=e213]
+                  - columnheader "STATUS" [ref=e214]
+                  - columnheader "SLA" [ref=e215]
+                  - columnheader "ASSIGNEE" [ref=e216]
+                  - columnheader "CREATED" [ref=e217]
+                  - columnheader "ACTIONS" [ref=e218]
+                - row [ref=e219]
+              - rowgroup [ref=e220]:
+                - row "No cases found." [ref=e221]:
+                  - gridcell "No cases found." [ref=e222]
+    - button "🤖" [ref=e224] [cursor=pointer]
+  - dialog "Create New Case" [active] [ref=e227]:
+    - button "Dismiss" [ref=e229] [cursor=pointer]
+    - button "Close" [ref=e230] [cursor=pointer]:
+      - img [ref=e231]
+    - banner [ref=e233]: Create New Case
+    - generic [ref=e234]:
+      - generic [ref=e236]:
+        - generic [ref=e237]: Title
+        - textbox "Title" [ref=e239]:
           - /placeholder: e.g. Ransomware Activity detected
-      - generic [ref=e225]:
-        - generic [ref=e226]: Description
-        - textbox "Description" [ref=e228]:
+      - generic [ref=e241]:
+        - generic [ref=e242]: Description
+        - textbox "Description" [ref=e244]:
           - /placeholder: Details...
-      - generic [ref=e229]:
-        - generic [ref=e231]:
+      - generic [ref=e245]:
+        - generic [ref=e247]:
           - text: Severity
-          - combobox [ref=e232]
-        - button "Medium Severity" [ref=e234] [cursor=pointer]:
+          - combobox [ref=e248]
+        - button "Medium Severity" [ref=e250] [cursor=pointer]:
           - generic: Severity
-          - generic [ref=e236]: Medium
-          - img [ref=e237]
-    - contentinfo [ref=e239]:
-      - button "Cancel" [ref=e240] [cursor=pointer]
-      - button "Create" [ref=e241] [cursor=pointer]
-    - button "Dismiss" [ref=e243] [cursor=pointer]
+          - generic [ref=e252]: Medium
+          - img [ref=e253]
+    - contentinfo [ref=e255]:
+      - button "Cancel" [ref=e256] [cursor=pointer]
+      - button "Create" [ref=e257] [cursor=pointer]
+    - button "Dismiss" [ref=e259] [cursor=pointer]
 ```

@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 // Test credentials - use environment variables or test account
 const TEST_EMAIL = process.env.TEST_EMAIL || 'superadmin@zcr.ai';
-const TEST_PASSWORD = process.env.TEST_PASSWORD || 'SuperAdminQ123!';
+const TEST_PASSWORD = process.env.TEST_PASSWORD || 'SuperAdmin@123!';
 
 test.describe('Dashboard (Authenticated)', () => {
   test.beforeEach(async ({ page }) => {

@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 const TEST_EMAIL = 'superadmin@zcr.ai';
-const TEST_PASSWORD = 'SuperAdminQ123!';
+const TEST_PASSWORD = 'SuperAdmin@123!';
 
 test.describe('Cases Management', () => {
   test.beforeEach(async ({ page }) => {

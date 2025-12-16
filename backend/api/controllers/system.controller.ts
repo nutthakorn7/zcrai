@@ -75,13 +75,36 @@ export const systemController = new Elysia({ prefix: '/system' })
       const result = await db.select().from(systemConfig).where(eq(systemConfig.key, 'license_key'))
       const key = result[0]?.value
       
-      // Mock validation logic
-      let status = 'active'
-      let details = { users: 10, retention: 30, expiresAt: '2025-12-31' }
+      let status = 'missing'
+      let details = { users: 5, retention: 7, expiresAt: 'never' } // Free tier defaults
       
-      if (!key) {
-          status = 'missing'
-          details = { users: 5, retention: 7, expiresAt: 'never' } // Free tier defaults
+      if (key) {
+        try {
+           // Verify JWT (using same secret for demo, in real world use different public key)
+           // For simplicity, we just decode here to show logic, but verification should happen on save
+           // In a real scenario, use a separate verify function with a public key from the licensor
+           const { jwtVerify } = await import('jose')
+           const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'super_secret_dev_key')
+           
+           try {
+             const { payload } = await jwtVerify(key, secret)
+             status = 'active'
+             details = {
+                 users: payload.users as number,
+                 retention: payload.retention as number,
+                 expiresAt: new Date((payload.exp as number) * 1000).toISOString().split('T')[0]
+             }
+             
+             // Check expiry
+             if (Date.now() >= (payload.exp as number) * 1000) {
+                 status = 'expired'
+             }
+           } catch (e) {
+               status = 'invalid'
+           }
+        } catch (e) {
+            status = 'error'
+        }
       }
       
       return { 
@@ -96,7 +119,15 @@ export const systemController = new Elysia({ prefix: '/system' })
 
   .post('/license', async ({ body }: any) => {
       const { key } = body
-      // TODO: Verify signature here
+      
+      // Verify Signature
+      try {
+        const { jwtVerify } = await import('jose')
+        const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'super_secret_dev_key')
+        await jwtVerify(key, secret)
+      } catch (e) {
+          throw new Error('Invalid License Key')
+      }
       
       await db.insert(systemConfig).values({
           key: 'license_key',
@@ -107,7 +138,7 @@ export const systemController = new Elysia({ prefix: '/system' })
           set: { value: key, updatedAt: new Date() }
       })
       
-      return { success: true, message: 'License updated' }
+      return { success: true, message: 'License updated and verified' }
   }, {
       body: t.Object({ key: t.String() })
   })

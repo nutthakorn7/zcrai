@@ -1,0 +1,47 @@
+# Page snapshot
+
+```yaml
+- main [ref=e4]:
+  - generic [ref=e6]:
+    - generic [ref=e7]:
+      - img "zcrAI Logo" [ref=e10]
+      - generic [ref=e11]:
+        - heading "Welcome Back" [level=1] [ref=e12]
+        - paragraph [ref=e13]: Sign in to your zecuraAI account
+    - generic [ref=e16]:
+      - generic [ref=e17]:
+        - generic [ref=e18]:
+          - generic [ref=e19]: EMAIL ADDRESS
+          - generic [ref=e20]:
+            - img [ref=e21]
+            - textbox "EMAIL ADDRESS" [active] [ref=e23]:
+              - /placeholder: example@company.com
+              - text: SuperAdmin@123!
+        - generic [ref=e25]: A part following '@' should not contain the symbol '!'.
+      - generic [ref=e26]:
+        - generic [ref=e28]:
+          - generic [ref=e29]: PASSWORD
+          - generic [ref=e30]:
+            - img [ref=e31]
+            - textbox "PASSWORD" [ref=e33]:
+              - /placeholder: Enter your password
+            - button [ref=e34] [cursor=pointer]:
+              - img [ref=e35]
+        - link "Forgot Password?" [ref=e39] [cursor=pointer]:
+          - /url: /forgot-password
+      - generic [ref=e40] [cursor=pointer]:
+        - checkbox "Remember me on this device" [ref=e41]
+        - generic [ref=e42]:
+          - img
+        - generic [ref=e43]: Remember me on this device
+      - generic [ref=e44]:
+        - button "Sign In" [ref=e45] [cursor=pointer]
+        - generic [ref=e48]: OR
+        - button "Sign in with SSO" [ref=e50] [cursor=pointer]:
+          - img [ref=e51]
+          - text: Sign in with SSO
+    - generic [ref=e53]:
+      - text: Don't have an account?
+      - link "Create Tenant" [ref=e54] [cursor=pointer]:
+        - /url: /register
+```

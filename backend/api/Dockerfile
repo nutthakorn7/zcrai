@@ -3,6 +3,7 @@ WORKDIR /app
 
 # Install dependencies (cached)
 COPY package.json bun.lock ./
+RUN apt-get update && apt-get install -y postgresql-client && rm -rf /var/lib/apt/lists/*
 RUN bun install --frozen-lockfile
 
 # Copy source

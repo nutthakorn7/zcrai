@@ -1,0 +1,44 @@
+# Page snapshot
+
+```yaml
+- main [ref=e4]:
+  - generic [ref=e6]:
+    - generic [ref=e7]:
+      - img "zcrAI Logo" [ref=e10]
+      - generic [ref=e11]:
+        - heading "Welcome Back" [level=1] [ref=e12]
+        - paragraph [ref=e13]: Sign in to your zecuraAI account
+    - generic [ref=e16]:
+      - generic [ref=e18]:
+        - generic [ref=e19]: EMAIL ADDRESS
+        - generic [ref=e20]:
+          - img [ref=e21]
+          - textbox "EMAIL ADDRESS" [ref=e23]:
+            - /placeholder: example@company.com
+      - generic [ref=e24]:
+        - generic [ref=e26]:
+          - generic [ref=e27]: PASSWORD
+          - generic [ref=e28]:
+            - img [ref=e29]
+            - textbox "PASSWORD" [ref=e31]:
+              - /placeholder: Enter your password
+            - button [ref=e32] [cursor=pointer]:
+              - img [ref=e33]
+        - link "Forgot Password?" [ref=e37] [cursor=pointer]:
+          - /url: /forgot-password
+      - generic [ref=e38] [cursor=pointer]:
+        - checkbox "Remember me on this device" [ref=e39]
+        - generic [ref=e40]:
+          - img
+        - generic [ref=e41]: Remember me on this device
+      - generic [ref=e42]:
+        - button "Sign In" [ref=e43] [cursor=pointer]
+        - generic [ref=e46]: OR
+        - button "Sign in with SSO" [ref=e48] [cursor=pointer]:
+          - img [ref=e49]
+          - text: Sign in with SSO
+    - generic [ref=e51]:
+      - text: Don't have an account?
+      - link "Create Tenant" [ref=e52] [cursor=pointer]:
+        - /url: /register
+```

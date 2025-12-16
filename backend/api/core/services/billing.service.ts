@@ -25,6 +25,37 @@ export type Tier = keyof typeof TIERS;
 
 export const BillingService = {
     async getSubscription(tenantId: string) {
+        // 1. Check for Enterprise License (Global)
+        const licenseResult = await db.select().from(require('../../infra/db/schema').systemConfig).where(eq(require('../../infra/db/schema').systemConfig.key, 'license_key'))
+        const licenseKey = licenseResult[0]?.value
+
+        if (licenseKey) {
+             try {
+                 const { jwtVerify } = await import('jose')
+                 const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'super_secret_dev_key')
+                 const { payload } = await jwtVerify(licenseKey, secret)
+                 
+                 // Check if expired
+                 if (Date.now() < (payload.exp as number) * 1000) {
+                     return {
+                         id: 'enterprise-license',
+                         tenantId,
+                         tier: 'enterprise',
+                         status: 'active',
+                         updatedAt: new Date(),
+                         limits: {
+                             maxUsers: payload.users as number || Infinity,
+                             maxRetentionDays: payload.retention as number || 365,
+                             maxDataVolumeGB: 10000 // Enterprise defaults
+                         }
+                     }
+                 }
+             } catch (e) {
+                 // Invalid license, fall through to SaaS subscription
+             }
+        }
+
+        // 2. Check SaaS Subscription
         const sub = await db.query.subscriptions.findFirst({
             where: eq(subscriptions.tenantId, tenantId)
         })

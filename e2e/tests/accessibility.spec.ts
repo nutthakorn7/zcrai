@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 
 const TEST_EMAIL = process.env.TEST_EMAIL || 'superadmin@zcr.ai';
-const TEST_PASSWORD = process.env.TEST_PASSWORD || 'SuperAdminQ123!';
+const TEST_PASSWORD = process.env.TEST_PASSWORD || 'SuperAdmin@123!';
 
 test.describe('Accessibility - Automated Checks', () => {
   test('login page should not have accessibility violations', async ({ page }) => {
