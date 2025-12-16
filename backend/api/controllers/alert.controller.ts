@@ -100,12 +100,20 @@ export const alertController = new Elysia({ prefix: '/alerts' })
    * @route POST /alerts/:id/promote
    * @access Protected - Requires authentication
    * @param {string} id - Alert ID
-   * @returns {Object} Success status
-   * @todo Implement AlertService.promoteToCase
+   * @returns {Object} Created case and updated alert
    */
-  .post('/:id/promote', async ({ params, set }: any) => {
-    set.status = HTTP_STATUS.NOT_IMPLEMENTED;
-    return { success: false, error: 'Not implemented yet' };
+  .post('/:id/promote', async ({ params, user }: any) => {
+    const result = await AlertService.promoteToCase(
+      params.id,
+      user.tenantId,
+      user.id
+    );
+
+    return { 
+      success: true, 
+      message: 'Alert promoted to case successfully',
+      data: result 
+    };
   })
 
   /**
@@ -113,12 +121,25 @@ export const alertController = new Elysia({ prefix: '/alerts' })
    * @route POST /alerts/bulk-dismiss
    * @access Protected - Requires authentication
    * @body {string[]} alertIds - Array of alert IDs to dismiss
-   * @returns {Object} Success status
-   * @todo Implement AlertService.bulkDismiss
+   * @returns {Object} Count of dismissed alerts
    */
-  .post('/bulk-dismiss', async ({ set }: any) => {
-    set.status = HTTP_STATUS.NOT_IMPLEMENTED;
-    return { success: false, error: 'Not implemented yet' };
+  .post('/bulk-dismiss', async ({ body, user }: any) => {
+    const { alertIds } = body;
+    
+    if (!alertIds || !Array.isArray(alertIds) || alertIds.length === 0) {
+      return { 
+        success: false, 
+        error: 'alertIds array is required' 
+      };
+    }
+
+    const result = await AlertService.bulkDismiss(alertIds, user.tenantId);
+
+    return {
+      success: true,
+      message: `${result.count} alerts dismissed successfully`,
+      data: result
+    };
   })
 
   /**
@@ -126,12 +147,29 @@ export const alertController = new Elysia({ prefix: '/alerts' })
    * @route POST /alerts/bulk-promote
    * @access Protected - Requires authentication
    * @body {string[]} alertIds - Array of alert IDs to promote
-   * @returns {Object} Success status
-   * @todo Implement AlertService.bulkPromote
+   * @returns {Object} Count of created cases
    */
-  .post('/bulk-promote', async ({ set }: any) => {
-    set.status = HTTP_STATUS.NOT_IMPLEMENTED;
-    return { success: false, error: 'Not implemented yet' };
+  .post('/bulk-promote', async ({ body, user }: any) => {
+    const { alertIds } = body;
+    
+    if (!alertIds || !Array.isArray(alertIds) || alertIds.length === 0) {
+      return { 
+        success: false, 
+        error: 'alertIds array is required' 
+      };
+    }
+
+    const result = await AlertService.bulkPromote(
+      alertIds, 
+      user.tenantId,
+      user.id
+    );
+
+    return {
+      success: true,
+      message: `${result.count} alerts promoted to cases successfully`,
+      data: result
+    };
   })
 
   /**
