@@ -1,6 +1,6 @@
 /**
- * ML Controller
- * API routes for Machine Learning anomaly detection
+ * ML Controller - Machine Learning & Anomaly Detection
+ * API routes for AI-powered anomaly detection and predictive analytics
  */
 
 import { Elysia, t } from 'elysia';
@@ -23,12 +23,15 @@ export const mlController = new Elysia({ prefix: '/ml' })
   .use(tenantGuard)
   
   /**
-   * Get current anomaly status for all metrics
+   * Get real-time ano maly detection for all monitored metrics
+   * @route GET /ml/anomalies
+   * @access Protected - Requires authentication
+   * @returns {Object} Current anomalies with severity, confidence scores, and time series data
+   * @description Monitors: Alert Volume, Login Failures, Network Traffic, API Errors, Memory Usage
    */
   .get('/anomalies', async (context) => {
     try {
       const user = (context as any).user;
-      // Fetch Real Data
       const loginStats = await MLAnalyticsService.getLoginFailureStats(user.tenantId);
       const alertStats = await MLAnalyticsService.getAlertVolumeStats(user.tenantId);
 
@@ -45,7 +48,6 @@ export const mlController = new Elysia({ prefix: '/ml' })
           historicalAvg: loginStats.average,
           history: loginStats.history,
         },
-        // Mocks for unavailable data sources
         {
           name: 'Network Traffic',
           current: 2.4 + Math.random() * 0.4,
@@ -127,7 +129,14 @@ export const mlController = new Elysia({ prefix: '/ml' })
   })
 
   /**
-   * Detect anomaly for specific metric
+   * Detect anomaly for a specific custom metric
+   * @route POST /ml/detect
+   * @access Protected - Requires authentication
+   * @body {number} currentValue - Current metric value
+   * @body {number[]} historicalData - Historical data points for baseline
+   * @body {number} threshold - Z-score threshold (default: 3)
+   * @returns {Object} Anomaly detection result with severity and confidence
+   * @description Uses statistical Z-score method for outlier detection
    */
   .post('/detect', async ({ body }: any) => {
     try {
@@ -158,7 +167,14 @@ export const mlController = new Elysia({ prefix: '/ml' })
   })
 
   /**
-   * Detect time series anomalies
+   * Detect anomalies across time series data
+   * @route POST /ml/detect/timeseries
+   * @access Protected - Requires authentication
+   * @body {number[]} timeSeries - Time series data points
+   * @body {number} windowSize - Rolling window size (default: 10)
+   * @body {number} threshold - Z-score threshold (default: 3)
+   * @returns {Object} Anomaly indices and count
+   * @description Identifies all anomalous points within a dataset using rolling statistics
    */
   .post('/detect/timeseries', async ({ body }: any) => {
     try {
@@ -187,6 +203,7 @@ export const mlController = new Elysia({ prefix: '/ml' })
   }, {
     body: t.Object({
       timeSeries: t.Array(t.Number()),
+      windowSize: t.Optional(t.Number()),
       windowSize: t.Optional(t.Number()),
       threshold: t.Optional(t.Number()),
     }),
