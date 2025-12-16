@@ -13,11 +13,11 @@ export const caseController = new Elysia({ prefix: '/cases' })
    * @access Protected - Requires authentication
    * @query {string} status - Filter by case status (optional)
    * @query {string} severity - Filter by severity level (optional)
-   * @returns {Object} List of cases with metadata
+   * @returns {Array} List of cases (returns array directly for backward compatibility)
    */
   .get('/', async ({ user, query }: any) => {
     const cases = await CaseService.list(user.tenantId, query)
-    return { success: true, data: cases }
+    return cases  // Return array directly, not wrapped
   })
 
   /**
