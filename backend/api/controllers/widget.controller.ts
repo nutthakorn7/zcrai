@@ -1,5 +1,6 @@
 import { Elysia, t } from 'elysia';
 import { withAuth } from '../middleware/auth';
+import { Errors } from '../middleware/error';
 import { CustomWidgetService, WidgetConfig, CreateWidgetInput } from '../core/services/custom-widget.service';
 
 const WidgetConfigSchema = t.Object({
@@ -40,90 +41,71 @@ const CreateWidgetSchema = t.Object({
 export const widgetController = new Elysia({ prefix: '/widgets' })
   .use(withAuth)
   
-  // Preview query (execute widget config without saving)
-  .post('/query', async ({ body, user, set }: any) => {
-    if (!user) {
-      set.status = 401;
-      return { error: 'Unauthorized' };
-    }
-    
-    try {
-      const data = await CustomWidgetService.executeQuery(user.tenantId, body as WidgetConfig);
-      return { success: true, data };
-    } catch (e: any) {
-      set.status = 500;
-      return { error: e.message };
-    }
+  /**
+   * Preview widget query without saving
+   * @route POST /widgets/query
+   * @access Protected - Requires authentication
+   * @body {object} config - Widget configuration (metric, aggregation, groupBy, timeRange, filters)
+   * @returns {Object} Query results data
+   * @description Execute widget query to preview results before saving
+   */
+  .post('/query', async ({ body, user }: any) => {
+    const data = await CustomWidgetService.executeQuery(user.tenantId, body as WidgetConfig);
+    return { success: true, data };
   }, { body: WidgetConfigSchema })
 
-  // Create widget
-  .post('/', async ({ body, user, set }: any) => {
-    if (!user) {
-      set.status = 401;
-      return { error: 'Unauthorized' };
-    }
-    
-    try {
-      const widget = await CustomWidgetService.create(
-        user.id,
-        user.tenantId,
-        body as CreateWidgetInput
-      );
-      return { success: true, data: widget };
-    } catch (e: any) {
-      set.status = 500;
-      return { error: e.message };
-    }
+  /**
+   * Create custom dashboard widget
+   * @route POST /widgets
+   * @access Protected - Requires authentication
+   * @body {string} name - Widget name
+   * @body {string} description - Widget description (optional)
+   * @body {object} config - Widget query configuration
+   * @body {string} chartType - Visualization type (bar, line, pie, donut, table)
+   * @returns {Object} Created widget
+   */
+  .post('/', async ({ body, user }: any) => {
+    const widget = await CustomWidgetService.create(
+      user.id,
+      user.tenantId,
+      body as CreateWidgetInput
+    );
+    return { success: true, data: widget };
   }, { body: CreateWidgetSchema })
 
-  // List user widgets
-  .get('/', async ({ user, set }: any) => {
-    if (!user) {
-      set.status = 401;
-      return { error: 'Unauthorized' };
-    }
-    
-    try {
-      const widgets = await CustomWidgetService.list(user.id, user.tenantId);
-      return { success: true, data: widgets };
-    } catch (e: any) {
-      set.status = 500;
-      return { error: e.message };
-    }
+  /**
+   * List user's custom widgets
+   * @route GET /widgets
+   * @access Protected - Requires authentication
+   * @returns {Object} List of custom widgets
+   */
+  .get('/', async ({ user }: any) => {
+    const widgets = await CustomWidgetService.list(user.id, user.tenantId);
+    return { success: true, data: widgets };
   })
 
-  // Get widget by ID
-  .get('/:id', async ({ params, user, set }: any) => {
-    if (!user) {
-      set.status = 401;
-      return { error: 'Unauthorized' };
-    }
-    
-    try {
-      const widget = await CustomWidgetService.getById(params.id, user.tenantId);
-      if (!widget) {
-        set.status = 404;
-        return { error: 'Widget not found' };
-      }
-      return { success: true, data: widget };
-    } catch (e: any) {
-      set.status = 500;
-      return { error: e.message };
-    }
+  /**
+   * Get specific widget by ID
+   * @route GET /widgets/:id
+   * @access Protected - Requires authentication
+   * @param {string} id - Widget ID
+   * @returns {Object} Widget configuration and data
+   * @throws {404} Widget not found
+   */
+  .get('/:id', async ({ params, user }: any) => {
+    const widget = await CustomWidgetService.getById(params.id, user.tenantId);
+    if (!widget) throw Errors.NotFound('Widget');
+    return { success: true, data: widget };
   })
 
-  // Delete widget
-  .delete('/:id', async ({ params, user, set }: any) => {
-    if (!user) {
-      set.status = 401;
-      return { error: 'Unauthorized' };
-    }
-    
-    try {
-      await CustomWidgetService.delete(params.id, user.id);
-      return { success: true };
-    } catch (e: any) {
-      set.status = 500;
-      return { error: e.message };
-    }
+  /**
+   * Delete custom widget
+   * @route DELETE /widgets/:id
+   * @access Protected - Requires authentication
+   * @param {string} id - Widget ID
+   * @returns {Object} Success status
+   */
+  .delete('/:id', async ({ params, user }: any) => {
+    await CustomWidgetService.delete(params.id, user.id);
+    return { success: true };
   });

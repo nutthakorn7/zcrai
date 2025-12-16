@@ -65,6 +65,7 @@ import {
   DocumentArrowDownIcon,
   
   // Status
+  CheckIcon,
   CheckCircleIcon,
   XCircleIcon,
   InformationCircleIcon,
@@ -81,7 +82,8 @@ import {
   GlobeAltIcon,
   WrenchIcon,
   BriefcaseIcon,
-  CloudIcon
+  CloudIcon,
+  CreditCardIcon
 } from '@heroicons/react/24/outline';
 
 import {
@@ -161,6 +163,7 @@ export const Icon = {
   FileText: DocumentArrowDownIcon,
   
   // Status
+  Check: CheckIcon,
   CheckCircle: CheckCircleIcon,
   XCircle: XCircleIcon,
   Info: InformationCircleIcon,
@@ -182,7 +185,8 @@ export const Icon = {
   DevicePhoneMobile: DevicePhoneMobileIcon,
   DeviceComputer: ComputerDesktopIcon,
   Map: MapPinIcon,
-  Cloud: CloudIcon
+  Cloud: CloudIcon,
+  CreditCard: CreditCardIcon
 } as const;
 
 /**

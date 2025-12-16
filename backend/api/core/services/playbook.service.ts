@@ -1,5 +1,5 @@
 import { db } from '../../infra/db'
-import { playbooks, playbookSteps, playbookExecutions, playbookExecutionSteps, cases } from '../../infra/db/schema'
+import { playbooks, playbookSteps, playbookExecutions, playbookExecutionSteps, cases, approvals, playbookInputs } from '../../infra/db/schema'
 import { eq, and, desc } from 'drizzle-orm'
 
 export class PlaybookService {
@@ -42,7 +42,7 @@ export class PlaybookService {
       const stepsToInsert = data.steps.map((step: any, index: number) => ({
         playbookId: playbook.id,
         name: step.name,
-        type: step.type, // 'manual' | 'automation'
+        type: step.type, // 'manual' | 'automation' | 'approval'
         order: index + 1,
         description: step.description,
         actionId: step.actionId,
@@ -159,7 +159,7 @@ export class PlaybookService {
   static async updateStepStatus(tenantId: string, executionId: string, stepId: string, status: string, result?: any) {
     await db.update(playbookExecutionSteps)
       .set({
-        status, // 'completed', 'skipped', 'failed', 'in_progress'
+        status, // 'completed', 'skipped', 'failed', 'in_progress', 'waiting_for_approval'
         result,
         completedAt: ['completed', 'failed', 'skipped'].includes(status) ? new Date() : null
       })
@@ -181,7 +181,54 @@ export class PlaybookService {
 
     if (!step || !step.step) throw new Error('Step not found');
 
-    // 2. Check if automation
+    // 2. Check type
+    if (step.step.type === 'approval') {
+        const existingApproval = await db.query.approvals.findFirst({
+            where: and(eq(approvals.stepId, stepId), eq(approvals.executionId, executionId))
+        })
+
+        if (existingApproval) {
+             return { success: true, status: 'waiting_for_approval', message: 'Approval already requested' }
+        }
+
+        // Create Approval Request
+        await db.insert(approvals).values({
+            tenantId,
+            executionId,
+            stepId,
+            status: 'pending',
+        })
+
+        // Update Step Status
+        await this.updateStepStatus(tenantId, executionId, stepId, 'waiting_for_approval')
+        
+        return { success: true, status: 'waiting_for_approval', message: 'Approval requested' }
+    }
+
+    if (step.step.type === 'wait_for_input') {
+        const existingInput = await db.query.playbookInputs.findFirst({
+            where: and(eq(playbookInputs.stepId, stepId), eq(playbookInputs.executionId, executionId))
+        })
+
+        if (existingInput) {
+             return { success: true, status: 'waiting_for_input', message: 'Input already requested' }
+        }
+
+        // Create Input Request
+        await db.insert(playbookInputs).values({
+            tenantId,
+            executionId,
+            stepId,
+            status: 'pending',
+            inputSchema: (step.step.config as any)?.schema || {}, // Schema from step config
+        })
+
+        // Update Step Status
+        await this.updateStepStatus(tenantId, executionId, stepId, 'waiting_for_input')
+        
+        return { success: true, status: 'waiting_for_input', message: 'Input requested' }
+    }
+
     if (step.step.type !== 'automation') {
        throw new Error('Cannot auto-execute manual step');
     }
@@ -225,4 +272,103 @@ export class PlaybookService {
         return { success: false, error: e.message };
     }
   }
+
+  // ==================== APPROVALS ====================
+  static async listPendingApprovals(tenantId: string) {
+    return await db.query.approvals.findMany({
+      where: and(eq(approvals.tenantId, tenantId), eq(approvals.status, 'pending')),
+      with: {
+        execution: {
+            with: { 
+                playbook: true,
+                case: true
+            }
+        },
+        step: {
+            with: { step: true }
+        }
+      },
+      orderBy: (approvals, { desc }) => [desc(approvals.requestedAt)]
+    })
+  }
+
+  static async approveStep(tenantId: string, approvalId: string, userId: string, decision: 'approved' | 'rejected', comments?: string) {
+    const approval = await db.query.approvals.findFirst({
+        where: and(eq(approvals.id, approvalId), eq(approvals.tenantId, tenantId))
+    })
+
+    if (!approval) throw new Error('Approval request not found')
+    if (approval.status !== 'pending') throw new Error('Approval already processed')
+
+    // Update approval record
+    await db.update(approvals)
+        .set({
+            status: decision,
+            actedBy: userId,
+            actedAt: new Date(),
+            comments
+        })
+        .where(eq(approvals.id, approvalId))
+
+    // Update Step Status
+    const stepStatus = decision === 'approved' ? 'completed' : 'failed'
+    await this.updateStepStatus(tenantId, approval.executionId, approval.stepId, stepStatus, {
+        decision,
+        comments,
+        decidedBy: userId,
+        decidedAt: new Date()
+    })
+
+    return { success: true }
+  }
+
+  // ==================== PLAYBOOK INPUTS ====================
+  static async listPendingInputs(tenantId: string) {
+    return await db.query.playbookInputs.findMany({
+      where: and(eq(playbookInputs.tenantId, tenantId), eq(playbookInputs.status, 'pending')),
+      with: {
+        execution: {
+            with: { 
+                playbook: true,
+                case: true
+            }
+        },
+        step: {
+            with: { step: true }
+        }
+      },
+      orderBy: (inputs, { desc }) => [desc(inputs.requestedAt)]
+    })
+  }
+
+  static async submitInput(tenantId: string, inputId: string, userId: string, data: any) {
+    const inputReq = await db.query.playbookInputs.findFirst({
+        where: and(eq(playbookInputs.id, inputId), eq(playbookInputs.tenantId, tenantId))
+    })
+
+    if (!inputReq) throw new Error('Input request not found')
+    if (inputReq.status !== 'pending') throw new Error('Input already submitted')
+
+    // Validate Input against schema? (Skip for MVP, assume frontend validated)
+
+    // Update input record
+    await db.update(playbookInputs)
+        .set({
+            status: 'submitted',
+            inputData: data,
+            respondedBy: userId,
+            respondedAt: new Date(),
+        })
+        .where(eq(playbookInputs.id, inputId))
+
+    // Update Step Status
+    await this.updateStepStatus(tenantId, inputReq.executionId, inputReq.stepId, 'completed', {
+        inputData: data,
+        submittedBy: userId,
+        submittedAt: new Date()
+    })
+
+    return { success: true }
+  }
 }
+

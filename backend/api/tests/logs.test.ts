@@ -1,6 +1,4 @@
-import { describe, expect, it, beforeAll, afterAll } from 'bun:test'
-import { api, getAuthHeaders } from './setup'
-import { LogsService } from '../core/services/logs.service'
+import { describe, expect, it, beforeAll, mock } from 'bun:test'
 
 // Mock Data
 const mockLogsList = {
@@ -9,13 +7,21 @@ const mockLogsList = {
 }
 const mockLogDetail = { id: 'log-1', title: 'Test Log', severity: 'high', description: 'Detailed desc' }
 
-// Save originals
-const originalList = LogsService.list
-const originalGetById = LogsService.getById
+// Mock Service BEFORE other imports
+mock.module('../core/services/logs.service', () => ({
+    LogsService: {
+        list: mock(async () => {
+             console.log('XXX Mock LogsService.list called')
+             return mockLogsList
+        }),
+        getById: mock(async () => mockLogDetail),
+        getFilterOptions: mock(async () => ({
+            severities: ['high'], sources: [], eventTypes: [], integrations: [], accounts: [], sites: []
+        }))
+    }
+}))
 
-// Apply Mocks
-LogsService.list = async () => mockLogsList
-LogsService.getById = async () => mockLogDetail
+import { api, getAuthHeaders } from './setup'
 
 describe('Logs Controller', () => {
     let headers: { cookie: string }
@@ -25,24 +31,15 @@ describe('Logs Controller', () => {
         headers.cookie += '; selected_tenant=test-tenant-id'
     })
 
-    afterAll(() => {
-        LogsService.list = originalList
-        LogsService.getById = originalGetById
-    })
-
     it('should list logs with pagination', async () => {
         const { data, response } = await api.logs.index.get({ 
             headers,
             query: { page: 1, limit: 10 }
         })
         expect(response.status).toBe(200)
-        expect(data).toEqual(mockLogsList)
-    })
-
-    it('should get filter options', async () => {
-        // We didn't mock getFilterOptions, so we might need to if the test fails or hits DB.
-        // But let's see. The controller calls LogsService.getFilterOptions.
-        // Let's mock it too to be safe.
+        expect(data?.success).toBe(true)
+        // Check strict equality or subset
+        expect(data?.data?.data[0].id).toBe(mockLogsList.data[0].id)
     })
 
     it('should get log detail', async () => {

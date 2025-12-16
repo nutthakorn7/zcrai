@@ -27,7 +27,7 @@ export const useCaseSocket = (caseId: string) => {
         ws.current = new WebSocket(wsUrl);
 
         ws.current.onopen = () => {
-            console.log('WS Connected');
+
         };
 
         ws.current.onmessage = (event) => {
@@ -51,7 +51,7 @@ export const useCaseSocket = (caseId: string) => {
         };
 
         ws.current.onclose = () => {
-            console.log('WS Disconnected');
+
         };
 
         return () => {

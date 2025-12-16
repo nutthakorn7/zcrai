@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 const TEST_EMAIL = process.env.TEST_EMAIL || 'superadmin@zcr.ai';
-const TEST_PASSWORD = process.env.TEST_PASSWORD || 'SuperAdminQ123!';
+const TEST_PASSWORD = process.env.TEST_PASSWORD || 'SuperAdmin@123!';
 
 test.describe('Security - XSS Prevention', () => {
   test('should sanitize user input in search fields', async ({ page }) => {
@@ -269,7 +269,7 @@ test.describe('Security - Input Validation', () => {
       
       if (await passwordInput.isVisible().catch(() => false)) {
         // Try weak passwords
-        const weakPasswords = ['123', 'password', 'abc'];
+        const weakPasswords = ['SuperAdmin@123!', 'password', 'abc'];
         
         for (const pwd of weakPasswords) {
           await passwordInput.fill(pwd);

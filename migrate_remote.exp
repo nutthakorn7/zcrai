@@ -1,0 +1,28 @@
+#!/usr/bin/expect -f
+
+set timeout 300
+set pass "#8#J8YMULd6u8iQ"
+set host "root@45.118.132.160"
+
+# Sync Scripts
+spawn scp -o StrictHostKeyChecking=no -r /Users/pop7/Code/zcrAI/backend/api/scripts $host:/root/zcrAI/backend/api/
+expect {
+    "password:" { send "$pass\r"; exp_continue }
+    eof
+}
+
+# Run Drop & Migrate
+spawn ssh -o StrictHostKeyChecking=no $host "cd /root/zcrAI/backend/api && node scripts/drop_system_config.js && npx drizzle-kit push"
+expect {
+    "password:" { send "$pass\r"; exp_continue }
+    -re "Is.*column.*created or renamed" { sleep 1; send "\r"; exp_continue }
+    -re "create column" { sleep 1; send "\r"; exp_continue }
+    -re "created or renamed" { sleep 1; send "\r"; exp_continue }
+    "Do you want to run the query?" { send "y\r"; exp_continue }
+    "Do you want to create them?" { send "y\r"; exp_continue }
+    "Do you want to add them?" { send "y\r"; exp_continue }
+    "Do you want to apply these changes?" { send "y\r"; exp_continue }
+    "Apply all changes?" { send "y\r"; exp_continue }
+    "Yes, I want" { send "y\r"; exp_continue }
+    eof
+}

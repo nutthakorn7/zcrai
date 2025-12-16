@@ -370,6 +370,25 @@
 
 ---
 
+
+---
+
+## Phase 14: Enterprise Readiness & Gaps (Week 29-30)
+
+### 14.1 Operational Management (Licensing & Backup)
+- [ ] Implement System Backup/Restore UI (Trigger scripts via API)
+- [ ] Licensing System (License Key validation, Expiry, Quotas)
+- [ ] Usage Tracking Dashboard (Data Volume, User Count vs Limit)
+
+### 14.2 Advanced SOAR
+- [ ] Human-in-the-loop Approval Workflow (Request/Approve/Reject actions)
+- [ ] Playbook "Wait for Input" step type
+
+### 14.3 Advanced Threat Intel
+- [ ] Historical IOC Lookup (Retroactive scanning of cold logs)
+
+---
+
 ## Summary
 
 | Phase | Description | Duration |

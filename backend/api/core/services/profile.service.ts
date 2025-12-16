@@ -1,6 +1,7 @@
 import { db } from '../../infra/db'
 import { users, tenants } from '../../infra/db/schema'
 import { eq } from 'drizzle-orm'
+import { hashPassword, verifyPassword } from '../../utils/password'
 
 export const ProfileService = {
   // ==================== GET PROFILE ====================
@@ -80,11 +81,11 @@ export const ProfileService = {
     if (!user) throw new Error('User not found')
 
     // Verify current password
-    const isValid = await Bun.password.verify(currentPassword, user.passwordHash)
+    const isValid = await verifyPassword(currentPassword, user.passwordHash)
     if (!isValid) throw new Error('Current password is incorrect')
 
     // Hash new password
-    const hashedPassword = await Bun.password.hash(newPassword)
+    const hashedPassword = await hashPassword(newPassword)
 
     await db.update(users)
       .set({

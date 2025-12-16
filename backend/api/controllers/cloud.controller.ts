@@ -5,12 +5,27 @@ import { tenantGuard } from '../middlewares/auth.middleware';
 export const cloudController = new Elysia({ prefix: '/cloud' })
   .use(tenantGuard)
 
-  // List Integrations
+  /**
+   * List cloud provider integrations
+   * @route GET /cloud/integrations
+   * @access Protected - Requires authentication
+   * @returns {Object} List of configured cloud integrations (AWS, M365, GCP)
+   */
   .get('/integrations', async (ctx: any) => {
       return await CloudIntegrationService.list(ctx.user.tenantId);
   })
 
-  // Create Integration
+  /**
+   * Create cloud provider integration
+   * @route POST /cloud/integrations
+   * @access Protected - Requires authentication
+   * @body {string} provider - Cloud provider (aws, m365, gcp)
+   * @body {string} name - Integration name
+   * @body {object} config - Provider-specific configuration
+   * @body {object} credentials - Authentication credentials
+   * @returns {Object} Created integration
+   * @description Connect to AWS CloudTrail, M365 Audit Logs, etc.
+   */
   .post('/integrations', async (ctx: any) => {
       const { user, body } = ctx;
       const integration = await CloudIntegrationService.create({
@@ -51,12 +66,25 @@ export const cloudController = new Elysia({ prefix: '/cloud' })
       ])
   })
 
-  // Test Connection
+  /**
+   * Test cloud integration connection
+   * @route POST /cloud/integrations/:id/test
+   * @access Protected - Requires authentication
+   * @param {string} id - Integration ID
+   * @returns {Object} Connection test result
+   * @throws {400} Connection failed
+   */
   .post('/integrations/:id/test', async (ctx: any) => {
       return await CloudIntegrationService.testConnection(ctx.params.id, ctx.user.tenantId);
   })
 
-  // Delete Integration
+  /**
+   * Delete cloud integration
+   * @route DELETE /cloud/integrations/:id
+   * @access Protected - Requires authentication
+   * @param {string} id - Integration ID
+   * @returns {Object} Success status
+   */
   .delete('/integrations/:id', async (ctx: any) => {
       await CloudIntegrationService.delete(ctx.params.id, ctx.user.tenantId);
       return { success: true };

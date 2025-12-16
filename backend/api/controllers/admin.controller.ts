@@ -21,7 +21,12 @@ export const adminController = new Elysia({ prefix: '/admin' })
     })
   )
 
-  // ==================== CHECK HEALTH ====================
+  /**
+   * Check system health status
+   * @route GET /admin/health
+   * @access SuperAdmin only
+   * @returns {Object} System health (database, cache, services)
+   */
   .get('/health', async ({ jwt, cookie: { access_token }, set }) => {
     try {
       await requireSuperAdmin(jwt, access_token)
@@ -32,7 +37,12 @@ export const adminController = new Elysia({ prefix: '/admin' })
     }
   })
 
-  // ==================== GET SYSTEM SUMMARY ====================
+  /**
+   * Get system-wide summary statistics
+   * @route GET /admin/summary
+   * @access SuperAdmin only
+   * @returns {Object} Total tenants, users, events, alerts across all tenants
+   */
   .get('/summary', async ({ jwt, cookie: { access_token }, set }) => {
     try {
       await requireSuperAdmin(jwt, access_token)
@@ -43,7 +53,12 @@ export const adminController = new Elysia({ prefix: '/admin' })
     }
   })
 
-  // ==================== LIST ALL TENANTS ====================
+  /**
+   * List all tenants in system
+   * @route GET /admin/tenants
+   * @access SuperAdmin only
+   * @returns {Object} List of all tenants with status
+   */
   .get('/tenants', async ({ jwt, cookie: { access_token }, set }) => {
     try {
       await requireSuperAdmin(jwt, access_token)
@@ -129,7 +144,14 @@ export const adminController = new Elysia({ prefix: '/admin' })
     }
   })
 
-  // ==================== IMPERSONATE TENANT (Set selected tenant for viewing) ====================
+  /**
+   * Impersonate tenant (view system as specific tenant)
+   * @route POST /admin/impersonate/:tenantId
+   * @access SuperAdmin only
+   * @param {string} tenantId - Tenant ID to impersonate
+   * @returns {Object} Success message
+   * @description Sets selected_tenant cookie for viewing tenant-specific data
+   */
   .post('/impersonate/:tenantId', async ({ params, jwt, cookie: { access_token, selected_tenant }, set }) => {
     try {
       const payload = await requireSuperAdmin(jwt, access_token)
@@ -225,7 +247,12 @@ export const adminController = new Elysia({ prefix: '/admin' })
     }
   })
 
-  // ==================== SYSTEM METRICS ====================
+  /**
+   * Get system performance metrics
+   * @route GET /admin/metrics
+   * @access SuperAdmin only
+   * @returns {Object} System metrics (CPU, memory, requests/sec)
+   */
   .get('/metrics', async ({ jwt, cookie: { access_token }, set }) => {
     try {
       await requireSuperAdmin(jwt, access_token)

@@ -3,6 +3,7 @@ import { swagger } from '@elysiajs/swagger'
 import { cors } from '@elysiajs/cors'
 import { rateLimit } from 'elysia-rate-limit'
 import { helmet } from 'elysia-helmet'
+import { errorHandler } from './middleware/error'
 import { authController } from './controllers/auth.controller'
 import { ssoController } from './controllers/sso.controller'
 import { tenantController } from './controllers/tenant.controller'
@@ -33,21 +34,25 @@ import { riskController } from './controllers/risk.controller'
 import { mitreController } from './controllers/mitre.controller'
 import { graphController } from './controllers/graph.controller'
 import { threatIntelController } from './controllers/threat-intel.controller'
+import { systemController } from './controllers/system.controller'
+import { billingController } from './controllers/billing.controller'
 import { SchedulerService } from './core/services/scheduler.service'
+
+
 import { LogRetentionService } from './core/services/log-retention.service'
 import { EnrichmentWorker } from './workers/enrichment.worker'
 import { db } from './infra/db'
 import { users, tenants } from './infra/db/schema'
 import { eq } from 'drizzle-orm'
+import { hashPassword } from './utils/password'
 
-// Auto-seed Super Admin on startup (or reset password if exists)
 // Auto-seed Super Admin on startup (or reset password if exists)
 async function seedSuperAdmin() {
   const email = process.env.SUPERADMIN_EMAIL || 'superadmin@zcr.ai'
   const password = process.env.SUPERADMIN_PASSWORD || 'SuperAdmin@123!'
   
   try {
-    const passwordHash = await Bun.password.hash(password, { algorithm: 'bcrypt', cost: 10 })
+    const passwordHash = await hashPassword(password)
     
     // 1. Check/Create System Tenant
     let tenantId: string | undefined
@@ -94,6 +99,9 @@ async function seedSuperAdmin() {
 export { seedSuperAdmin }
 
 // Don't start background workers during tests (they create Redis connections too early)
+import { approvalsController } from './controllers/approvals.controller'
+import { inputsController } from './controllers/inputs.controller'
+
 if (process.env.NODE_ENV !== 'test') {
   SchedulerService.init()
   LogRetentionService.init()
@@ -126,6 +134,7 @@ const app = new Elysia()
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   }))
   .use(helmet())
+  .use(errorHandler)  // Global error handler
   .use(rateLimit({
      duration: 60000, // 1 minute
      max: 100 // 100 requests per minute
@@ -138,6 +147,8 @@ const app = new Elysia()
   .use(integrationController)
   .use(dashboardController)
   .use(playbookController)
+  .use(approvalsController)
+  .use(inputsController)
   .use(analyticsController)
   .use(realtimeController)
   .use(parserController)
@@ -159,7 +170,9 @@ const app = new Elysia()
   .use(riskController) // Predictive Risk Analysis
   .use(mitreController) // MITRE ATT&CK Coverage
   .use(graphController) // Investigation Graph
-  .use(threatIntelController) // Threat Intel Feeds
+  .use(threatIntelController) // Threat Intel Feeds & Retro Scan
+  .use(systemController) // System Management (Backups, License)
+  .use(billingController) // Billing & Subscription
   .get('/health', () => ({ status: 'ok', timestamp: new Date().toISOString() }))
 
 if (import.meta.main) {

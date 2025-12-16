@@ -11,8 +11,9 @@ describe('User Controller', () => {
     it('should list users', async () => {
         const { data, response } = await api.users.index.get({ headers })
         expect(response.status).toBe(200)
-        expect(Array.isArray(data?.data)).toBe(true)
-        expect(data?.data?.length).toBeGreaterThan(0)
+        // Structure is { success: true, data: { data: [], pagination: {} } }
+        expect(Array.isArray(data?.data?.data)).toBe(true)
+        expect(data?.data?.data?.length).toBeGreaterThan(0)
     })
 
     it('should create a new user', async () => {

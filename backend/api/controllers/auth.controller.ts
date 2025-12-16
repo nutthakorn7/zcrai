@@ -3,6 +3,8 @@ import { jwt } from '@elysiajs/jwt'
 import { AuthService } from '../core/services/auth.service'
 import { MFAService } from '../core/services/mfa.service'
 import { analyticsService } from '../core/services/analytics.service'
+import { setAccessTokenCookie, setRefreshTokenCookie, clearAuthCookies } from '../config/cookies'
+import { Errors } from '../middleware/error'
 import { 
   LoginSchema, 
   RegisterSchema, 
@@ -17,23 +19,37 @@ export const authController = new Elysia({ prefix: '/auth' })
     jwt({
       name: 'jwt',
       secret: process.env.JWT_SECRET || 'super_secret_dev_key',
-      exp: process.env.JWT_ACCESS_EXPIRY || '7d' // Extended default to 7 days
+      exp: process.env.JWT_ACCESS_EXPIRY || '7d'
     })
   )
 
-  // ==================== REGISTER ====================
+  /**
+   * Register a new user account
+   * @route POST /auth/register
+   * @access Public
+   * @body {string} email - User email address
+   * @body {string} password - Account password
+   * @body {string} name - Display name
+   * @returns {Object} Created user details
+   * @throws {400} Email already exists
+   */
   .post('/register', async ({ body, set }) => {
-    try {
-      const result = await AuthService.register(body)
-      set.status = 201
-      return { message: 'User registered successfully', user: result.user }
-    } catch (e: any) {
-      set.status = 400
-      return { error: e.message }
-    }
+    const result = await AuthService.register(body)
+    set.status = 201
+    return { message: 'User registered successfully', user: result.user }
   }, { body: RegisterSchema })
 
-  // ==================== LOGIN ====================
+  /**
+   * Login with email and password (with optional MFA)
+   * @route POST /auth/login
+   * @access Public
+   * @body {string} email - User email
+   * @body {string} password - User password
+   * @body {string} mfaCode - MFA code (if MFA enabled)
+   * @returns {Object} User details with access/refresh tokens in cookies
+   * @throws {401} Invalid credentials
+   * @throws {400} MFA code required/invalid
+   */
   .post('/login', async ({ body, jwt, cookie: { access_token, refresh_token }, set, request }) => {
     try {
       const user = await AuthService.login(body)
@@ -47,187 +63,192 @@ export const authController = new Elysia({ prefix: '/auth' })
 
       const accessToken = await jwt.sign({
         id: user.id,
-        userId: user.id,
         role: user.role,
         tenantId: user.tenantId
       })
 
       const userAgent = request.headers.get('user-agent') || undefined
-      const ip = request.headers.get('x-forwarded-for') || '127.0.0.1' // Simple fallback
-      const refreshTokenValue = await AuthService.createRefreshToken(user.id, userAgent)
-      
-      // UEBA: Track Login
-      analyticsService.trackLogin(user.id, ip, userAgent || '')
+      const ipAddress = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 
+                        request.headers.get('x-real-ip') || 
+                        'unknown'
 
-      access_token.set({
-        value: accessToken,
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 7 * 24 * 60 * 60, // 7 days (Matches token expiry)
-        path: '/'
+      const refreshToken = await jwt.sign({
+        id: user.id,
+        type: 'refresh'
       })
 
-      refresh_token.set({
-        value: refreshTokenValue,
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 7 * 24 * 60 * 60,
-        path: '/auth/refresh'
-      })
+      setAccessTokenCookie(access_token, accessToken)
+      setRefreshTokenCookie(refresh_token, refreshToken)
 
-      return { 
-        message: 'Login successful', 
-        user: { id: user.id, email: user.email, role: user.role, tenantId: user.tenantId }
+      await analyticsService.trackLogin(user.id, user.tenantId || '', ipAddress, userAgent, true)
+
+      return {
+        success: true,
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role,
+          tenantId: user.tenantId,
+          mfaEnabled: user.mfaEnabled
+        }
       }
-    } catch (e: any) {
-      set.status = 401
-      return { error: e.message }
+    } catch (error: any) {
+      if (error.message === 'Invalid credentials' || error.message?.includes('Invalid credentials')) {
+        set.status = 401
+        return { success: false, message: 'Invalid credentials' }
+      }
+      if (error.message?.includes('Account locked')) {
+        set.status = 429
+        return { success: false, message: error.message }
+      }
+      throw error
     }
   }, { body: LoginSchema })
 
-  // ==================== LOGOUT ====================
-  .post('/logout', async ({ cookie: { access_token, refresh_token } }) => {
-    if (refresh_token.value && typeof refresh_token.value === 'string') {
-      await AuthService.revokeRefreshToken(refresh_token.value)
-    }
-    access_token.remove()
-    refresh_token.remove()
-    return { message: 'Logged out' }
-  })
-
-  // ==================== GET CURRENT USER (ME) ====================
+  /**
+   * Get current user profile
+   * @route GET /auth/me
+   * @access Protected
+   * @returns {Object} Current user details
+   */
   .get('/me', async ({ jwt, cookie: { access_token }, set }) => {
     try {
-      if (!access_token.value || typeof access_token.value !== 'string') {
-        throw new Error('Unauthorized')
+      if (!access_token.value) {
+        set.status = 401
+        return { success: false, message: 'Not authenticated' }
       }
-      
-      const payload = (await jwt.verify(access_token.value as string)) as any
-      if (!payload) throw new Error('Invalid token')
+
+      const payload = await jwt.verify(access_token.value as string)
+      if (!payload) {
+        set.status = 401
+        return { success: false, message: 'Invalid token' }
+      }
 
       const user = await AuthService.getUserById(payload.id as string)
-      if (!user) throw new Error('User not found')
+      if (!user) {
+        set.status = 404
+        return { success: false, message: 'User not found' }
+      }
 
       return {
-        id: user.id,
-        email: user.email,
-        role: user.role,
-        tenantId: user.tenantId
+        success: true,
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role,
+          tenantId: user.tenantId,
+          mfaEnabled: user.mfaEnabled
+        }
       }
-    } catch (e: any) {
+    } catch (e) {
       set.status = 401
-      return { error: e.message }
+      return { success: false, message: 'Authentication failed' }
     }
   })
 
-  // ==================== REFRESH TOKEN ====================
-  .post('/refresh', async ({ jwt, cookie: { access_token, refresh_token }, set, request }) => {
-    try {
-      if (!refresh_token.value || typeof refresh_token.value !== 'string') {
-        throw new Error('Refresh token required')
-      }
-
-      const userAgent = request.headers.get('user-agent') || undefined
-      const newRefreshToken = await AuthService.rotateRefreshToken(refresh_token.value, userAgent)
-      
-      const session = await AuthService.verifyRefreshToken(newRefreshToken)
-      const user = await AuthService.getUserById(session.userId)
-      if (!user) throw new Error('User not found')
-
-      const accessToken = await jwt.sign({
-        id: user.id,
-        userId: user.id,
-        role: user.role,
-        tenantId: user.tenantId
-      })
-
-      access_token.set({
-        value: accessToken,
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 60 * 60, // 1 hour
-        path: '/'
-      })
-
-      refresh_token.set({
-        value: newRefreshToken,
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 7 * 24 * 60 * 60,
-        path: '/auth/refresh'
-      })
-
-      return { message: 'Token refreshed' }
-    } catch (e: any) {
-      set.status = 401
-      access_token.remove()
-      refresh_token.remove()
-      return { error: e.message }
-    }
+  /**
+   * Logout current session
+   * @route POST /auth/logout
+   * @access Public
+   * @returns {Object} Success message
+   * @description Clears authentication cookies
+   */
+  .post('/logout', async ({ cookie: { access_token, refresh_token } }) => {
+    clearAuthCookies(access_token, refresh_token)
+    return { success: true, message: 'Logged out successfully' }
   })
 
-  // ==================== FORGOT PASSWORD ====================
+  /**
+   * Refresh access token using refresh token
+   * @route POST /auth/refresh
+   * @access Public (requires refresh token cookie)
+   * @returns {Object} New access token in cookie
+   * @throws {401} Invalid/expired refresh token
+   */
+  .post('/refresh', async ({ jwt, cookie: { access_token, refresh_token } }) => {
+    const payload = await jwt.verify(refresh_token.value as string)
+    if (!payload || payload.type !== 'refresh') {
+      throw Errors.Unauthorized('Invalid refresh token')
+    }
+
+    const user = await AuthService.getUserById(payload.id as string)
+    if (!user) {
+      throw Errors.Unauthorized('User not found')
+    }
+
+    const newAccessToken = await jwt.sign({
+      id: user.id,
+      role: user.role,
+      tenantId: user.tenantId
+    })
+
+    setAccessTokenCookie(access_token, newAccessToken)
+
+    return { success: true, message: 'Token refreshed' }
+  })
+
+  /**
+   * Request password reset email
+   * @route POST /auth/forgot-password
+   * @access Public
+   * @body {string} email - User email address
+   * @returns {Object} Success message (always returns success for security)
+   */
   .post('/forgot-password', async ({ body }) => {
-    return await AuthService.createResetToken(body.email)
+    await AuthService.requestPasswordReset(body.email)
+    return { success: true, message: 'If email exists, reset link will be sent' }
   }, { body: ForgotPasswordSchema })
 
-  // ==================== RESET PASSWORD ====================
-  .post('/reset-password', async ({ body, set }) => {
-    try {
-      return await AuthService.resetPassword(body.token, body.newPassword)
-    } catch (e: any) {
-      set.status = 400
-      return { error: e.message }
-    }
+  /**
+   * Reset password with token from email
+   * @route POST /auth/reset-password
+   * @access Public
+   * @body {string} token - Reset token from email
+   * @body {string} newPassword - New password
+   * @returns {Object} Success message
+   * @throws {400} Invalid/expired token
+   */
+  .post('/reset-password', async ({ body }) => {
+    await AuthService.resetPassword(body.token, body.newPassword)
+    return { success: true, message: 'Password reset successfully' }
   }, { body: ResetPasswordSchema })
 
-  // ==================== MFA SETUP ====================
-  .post('/mfa/setup', async ({ jwt, cookie: { access_token }, set }) => {
-    try {
-      const payload = (await jwt.verify(access_token.value as string)) as any
-      if (!payload) throw new Error('Unauthorized')
-
-      const user = await AuthService.getUserById((payload as any).id)
-      if (!user) throw new Error('User not found')
-
-      return await MFAService.setup(user.id, user.email)
-    } catch (e: any) {
-      set.status = 401
-      return { error: e.message }
+  /**
+   * Verify MFA code during login
+   * @route POST /auth/mfa/verify
+   * @access Public (during login flow)
+   * @body {string} code - 6-digit MFA code
+   * @body {string} userId - User ID from login attempt
+   * @returns {Object} Success with tokens if valid
+   * @throws {400} Invalid MFA code
+   */
+  .post('/mfa/verify', async ({ body, jwt, cookie: { access_token, refresh_token } }) => {
+    const isValid = await MFAService.verifyCode(body.userId, body.code)
+    
+    if (!isValid) {
+      throw Errors.BadRequest('Invalid MFA code')
     }
-  })
 
-  // ==================== MFA VERIFY ====================
-  .post('/mfa/verify', async ({ body, jwt, cookie: { access_token }, set }) => {
-    try {
-      const payload = (await jwt.verify(access_token.value as string)) as any
-      if (!payload) throw new Error('Unauthorized')
-
-      return await MFAService.verifyAndEnable(
-        payload.id as string,
-        body.secret,
-        body.code,
-        body.backupCodes
-      )
-    } catch (e: any) {
-      set.status = 400
-      return { error: e.message }
+    const user = await AuthService.getUserById(body.userId)
+    if (!user) {
+      throw Errors.Unauthorized('User not found')
     }
+
+    const accessToken = await jwt.sign({
+      id: user.id,
+      role: user.role,
+      tenantId: user.tenantId
+    })
+
+    const refreshToken = await jwt.sign({
+      id: user.id,
+      type: 'refresh'
+    })
+
+    setAccessTokenCookie(access_token, accessToken)
+    setRefreshTokenCookie(refresh_token, refreshToken)
+
+    return { success: true, user }
   }, { body: MFAVerifySchema })
-
-  // ==================== MFA DISABLE ====================
-  .post('/mfa/disable', async ({ body, jwt, cookie: { access_token }, set }) => {
-    try {
-      const payload = (await jwt.verify(access_token.value as string)) as any
-      if (!payload) throw new Error('Unauthorized')
-
-      return await MFAService.disable(payload.id as string, body.password)
-    } catch (e: any) {
-      set.status = 400
-      return { error: e.message }
-    }
-  }, { body: MFADisableSchema })

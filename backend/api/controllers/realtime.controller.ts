@@ -1,3 +1,8 @@
+/**
+ * Realtime Controller
+ * WebSocket endpoints for real-time collaboration features
+ */
+
 import { Elysia, t } from 'elysia';
 
 // Simple in-memory store for presence (In prod, use Redis)
@@ -5,6 +10,18 @@ import { Elysia, t } from 'elysia';
 const caseRooms = new Map<string, Set<{ id: string, name: string, email: string }>>();
 
 export const realtimeController = new Elysia({ prefix: '/realtime' })
+  /**
+   * WebSocket endpoint for case collaboration
+   * @route WS /realtime/case/:caseId
+   * @access Public (requires query params for auth)
+   * @param {string} caseId - Case ID to join
+   * @query {string} userId - User ID
+   * @query {string} userName - User display name
+   * @query {string} userEmail - User email
+   * @description Real-time collaboration: presence tracking, typing indicators
+   * @events presence - User join/leave notifications
+   * @events typing - Typing indicator broadcasts
+   */
   .ws('/case/:caseId', {
     params: t.Object({
         caseId: t.String()

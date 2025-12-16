@@ -12,47 +12,46 @@ export const forensicsController = new Elysia({ prefix: '/forensics' })
   
   /**
    * Get forensic analysis for a case
+   * @route GET /forensics/case/:caseId
+   * @access Protected - Requires authentication
+   * @param {string} caseId - Case ID
+   * @returns {Object} Memory dump analysis results
+   * @description Retrieves existing forensic analysis for case
    */
   .get('/case/:caseId', async ({ params }: any) => {
-    try {
-      const analysis = await ForensicsService.analyzeMemoryDump(
-        `memdump-${params.caseId}`,
-        params.caseId
-      );
-      return {
-        success: true,
-        data: analysis,
-      };
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.message,
-        data: null,
-      };
-    }
+    const analysis = await ForensicsService.analyzeMemoryDump(
+      `memdump-${params.caseId}`,
+      params.caseId
+    );
+    return {
+      success: true,
+      data: analysis,
+    };
   })
 
   /**
-   * Capture memory dump
+   * Capture memory dump from endpoint
+   * @route POST /forensics/capture
+   * @access Protected - Requires authentication
+   * @body {string} hostname - Target hostname/IP
+   * @body {string} collectedBy - Collector username
+   * @body {string} caseId - Associated case ID (optional)
+   * @returns {Object} Capture result with dump ID
+   * @description Initiates memory dump collection from target endpoint
    */
-  .post('/capture', async ({ body, set }: any) => {
-    try {
-      const { hostname, collectedBy, caseId } = body;
-      
-      const result = await ForensicsService.captureMemoryDump(
-        hostname,
-        collectedBy,
-        caseId
-      );
-      
-      return {
-        success: true,
-        data: result,
-      };
-    } catch (error: any) {
-      set.status = 500;
-      return { success: false, error: error.message };
-    }
+  .post('/capture', async ({ body }: any) => {
+    const { hostname, collectedBy, caseId } = body;
+    
+    const result = await ForensicsService.captureMemoryDump(
+      hostname,
+      collectedBy,
+      caseId
+    );
+    
+    return {
+      success: true,
+      data: result,
+    };
   }, {
     body: t.Object({
       hostname: t.String(),
@@ -62,25 +61,26 @@ export const forensicsController = new Elysia({ prefix: '/forensics' })
   })
 
   /**
-   * Analyze memory dump
+   * Analyze existing memory dump
+   * @route POST /forensics/analyze
+   * @access Protected - Requires authentication
+   * @body {string} dumpId - Memory dump ID (optional)
+   * @body {string} caseId - Case ID (optional)
+   * @returns {Object} Analysis results (processes, network, malware indicators)
+   * @description Runs forensic analysis on memory dump
    */
-  .post('/analyze', async ({ body, set }: any) => {
-    try {
-      const { dumpId, caseId } = body;
-      
-      const analysis = await ForensicsService.analyzeMemoryDump(
-        dumpId || `memdump-${Date.now()}`,
-        caseId || 'CASE-UNKNOWN'
-      );
-      
-      return {
-        success: true,
-        data: analysis,
-      };
-    } catch (error: any) {
-      set.status = 500;
-      return { success: false, error: error.message };
-    }
+  .post('/analyze', async ({ body }: any) => {
+    const { dumpId, caseId } = body;
+    
+    const analysis = await ForensicsService.analyzeMemoryDump(
+      dumpId || `memdump-${Date.now()}`,
+      caseId || 'CASE-UNKNOWN'
+    );
+    
+    return {
+      success: true,
+      data: analysis,
+    };
   }, {
     body: t.Object({
       dumpId: t.Optional(t.String()),
@@ -90,21 +90,18 @@ export const forensicsController = new Elysia({ prefix: '/forensics' })
 
   /**
    * Get specific analysis by dump ID
+   * @route GET /forensics/dump/:dumpId
+   * @access Protected - Requires authentication
+   * @param {string} dumpId - Memory dump ID
+   * @returns {Object} Forensic analysis results
    */
   .get('/dump/:dumpId', async ({ params }: any) => {
-    try {
-      const analysis = await ForensicsService.analyzeMemoryDump(
-        params.dumpId,
-        'CASE-UNKNOWN'
-      );
-      return {
-        success: true,
-        data: analysis,
-      };
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.message,
-      };
-    }
+    const analysis = await ForensicsService.analyzeMemoryDump(
+      params.dumpId,
+      'CASE-UNKNOWN'
+    );
+    return {
+      success: true,
+      data: analysis,
+    };
   });

@@ -312,4 +312,71 @@ export class AlertService {
 
     return stats;
   }
+
+  // Promote alert to case
+  static async promoteToCase(alertId: string, tenantId: string, userId: string) {
+    const alert = await this.getById(alertId, tenantId);
+    
+    // Create case from alert
+    const [newCase] = await db.insert(cases).values({
+      tenantId,
+      title: alert.title,
+      description: `Promoted from alert: ${alert.description}`,
+      severity: alert.severity as any,
+      status: 'open',
+      assigneeId: userId,
+      reporterId: userId,
+    }).returning();
+
+    // Link alert to case
+    await this.linkToCase(alertId, tenantId, newCase.id);
+
+    // Update alert status to promoted
+    await this.updateStatus(alertId, tenantId, 'promoted');
+
+    return { case: newCase, alert };
+  }
+
+  // Bulk dismiss alerts
+  static async bulkDismiss(alertIds: string[], tenantId: string) {
+    const results = await db
+      .update(alerts)
+      .set({ 
+        status: 'dismissed', 
+        updatedAt: new Date() 
+      })
+      .where(and(
+        inArray(alerts.id, alertIds),
+        eq(alerts.tenantId, tenantId)
+      ))
+      .returning();
+
+    return {
+      success: true,
+      count: results.length,
+      alerts: results
+    };
+  }
+
+  // Bulk promote alerts to cases
+  static async bulkPromote(alertIds: string[], tenantId: string, userId: string) {
+    const results = [];
+
+    for (const alertId of alertIds) {
+      try {
+        const result = await this.promoteToCase(alertId, tenantId, userId);
+        results.push(result);
+      } catch (error) {
+        console.error(`Failed to promote alert ${alertId}:`, error);
+      }
+    }
+
+    return {
+      success: true,
+      count: results.length,
+      cases: results.map(r => r.case),
+      alerts: results.map(r => r.alert)
+    };
+  }
 }
+

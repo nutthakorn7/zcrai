@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Authentication', () => {
+  test.use({ storageState: { cookies: [], origins: [] } });
   test('should display login page', async ({ page }) => {
     await page.goto('/login');
     
@@ -41,6 +42,7 @@ test.describe('Authentication', () => {
 });
 
 test.describe('Public Pages', () => {
+  test.use({ storageState: { cookies: [], origins: [] } });
   test('should redirect to login when not authenticated', async ({ page }) => {
     await page.goto('/dashboard');
     

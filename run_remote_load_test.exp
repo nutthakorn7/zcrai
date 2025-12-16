@@ -1,0 +1,27 @@
+#!/usr/bin/expect -f
+
+set timeout 300
+set pass "#8#J8YMULd6u8iQ"
+set host "root@45.118.132.160"
+
+# Create Directory
+spawn ssh -o StrictHostKeyChecking=no $host "mkdir -p /root/zcrAI/backend/load-tests/"
+expect {
+    "password:" { send "$pass\r"; exp_continue }
+    eof
+}
+
+# Sync Load Test
+spawn scp -o StrictHostKeyChecking=no /Users/pop7/Code/zcrAI/backend/load-tests/auth-load.js $host:/root/zcrAI/backend/load-tests/
+expect {
+    "password:" { send "$pass\r"; exp_continue }
+    eof
+}
+
+# Run Load Test Remotely
+# Check if k6 exists, if not use docker to run k6
+spawn ssh -o StrictHostKeyChecking=no $host "docker run --rm -i --net=host grafana/k6 run - < /root/zcrAI/backend/load-tests/auth-load.js"
+expect {
+    "password:" { send "$pass\r"; exp_continue }
+    eof
+}

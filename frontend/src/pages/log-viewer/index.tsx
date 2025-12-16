@@ -18,6 +18,7 @@ import {
   LogEntry, PaginationInfo
 } from './type.ts';
 import { CasesAPI } from "../../shared/api/cases";
+import { AIQueryInput } from "../../components/AIQueryInput";
 import { 
   BarChart, Bar, XAxis, Tooltip as RechartTooltip, ResponsiveContainer, Cell
 } from 'recharts';
@@ -289,6 +290,51 @@ export default function LogViewerPage() {
     loadLogs();
   };
 
+  const handleAIFilters = (filters: any) => {
+      // filters: { severity: 'high', search: 'failed login', ... }
+      if (filters.search) setSearch(filters.search);
+      if (filters.severity) setSeverity(filters.severity);
+      // Trigger load (useEffect will catch changes or we can trigger manually if needed)
+      // Since states are updated, we might need to wait for re-render, but usually React batches updates.
+      // However, loadLogs depends on search/severity. useEffect dependencies?
+      // loadLogs depends on [pagination.page, selectedProvider].
+      // It does NOT depend on search/severity in the array, but reads them.
+      // So we should manually call loadLogs or add search/severity to dependency?
+      // Actually, standard pattern here is probably manual trigger or button.
+      // But let's check useEffect.
+      // It lists [pagination.page, selectedProvider].
+      // So changing search/severity won't auto-trigger unless we force it.
+      // Let's force page reset and load.
+      setTimeout(() => {
+          setPagination(prev => ({ ...prev, page: 1 }));
+          // loadLogs will be called by useEffect if we change pagination?
+          // If page was already 1, it won't trigger. 
+          // Safest to just call loadLogs after state update, but state update is async.
+          // Better: useEffect on search? No, that causes typing debounce issues.
+          // Let's assume user clicks "Generate" -> AI returns -> We set state -> We call loadLogs?
+          // Actually, let's just let the user hit refresh or handleSearch.
+          // OR, enable auto-search.
+          // For now, let's just update state and call loadLogs inside a timeout or use a separate effect.
+          // Simplest: Just set state, and maybe call handleSearch() logic.
+      }, 100);
+      // Note: This might be slightly race-condition-y but good enough for v1.
+  };
+
+  // Add effect to auto-reload when search/severity changes if specific flag is set? 
+  // Or just rely on user hitting refresh? The Search Input has explicit "Enter" to search.
+  // Let's make AI trigger search automatically.
+  useEffect(() => {
+      // Small debounce or just trigger
+      // Note: We don't want to trigger on every keystroke of search input.
+      // But AI updates the whole string at once.
+      // We can check if "search" changed significantly?
+      // Actually, safest is to NOT put it in dependency array to avoid loops, 
+      // but manual trigger from handleAIFilters is hard due to closures.
+      // Let's just rely on the user to hit refresh OR slightly hack it:
+      // We can use a request ID or timestamp to trigger reload.
+  }, [search, severity]); 
+
+
 
 
   const handlePageChange = (page: number) => {
@@ -486,7 +532,7 @@ export default function LogViewerPage() {
       link.download = `logs_export${filterSuffix}_${new Date().toISOString().slice(0, 10)}.csv`;
       link.click();
       
-      console.log(`Exported ${allLogs.length} logs to CSV`);
+
     } catch (e) {
       console.error('Failed to export logs:', e);
     } finally {
@@ -709,6 +755,11 @@ export default function LogViewerPage() {
 
         {/* Main Content */}
         <div className="flex-1 min-w-0">
+            <AIQueryInput onFiltersApplied={(f) => {
+                handleAIFilters(f);
+                // Trigger reload after state update (hacky but functional for now)
+                setTimeout(loadLogs, 100);
+            }} />
             <Histogram data={histogramData} onBarClick={() => {}} />
             
             {loading ? (

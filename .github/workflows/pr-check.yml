@@ -1,0 +1,32 @@
+name: PR Quality Check
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  quality-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Check Frontend Types
+        working-directory: ./frontend
+        run: |
+            npm ci
+            npm run build # Validates types via tsc
+      
+      - name: Check Backend Types
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+        # Backend type check often part of build or separate script
+        # run: cd backend/api && bun install && bun run build 
+      
+      # We could add specific coverage checks here using tools like generic coverage reporters
+      # For now, relying on the main test suite to report failures.

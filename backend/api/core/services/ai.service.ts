@@ -81,4 +81,50 @@ Return valid JSON only. Format:
             return { playbookId: null, confidence: 0, reasoning: "Failed to parse AI response." };
         }
     }
+    static async generateQuery(userPrompt: string): Promise<{ sql: string | null, filters: any, explanation: string }> {
+        if (!this.provider) this.initialize();
+
+        const schemaContext = `
+Table: normalized_logs
+Columns:
+- timestamp (DateTime)
+- severity (String: critical, high, medium, low, info)
+- event_type (String)
+- source (String: sentinelone, crowdstrike, etc.)
+- tenant_id (UUID)
+- host.name, host.ip (String)
+- user.name (String)
+- network.src_ip, network.dst_ip (String)
+`;
+
+        const prompt = `
+You are a Database Expert.
+Convert the following Natural Language Query into a ClickHouse SQL WHERE clause (and equivalent JSON filters).
+User Query: "${userPrompt}"
+
+Context:
+${schemaContext}
+
+Instructions:
+1. Return valid JSON only.
+2. "sql": A valid SQL WHERE clause (e.g., "severity = 'high' AND timestamp > now() - INTERVAL 1 DAY"). Do NOT include "WHERE".
+3. "filters": A simplified JSON object for UI filters (keys: severity, source, ip, user, timeRange).
+4. "explanation": A very short explanation of what you did.
+
+JSON Format:
+{
+  "sql": "string",
+  "filters": {},
+  "explanation": "string"
+}
+`;
+        const text = await this.provider.generateText(prompt);
+        try {
+            const jsonStr = text.replace(/```json\n?|\n?```/g, '').trim();
+            return JSON.parse(jsonStr);
+        } catch (e) {
+            console.error("Failed to parse AI Query JSON", text);
+            return { sql: null, filters: {}, explanation: "Failed to generate query." };
+        }
+    }
 }

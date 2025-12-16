@@ -37,7 +37,7 @@ export const authGuard = new Elysia({ name: 'authGuard' })
       set.status = 401
       throw new Error('Invalid token')
     }
-
+    
     return {
       user: payload as JWTPayload,
     }

@@ -22,13 +22,14 @@ console.log('🔗 Using direct app testing (no HTTP)')
 import { db } from '../infra/db'
 import { users, sessions } from '../infra/db/schema'
 import { eq } from 'drizzle-orm'
+import { hashPassword } from '../utils/password'
 
 // Seed call moved to global CI workflow to avoid race conditions in parallel tests
 // await seedSuperAdmin()
 
 export const api = treaty<typeof app>(app)
 
-// FIX: Regenerate password hash to ensure it matches Bun.password.verify expectations
+// FIX: Regenerate password hash to ensure it matches verification
 const TEST_PASSWORD = 'SuperAdmin@123!'
 await (async () => {
     try {
@@ -36,15 +37,31 @@ await (async () => {
         if (!u) {
             console.error('❌ FATAL: Superadmin not found in test setup! CI Seeding might have failed.')
         } else {
-            // Regenerate hash using the SAME Bun.password that auth.service uses
-            const freshHash = await Bun.password.hash(TEST_PASSWORD, { algorithm: 'bcrypt', cost: 10 })
-            await db.update(users).set({ passwordHash: freshHash }).where(eq(users.email, 'superadmin@zcr.ai'))
-            console.log(`✅ Updated superadmin password hash`)
+            // Check if db.update is mocked/missing
+            if (typeof db.update !== 'function') {
+                console.warn('⚠️ db.update is not a function (mocked?). Skipping superadmin password update.');
+                return;
+            }
+
+            const freshHash = await hashPassword(TEST_PASSWORD)
+            await db.update(users).set({ 
+                passwordHash: freshHash,
+                failedLoginAttempts: 0,
+                lockedUntil: null
+            }).where(eq(users.email, 'superadmin@zcr.ai'))
+            console.log(`✅ Updated superadmin password hash & unlocked account`)
+            
+            // Immediate verification check
+            const verified = await Bun.password.verify(TEST_PASSWORD, freshHash);
+            console.log(`   Immediate Verification Check: ${verified ? 'PASS' : 'FAIL'}`);
+            if (!verified) console.error('   ❌ FATAL: Immediate verification failed!');
+
             console.log(`   Email: ${u.email}`)
             console.log(`   New Hash: ${freshHash.substring(0, 25)}...`)
         }
     } catch (e) {
         console.error('❌ Error updating superadmin:', e)
+        process.exit(1); // Force fail if setup fails
     }
 })()
 

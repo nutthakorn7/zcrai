@@ -1,0 +1,25 @@
+{
+  "cookies": [
+    {
+      "name": "refresh_token",
+      "value": "OvpiBV01LkkiyQ6ypv2xVnWjgZMNJ2oIWmkT-EZmU_TOwdXm-dpSuzjirpa4ZGfN",
+      "domain": "app.zcr.ai",
+      "path": "/auth/refresh",
+      "expires": 1766457121.900961,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "access_token",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjUwNDM3NDliLTk3ZTEtNDE5ZS04NmNiLTNiZGM5YmY3MmY0OCIsInVzZXJJZCI6IjUwNDM3NDliLTk3ZTEtNDE5ZS04NmNiLTNiZGM5YmY3MmY0OCIsInJvbGUiOiJ0ZW5hbnRfYWRtaW4iLCJ0ZW5hbnRJZCI6ImZkZDUzNjFiLTM5NWYtNDU2Zi04OWQ1LTY4YjUyYzU4ZWFiNCIsImV4cCI6MTc2NTg1MzIyMiwiaWF0IjoxNzY1ODUyMzIyfQ.Ku5MyHvd3s3zzysjyu003mS9ZZ9Qince4n5UdKWcZYI",
+      "domain": "app.zcr.ai",
+      "path": "/",
+      "expires": 1766457121.900893,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    }
+  ],
+  "origins": []
+}

@@ -3,6 +3,7 @@ import { Button, Chip, Table, TableHeader, TableColumn, TableBody, TableRow, Tab
 import { Icon } from '../../shared/ui';
 import { ObservablesAPI, Observable } from '../../shared/api/observables';
 import { ObservableDetailModal } from '../../components/ObservableDetailModal';
+import { AddObservableModal } from '../../components/observables/AddObservableModal';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 
 const IOC_TYPE_COLORS: Record<string, string> = {
@@ -42,7 +43,8 @@ export default function ObservablesPage() {
 
   // Modal State
   const [selectedObservable, setSelectedObservable] = useState<Observable | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   const fetchObservables = async () => {
     try {
@@ -120,12 +122,12 @@ export default function ObservablesPage() {
 
   const handleOpenDetail = (observable: Observable) => {
     setSelectedObservable(observable);
-    setIsModalOpen(true);
+    setIsDetailModalOpen(true);
   };
 
-  const handleEnrich = async (id: string) => {
+  const handleEnrich = async (_id: string) => {
     // Call API to trigger enrichment (future implementation)
-    console.log("Trigger enrichment for", id);
+
   };
 
   const getStatusChip = (observable: Observable) => {
@@ -248,7 +250,7 @@ export default function ObservablesPage() {
                   inputWrapper: "bg-content1 border border-white/10"
               }}
             />
-            <Button size="sm" variant="flat" startContent={<Icon.Add className="w-4 h-4"/>}>Add IOC</Button>
+            <Button size="sm" variant="flat" startContent={<Icon.Add className="w-4 h-4"/>} onPress={() => setIsAddModalOpen(true)}>Add IOC</Button>
          </div>
       </header>
 
@@ -447,10 +449,19 @@ export default function ObservablesPage() {
       </div>
 
       <ObservableDetailModal 
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        isOpen={isDetailModalOpen}
+        onClose={() => setIsDetailModalOpen(false)}
         observable={selectedObservable}
         onEnrich={handleEnrich}
+      />
+
+      <AddObservableModal 
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        onSuccess={() => {
+            setIsAddModalOpen(false);
+            fetchObservables();
+        }}
       />
     </div>
   );

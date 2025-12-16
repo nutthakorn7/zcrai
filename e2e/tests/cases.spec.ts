@@ -1,21 +1,11 @@
 import { test, expect } from '@playwright/test';
 
 const TEST_EMAIL = 'superadmin@zcr.ai';
-const TEST_PASSWORD = 'SuperAdminQ123!';
+const TEST_PASSWORD = 'SuperAdmin@123!';
 
 test.describe('Cases Management', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/login');
-    await page.fill('input[type="email"], input[name="email"]', TEST_EMAIL);
-    await page.fill('input[type="password"]', TEST_PASSWORD);
-    const submitBtn = page.locator('button[type="submit"]').first();
-    await expect(submitBtn).toBeVisible();
-    await expect(submitBtn).toBeEnabled();
-    
-    await submitBtn.click();
-    await page.waitForURL(/dashboard|\/$/, { timeout: 10000 });
-    
-    // Navigate to cases
+    // Already authenticated via global setup
     await page.goto('/cases');
     await page.waitForLoadState('networkidle');
   });
@@ -51,11 +41,7 @@ test.describe('Cases Management', () => {
 
 test.describe('Case Detail', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/login');
-    await page.fill('input[type="email"], input[name="email"]', TEST_EMAIL);
-    await page.fill('input[type="password"]', TEST_PASSWORD);
-    await page.click('button[type="submit"]');
-    await page.waitForURL(/dashboard|\/$/);
+    // Already authenticated via global setup
   });
 
   test('should navigate to case detail when clicking a case', async ({ page }) => {

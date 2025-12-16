@@ -1,0 +1,237 @@
+# Page snapshot
+
+```yaml
+- main [ref=e4]:
+  - generic [ref=e5]:
+    - navigation "Main navigation" [ref=e6]:
+      - generic [ref=e7]:
+        - button "Go to dashboard" [ref=e8] [cursor=pointer]:
+          - img "zcrAI Logo" [ref=e10]
+        - generic: zcrAI
+      - navigation "Primary navigation" [ref=e11]:
+        - button "Dashboard" [ref=e12] [cursor=pointer]:
+          - img [ref=e14]
+          - generic: Dashboard
+        - button "Reports" [ref=e16] [cursor=pointer]:
+          - img [ref=e17]
+          - generic: Reports
+        - button "Cases" [ref=e19] [cursor=pointer]:
+          - img [ref=e20]
+          - generic: Cases
+        - button "Alerts" [ref=e22] [cursor=pointer]:
+          - img [ref=e23]
+          - generic: Alerts
+        - button "Actions" [ref=e25] [cursor=pointer]:
+          - img [ref=e26]
+          - generic: Actions
+        - button "Threat Intel" [ref=e28] [cursor=pointer]:
+          - img [ref=e29]
+          - generic: Threat Intel
+        - button "Logs" [ref=e31] [cursor=pointer]:
+          - img [ref=e32]
+          - generic: Logs
+        - button "Observables" [ref=e34] [cursor=pointer]:
+          - img [ref=e35]
+          - generic: Observables
+        - button "Threat Intel" [ref=e37] [cursor=pointer]:
+          - img [ref=e38]
+          - generic: Threat Intel
+        - button "Playbooks" [ref=e40] [cursor=pointer]:
+          - img [ref=e41]
+          - generic: Playbooks
+        - button "Detection" [ref=e43] [cursor=pointer]:
+          - img [ref=e44]
+          - generic: Detection
+        - button "Settings" [ref=e47] [cursor=pointer]:
+          - img [ref=e48]
+          - generic: Settings
+        - button "Subscription" [ref=e51] [cursor=pointer]:
+          - img [ref=e52]
+          - generic: Subscription
+        - button "System" [ref=e54] [cursor=pointer]:
+          - img [ref=e55]
+          - generic: System
+        - button "Admin" [ref=e57] [cursor=pointer]:
+          - img [ref=e58]
+          - generic: Admin
+      - button "Logout" [ref=e61] [cursor=pointer]:
+        - img [ref=e62]
+        - generic: Logout
+    - generic [ref=e64]:
+      - button [ref=e66] [cursor=pointer]:
+        - img [ref=e67]
+      - main [ref=e69]:
+        - generic [ref=e70]:
+          - generic [ref=e71]:
+            - generic [ref=e72]:
+              - heading "Security Dashboard" [level=1] [ref=e73]
+              - paragraph [ref=e74]: Real-time threat monitoring & analytics
+            - generic [ref=e75]:
+              - button "All" [ref=e77] [cursor=pointer]:
+                - generic [ref=e78]:
+                  - img [ref=e79]
+                  - generic [ref=e81]: All
+              - generic [ref=e82]:
+                - button "Last 7d" [ref=e83] [cursor=pointer]
+                - button "Last 30d" [ref=e84] [cursor=pointer]
+                - button "Last 90d" [ref=e85] [cursor=pointer]
+              - button "Dec 9, 2025 - Dec 16, 2025" [ref=e86] [cursor=pointer]:
+                - img [ref=e87]
+                - text: Dec 9, 2025 - Dec 16, 2025
+              - button "Export PDF" [ref=e89] [cursor=pointer]:
+                - img [ref=e90]
+                - text: Export PDF
+              - button [ref=e92] [cursor=pointer]:
+                - img [ref=e93]
+              - button [ref=e95] [cursor=pointer]:
+                - img [ref=e96]
+          - heading "Alert Summary" [level=2] [ref=e98]
+          - generic [ref=e99]:
+            - generic [ref=e103] [cursor=pointer]:
+              - generic [ref=e104]:
+                - img [ref=e106]
+                - generic [ref=e108]:
+                  - paragraph [ref=e109]: Critical
+                  - heading "0" [level=3] [ref=e110]
+                  - generic [ref=e113]: 0.0%
+              - application [ref=e118]
+            - generic [ref=e123] [cursor=pointer]:
+              - generic [ref=e124]:
+                - img [ref=e126]
+                - generic [ref=e128]:
+                  - paragraph [ref=e129]: High
+                  - heading "0" [level=3] [ref=e130]
+                  - generic [ref=e133]: 0.0%
+              - application [ref=e138]
+            - generic [ref=e143] [cursor=pointer]:
+              - generic [ref=e144]:
+                - img [ref=e146]
+                - generic [ref=e148]:
+                  - paragraph [ref=e149]: Medium
+                  - heading "0" [level=3] [ref=e150]
+                  - generic [ref=e153]: 0.0%
+              - application [ref=e158]
+            - generic [ref=e163] [cursor=pointer]:
+              - generic [ref=e164]:
+                - img [ref=e166]
+                - generic [ref=e168]:
+                  - paragraph [ref=e169]: Low
+                  - heading "0" [level=3] [ref=e170]
+                  - generic [ref=e173]: 0.0%
+              - application [ref=e178]
+            - generic [ref=e183] [cursor=pointer]:
+              - generic [ref=e184]:
+                - img [ref=e186]
+                - generic [ref=e188]:
+                  - paragraph [ref=e189]: Total Events
+                  - heading "0" [level=3] [ref=e190]
+                  - generic [ref=e193]: 0.0%
+              - application [ref=e198]
+          - generic [ref=e200]:
+            - generic [ref=e202]:
+              - heading "Events Timeline" [level=2] [ref=e204]:
+                - img [ref=e205]
+                - text: Events Timeline
+              - application [ref=e210]
+            - generic [ref=e217]:
+              - generic [ref=e218]:
+                - img [ref=e219]
+                - heading "Source Distribution" [level=2] [ref=e221]
+              - application [ref=e225]
+          - generic [ref=e229]:
+            - generic [ref=e230]:
+              - generic [ref=e231]:
+                - img [ref=e233]
+                - heading "System Metrics" [level=3] [ref=e235]
+              - generic [ref=e236]: Live
+            - generic [ref=e238]:
+              - generic [ref=e239]:
+                - generic [ref=e240]:
+                  - img [ref=e241]
+                  - text: Uptime
+                - paragraph [ref=e243]: 9m 3s
+              - generic [ref=e244]:
+                - generic [ref=e245]:
+                  - img [ref=e246]
+                  - text: Requests/min
+                - paragraph [ref=e248]: "0"
+                - paragraph [ref=e249]: 0 total
+              - generic [ref=e250]:
+                - generic [ref=e251]:
+                  - img [ref=e252]
+                  - text: Avg Response
+                - paragraph [ref=e254]: 0ms
+                - generic [ref=e255]: Excellent
+              - generic [ref=e256]:
+                - generic [ref=e257]:
+                  - img [ref=e258]
+                  - text: Memory
+                - paragraph [ref=e260]: 372 MB
+                - paragraph [ref=e261]: RSS Usage
+          - generic [ref=e264]:
+            - generic [ref=e266]:
+              - img [ref=e268]
+              - generic [ref=e270]:
+                - heading "ML Anomaly Detection" [level=3] [ref=e271]
+                - paragraph [ref=e272]: Z-score statistical analysis
+            - application [ref=e276]
+            - separator [ref=e278]
+            - heading "Monitored Metrics" [level=4] [ref=e281]
+            - generic [ref=e282]:
+              - generic [ref=e283]: "Last updated: 9:49:46 AM"
+              - generic [ref=e284]: 0 of 0 metrics anomalous
+          - generic [ref=e285]:
+            - generic [ref=e287]:
+              - generic [ref=e293]: Live Activity Feed
+              - generic [ref=e296]: No recent activity
+            - generic [ref=e297]:
+              - generic [ref=e298]:
+                - img [ref=e300]
+                - generic [ref=e302]:
+                  - paragraph [ref=e303]: Recent Detections
+                  - paragraph [ref=e304]: Latest security events
+              - generic [ref=e307]:
+                - img [ref=e308]
+                - paragraph [ref=e310]: No recent detections
+            - generic [ref=e311]:
+              - generic [ref=e312]:
+                - img [ref=e314]
+                - generic [ref=e316]:
+                  - paragraph [ref=e317]: Top Hosts
+                  - paragraph [ref=e318]: Most targeted endpoints
+              - generic [ref=e321]:
+                - img [ref=e322]
+                - paragraph [ref=e324]: No host data available
+            - generic [ref=e325]:
+              - generic [ref=e326]:
+                - img [ref=e328]
+                - generic [ref=e330]:
+                  - paragraph [ref=e331]: Top Users
+                  - paragraph [ref=e332]: Most targeted identities
+              - generic [ref=e335]:
+                - img [ref=e336]
+                - paragraph [ref=e338]: No user data available
+          - generic [ref=e339]:
+            - generic [ref=e340]:
+              - generic [ref=e341]:
+                - img [ref=e343]
+                - generic [ref=e345]:
+                  - paragraph [ref=e346]: Integrations
+                  - paragraph [ref=e347]: Connected data sources
+              - generic [ref=e350]:
+                - img [ref=e351]
+                - paragraph [ref=e353]: No integrations connected
+            - generic [ref=e354]:
+              - generic [ref=e355]:
+                - img [ref=e357]
+                - generic [ref=e359]:
+                  - paragraph [ref=e360]: Protected Sites
+                  - paragraph [ref=e361]: Monitored locations
+              - generic [ref=e364]:
+                - img [ref=e365]
+                - paragraph [ref=e367]: No sites found
+          - generic [ref=e368]:
+            - heading "MITRE ATT&CK Techniques" [level=2] [ref=e369]
+            - paragraph [ref=e370]: No MITRE ATT&CK data available
+  - button "🤖" [ref=e372] [cursor=pointer]
+```
