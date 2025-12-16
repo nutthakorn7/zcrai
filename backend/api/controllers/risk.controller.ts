@@ -14,37 +14,25 @@ export const riskController = new Elysia({ prefix: '/risk' })
    * Get overall risk score
    */
   .get('/score', async (context) => {
-    try {
-      const user = (context as any).user;
-      const riskScore = await RiskScoreService.calculateRiskScore(user.tenantId);
-      return { success: true, data: riskScore };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
+    const user = (context as any).user;
+    const riskScore = await RiskScoreService.calculateRiskScore(user.tenantId);
+    return { success: true, data: riskScore };
   })
 
   /**
    * Get trend prediction
    */
   .get('/prediction', async (context) => {
-    try {
-      const user = (context as any).user;
-      const prediction = await RiskScoreService.getTrendPrediction(user.tenantId);
-      return { success: true, data: prediction };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
+    const user = (context as any).user;
+    const prediction = await RiskScoreService.getTrendPrediction(user.tenantId);
+    return { success: true, data: prediction };
   })
 
   /**
    * Get full risk analysis with alerts
    */
   .get('/analysis', async (context) => {
-    try {
-      const user = (context as any).user;
-      const analysis = await RiskScoreService.getRiskAlerts(user.tenantId);
-      return { success: true, data: analysis };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
+    const user = (context as any).user;
+    const analysis = await RiskScoreService.getRiskAlerts(user.tenantId);
+    return { success: true, data: analysis };
   });
