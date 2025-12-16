@@ -5,12 +5,26 @@ import { tenantGuard } from '../middlewares/auth.middleware';
 export const reportController = new Elysia({ prefix: '/reports' })
   .use(tenantGuard)
   
-  // List Schedules
+  /**
+   * List scheduled reports
+   * @route GET /reports/schedules
+   * @access Protected - Requires authentication
+   * @returns {Object} List of report schedules
+   */
   .get('/schedules', async (ctx: any) => {
       return await ReportSchedulerService.listSchedules(ctx.user.tenantId);
   })
 
-  // Create Schedule
+  /**
+   * Create scheduled report
+   * @route POST /reports/schedules
+   * @access Protected - Requires authentication
+   * @body {string} reportType - Report type (summary, detailed, compliance)
+   * @body {string} frequency - Schedule frequency (daily, weekly, monthly)
+   * @body {array} recipients - Email recipients
+   * @body {boolean} isEnabled - Enable/disable schedule
+   * @returns {Object} Created schedule
+   */
   .post('/schedules', async (ctx: any) => {
       const { user, body } = ctx;
       const schedule = await ReportSchedulerService.createSchedule({
@@ -29,7 +43,13 @@ export const reportController = new Elysia({ prefix: '/reports' })
       }) 
   })
 
-  // Delete Schedule
+  /**
+   * Delete scheduled report
+   * @route DELETE /reports/schedules/:id
+   * @access Protected - Requires authentication
+   * @param {string} id - Schedule ID
+   * @returns {Object} Success status
+   */
   .delete('/schedules/:id', async (ctx: any) => {
       await ReportSchedulerService.deleteSchedule(ctx.params.id, ctx.user.tenantId);
       return { success: true };
