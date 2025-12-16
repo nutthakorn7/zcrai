@@ -1,14 +1,15 @@
 import { Elysia } from 'elysia';
 import { withAuth } from '../middleware/auth';
 import { AlertService } from '../core/services/alert.service';
+import { Errors } from '../middleware/error';
+import { HTTP_STATUS } from '../config/constants';
 import { CreateAlertSchema } from '../validators/alert.validator';
 
 export const alertController = new Elysia({ prefix: '/alerts' })
   .use(withAuth)
+  
   // List alerts
   .get('/', async ({ query, user }: any) => {
-    if (!user) throw new Error('Unauthorized');
-
     const alerts = await AlertService.list({
       tenantId: user.tenantId,
       status: query.status ? query.status.split(',') : undefined,
@@ -22,34 +23,22 @@ export const alertController = new Elysia({ prefix: '/alerts' })
   })
 
   // Create alert
-  .post('/', async ({ body, user, set }: any) => {
-    if (!user) throw new Error('Unauthorized');
-
-    try {
-      const alert = await AlertService.create({
-        tenantId: user.tenantId,
-        ...body,
-      });
-      return { success: true, data: alert };
-    } catch (error: any) {
-      console.error('Alert creation failed:', error.message, error.stack);
-      set.status = 500;
-      return { error: 'Failed to create alert', details: error.message };
-    }
+  .post('/', async ({ body, user }: any) => {
+    const alert = await AlertService.create({
+      tenantId: user.tenantId,
+      ...body,
+    });
+    return { success: true, data: alert };
   }, { body: CreateAlertSchema })
   
   // Get alert by ID
   .get('/:id', async ({ params, user }: any) => {
-    if (!user) throw new Error('Unauthorized');
-
     const alert = await AlertService.getById(params.id, user.tenantId);
     return { success: true, data: alert };
   })
 
   // Mark as reviewing
   .patch('/:id/review', async ({ params, user }: any) => {
-    if (!user) throw new Error('Unauthorized');
-
     const alert = await AlertService.updateStatus(
       params.id,
       user.tenantId,
@@ -60,9 +49,7 @@ export const alertController = new Elysia({ prefix: '/alerts' })
   })
 
   // Dismiss alert
-  .patch('/:id/dismiss', async ({ params, body, user }: any) => {
-    if (!user) throw new Error('Unauthorized');
-
+  .patch('/:id/dismiss', async ({ params, user }: any) => {
     const alert = await AlertService.updateStatus(
       params.id,
       user.tenantId,
@@ -72,37 +59,26 @@ export const alertController = new Elysia({ prefix: '/alerts' })
     return { success: true, data: alert };
   })
 
-  // Promote to case (TODO: Implement AlertService.promoteToCase)
-  .post('/:id/promote', async ({ params, body, user, set }: any) => {
-    if (!user) throw new Error('Unauthorized');
-    
-    // TODO: Implement promoteToCase in AlertService
-    set.status = 501;
+  // Promote to case (TODO: Implement)
+  .post('/:id/promote', async ({ params, set }: any) => {
+    set.status = HTTP_STATUS.NOT_IMPLEMENTED;
     return { success: false, error: 'Not implemented yet' };
   })
 
-  // Bulk dismiss (TODO: Implement AlertService.bulkDismiss)
-  .post('/bulk-dismiss', async ({ body, user, set }: any) => {
-    if (!user) throw new Error('Unauthorized');
-
-    // TODO: Implement bulkDismiss in AlertService
-    set.status = 501;
+  // Bulk dismiss (TODO: Implement)
+  .post('/bulk-dismiss', async ({ set }: any) => {
+    set.status = HTTP_STATUS.NOT_IMPLEMENTED;
     return { success: false, error: 'Not implemented yet' };
   })
 
-  // Bulk promote (TODO: Implement AlertService.bulkPromote)
-  .post('/bulk-promote', async ({ body, user, set }: any) => {
-    if (!user) throw new Error('Unauthorized');
-
-    // TODO: Implement bulkPromote in AlertService
-    set.status = 501;
+  // Bulk promote (TODO: Implement)
+  .post('/bulk-promote', async ({ set }: any) => {
+    set.status = HTTP_STATUS.NOT_IMPLEMENTED;
     return { success: false, error: 'Not implemented yet' };
   })
 
   // Get correlations
   .get('/:id/correlations', async ({ params, user }: any) => {
-    if (!user) throw new Error('Unauthorized');
-
     const correlations = await AlertService.getCorrelations(
       params.id,
       user.tenantId
@@ -113,16 +89,12 @@ export const alertController = new Elysia({ prefix: '/alerts' })
 
   // Get stats
   .get('/stats/summary', async ({ user }: any) => {
-    if (!user) throw new Error('Unauthorized');
-
     const stats = await AlertService.getStats(user.tenantId);
     return { success: true, data: stats };
   })
 
   // Record analyst feedback (for FP reduction)
   .post('/:id/feedback', async ({ params, body, user }: any) => {
-    if (!user) throw new Error('Unauthorized');
-    
     const { AlertFeedbackService } = await import('../core/services/alert-feedback.service');
     
     await AlertFeedbackService.recordFeedback(user.tenantId, user.id, {
@@ -136,8 +108,6 @@ export const alertController = new Elysia({ prefix: '/alerts' })
 
   // Get FP tuning recommendations
   .get('/tuning/recommendations', async ({ user }: any) => {
-    if (!user) throw new Error('Unauthorized');
-    
     const { AlertFeedbackService } = await import('../core/services/alert-feedback.service');
     
     const recommendations = await AlertFeedbackService.getTuningRecommendations(user.tenantId);
