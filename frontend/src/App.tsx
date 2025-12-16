@@ -60,22 +60,7 @@ const preloadImages = () => {
 function ProtectedRoute({ children }: { children: JSX.Element }) {
   const { isAuthenticated, isLoading, user } = useAuth();
   
-  // 🔓 DEV MODE: Auto-bypass authentication
-  const isDev = import.meta.env.DEV;
-  
-  if (isDev) {
-    console.log('🔓 Dev Mode: Auth bypassed');
-    return (
-      <AdminProvider userRole={'superadmin'}> {/* Mock as superadmin in dev */}
-        <SidebarLayout>
-          {children}
-        </SidebarLayout>
-        <ChatWidget />
-      </AdminProvider>
-    );
-  }
-  
-  // Production: Normal auth flow
+  // Show loading while checking auth
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">

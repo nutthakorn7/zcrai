@@ -48,15 +48,38 @@ export const jwtConfig = {
  * ```
  */
 export const withAuth = (app: Elysia) => app
-  .use(jwt(jwtConfig))
-  .derive(async ({ jwt, cookie: { access_token } }: any) => {
+  .use(jwt({
+    name: 'jwt',
+    secret: process.env.JWT_SECRET || 'super_secret_dev_key',
+    exp: '1h', // Ensure exp is included if it was in jwtConfig
+  }))
+  .derive(async ({ jwt, cookie: { access_token }, set }) => {
+    // 🔓 DEV MODE: Auto-inject mock user (bypass auth)
+    if (process.env.NODE_ENV === 'development' || process.env.DEV_AUTH_BYPASS === 'true') {
+      console.log('🔓 [Auth] Dev Mode: Auto-authenticated as superadmin');
+      return {
+        user: {
+          userId: 'dev-user-id', // Use userId as per JWTUserPayload
+          id: 'dev-user-id',
+          email: 'dev@zcr.ai',
+          name: 'Dev User',
+          role: 'superadmin',
+          tenantId: 'dev-tenant-id'
+        } as JWTUserPayload
+      };
+    }
+
+    // Production: Normal JWT verification
     if (!access_token?.value || typeof access_token.value !== 'string') {
       return { user: null };
     }
-    
+
     try {
       const payload = await jwt.verify(access_token.value);
-      return { user: payload as JWTUserPayload | null };
+      if (!payload) {
+        return { user: null };
+      }
+      return { user: payload as JWTUserPayload };
     } catch (e: any) {
       return { user: null };
     }
