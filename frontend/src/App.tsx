@@ -60,13 +60,16 @@ const preloadImages = () => {
 function ProtectedRoute({ children }: { children: JSX.Element }) {
   const { isAuthenticated, isLoading, user } = useAuth();
   
-  // 🔓 DEV MODE: Auto-bypass authentication (Frontend + Backend)
+  // 🔓 BYPASS MODE: Skip authentication (Frontend + Backend)
+  // ⚠️ WARNING: Only use for DEMO/TESTING!
   const isDev = import.meta.env.DEV;
+  const bypassAuth = isDev || import.meta.env.VITE_BYPASS_AUTH === 'true';
   
-  if (isDev) {
-    console.log('🔓 [Frontend] Dev Mode: Auth bypassed');
+  if (bypassAuth) {
+    console.log('🔓 [Frontend] BYPASS MODE: Auth skipped');
+    console.warn('⚠️  WARNING: Running in DEMO mode - No authentication!');
     return (
-      <AdminProvider userRole={'superadmin'}> {/* Mock as superadmin in dev */}
+      <AdminProvider userRole={'superadmin'}>
         <SidebarLayout>
           {children}
         </SidebarLayout>

@@ -54,17 +54,23 @@ export const withAuth = (app: Elysia) => app
     exp: '1h', // Ensure exp is included if it was in jwtConfig
   }))
   .derive(async ({ jwt, cookie: { access_token }, set }) => {
-    // 🔓 DEV MODE: Auto-inject mock user (bypass auth)
-    if (process.env.NODE_ENV === 'development' || process.env.DEV_AUTH_BYPASS === 'true') {
-      console.log('🔓 [Auth] Dev Mode: Auto-authenticated as superadmin');
+    // 🔓 BYPASS MODE: Auto-inject mock user (skip all auth)
+    // ⚠️ WARNING: Only use for DEMO/TESTING - NOT for production with real data!
+    const bypassAuth = process.env.NODE_ENV === 'development' 
+                    || process.env.DEV_AUTH_BYPASS === 'true'
+                    || process.env.BYPASS_AUTH === 'true';  // ⚠️ PRODUCTION BYPASS
+    
+    if (bypassAuth) {
+      console.log('🔓 [Auth] BYPASS MODE: Auto-authenticated as superadmin');
+      console.warn('⚠️  WARNING: Authentication is DISABLED - Anyone can access!');
       return {
         user: {
-          userId: 'dev-user-id', // Use userId as per JWTUserPayload
-          id: 'dev-user-id',
-          email: 'dev@zcr.ai',
-          name: 'Dev User',
+          userId: 'demo-user-id',
+          id: 'demo-user-id',
+          email: 'demo@zcr.ai',
+          name: 'Demo User',
           role: 'superadmin',
-          tenantId: 'dev-tenant-id'
+          tenantId: 'demo-tenant-id'
         } as JWTUserPayload
       };
     }
