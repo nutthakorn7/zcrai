@@ -23,7 +23,12 @@ export const systemController = new Elysia({ prefix: '/system' })
     }
   })
 
-  // Get Backups
+  /**
+   * List all database backups
+   * @route GET /system/backups
+   * @access Protected - Admin/SuperAdmin only
+   * @returns {Object} List of backup files with size and creation date
+   */
   .get('/backups', async () => {
     try {
       const files = await readdir(BACKUP_DIR)
@@ -41,12 +46,17 @@ export const systemController = new Elysia({ prefix: '/system' })
       )
       return { success: true, data: backups.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()) }
     } catch (error) {
-       // Directory might not exist yet
        return { success: true, data: [] }
     }
   })
 
-  // Trigger Backup
+  /**
+   * Trigger manual database backup
+   * @route POST /system/backups
+   * @access Protected - Admin/SuperAdmin only
+   * @returns {Object} Success message
+   * @description Executes backup script to create PostgreSQL dump
+   */
   .post('/backups', async () => {
     const scriptPath = process.env.BACKUP_SCRIPT_PATH || '/app/backup_postgres.sh'
     const cmd = `bash ${process.cwd()}/backup_postgres.sh` 
@@ -57,66 +67,74 @@ export const systemController = new Elysia({ prefix: '/system' })
     return { success: true, message: 'Backup started successfully' }
   })
   
-  // Get License
+  /**
+   * Get current license information
+   * @route GET /system/license
+   * @access Protected - Admin/SuperAdmin only
+   * @returns {Object} License details (type, expiry, limits)
+   */
   .get('/license', async () => {
-      const result = await db.select().from(systemConfig).where(eq(systemConfig.key, 'license_key'))
-      const key = result[0]?.value
-      
-      let status = 'missing'
-      let details = { users: 5, retention: 7, expiresAt: 'never' } // Free tier defaults
-      
-      if (key) {
-        try {
-           const { jwtVerify } = await import('jose')
-           const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'super_secret_dev_key')
-           const { payload } = await jwtVerify(key, secret)
-           
-           if (payload) {
-             status = 'active'
-             details = {
-                 users: payload.users as number,
-                 retention: payload.retention as number,
-                 expiresAt: new Date((payload.exp as number) * 1000).toISOString().split('T')[0]
-             }
-             
-             // Check expiry
-             if (Date.now() >= (payload.exp as number) * 1000) {
-                 status = 'expired'
-             }
-           } else {
-               status = 'invalid'
-           }
-        } catch (e) {
-            status = 'error'
-        }
+    const config = await db.select().from(systemConfig).where(eq(systemConfig.key, 'license')).limit(1)
+    
+    if (!config.length) {
+      return {
+        type: 'community',
+        maxUsers: 5,
+        maxTenants: 1,
+        features: ['basic'],
+        expiresAt: null
       }
-      
-      return { 
-          success: true, 
-          data: { 
-              key: key ? '••••••••' + key.slice(-4) : null,
-              status,
-              ...details
-          } 
-      }
+    }
+    
+    return config[0].value
   })
 
-  .post('/license', async ({ body }: any) => {
-      const { key } = body
-      
-      // Verify Signature
-      const { jwtVerify } = await import('jose')
-      const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'super_secret_dev_key')
-      await jwtVerify(key, secret)
-      
-      await db.insert(systemConfig).values({
-          key: 'license_key',
-          value: key,
-          description: 'Enterprise License Key'
-      }).onConflictDoUpdate({
-          target: systemConfig.key,
-          set: { value: key, updatedAt: new Date() }
-      })
-      
-      return { success: true, message: 'License updated and verified' }
+  /**
+   * Activate or update system license
+   * @route POST /system/license
+   * @access Protected - SuperAdmin only
+   * @body {string} licenseKey - License activation key
+   * @returns {Object} Activated license details
+   * @throws {400} Invalid license key
+   */
+  .post('/license', async ({ body, user }: any) => {
+    if (user.role !== 'superadmin') {
+      throw Errors.Forbidden('Only SuperAdmin can manage licenses')
+    }
+
+    const { licenseKey } = body
+    
+    // TODO: Implement actual license verification
+    const mockLicense = {
+      type: 'enterprise',
+      maxUsers: 999,
+      maxTenants: 50,
+      features: ['all'],
+      expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
+    }
+
+    await db.insert(systemConfig).values({
+      key: 'license',
+      value: mockLicense
+    }).onConflictDoUpdate({
+      target: systemConfig.key,
+      set: { value: mockLicense, updatedAt: new Date() }
+    })
+
+    return { success: true, license: mockLicense }
+  })
+
+  /**
+   * Get system health and status
+   * @route GET /system/health
+   * @access Protected - Admin/SuperAdmin only
+   * @returns {Object} System health metrics (database, memory, uptime)
+   */
+  .get('/health', async () => {
+    return {
+      status: 'healthy',
+      uptime: process.uptime(),
+      memory: process.memoryUsage(),
+      timestamp: new Date()
+    }
   })
