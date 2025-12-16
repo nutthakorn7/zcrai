@@ -1,0 +1,111 @@
+# Page snapshot
+
+```yaml
+- main [ref=e4]:
+  - generic [ref=e5]:
+    - navigation "Main navigation" [ref=e6]:
+      - generic [ref=e7]:
+        - button "Go to dashboard" [ref=e8] [cursor=pointer]:
+          - img "zcrAI Logo" [ref=e10]
+        - generic: zcrAI
+      - navigation "Primary navigation" [ref=e11]:
+        - button "Dashboard" [ref=e12] [cursor=pointer]:
+          - img [ref=e13]
+          - generic: Dashboard
+        - button "Reports" [ref=e15] [cursor=pointer]:
+          - img [ref=e16]
+          - generic: Reports
+        - button "Cases" [ref=e18] [cursor=pointer]:
+          - img [ref=e19]
+          - generic: Cases
+        - button "Alerts" [ref=e21] [cursor=pointer]:
+          - img [ref=e23]
+          - generic: Alerts
+        - button "Actions" [ref=e25] [cursor=pointer]:
+          - img [ref=e26]
+          - generic: Actions
+        - button "Threat Intel" [ref=e28] [cursor=pointer]:
+          - img [ref=e29]
+          - generic: Threat Intel
+        - button "Logs" [ref=e31] [cursor=pointer]:
+          - img [ref=e32]
+          - generic: Logs
+        - button "Observables" [ref=e34] [cursor=pointer]:
+          - img [ref=e35]
+          - generic: Observables
+        - button "Threat Intel" [ref=e37] [cursor=pointer]:
+          - img [ref=e38]
+          - generic: Threat Intel
+        - button "Playbooks" [ref=e40] [cursor=pointer]:
+          - img [ref=e41]
+          - generic: Playbooks
+        - button "Detection" [ref=e43] [cursor=pointer]:
+          - img [ref=e44]
+          - generic: Detection
+        - button "Settings" [ref=e47] [cursor=pointer]:
+          - img [ref=e48]
+          - generic: Settings
+        - button "Subscription" [ref=e51] [cursor=pointer]:
+          - img [ref=e52]
+          - generic: Subscription
+        - button "System" [ref=e54] [cursor=pointer]:
+          - img [ref=e55]
+          - generic: System
+        - button "Admin" [ref=e57] [cursor=pointer]:
+          - img [ref=e58]
+          - generic: Admin
+      - button "Logout" [ref=e61] [cursor=pointer]:
+        - img [ref=e62]
+        - generic: Logout
+    - generic [ref=e64]:
+      - button [ref=e66] [cursor=pointer]:
+        - img [ref=e67]
+      - main [ref=e69]:
+        - generic [ref=e70]:
+          - generic [ref=e71]:
+            - generic [ref=e72]:
+              - heading "Alerts" [level=1] [ref=e73]
+              - generic [ref=e74]: Real-time incident feed
+            - generic [ref=e75]:
+              - button "All" [ref=e77] [cursor=pointer]:
+                - generic [ref=e78]:
+                  - img [ref=e79]
+                  - generic [ref=e81]: All
+              - button "Dec 9, 2025 - Dec 16, 2025" [ref=e82] [cursor=pointer]:
+                - img [ref=e83]
+                - text: Dec 9, 2025 - Dec 16, 2025
+              - button [ref=e85] [cursor=pointer]:
+                - img [ref=e86]
+          - generic [ref=e88]:
+            - generic [ref=e89]:
+              - generic [ref=e91]:
+                - paragraph [ref=e92]: Critical
+                - paragraph [ref=e93]: "0"
+              - generic [ref=e95]:
+                - paragraph [ref=e96]: High
+                - paragraph [ref=e97]: "0"
+              - generic [ref=e99]:
+                - paragraph [ref=e100]: Medium
+                - paragraph [ref=e101]: "0"
+              - generic [ref=e103]:
+                - paragraph [ref=e104]: Low
+                - paragraph [ref=e105]: "0"
+              - generic [ref=e107]:
+                - paragraph [ref=e108]: Total Alerts
+                - paragraph [ref=e109]: "0"
+            - grid "Alerts table" [ref=e113]:
+              - rowgroup [ref=e114]:
+                - row "Time Src Alert Details Severity AI Analysis Action" [ref=e115] [cursor=pointer]:
+                  - columnheader "Time" [ref=e116]
+                  - columnheader "Src" [ref=e117]
+                  - columnheader "Alert Details" [ref=e118]
+                  - columnheader "Severity" [ref=e119]
+                  - columnheader "AI Analysis" [ref=e120]
+                  - columnheader "Action" [ref=e121]
+                - row [ref=e122]
+              - rowgroup [ref=e123]:
+                - row "No alerts found for the selected date range" [ref=e124]:
+                  - gridcell "No alerts found for the selected date range" [ref=e125]:
+                    - paragraph [ref=e127]: No alerts found for the selected date range
+  - button "🤖" [ref=e129] [cursor=pointer]
+```
