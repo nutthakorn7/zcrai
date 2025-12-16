@@ -15,6 +15,13 @@ export const aiController = new Elysia({ prefix: '/ai' })
   }))
   
   // ==================== CHAT STREAM ====================
+    .post('/query', async ({ body }: any) => {
+        const { prompt } = body;
+        if (!prompt) throw new Error('Prompt is required');
+        
+        const result = await AIService.generateQuery(prompt);
+        return { success: true, data: result };
+    })
   .post('/chat', async ({ body, jwt, cookie: { access_token, selected_tenant }, set }) => {
     try {
       const payload = await jwt.verify(access_token.value as string)
