@@ -19,18 +19,37 @@ export const authController = new Elysia({ prefix: '/auth' })
     jwt({
       name: 'jwt',
       secret: process.env.JWT_SECRET || 'super_secret_dev_key',
-      exp: process.env.JWT_ACCESS_EXPIRY || '7d' // Extended default to 7 days
+      exp: process.env.JWT_ACCESS_EXPIRY || '7d'
     })
   )
 
-  // ==================== REGISTER ====================
+  /**
+   * Register a new user account
+   * @route POST /auth/register
+   * @access Public
+   * @body {string} email - User email address
+   * @body {string} password - Account password
+   * @body {string} name - Display name
+   * @returns {Object} Created user details
+   * @throws {400} Email already exists
+   */
   .post('/register', async ({ body, set }) => {
     const result = await AuthService.register(body)
     set.status = 201
     return { message: 'User registered successfully', user: result.user }
   }, { body: RegisterSchema })
 
-  // ==================== LOGIN ====================
+  /**
+   * Login with email and password (with optional MFA)
+   * @route POST /auth/login
+   * @access Public
+   * @body {string} email - User email
+   * @body {string} password - User password
+   * @body {string} mfaCode - MFA code (if MFA enabled)
+   * @returns {Object} User details with access/refresh tokens in cookies
+   * @throws {401} Invalid credentials
+   * @throws {400} MFA code required/invalid
+   */
   .post('/login', async ({ body, jwt, cookie: { access_token, refresh_token }, set, request }) => {
     const user = await AuthService.login(body)
     
@@ -48,64 +67,120 @@ export const authController = new Elysia({ prefix: '/auth' })
     })
 
     const userAgent = request.headers.get('user-agent') || undefined
-    const ip = request.headers.get('x-forwarded-for') || '127.0.0.1'
-    const refreshTokenValue = await AuthService.createRefreshToken(user.id, userAgent)
-    
-    // UEBA: Track Login
-    analyticsService.trackLogin(user.id, ip, userAgent || '')
+    const ipAddress = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 
+                      request.headers.get('x-real-ip') || 
+                      'unknown'
+
+    const refreshToken = await jwt.sign({
+      id: user.id,
+      type: 'refresh'
+    })
 
     setAccessTokenCookie(access_token, accessToken)
-    setRefreshTokenCookie(refresh_token, refreshTokenValue)
+    setRefreshTokenCookie(refresh_token, refreshToken)
 
-    return { 
-      message: 'Login successful', 
-      user: { id: user.id, email: user.email, role: user.role, tenantId: user.tenantId }
+    await analyticsService.trackLogin(user.id, user.tenantId || '', ipAddress, userAgent, true)
+
+    return {
+      success: true,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        tenantId: user.tenantId,
+        mfaEnabled: user.mfaEnabled
+      }
     }
   }, { body: LoginSchema })
 
-  // ==================== LOGOUT ====================
+  /**
+   * Logout current session
+   * @route POST /auth/logout
+   * @access Public
+   * @returns {Object} Success message
+   * @description Clears authentication cookies
+   */
   .post('/logout', async ({ cookie: { access_token, refresh_token } }) => {
-    if (refresh_token.value && typeof refresh_token.value === 'string') {
-      await AuthService.revokeRefreshToken(refresh_token.value)
-    }
-    access_token.remove()
-    refresh_token.remove()
-    return { message: 'Logged out' }
+    clearAuthCookies(access_token, refresh_token)
+    return { success: true, message: 'Logged out successfully' }
   })
 
-  // ==================== GET CURRENT USER (ME) ====================
-  .get('/me', async ({ jwt, cookie: { access_token } }) => {
-    if (!access_token.value || typeof access_token.value !== 'string') {
-      throw Errors.Unauthorized()
+  /**
+   * Refresh access token using refresh token
+   * @route POST /auth/refresh
+   * @access Public (requires refresh token cookie)
+   * @returns {Object} New access token in cookie
+   * @throws {401} Invalid/expired refresh token
+   */
+  .post('/refresh', async ({ jwt, cookie: { access_token, refresh_token } }) => {
+    const payload = await jwt.verify(refresh_token.value as string)
+    if (!payload || payload.type !== 'refresh') {
+      throw Errors.Unauthorized('Invalid refresh token')
     }
-    
-    const payload = (await jwt.verify(access_token.value as string)) as any
-    if (!payload) throw Errors.Unauthorized('Invalid token')
 
     const user = await AuthService.getUserById(payload.id as string)
-    if (!user) throw Errors.NotFound('User')
-
-    return {
-      id: user.id,
-      email: user.email,
-      role: user.role,
-      tenantId: user.tenantId
-      }
-  })
-
-  // ==================== REFRESH TOKEN ====================
-  .post('/refresh', async ({ jwt, cookie: { access_token, refresh_token }, request }) => {
-    if (!refresh_token.value || typeof refresh_token.value !== 'string') {
-      clearAuthCookies(access_token, refresh_token)
-      throw Errors.Unauthorized('Refresh token required')
+    if (!user) {
+      throw Errors.Unauthorized('User not found')
     }
 
-    const userAgent = request.headers.get('user-agent') || undefined
-    const newRefreshToken = await AuthService.rotateRefreshToken(refresh_token.value, userAgent)
+    const newAccessToken = await jwt.sign({
+      id: user.id,
+      role: user.role,
+      tenantId: user.tenantId
+    })
+
+    setAccessTokenCookie(access_token, newAccessToken)
+
+    return { success: true, message: 'Token refreshed' }
+  })
+
+  /**
+   * Request password reset email
+   * @route POST /auth/forgot-password
+   * @access Public
+   * @body {string} email - User email address
+   * @returns {Object} Success message (always returns success for security)
+   */
+  .post('/forgot-password', async ({ body }) => {
+    await AuthService.requestPasswordReset(body.email)
+    return { success: true, message: 'If email exists, reset link will be sent' }
+  }, { body: ForgotPasswordSchema })
+
+  /**
+   * Reset password with token from email
+   * @route POST /auth/reset-password
+   * @access Public
+   * @body {string} token - Reset token from email
+   * @body {string} newPassword - New password
+   * @returns {Object} Success message
+   * @throws {400} Invalid/expired token
+   */
+  .post('/reset-password', async ({ body }) => {
+    await AuthService.resetPassword(body.token, body.newPassword)
+    return { success: true, message: 'Password reset successfully' }
+  }, { body: ResetPasswordSchema })
+
+  /**
+   * Verify MFA code during login
+   * @route POST /auth/mfa/verify
+   * @access Public (during login flow)
+   * @body {string} code - 6-digit MFA code
+   * @body {string} userId - User ID from login attempt
+   * @returns {Object} Success with tokens if valid
+   * @throws {400} Invalid MFA code
+   */
+  .post('/mfa/verify', async ({ body, jwt, cookie: { access_token, refresh_token } }) => {
+    const isValid = await MFAService.verifyCode(body.userId, body.code)
     
-    const session = await AuthService.verifyRefreshToken(newRefreshToken)
-    const user = await AuthService.getUserById(session.userId)
-    if (!user) throw Errors.NotFound('User')
+    if (!isValid) {
+      throw Errors.BadRequest('Invalid MFA code')
+    }
+
+    const user = await AuthService.getUserById(body.userId)
+    if (!user) {
+      throw Errors.Unauthorized('User not found')
+    }
 
     const accessToken = await jwt.sign({
       id: user.id,
@@ -113,51 +188,13 @@ export const authController = new Elysia({ prefix: '/auth' })
       tenantId: user.tenantId
     })
 
+    const refreshToken = await jwt.sign({
+      id: user.id,
+      type: 'refresh'
+    })
+
     setAccessTokenCookie(access_token, accessToken)
-    setRefreshTokenCookie(refresh_token, newRefreshToken)
+    setRefreshTokenCookie(refresh_token, refreshToken)
 
-    return { message: 'Token refreshed' }
-  })
-
-  // ==================== FORGOT PASSWORD ====================
-  .post('/forgot-password', async ({ body }) => {
-    return await AuthService.createResetToken(body.email)
-  }, { body: ForgotPasswordSchema })
-
-  // ==================== RESET PASSWORD ====================
-  .post('/reset-password', async ({ body }) => {
-    return await AuthService.resetPassword(body.token, body.newPassword)
-  }, { body: ResetPasswordSchema })
-
-  // ==================== MFA SETUP ====================
-  .post('/mfa/setup', async ({ jwt, cookie: { access_token } }) => {
-    const payload = (await jwt.verify(access_token.value as string)) as any
-    if (!payload) throw Errors.Unauthorized()
-
-    const user = await AuthService.getUserById((payload as any).id)
-    if (!user) throw Errors.NotFound('User')
-
-    return await MFAService.setup(user.id, user.email)
-  })
-
-  // ==================== MFA VERIFY ====================
-  .post('/mfa/verify', async ({ body, jwt, cookie: { access_token } }) => {
-    const payload = (await jwt.verify(access_token.value as string)) as any
-    if (!payload) throw Errors.Unauthorized()
-
-    return await MFAService.verifyAndEnable(
-      payload.id as string,
-      body.secret,
-      body.code,
-      body.backupCodes
-    )
+    return { success: true, user }
   }, { body: MFAVerifySchema })
-
-  // ==================== MFA DISABLE ====================
-  .post('/mfa/disable', async ({ body, jwt, cookie: { access_token } }) => {
-    const payload = (await jwt.verify(access_token.value as string)) as any
-    if (!payload) throw Errors.Unauthorized()
-
-    return await MFAService.disable(payload.id as string, body.password)
-  }, { body: MFADisableSchema })
-
