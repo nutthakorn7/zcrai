@@ -67,9 +67,13 @@ jobs:
         run: |
           ssh root@45.118.132.160 "cp -r /root/zcrAI/frontend/dist/* /var/www/zcrai/"
 
+      - name: Run Database Migrations
+        run: |
+          ssh root@45.118.132.160 "export PATH=\$PATH:/root/.bun/bin && cd /root/zcrAI/backend/api && bun run db:migrate"
+
       - name: Restart Backend
         run: |
-          ssh root@45.118.132.160 "export PATH=\$PATH:/root/.bun/bin && pm2 restart zcrAI-backend || pm2 start 'bun run /root/zcrAI/backend/api/index.ts' --name zcrAI-backend"
+          ssh root@45.118.132.160 "export PATH=\$PATH:/root/.bun/bin && pm2 delete zcrAI-backend || true && pm2 start 'bun run /root/zcrAI/backend/api/index.ts' --name zcrAI-backend"
 
       - name: Health Check
         run: |
