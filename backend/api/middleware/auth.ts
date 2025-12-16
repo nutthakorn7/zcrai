@@ -79,7 +79,7 @@ export const withAuth = (app: Elysia) => app
       if (!payload) {
         return { user: null };
       }
-      return { user: payload as JWTUserPayload };
+      return { user: payload as unknown as JWTUserPayload };
     } catch (e: any) {
       return { user: null };
     }
