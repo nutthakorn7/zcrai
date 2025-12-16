@@ -1,17 +1,34 @@
 # Detect (Rules & Alerts)
 
-**Pages**: 
-*   `Settings > Detection Rules` (`/detection`)
-*   `Alerts` (`/alerts`)
+This workflow covers how threats are identified and how you triage the initial signals.
 
-## Detection Rules
-zcrAI uses **Sigma** rules to detect threats.
-1.  Navigate to **Settings > Detection Rules**.
-2.  You can view all active rules, their severity, and the data sources they monitor.
-3.  Rules are automatically applied to incoming logs.
+## 1. Configure Detection Rules
+**📍 Page Location**: `Settings > Detection Rules` (`/detection`)
 
-## Handling Alerts
-When a detection rule matches a log, an **Alert** is generated.
-1.  Navigate to the **Alerts** page.
-2.  Review new alerts in real-time.
-3.  **Grouping**: Alerts are automatically grouped into **Cases** based on shared entities (e.g., same IP address or Hostname) to reduce noise.
+Before anything is detected, you need active rules.
+*   **Sigma Rules Table**: This list displays all actively running detection logic.
+    *   **Rule Name**: e.g., "Suspicious PowerShell Execution".
+    *   **Severity**: Critical measures impact.
+    *   **Status**: Toggle switch (Active/Inactive).
+*   **Action**: Use the **Search Bar** to find specific CVEs or attack techniques (e.g., "Log4j").
+
+---
+
+## 2. Review Incoming Alerts
+**📍 Page Location**: `Alerts` (`/alerts`)
+
+When a rule finds a match, an Alert is born. This page is your **Triage Queue**.
+
+### The Alert Queue UI
+*   **Live Stream**: New alerts appear at the top.
+*   **Status Badges**:
+    *   `New` 🔴: Untouched. Needs review.
+    *   `Acknowledged` 🟡: Analyst is looking at it.
+    *   `Closed` 🟢: False Positive or handled.
+
+### Triage Process (Step-by-Step)
+1.  **Select an Alert**: Click on any row in the table.
+2.  **Quick View Drawer**: A side panel opens on the right.
+3.  **Review Evidence**: Check the `Source IP`, `User`, and `Process Name`.
+4.  **Promote to Case**: If it looks real, click the **"Create Case"** button. This moves the alert into the **Investigate** workflow.
+
