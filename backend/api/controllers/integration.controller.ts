@@ -1,3 +1,9 @@
+/**
+ * Integration Controller
+ * Manages external security tool integrations (EDR, SIEM, AI providers, threat intel)
+ * Supports: SentinelOne, CrowdStrike, AWS, AI providers, enrichment services
+ */
+
 import { Elysia } from 'elysia'
 import { jwt } from '@elysiajs/jwt'
 import { IntegrationService } from '../core/services/integration.service'
@@ -19,12 +25,17 @@ export const integrationController = new Elysia({ prefix: '/integrations' })
     secret: process.env.JWT_SECRET || 'super_secret_dev_key',
   }))
 
-
-
-  // ==================== COLLECTOR ENDPOINT (ไม่ต้อง JWT - ใช้ API Key) ====================
+  /**
+   * Get active integrations for data collector
+   * @route GET /integrations/collector
+   * @access Collector only (API key authentication)
+   * @header {string} x-collector-key - Collector API key
+   * @query {string} type - Filter by integration type (optional)
+   * @returns {Object} List of configured integrations for polling
+   * @description Used by external collector service to fetch integration configs
+   */
   .get('/collector', async ({ query, headers, set }) => {
     try {
-      // ตรวจสอบ Collector API Key
       const collectorKey = headers['x-collector-key']
       if (collectorKey !== COLLECTOR_API_KEY) {
         set.status = 401
@@ -40,7 +51,17 @@ export const integrationController = new Elysia({ prefix: '/integrations' })
     }
   })
 
-  // ==================== COLLECTOR: UPDATE SYNC STATUS ====================
+  /**
+   * Update integration sync status from collector
+   * @route POST /integrations/collector/sync-status
+   * @access Collector only
+   * @header {string} x-collector-key - Collector API key
+   * @body {string} tenantId - Tenant ID
+   * @body {string} provider - Integration provider
+   * @body {string} status - Sync status (success/error)
+   * @body {string} error - Error message if status is error
+   * @returns {Object} Success confirmation
+   */
   .post('/collector/sync-status', async ({ body, headers, set }) => {
     try {
       const collectorKey = headers['x-collector-key']
@@ -64,7 +85,16 @@ export const integrationController = new Elysia({ prefix: '/integrations' })
     }
   })
 
-  // ==================== COLLECTOR: GET STATE ====================
+  /**
+   * Get collector state for incremental sync
+   * @route GET /integrations/collector/state
+   * @access Collector only
+   * @header {string} x-collector-key - Collector API key
+   * @query {string} tenantId - Tenant ID
+   * @query {string} provider - Provider name
+   * @query {string} urlHash - URL hash for state tracking
+   * @returns {Object} Last checkpoint and sync state
+   */
   .get('/collector/state', async ({ query, headers, set }) => {
     try {
       const collectorKey = headers['x-collector-key']
@@ -90,7 +120,16 @@ export const integrationController = new Elysia({ prefix: '/integrations' })
     }
   })
 
-  // ==================== COLLECTOR: UPDATE STATE ====================
+  /**
+   * Update collector state after successful sync
+   * @route POST /integrations/collector/state
+   * @access Collector only
+   * @header {string} x-collector-key - Collector API key
+   * @body {string} checkpoint - ISO timestamp of last synced event
+   * @body {boolean} fullSyncComplete - Whether initial full sync is complete
+   * @body {object} eventCount - Count of events synced
+   * @returns {Object} Success confirmation
+   */
   .post('/collector/state', async ({ body, headers, set }) => {
     try {
       const collectorKey = headers['x-collector-key']
@@ -103,7 +142,7 @@ export const integrationController = new Elysia({ prefix: '/integrations' })
         tenantId: string
         provider: string
         urlHash: string
-        checkpoint?: string // ISO timestamp
+        checkpoint?: string
         fullSyncComplete?: boolean
         eventCount?: { threats?: number; activities?: number; alerts?: number }
       }
@@ -127,7 +166,12 @@ export const integrationController = new Elysia({ prefix: '/integrations' })
 
   .use(tenantAdminOnly)
 
-  // ==================== LIST INTEGRATIONS ====================
+  /**
+   * List all integrations for authenticated tenant
+   * @route GET /integrations
+   * @access Protected - Admin only
+   * @returns {Object} List of configured integrations with status
+   */
   .get('/', async ({ jwt, cookie: { access_token }, set }) => {
     try {
       const payload = await jwt.verify(access_token.value as string)
@@ -140,7 +184,14 @@ export const integrationController = new Elysia({ prefix: '/integrations' })
     }
   })
 
-  // ==================== ADD SENTINELONE ====================
+  /**
+   * Add SentinelOne EDR integration
+   * @route POST /integrations/sentinelone
+   * @access Protected - Admin only
+   * @body {string} apiUrl - SentinelOne API URL
+   * @body {string} apiToken - API token
+   * @returns {Object} Created integration
+   */
   .post('/sentinelone', async ({ body, jwt, cookie: { access_token }, set }) => {
     try {
       const payload = await jwt.verify(access_token.value as string)
@@ -155,7 +206,14 @@ export const integrationController = new Elysia({ prefix: '/integrations' })
     }
   }, { body: AddSentinelOneSchema })
 
-  // ==================== ADD CROWDSTRIKE ====================
+  /**
+   * Add CrowdStrike EDR integration
+   * @route POST /integrations/crowdstrike
+   * @access Protected - Admin only
+   * @body {string} clientId - CrowdStrike client ID
+   * @body {string} clientSecret - Client secret
+   * @returns {Object} Created integration
+   */
   .post('/crowdstrike', async ({ body, jwt, cookie: { access_token }, set }) => {
     try {
       const payload = await jwt.verify(access_token.value as string)
@@ -170,7 +228,16 @@ export const integrationController = new Elysia({ prefix: '/integrations' })
     }
   }, { body: AddCrowdStrikeSchema })
 
-  // ==================== ADD AI PROVIDER ====================
+  /**
+   * Add AI provider integration (Gemini, OpenAI, etc.)
+   * @route POST /integrations/ai/:provider
+   * @access Protected - Admin only
+   * @param {string} provider - AI provider (gemini, openai, anthropic)
+   * @body {string} apiKey - Provider API key
+   * @body {string} model - Model name (optional)
+   * @body {string} baseUrl - Custom base URL (optional)
+   * @returns {Object} Created AI integration
+   */
   .post('/ai/:provider', async ({ jwt, cookie: { access_token }, params, body, set }) => {
     try {
       const payload = await jwt.verify(access_token.value as string)
@@ -193,13 +260,20 @@ export const integrationController = new Elysia({ prefix: '/integrations' })
     }
   })
 
-  // ==================== ADD AWS ====================
+  /**
+   * Add AWS CloudTrail integration
+   * @route POST /integrations/aws
+   * @access Protected - Admin only
+   * @body {string} accessKeyId - AWS access key
+   * @body {string} secretAccessKey - AWS secret key
+   * @body {string} region - AWS region
+   * @returns {Object} Created AWS integration
+   */
   .post('/aws', async ({ jwt, cookie: { access_token }, body, set }) => {
     try {
       const payload = await jwt.verify(access_token.value as string)
       if (!payload) throw new Error('Unauthorized')
 
-      // body type is inferred by schema but for safety we can cast or let it be
       // @ts-ignore
       const integration = await IntegrationService.addAWS(payload.tenantId as string, body)
       set.status = 201
@@ -210,7 +284,12 @@ export const integrationController = new Elysia({ prefix: '/integrations' })
     }
   }, { body: AddAWSSchema })
 
-  // ==================== SYNC AWS (Manual Trigger) ====================
+  /**
+   * Manually trigger AWS CloudTrail sync
+   * @route POST /integrations/aws/sync
+   * @access Protected - Admin only
+   * @returns {Object} Sync result
+   */
   .post('/aws/sync', async ({ jwt, cookie: { access_token }, set }) => {
     try {
       const payload = await jwt.verify(access_token.value as string)
@@ -224,7 +303,14 @@ export const integrationController = new Elysia({ prefix: '/integrations' })
     }
   })
 
-  // ==================== ADD ENRICHMENT PROVIDER (VirusTotal, AbuseIPDB, AlienVault OTX) ====================
+  /**
+   * Add threat intelligence enrichment provider
+   * @route POST /integrations/enrichment/:provider  
+   * @access Protected - Admin only
+   * @param {string} provider - Provider (virustotal, abuseipdb, alienvault-otx)
+   * @body {string} apiKey - Provider API key
+   * @returns {Object} Created enrichment integration
+   */
   .post('/enrichment/:provider', async ({ jwt, cookie: { access_token }, params, body, set }) => {
     try {
       const payload = await jwt.verify(access_token.value as string)
@@ -254,7 +340,13 @@ export const integrationController = new Elysia({ prefix: '/integrations' })
     }
   })
 
-  // ==================== GET CONFIG (สำหรับ Edit mode) ====================
+  /**
+   * Get integration configuration (for editing)
+   * @route GET /integrations/:id/config
+   * @access Protected - Admin only
+   * @param {string} id - Integration ID
+   * @returns {Object} Integration configuration (credentials masked)
+   */
   .get('/:id/config', async ({ params, jwt, cookie: { access_token }, set }) => {
     try {
       const payload = await jwt.verify(access_token.value as string)
@@ -268,16 +360,23 @@ export const integrationController = new Elysia({ prefix: '/integrations' })
     }
   })
 
-  // ==================== UPDATE INTEGRATION (Full update: URL, Token, fetchSettings) ====================
+  /**
+   * Update integration configuration
+   * @route PUT /integrations/:id
+   * @access Protected - Admin only
+   * @param {string} id - Integration ID
+   * @body {object} Updated configuration
+   * @returns {Object} Updated integration
+   * @description Triggers collector reload after update
+   */
   .put('/:id', async ({ params, body, jwt, cookie: { access_token }, set }) => {
     try {
       const payload = await jwt.verify(access_token.value as string)
       if (!payload) throw new Error('Unauthorized')
 
-      // ⭐ ใช้ updateFull แทน update เพื่อรองรับ full edit
       const integration = await IntegrationService.updateFull(params.id, payload.tenantId as string, body as any)
       
-      // ⭐ Trigger Collector to reload config - บอก Collector ให้ sync ใหม่
+      // Trigger collector to reload config
       const collectorUrl = process.env.COLLECTOR_URL || 'http://localhost:8001'
       try {
         await fetch(`${collectorUrl}/sync/${params.id}`, {
@@ -289,7 +388,6 @@ export const integrationController = new Elysia({ prefix: '/integrations' })
         })
         console.log(`[Integration Update] Triggered Collector sync for integration ${params.id}`)
       } catch (e) {
-        // ไม่ fail ถ้า collector ไม่ตอบ - update ยังสำเร็จ
         console.warn('[Integration Update] Failed to trigger Collector sync:', e)
       }
       
@@ -300,13 +398,20 @@ export const integrationController = new Elysia({ prefix: '/integrations' })
     }
   })
 
-  // ==================== DELETE INTEGRATION ====================
+  /**
+   * Delete integration
+   * @route DELETE /integrations/:id
+   * @access Protected - Admin only
+   * @param {string} id - Integration ID
+   * @returns {Object} Success message
+   * @description Notifies collector to stop syncing before deletion
+   */
   .delete('/:id', async ({ params, jwt, cookie: { access_token }, set }) => {
     try {
       const payload = await jwt.verify(access_token.value as string)
       if (!payload) throw new Error('Unauthorized')
 
-      // ⭐ เรียก Collector API เพื่อ cancel sync ก่อนลบ
+      // Notify collector to cancel sync
       const collectorUrl = process.env.COLLECTOR_URL || 'http://localhost:8001'
       try {
         await fetch(`${collectorUrl}/sync/${params.id}`, {
@@ -314,7 +419,6 @@ export const integrationController = new Elysia({ prefix: '/integrations' })
           headers: { 'x-collector-key': COLLECTOR_API_KEY },
         })
       } catch (e) {
-        // ไม่ต้อง fail ถ้า collector ไม่ตอบ - ยังลบ integration ได้
         console.warn('Failed to notify collector about integration deletion:', e)
       }
 
@@ -326,16 +430,19 @@ export const integrationController = new Elysia({ prefix: '/integrations' })
     }
   })
 
-  // ==================== TEST CONNECTION (Existing) ====================
+  /**
+   * Test integration connection
+   * @route POST /integrations/:id/test
+   * @access Protected - Admin only
+   * @param {string} id - Integration ID
+   * @returns {Object} Connection test result
+   * @throws {400} Connection failed
+   */
   .post('/:id/test', async ({ params, jwt, cookie: { access_token }, set }) => {
     try {
       const payload = await jwt.verify(access_token.value as string)
       if (!payload) throw new Error('Unauthorized')
 
-      // Logic to fetch key -> decrypt -> test
-      // This requires adding a method in Service to retrieve decrypted key and test
-      // For now, we will reuse the add logic conceptually or implement a specific test method
-      // Let's implement a 'testExisting' in service
       await IntegrationService.testExisting(params.id, payload.tenantId as string)
       
       return { message: 'Connection verification successful', status: 'connected' }
