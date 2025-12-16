@@ -1,5 +1,6 @@
-import { Elysia, t } from 'elysia'
+import { Elysia } from 'elysia'
 import { withAuth } from '../middleware/auth'
+import { Errors } from '../middleware/error'
 import { readdir, stat } from 'fs/promises'
 import { join } from 'path'
 import { db } from '../infra/db'
@@ -17,12 +18,12 @@ export const systemController = new Elysia({ prefix: '/system' })
     beforeHandle: (context: any) => {
       const user = context.user;
       if (user.role !== 'superadmin' && user.role !== 'admin') {
-        return { success: false, message: 'Unauthorized' }
+        throw Errors.Forbidden()
       }
     }
   })
 
-  //Quantity: Get Backups
+  // Get Backups
   .get('/backups', async () => {
     try {
       const files = await readdir(BACKUP_DIR)
@@ -45,29 +46,15 @@ export const systemController = new Elysia({ prefix: '/system' })
     }
   })
 
-  // Action: Trigger Backup
+  // Trigger Backup
   .post('/backups', async () => {
-    try {
-      // Execute the backup script
-      // Assuming the script is in the project root or accessible via PATH
-      // For security, hardcoding the script path is better
-      const scriptPath = process.env.BACKUP_SCRIPT_PATH || '/app/backup_postgres.sh'
-      
-      // In dev environment or specific setup, we might need to adjust how we call it
-      // For now, let's assume we can run it directly. 
-      // Note: In a real container, the backend might be in a different container than the one with docker access.
-      // This implementation assumes the backend container has access to run the backup command or script.
-      // If running locally on host:
-      const cmd = `bash ${process.cwd()}/backup_postgres.sh` 
-      
-      const { stdout, stderr } = await execAsync(cmd)
-      console.log('Backup output:', stdout)
-      
-      return { success: true, message: 'Backup started successfully' }
-    } catch (error: any) {
-      console.error('Backup failed:', error)
-      return { success: false, message: 'Backup failed', error: error.message }
-    }
+    const scriptPath = process.env.BACKUP_SCRIPT_PATH || '/app/backup_postgres.sh'
+    const cmd = `bash ${process.cwd()}/backup_postgres.sh` 
+    
+    const { stdout } = await execAsync(cmd)
+    console.log('Backup output:', stdout)
+    
+    return { success: true, message: 'Backup started successfully' }
   })
   
   // Get License
@@ -80,14 +67,11 @@ export const systemController = new Elysia({ prefix: '/system' })
       
       if (key) {
         try {
-           // Verify JWT (using same secret for demo, in real world use different public key)
-           // For simplicity, we just decode here to show logic, but verification should happen on save
-           // In a real scenario, use a separate verify function with a public key from the licensor
            const { jwtVerify } = await import('jose')
            const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'super_secret_dev_key')
+           const { payload } = await jwtVerify(key, secret)
            
-           try {
-             const { payload } = await jwtVerify(key, secret)
+           if (payload) {
              status = 'active'
              details = {
                  users: payload.users as number,
@@ -99,7 +83,7 @@ export const systemController = new Elysia({ prefix: '/system' })
              if (Date.now() >= (payload.exp as number) * 1000) {
                  status = 'expired'
              }
-           } catch (e) {
+           } else {
                status = 'invalid'
            }
         } catch (e) {
@@ -110,7 +94,7 @@ export const systemController = new Elysia({ prefix: '/system' })
       return { 
           success: true, 
           data: { 
-              key: key ? '••••••••' + key.slice(-4) : null, // Masked
+              key: key ? '••••••••' + key.slice(-4) : null,
               status,
               ...details
           } 
@@ -121,13 +105,9 @@ export const systemController = new Elysia({ prefix: '/system' })
       const { key } = body
       
       // Verify Signature
-      try {
-        const { jwtVerify } = await import('jose')
-        const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'super_secret_dev_key')
-        await jwtVerify(key, secret)
-      } catch (e) {
-          throw new Error('Invalid License Key')
-      }
+      const { jwtVerify } = await import('jose')
+      const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'super_secret_dev_key')
+      await jwtVerify(key, secret)
       
       await db.insert(systemConfig).values({
           key: 'license_key',
@@ -139,6 +119,4 @@ export const systemController = new Elysia({ prefix: '/system' })
       })
       
       return { success: true, message: 'License updated and verified' }
-  }, {
-      body: t.Object({ key: t.String() })
   })
