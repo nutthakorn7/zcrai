@@ -1,6 +1,7 @@
 import { Elysia } from 'elysia'
 import { withAuth } from '../middleware/auth'
 import { CaseService } from '../core/services/case.service'
+import { Errors } from '../middleware/error'
 import { CreateCaseSchema, UpdateCaseSchema, AddCommentSchema } from '../validators/case.validator'
 
 export const caseController = new Elysia({ prefix: '/cases' })
@@ -19,16 +20,10 @@ export const caseController = new Elysia({ prefix: '/cases' })
   }, { body: CreateCaseSchema })
 
   // ==================== GET CASE DETAIL ====================
-  .get('/:id', async ({ user, params: { id }, set }: any) => {
-    try {
-      const caseDetail = await CaseService.getById(user.tenantId, id) // Fixed: tenantId first
-      if (!caseDetail) throw new Error('Case not found')
-      return { success: true, data: caseDetail }
-    } catch (error: any) {
-      console.error('Get case detail failed:', error.message, error.stack);
-      set.status = 500;
-      return { error: 'Failed to get case', details: error.message };
-    }
+  .get('/:id', async ({ user, params: { id } }: any) => {
+    const caseDetail = await CaseService.getById(user.tenantId, id)
+    if (!caseDetail) throw Errors.NotFound('Case')
+    return { success: true, data: caseDetail }
   })
 
   // ==================== UPDATE CASE ====================
@@ -38,35 +33,25 @@ export const caseController = new Elysia({ prefix: '/cases' })
   }, { body: UpdateCaseSchema })
 
   // ==================== ADD COMMENT ====================
-  .post('/:id/comments', async ({ user, params: { id }, body, set }: any) => {
-    try {
-      const comment = await CaseService.addComment(user.tenantId, id, user.id, body.content) // Fixed: tenantId first
-      return { success: true, data: comment }
-    } catch (error: any) {
-      console.error('Add comment failed:', error.message, error.stack);
-      set.status = 500;
-      return { error: 'Failed to add comment', details: error.message };
-    }
+  .post('/:id/comments', async ({ user, params: { id }, body }: any) => {
+    const comment = await CaseService.addComment(user.tenantId, id, user.id, body.content)
+    return { success: true, data: comment }
   }, { body: AddCommentSchema })
 
   // ==================== UPLOAD ATTACHMENT ====================
   .post('/:id/attachments', async ({ user, params: { id }, body }: any) => {
-    // Elysia auto-parses multipart/form-data
     const file = body?.file
-    if (!file) {
-      throw new Error('No file provided')
-    }
+    if (!file) throw Errors.BadRequest('No file provided')
+    
     // @ts-ignore
     return await CaseService.addAttachment(user.tenantId, id, user.id, file)
   })
 
   // ==================== AI SUMMARIZE ====================
   .post('/:id/ai/summarize', async ({ user, params: { id } }: any) => {
-    // Dynamic import to avoid circular deps or init issues
     const { AIService } = await import('../core/services/ai.service');
-    // Fetch full case context
     const caseDetail = await CaseService.getById(user.tenantId, id);
-    if (!caseDetail) throw new Error('Case not found');
+    if (!caseDetail) throw Errors.NotFound('Case');
     
     const summary = await AIService.summarizeCase(caseDetail);
     return { success: true, data: { summary } };
@@ -78,13 +63,9 @@ export const caseController = new Elysia({ prefix: '/cases' })
     const { PlaybookService } = await import('../core/services/playbook.service');
 
     const caseDetail = await CaseService.getById(user.tenantId, id);
-    if (!caseDetail) throw new Error('Case not found');
+    if (!caseDetail) throw Errors.NotFound('Case');
 
     const playbooks = await PlaybookService.list(user.tenantId);
-    
-    // Pass only active playbooks? 
-    // PlaybookService.list returns all. We might filter for isActive?
-    // Let's filter in memory for now.
     const activePlaybooks = playbooks.filter((p: any) => p.isActive !== false);
 
     const suggestion = await AIService.suggestPlaybook(caseDetail, activePlaybooks);
