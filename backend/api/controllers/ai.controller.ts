@@ -12,7 +12,14 @@ interface ChatBody {
 export const aiController = new Elysia({ prefix: '/ai' })
   .use(tenantGuard)
   
-  // ==================== QUERY GENERATION ====================
+  /**
+   * Generate ClickHouse query from natural language
+   * @route POST /ai/query
+   * @access Protected - Requires authentication
+   * @body {string} prompt - Natural language query description
+   * @returns {Object} Generated ClickHouse SQL query
+   * @description Converts natural language to ClickHouse query using AI
+   */
   .post('/query', async ({ body }: any) => {
     const { prompt } = body;
     if (!prompt) throw Errors.BadRequest('Prompt is required');
@@ -21,7 +28,15 @@ export const aiController = new Elysia({ prefix: '/ai' })
     return { success: true, data: result };
   })
 
-  // ==================== CHAT ====================
+  /**
+   * AI-powered chat assistant for security analysis
+   * @route POST /ai/chat
+   * @access Protected - Requires authentication
+   * @body {array} messages - Chat message history [{role, content}]
+   * @body {string} context - Additional context for AI (optional)
+   * @returns {Object} AI-generated response
+   * @description Security analyst AI assistant for threat analysis and guidance
+   */
   .post('/chat', async ({ body, user, cookie: { selected_tenant } }: any) => {
     const { messages, context } = body as ChatBody
 

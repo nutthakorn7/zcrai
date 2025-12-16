@@ -1,5 +1,6 @@
 /**
  * Investigation Graph Controller
+ * Visualizes relationships between entities (cases, alerts, observables, users)
  */
 
 import { Elysia } from 'elysia';
@@ -11,6 +12,11 @@ export const graphController = new Elysia({ prefix: '/graph' })
 
   /**
    * Get investigation graph for a case
+   * @route GET /graph/case/:caseId
+   * @access Protected - Requires authentication
+   * @param {string} caseId - Case ID
+   * @returns {Object} Graph nodes and edges (alerts, observables, relationships)
+   * @description Builds visual graph showing all related entities and connections
    */
   .get('/case/:caseId', async (context) => {
     const user = (context as any).user;
@@ -21,6 +27,11 @@ export const graphController = new Elysia({ prefix: '/graph' })
 
   /**
    * Get investigation graph for an alert
+   * @route GET /graph/alert/:alertId
+   * @access Protected - Requires authentication
+   * @param {string} alertId - Alert ID
+   * @returns {Object} Graph nodes and edges for alert investigation
+   * @description Shows correlated alerts, observables, and affected assets
    */
   .get('/alert/:alertId', async (context) => {
     const user = (context as any).user;
