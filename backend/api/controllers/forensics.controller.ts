@@ -12,6 +12,11 @@ export const forensicsController = new Elysia({ prefix: '/forensics' })
   
   /**
    * Get forensic analysis for a case
+   * @route GET /forensics/case/:caseId
+   * @access Protected - Requires authentication
+   * @param {string} caseId - Case ID
+   * @returns {Object} Memory dump analysis results
+   * @description Retrieves existing forensic analysis for case
    */
   .get('/case/:caseId', async ({ params }: any) => {
     const analysis = await ForensicsService.analyzeMemoryDump(
@@ -25,7 +30,14 @@ export const forensicsController = new Elysia({ prefix: '/forensics' })
   })
 
   /**
-   * Capture memory dump
+   * Capture memory dump from endpoint
+   * @route POST /forensics/capture
+   * @access Protected - Requires authentication
+   * @body {string} hostname - Target hostname/IP
+   * @body {string} collectedBy - Collector username
+   * @body {string} caseId - Associated case ID (optional)
+   * @returns {Object} Capture result with dump ID
+   * @description Initiates memory dump collection from target endpoint
    */
   .post('/capture', async ({ body }: any) => {
     const { hostname, collectedBy, caseId } = body;
@@ -49,7 +61,13 @@ export const forensicsController = new Elysia({ prefix: '/forensics' })
   })
 
   /**
-   * Analyze memory dump
+   * Analyze existing memory dump
+   * @route POST /forensics/analyze
+   * @access Protected - Requires authentication
+   * @body {string} dumpId - Memory dump ID (optional)
+   * @body {string} caseId - Case ID (optional)
+   * @returns {Object} Analysis results (processes, network, malware indicators)
+   * @description Runs forensic analysis on memory dump
    */
   .post('/analyze', async ({ body }: any) => {
     const { dumpId, caseId } = body;
@@ -72,6 +90,10 @@ export const forensicsController = new Elysia({ prefix: '/forensics' })
 
   /**
    * Get specific analysis by dump ID
+   * @route GET /forensics/dump/:dumpId
+   * @access Protected - Requires authentication
+   * @param {string} dumpId - Memory dump ID
+   * @returns {Object} Forensic analysis results
    */
   .get('/dump/:dumpId', async ({ params }: any) => {
     const analysis = await ForensicsService.analyzeMemoryDump(
