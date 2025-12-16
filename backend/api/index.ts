@@ -37,10 +37,6 @@ import { systemController } from './controllers/system.controller'
 import { billingController } from './controllers/billing.controller'
 import { SchedulerService } from './core/services/scheduler.service'
 
-// ... (in app chain)
-  .use(systemController) // System Management (Backups, License)
-  .use(billingController) // Billing & Subscription
-  .get('/health', () => ({ status: 'ok', timestamp: new Date().toISOString() }))
 
 import { LogRetentionService } from './core/services/log-retention.service'
 import { EnrichmentWorker } from './workers/enrichment.worker'
