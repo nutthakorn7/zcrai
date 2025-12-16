@@ -1,13 +1,13 @@
 import { Elysia } from 'elysia';
 import { withAuth } from '../middleware/auth';
 import { ObservableService } from '../core/services/observable.service';
+import { Errors } from '../middleware/error';
 
 export const observableController = new Elysia({ prefix: '/observables' })
   .use(withAuth)
+  
   // List observables
   .get('/', async ({ query, user }: any) => {
-    if (!user) throw new Error('Unauthorized');
-
     const observables = await ObservableService.list({
       tenantId: user.tenantId,
       type: query.type ? query.type.split(',') : undefined,
@@ -24,8 +24,6 @@ export const observableController = new Elysia({ prefix: '/observables' })
 
   // Create observable manually
   .post('/', async ({ body, user }: any) => {
-    if (!user) throw new Error('Unauthorized');
-
     const observable = await ObservableService.create({
       tenantId: user.tenantId,
       ...body,
@@ -36,8 +34,6 @@ export const observableController = new Elysia({ prefix: '/observables' })
 
   // Extract IOCs from text
   .post('/extract', async ({ body, user }: any) => {
-    if (!user) throw new Error('Unauthorized');
-
     const observables = await ObservableService.extract(
       body.text,
       user.tenantId,
@@ -50,34 +46,26 @@ export const observableController = new Elysia({ prefix: '/observables' })
 
   // Get observable by ID
   .get('/:id', async ({ params, user }: any) => {
-    if (!user) throw new Error('Unauthorized');
-
     const observable = await ObservableService.getById(params.id, user.tenantId);
-    if (!observable) throw new Error('Observable not found');
+    if (!observable) throw Errors.NotFound('Observable');
 
     return { success: true, data: observable };
   })
 
   // Trigger enrichment
   .patch('/:id/enrich', async ({ params, user }: any) => {
-    if (!user) throw new Error('Unauthorized');
-
     const result = await ObservableService.enrich(params.id, user.tenantId);
     return { success: true, data: result };
   })
 
   // Get sightings
   .get('/:id/sightings', async ({ params, user }: any) => {
-    if (!user) throw new Error('Unauthorized');
-
     const sightings = await ObservableService.getSightings(params.id, user.tenantId);
     return { success: true, data: sightings };
   })
 
   // Set malicious status
   .patch('/:id/status', async ({ params, body, user }: any) => {
-    if (!user) throw new Error('Unauthorized');
-
     const observable = await ObservableService.setMaliciousStatus(
       params.id,
       user.tenantId,
@@ -89,8 +77,6 @@ export const observableController = new Elysia({ prefix: '/observables' })
 
   // Add tag
   .post('/:id/tags', async ({ params, body, user }: any) => {
-    if (!user) throw new Error('Unauthorized');
-
     const observable = await ObservableService.addTag(
       params.id,
       user.tenantId,
@@ -102,8 +88,6 @@ export const observableController = new Elysia({ prefix: '/observables' })
 
   // Remove tag
   .delete('/:id/tags/:tag', async ({ params, user }: any) => {
-    if (!user) throw new Error('Unauthorized');
-
     const observable = await ObservableService.removeTag(
       params.id,
       user.tenantId,
@@ -115,8 +99,6 @@ export const observableController = new Elysia({ prefix: '/observables' })
 
   // Delete observable
   .delete('/:id', async ({ params, user }: any) => {
-    if (!user) throw new Error('Unauthorized');
-
     const result = await ObservableService.delete(params.id, user.tenantId);
     return { success: true, data: result };
   });
