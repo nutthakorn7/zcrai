@@ -56,7 +56,7 @@ export function Sidebar() {
       label: 'Threat Intel',
       children: [
         { label: 'Intel Feeds', path: '/threat-intel' },
-        { label: 'Detection Rules', path: '/settings/detection-rules' },
+        { label: 'Detection Rules', path: '/detection' },
       ],
     },
 

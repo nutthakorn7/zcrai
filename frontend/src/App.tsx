@@ -238,6 +238,14 @@ function App() {
             />
 
             <Route 
+              path="/detection" 
+              element={
+                <ProtectedRoute>
+                  <DetectionRulesPage />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
               path="/playbooks" 
               element={
                 <ProtectedRoute>
@@ -296,7 +304,7 @@ function App() {
                 </Suspense>
               } />
               <Route path="audit-logs" element={<AuditLogsPage />} />
-              <Route path="detection-rules" element={<DetectionRulesPage />} />
+              {/* Detection Rules moved to /detection as standalone route */}
               <Route path="subscription" element={<SubscriptionPage />} />
             </Route>
           </Routes>
