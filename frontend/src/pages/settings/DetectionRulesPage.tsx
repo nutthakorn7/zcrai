@@ -61,7 +61,7 @@ export default function DetectionRulesPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="p-6 min-h-screen bg-background space-y-6">
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Detection Rules</h2>
