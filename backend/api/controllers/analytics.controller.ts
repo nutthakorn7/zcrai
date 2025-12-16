@@ -4,6 +4,17 @@ import { analyticsService } from '../core/services/analytics.service';
 
 export const analyticsController = new Elysia({ prefix: '/api/analytics' })
   .use(tenantGuard)
+  
+  /**
+   * Get analytics dashboard metrics
+   * @route GET /api/analytics/dashboard
+   * @access Protected - Requires authentication
+   * @query {string} startDate - Start date (YYYY-MM-DD) (optional)
+   * @query {string} endDate - End date (YYYY-MM-DD) (optional)
+   * @query {string} tenantId - Tenant ID (optional, for superadmin)
+   * @returns {Object} Dashboard metrics (events, alerts, trends)
+   * @description Aggregated security metrics for analytics dashboards
+   */
   .get('/dashboard', async ({ query, user }: any) => {
     const tenantId = user?.tenantId || (query as any).tenantId;
     

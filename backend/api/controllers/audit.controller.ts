@@ -5,7 +5,20 @@ import { tenantGuard } from '../middlewares/auth.middleware';
 export const auditController = new Elysia({ prefix: '/audit-logs' })
   .use(tenantGuard)
 
-  // List Audit Logs
+  /**
+   * List audit logs with filtering
+   * @route GET /audit-logs
+   * @access Protected - Requires authentication
+   * @query {string} userId - Filter by user ID (optional)
+   * @query {string} action - Filter by action type (optional)
+   * @query {string} resource - Filter by resource type (optional)
+   * @query {string} startDate - Start date (YYYY-MM-DD) (optional)
+   * @query {string} endDate - End date (YYYY-MM-DD) (optional)
+   * @query {number} limit - Results per page (default: 50)
+   * @query {number} offset - Pagination offset (default: 0)
+   * @returns {Object} Paginated audit log entries
+   * @description Compliance and security audit trail
+   */
   .get('/', async (ctx: any) => {
       const { user, query } = ctx;
       const filters = {
