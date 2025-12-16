@@ -43,6 +43,16 @@ export function Sidebar() {
       label: 'Alerts', 
       path: '/alerts' 
     },
+    { 
+      icon: Icon.CheckCircle, 
+      label: 'Actions', 
+      path: '/approvals' 
+    },
+    { 
+      icon: Icon.Shield, 
+      label: 'Threat Intel', 
+      path: '/threat-intel' 
+    },
 
     // 3. Investigation
     { 
@@ -72,11 +82,10 @@ export function Sidebar() {
       label: 'Detection', 
       path: '/settings/detection-rules' 
     },
-    { 
-      icon: Icon.Settings, 
-      label: 'Settings', 
-      path: '/settings' 
-    },
+    // 6. Settings
+    { icon: Icon.Settings, label: 'Settings', path: '/settings/profile' },
+    { icon: Icon.CreditCard, label: 'Subscription', path: '/settings/subscription' }, // Added
+    { icon: Icon.Server, label: 'System', path: '/settings/system' },
     { 
       icon: Icon.Users, 
       label: 'Admin', 

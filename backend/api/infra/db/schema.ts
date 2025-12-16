@@ -497,6 +497,70 @@ export const enrichmentQueueRelations = relations(enrichmentQueue, ({ one }) => 
   }),
 }))
 
+// ==================== APPROVALS ====================
+export const approvals = pgTable('approvals', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  tenantId: uuid('tenant_id').references(() => tenants.id).notNull(),
+  executionId: uuid('execution_id').references(() => playbookExecutions.id).notNull(),
+  stepId: uuid('step_id').references(() => playbookExecutionSteps.id).notNull(),
+  status: text('status').default('pending').notNull(), // 'pending', 'approved', 'rejected'
+  requestedAt: timestamp('requested_at').defaultNow().notNull(),
+  actedBy: uuid('acted_by').references(() => users.id),
+  actedAt: timestamp('acted_at'),
+  comments: text('comments'),
+})
+
+export const approvalsRelations = relations(approvals, ({ one }) => ({
+  tenant: one(tenants, {
+    fields: [approvals.tenantId],
+    references: [tenants.id],
+  }),
+  execution: one(playbookExecutions, {
+    fields: [approvals.executionId],
+    references: [playbookExecutions.id],
+  }),
+  step: one(playbookExecutionSteps, {
+    fields: [approvals.stepId],
+    references: [playbookExecutionSteps.id],
+  }),
+  actor: one(users, {
+    fields: [approvals.actedBy],
+    references: [users.id],
+  }),
+}))
+// ==================== PLAYBOOK INPUTS ====================
+export const playbookInputs = pgTable('playbook_inputs', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  tenantId: uuid('tenant_id').references(() => tenants.id).notNull(),
+  executionId: uuid('execution_id').references(() => playbookExecutions.id).notNull(),
+  stepId: uuid('step_id').references(() => playbookExecutionSteps.id).notNull(),
+  inputSchema: jsonb('input_schema').notNull(), // JSON Schema for the form
+  inputData: jsonb('input_data'), // Submitted data
+  status: text('status').default('pending').notNull(), // 'pending', 'submitted'
+  requestedAt: timestamp('requested_at').defaultNow().notNull(),
+  respondedBy: uuid('responded_by').references(() => users.id),
+  respondedAt: timestamp('responded_at'),
+})
+
+export const playbookInputsRelations = relations(playbookInputs, ({ one }) => ({
+  tenant: one(tenants, {
+    fields: [playbookInputs.tenantId],
+    references: [tenants.id],
+  }),
+  execution: one(playbookExecutions, {
+    fields: [playbookInputs.executionId],
+    references: [playbookExecutions.id],
+  }),
+  step: one(playbookExecutionSteps, {
+    fields: [playbookInputs.stepId],
+    references: [playbookExecutionSteps.id],
+  }),
+  responder: one(users, {
+    fields: [playbookInputs.respondedBy],
+    references: [users.id],
+  }),
+}))
+
 // ==================== SYSTEM CONFIGURATION ====================
 export const systemConfig = pgTable('system_config', {
   key: text('key').primaryKey(), // e.g. 'retention_audit_logs_days'
@@ -634,3 +698,24 @@ export const customWidgetsRelations = relations(customWidgets, ({ one }) => ({
     references: [tenants.id],
   }),
 }))
+
+// ==================== BILLING ====================
+export const subscriptions = pgTable('subscriptions', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  tenantId: uuid('tenant_id').references(() => tenants.id, { onDelete: 'cascade' }).notNull(),
+  tier: text('tier').default('free').notNull(), // 'free', 'pro', 'enterprise'
+  status: text('status').default('active').notNull(), // 'active', 'cancelled', 'past_due'
+  currentPeriodEnd: timestamp('current_period_end'),
+  stripeCustomerId: text('stripe_customer_id'),
+  stripeSubscriptionId: text('stripe_subscription_id'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+})
+
+export const subscriptionsRelations = relations(subscriptions, ({ one }) => ({
+  tenant: one(tenants, {
+    fields: [subscriptions.tenantId],
+    references: [tenants.id],
+  }),
+}))
+

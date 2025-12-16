@@ -55,6 +55,13 @@ export const userController = new Elysia({ prefix: '/users' })
         throw new Error('Forbidden: Only Super Admin can create another Super Admin')
       }
 
+      // Check Billing Limits
+      const { BillingService } = await import('../core/services/billing.service')
+      const limitCheck = await BillingService.checkLimit(payload.tenantId as string, 'users')
+      if (!limitCheck.allowed) {
+        throw new Error(`Upgrade Required: User limit reached (${limitCheck.current}/${limitCheck.max})`)
+      }
+
       const result = await UserService.invite(payload.tenantId as string, body)
       set.status = 201
       return { message: 'User invited successfully', user: result.user }

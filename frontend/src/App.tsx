@@ -23,6 +23,8 @@ const ObservablesPage = lazy(() => import("./pages/observables/ObservablesPage")
 const ThreatIntelPage = lazy(() => import("./pages/ThreatIntelPage"));
 const PlaybooksPage = lazy(() => import("./pages/playbooks/PlaybooksPage"));
 const ReportsPage = lazy(() => import("./pages/reports/ReportsPage"));
+const ActionsPage = lazy(() => import('./pages/approvals'));
+const ApprovalsPage = lazy(() => import("./pages/approvals")); // Added
 const AdminDashboard = lazy(() => import("./pages/admin"));
 
 // Settings Pages
@@ -38,7 +40,9 @@ const ParsersPage = lazy(() => import("./pages/settings/ParsersPage"));
 const EDRActionsPage = lazy(() => import("./pages/settings/EDRActionsPage"));
 const AuditLogsPage = lazy(() => import("./pages/settings/AuditLogsPage"));
 const ProfilePage = lazy(() => import("./pages/settings/ProfilePage"));
-const DetectionRulesPage = lazy(() => import("./pages/settings/DetectionRulesPage")); // Added
+const DetectionRulesPage = lazy(() => import("./pages/settings/DetectionRulesPage"));
+const SystemPage = lazy(() => import("./pages/settings/SystemPage"));
+const SubscriptionPage = lazy(() => import("./pages/settings/SubscriptionPage")); // Added
 
 // Import logos for preloading (Keep static for fast LCP if used early, but typically lazy loading images is also good)
 import sentineloneLogo from './assets/logo/sentinelone.png';
@@ -172,6 +176,15 @@ function App() {
             />
 
             <Route 
+              path="/approvals" 
+              element={
+                <ProtectedRoute>
+                  <ApprovalsPage />
+                </ProtectedRoute>
+              } 
+            />
+
+            <Route 
               path="/cases" 
               element={
                 <ProtectedRoute>
@@ -253,8 +266,20 @@ function App() {
               <Route path="retention" element={<RetentionSettingsPage />} />
               <Route path="parsers" element={<ParsersPage />} />
               <Route path="edr-actions" element={<EDRActionsPage />} />
+              <Route path="system" element={<SystemPage />} />
+              <Route path="approvals" element={
+                <Suspense fallback={<LoadingState />}>
+                  <ActionsPage />
+                </Suspense>
+              } />
+              <Route path="threat-intel" element={
+                <Suspense fallback={<LoadingState />}>
+                  <ThreatIntelPage />
+                </Suspense>
+              } />
               <Route path="audit-logs" element={<AuditLogsPage />} />
               <Route path="detection-rules" element={<DetectionRulesPage />} />
+              <Route path="subscription" element={<SubscriptionPage />} />
             </Route>
           </Routes>
         </Suspense>

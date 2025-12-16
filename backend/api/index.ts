@@ -33,7 +33,15 @@ import { riskController } from './controllers/risk.controller'
 import { mitreController } from './controllers/mitre.controller'
 import { graphController } from './controllers/graph.controller'
 import { threatIntelController } from './controllers/threat-intel.controller'
+import { systemController } from './controllers/system.controller'
+import { billingController } from './controllers/billing.controller'
 import { SchedulerService } from './core/services/scheduler.service'
+
+// ... (in app chain)
+  .use(systemController) // System Management (Backups, License)
+  .use(billingController) // Billing & Subscription
+  .get('/health', () => ({ status: 'ok', timestamp: new Date().toISOString() }))
+
 import { LogRetentionService } from './core/services/log-retention.service'
 import { EnrichmentWorker } from './workers/enrichment.worker'
 import { db } from './infra/db'
@@ -94,6 +102,9 @@ async function seedSuperAdmin() {
 export { seedSuperAdmin }
 
 // Don't start background workers during tests (they create Redis connections too early)
+import { approvalsController } from './controllers/approvals.controller'
+import { inputsController } from './controllers/inputs.controller'
+
 if (process.env.NODE_ENV !== 'test') {
   SchedulerService.init()
   LogRetentionService.init()
@@ -138,6 +149,8 @@ const app = new Elysia()
   .use(integrationController)
   .use(dashboardController)
   .use(playbookController)
+  .use(approvalsController)
+  .use(inputsController)
   .use(analyticsController)
   .use(realtimeController)
   .use(parserController)
@@ -159,7 +172,10 @@ const app = new Elysia()
   .use(riskController) // Predictive Risk Analysis
   .use(mitreController) // MITRE ATT&CK Coverage
   .use(graphController) // Investigation Graph
-  .use(threatIntelController) // Threat Intel Feeds
+  .use(graphController) // Investigation Graph
+  .use(threatIntelController) // Threat Intel Feeds & Retro Scan
+  .use(systemController) // System Management (Backups, License)
+  .use(billingController) // Billing & Subscription
   .get('/health', () => ({ status: 'ok', timestamp: new Date().toISOString() }))
 
 if (import.meta.main) {

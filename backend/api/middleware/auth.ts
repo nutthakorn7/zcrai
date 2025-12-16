@@ -47,7 +47,7 @@ export const jwtConfig = {
  *   })
  * ```
  */
-export const withAuth = new Elysia({ name: 'simple-auth-middleware' })
+export const withAuth = (app: Elysia) => app
   .use(jwt(jwtConfig))
   .derive(async ({ jwt, cookie: { access_token } }: any) => {
     if (!access_token?.value || typeof access_token.value !== 'string') {
@@ -57,7 +57,7 @@ export const withAuth = new Elysia({ name: 'simple-auth-middleware' })
     try {
       const payload = await jwt.verify(access_token.value);
       return { user: payload as JWTUserPayload | null };
-    } catch {
+    } catch (e: any) {
       return { user: null };
     }
   })
