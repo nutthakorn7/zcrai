@@ -1,5 +1,5 @@
 import { db } from '../../infra/db'
-import { subscriptions, users, tenants } from '../../infra/db/schema'
+import { subscriptions, users, tenants, systemConfig } from '../../infra/db/schema'
 import { eq, sql, count } from 'drizzle-orm'
 import { query } from '../../infra/clickhouse/client'
 
@@ -26,7 +26,7 @@ export type Tier = keyof typeof TIERS;
 export const BillingService = {
     async getSubscription(tenantId: string) {
         // 1. Check for Enterprise License (Global)
-        const licenseResult = await db.select().from(require('../../infra/db/schema').systemConfig).where(eq(require('../../infra/db/schema').systemConfig.key, 'license_key'))
+        const licenseResult = await db.select().from(systemConfig).where(eq(systemConfig.key, 'license_key'))
         const licenseKey = licenseResult[0]?.value
 
         if (licenseKey) {
@@ -76,26 +76,32 @@ export const BillingService = {
         const userCount = userResult[0].count
 
         // 2. Calculate Data Volume for current month (ClickHouse)
-        // Estimate size based on stored bytes or string length
-        const startOfMonth = new Date()
-        startOfMonth.setDate(1)
-        startOfMonth.setHours(0,0,0,0)
-        const startTimestamp = Math.floor(startOfMonth.getTime() / 1000)
-        
-        const q = `
-            SELECT sum(length(toString(*))) as bytes
-            FROM security_events
-            WHERE tenant_id = {tenantId:String}
-            AND timestamp >= toDateTime({start:UInt32})
-        `
-        // query returns T[]
-        const usageResult = await query<{ bytes: string }>(q, {
-            tenantId,
-            start: startTimestamp
-        })
+        let gbUsed = 0;
+        try {
+            const startOfMonth = new Date()
+            startOfMonth.setDate(1)
+            startOfMonth.setHours(0,0,0,0)
+            const startTimestamp = Math.floor(startOfMonth.getTime() / 1000)
+            
+            const q = `
+                SELECT sum(length(toString(*))) as bytes
+                FROM security_events
+                WHERE tenant_id = {tenantId:String}
+                AND timestamp >= toDateTime({start:UInt32})
+            `
+            // query returns T[]
+            const usageResult = await query<{ bytes: string }>(q, {
+                tenantId,
+                start: startTimestamp
+            })
 
-        const bytes = parseInt(usageResult[0]?.bytes || '0')
-        const gbUsed = bytes / (1024 * 1024 * 1024)
+            const bytes = parseInt(usageResult[0]?.bytes || '0')
+            gbUsed = bytes / (1024 * 1024 * 1024)
+        } catch (error) {
+            console.error('[BillingService] Failed to get data volume from ClickHouse:', error)
+            // Fallback to 0 if metrics unavailable
+            gbUsed = 0
+        }
 
         return {
             users: userCount,

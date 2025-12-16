@@ -9,7 +9,7 @@ describe('Password Utility', () => {
     expect(hash).toBeDefined();
     expect(typeof hash).toBe('string');
     expect(hash).not.toBe(password);
-    expect(hash.startsWith('$2')).toBe(true); // bcrypt prefix
+    expect(hash.startsWith('$argon2')).toBe(true); // argon2 prefix
   });
 
   it('should verify a correct password', async () => {

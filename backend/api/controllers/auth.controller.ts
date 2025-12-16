@@ -51,48 +51,102 @@ export const authController = new Elysia({ prefix: '/auth' })
    * @throws {400} MFA code required/invalid
    */
   .post('/login', async ({ body, jwt, cookie: { access_token, refresh_token }, set, request }) => {
-    const user = await AuthService.login(body)
-    
-    if (user.mfaEnabled) {
-      if (!body.mfaCode) {
-        return { requireMFA: true, message: 'MFA code required' }
+    try {
+      const user = await AuthService.login(body)
+      
+      if (user.mfaEnabled) {
+        if (!body.mfaCode) {
+          return { requireMFA: true, message: 'MFA code required' }
+        }
+        await MFAService.verifyCode(user.id, body.mfaCode)
       }
-      await MFAService.verifyCode(user.id, body.mfaCode)
-    }
 
-    const accessToken = await jwt.sign({
-      id: user.id,
-      role: user.role,
-      tenantId: user.tenantId
-    })
-
-    const userAgent = request.headers.get('user-agent') || undefined
-    const ipAddress = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 
-                      request.headers.get('x-real-ip') || 
-                      'unknown'
-
-    const refreshToken = await jwt.sign({
-      id: user.id,
-      type: 'refresh'
-    })
-
-    setAccessTokenCookie(access_token, accessToken)
-    setRefreshTokenCookie(refresh_token, refreshToken)
-
-    await analyticsService.trackLogin(user.id, user.tenantId || '', ipAddress, userAgent, true)
-
-    return {
-      success: true,
-      user: {
+      const accessToken = await jwt.sign({
         id: user.id,
-        email: user.email,
-        name: user.name,
         role: user.role,
-        tenantId: user.tenantId,
-        mfaEnabled: user.mfaEnabled
+        tenantId: user.tenantId
+      })
+
+      const userAgent = request.headers.get('user-agent') || undefined
+      const ipAddress = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 
+                        request.headers.get('x-real-ip') || 
+                        'unknown'
+
+      const refreshToken = await jwt.sign({
+        id: user.id,
+        type: 'refresh'
+      })
+
+      setAccessTokenCookie(access_token, accessToken)
+      setRefreshTokenCookie(refresh_token, refreshToken)
+
+      await analyticsService.trackLogin(user.id, user.tenantId || '', ipAddress, userAgent, true)
+
+      return {
+        success: true,
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role,
+          tenantId: user.tenantId,
+          mfaEnabled: user.mfaEnabled
+        }
       }
+    } catch (error: any) {
+      if (error.message === 'Invalid credentials' || error.message?.includes('Invalid credentials')) {
+        set.status = 401
+        return { success: false, message: 'Invalid credentials' }
+      }
+      if (error.message?.includes('Account locked')) {
+        set.status = 429
+        return { success: false, message: error.message }
+      }
+      throw error
     }
   }, { body: LoginSchema })
+
+  /**
+   * Get current user profile
+   * @route GET /auth/me
+   * @access Protected
+   * @returns {Object} Current user details
+   */
+  .get('/me', async ({ jwt, cookie: { access_token }, set }) => {
+    try {
+      if (!access_token.value) {
+        set.status = 401
+        return { success: false, message: 'Not authenticated' }
+      }
+
+      const payload = await jwt.verify(access_token.value as string)
+      if (!payload) {
+        set.status = 401
+        return { success: false, message: 'Invalid token' }
+      }
+
+      const user = await AuthService.getUserById(payload.id as string)
+      if (!user) {
+        set.status = 404
+        return { success: false, message: 'User not found' }
+      }
+
+      return {
+        success: true,
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role,
+          tenantId: user.tenantId,
+          mfaEnabled: user.mfaEnabled
+        }
+      }
+    } catch (e) {
+      set.status = 401
+      return { success: false, message: 'Authentication failed' }
+    }
+  })
 
   /**
    * Logout current session

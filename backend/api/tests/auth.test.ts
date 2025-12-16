@@ -52,7 +52,7 @@ describe('Auth Controller', () => {
         })
 
         expect(response.status).toBe(200)
-        expect(data?.email).toBe(AUTH_CREDENTIALS.email)
+        expect(data?.user?.email).toBe(AUTH_CREDENTIALS.email)
     })
 
     it('should refresh token successfully', async () => {

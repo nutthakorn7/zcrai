@@ -532,7 +532,7 @@ export default function LogViewerPage() {
       link.download = `logs_export${filterSuffix}_${new Date().toISOString().slice(0, 10)}.csv`;
       link.click();
       
-      console.log(`Exported ${allLogs.length} logs to CSV`);
+
     } catch (e) {
       console.error('Failed to export logs:', e);
     } finally {

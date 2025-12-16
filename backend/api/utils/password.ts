@@ -13,8 +13,9 @@ const BCRYPT_COST = 10;
  */
 export async function hashPassword(password: string): Promise<string> {
   return Bun.password.hash(password, { 
-    algorithm: 'bcrypt', 
-    cost: BCRYPT_COST 
+    algorithm: 'argon2id', 
+    memoryCost: 4096,
+    timeCost: 3
   });
 }
 
@@ -26,9 +27,21 @@ export async function hashPassword(password: string): Promise<string> {
  */
 export async function verifyPassword(password: string, hash: string): Promise<boolean> {
   try {
+    // Debug logging for test environment issues
+    if (process.env.NODE_ENV === 'test') {
+       // Check if hash is a valid string
+       if (!hash || typeof hash !== 'string') {
+          console.error('[Password] Hash is invalid/empty:', hash)
+       } else {
+          // Log algorithm prefix if present
+          const prefix = hash.substring(0, 10);
+          // console.log(`[Password] Verifying against hash prefix: ${prefix}...`)
+       }
+    }
     return await Bun.password.verify(password, hash);
   } catch (error) {
     console.error('[Password] Verification error:', error);
+    console.error('[Password] Problematic Hash:', hash);
     return false;
   }
 }

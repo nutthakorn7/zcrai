@@ -9,6 +9,11 @@ describe('Retention Service', () => {
         json: async () => ({})
     } as any);
 
+    // Mock DB
+
+    
+    // Mock DB removed to avoid leakage. Using real DB (integration test).
+
     it('should get default retention days', async () => {
         // Mock DB empty result
         // Given difficulty of deep db mock, we rely on default behavior or seed data.

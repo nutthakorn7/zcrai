@@ -78,15 +78,22 @@ export const systemController = new Elysia({ prefix: '/system' })
     
     if (!config.length) {
       return {
-        type: 'community',
-        maxUsers: 5,
-        maxTenants: 1,
-        features: ['basic'],
-        expiresAt: null
+        success: true,
+        data: {
+          type: 'community',
+          maxUsers: 5,
+          maxTenants: 1,
+          features: ['basic'],
+          expiresAt: null
+        }
       }
     }
     
-    return config[0].value
+    const value = config[0].value
+    return { 
+      success: true, 
+      data: typeof value === 'string' ? JSON.parse(value) : value 
+    }
   })
 
   /**
@@ -115,10 +122,10 @@ export const systemController = new Elysia({ prefix: '/system' })
 
     await db.insert(systemConfig).values({
       key: 'license',
-      value: mockLicense
+      value: JSON.stringify(mockLicense)
     }).onConflictDoUpdate({
       target: systemConfig.key,
-      set: { value: mockLicense, updatedAt: new Date() }
+      set: { value: JSON.stringify(mockLicense), updatedAt: new Date() }
     })
 
     return { success: true, license: mockLicense }

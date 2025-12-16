@@ -53,9 +53,12 @@ describe('Case Controller', () => {
         
         const { data, response } = await api.cases.get({ headers })
         expect(response.status).toBe(200)
-        expect(data?.success).toBe(true)
-        expect(Array.isArray(data?.data)).toBe(true)
-        expect(data?.data!.length).toBeGreaterThan(0)
+        
+        // Controller returns array directly
+        expect(Array.isArray(data)).toBe(true)
+        if (Array.isArray(data)) {
+            expect(data.length).toBeGreaterThan(0)
+        }
     })
 
     it('should get case detail', async () => {

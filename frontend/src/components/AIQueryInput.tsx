@@ -21,7 +21,7 @@ export function AIQueryInput({ onFiltersApplied }: AIQueryInputProps) {
             const { filters, explanation } = res.data.data;
             if (explanation) {
                 // Show a brief toast or message if needed, for now just apply filters
-                console.log("AI Explanation:", explanation);
+
             }
             onFiltersApplied(filters);
         } catch (e) {

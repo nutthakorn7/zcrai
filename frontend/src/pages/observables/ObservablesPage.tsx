@@ -125,9 +125,9 @@ export default function ObservablesPage() {
     setIsDetailModalOpen(true);
   };
 
-  const handleEnrich = async (id: string) => {
+  const handleEnrich = async (_id: string) => {
     // Call API to trigger enrichment (future implementation)
-    console.log("Trigger enrichment for", id);
+
   };
 
   const getStatusChip = (observable: Observable) => {

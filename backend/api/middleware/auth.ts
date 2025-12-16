@@ -63,6 +63,34 @@ export const withAuth = (app: Elysia) => app
     if (bypassAuth) {
       console.log('🔓 [Auth] BYPASS MODE: Auto-authenticated as superadmin');
       console.warn('⚠️  WARNING: Authentication is DISABLED - Anyone can access!');
+      
+      // Fetch actual superadmin from database to get valid tenant ID
+      try {
+        const { db } = await import('../infra/db');
+        const { users, tenants } = await import('../infra/db/schema');
+        const { eq } = await import('drizzle-orm');
+        
+        const superadmin = await db.query.users.findFirst({
+          where: eq(users.role, 'superadmin')
+        });
+        
+        if (superadmin) {
+          return {
+            user: {
+              userId: superadmin.id,
+              id: superadmin.id,
+              email: superadmin.email,
+              name: superadmin.name || 'Super Admin',
+              role: 'superadmin',
+              tenantId: superadmin.tenantId || 'c8abd753-3015-4508-aa7b-6bcf732934e5' // Fallback to System Admin tenant
+            } as JWTUserPayload
+          };
+        }
+      } catch (e) {
+        console.error('[Auth] Failed to fetch superadmin for bypass mode:', e);
+      }
+      
+      // Fallback with real System Admin tenant ID from database
       return {
         user: {
           userId: 'demo-user-id',
@@ -70,10 +98,11 @@ export const withAuth = (app: Elysia) => app
           email: 'demo@zcr.ai',
           name: 'Demo User',
           role: 'superadmin',
-          tenantId: 'demo-tenant-id'
+          tenantId: 'c8abd753-3015-4508-aa7b-6bcf732934e5' // Real System Admin tenant UUID
         } as JWTUserPayload
       };
     }
+
 
     // Production: Normal JWT verification
     if (!access_token?.value || typeof access_token.value !== 'string') {

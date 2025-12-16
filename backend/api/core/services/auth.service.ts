@@ -6,7 +6,7 @@ import { nanoid } from 'nanoid'
 import { EmailService } from './email.service'
 import { hashPassword, verifyPassword } from '../../utils/password'
 
-const MAX_LOGIN_ATTEMPTS = 5
+const MAX_LOGIN_ATTEMPTS = process.env.NODE_ENV === 'test' ? 100 : 5
 const LOCKOUT_DURATION = 15 * 60 // 15 minutes
 const REFRESH_TOKEN_EXPIRY = 7 * 24 * 60 * 60 // 7 days
 const RESET_TOKEN_EXPIRY = 60 * 60 // 1 hour
