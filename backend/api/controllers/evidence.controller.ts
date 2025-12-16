@@ -12,7 +12,11 @@ export const evidenceController = new Elysia({ prefix: '/evidence' })
   .use(withAuth)
   
   /**
-   * Get evidence for a case
+   * Get all evidence for a case
+   * @route GET /evidence/case/:caseId
+   * @access Protected - Requires authentication
+   * @param {string} caseId - Case ID
+   * @returns {Object} List of evidence items with custody chain
    */
   .get('/case/:caseId', async ({ params }: any) => {
     const evidence = await EvidenceService.listCaseEvidence(params.caseId);
@@ -23,7 +27,12 @@ export const evidenceController = new Elysia({ prefix: '/evidence' })
   })
 
   /**
-   * Get single evidence item
+   * Get single evidence item with full details
+   * @route GET /evidence/:evidenceId
+   * @access Protected - Requires authentication
+   * @param {string} evidenceId - Evidence ID
+   * @returns {Object} Evidence details with custody history
+   * @throws {404} Evidence not found
    */
   .get('/:evidenceId', async ({ params }: any) => {
     const evidence = await EvidenceService.getEvidence(params.evidenceId);
@@ -35,7 +44,16 @@ export const evidenceController = new Elysia({ prefix: '/evidence' })
   })
 
   /**
-   * Register new evidence
+   * Register new evidence item
+   * @route POST /evidence
+   * @access Protected - Requires authentication
+   * @body {string} caseId - Associated case ID
+   * @body {string} type - Evidence type (file, memory_dump, network_capture, etc.)
+   * @body {string} name - Evidence name/description
+   * @body {string} collectedBy - Collector username
+   * @body {object} hash - File hashes (md5, sha256)
+   * @body {object} metadata - Additional metadata (optional)
+   * @returns {Object} Created evidence record
    */
   .post('/', async ({ body }: any) => {
     const evidence = await EvidenceService.registerEvidence(body);
@@ -58,7 +76,13 @@ export const evidenceController = new Elysia({ prefix: '/evidence' })
   })
 
   /**
-   * Verify evidence integrity
+   * Verify evidence integrity via hash comparison
+   * @route POST /evidence/:evidenceId/verify
+   * @access Protected - Requires authentication
+   * @param {string} evidenceId - Evidence ID
+   * @body {string} md5 - MD5 hash to verify (optional)
+   * @body {string} sha256 - SHA256 hash to verify (optional)
+   * @returns {Object} Verification result (passed/failed)
    */
   .post('/:evidenceId/verify', async ({ params, body }: any) => {
     const { md5, sha256 } = body || {};
@@ -85,7 +109,16 @@ export const evidenceController = new Elysia({ prefix: '/evidence' })
   })
 
   /**
-   * Add custody event
+   * Add custody event to chain of custody
+   * @route POST /evidence/:evidenceId/custody
+   * @access Protected - Requires authentication
+   * @param {string} evidenceId - Evidence ID
+   * @body {string} action - Custody action (collected, transferred, analyzed, stored)
+   * @body {string} performedBy - Person performing action
+   * @body {string} location - Physical/digital location
+   * @body {string} notes - Additional notes (optional)
+   * @returns {Object} Success message
+   * @description Maintains tamper-proof chain of custody for legal evidence
    */
   .post('/:evidenceId/custody', async ({ params, body }: any) => {
     await EvidenceService.addCustodyEvent(params.evidenceId, body);
@@ -103,7 +136,12 @@ export const evidenceController = new Elysia({ prefix: '/evidence' })
   })
 
   /**
-   * Export evidence report
+   * Export evidence report for court/compliance
+   * @route GET /evidence/:evidenceId/export
+   * @access Protected - Requires authentication
+   * @param {string} evidenceId - Evidence ID
+   * @returns {Object} Formatted evidence report with full custody chain
+   * @description Generates comprehensive evidence report suitable for legal proceedings
    */
   .get('/:evidenceId/export', async ({ params }: any) => {
     const report = await EvidenceService.exportEvidenceReport(params.evidenceId);
