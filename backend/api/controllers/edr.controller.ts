@@ -13,29 +13,21 @@ export const edrController = new Elysia({ prefix: '/edr' })
   /**
    * Execute EDR action
    */
-  .post('/execute', async ({ body, set }: any) => {
-    try {
-      const { provider, action, parameters, executionStepId } = body;
+  .post('/execute', async ({ body }: any) => {
+    const { provider, action, parameters, executionStepId } = body;
 
-      const result = await EDRActionService.executeAction({
-        provider,
-        action,
-        parameters,
-        executionStepId: executionStepId || 'manual-' + Date.now(), // Default for manual executions
-      });
+    const result = await EDRActionService.executeAction({
+      provider,
+      action,
+      parameters,
+      executionStepId: executionStepId || 'manual-' + Date.now(),
+    });
 
-      return {
-        success: result.success,
-        message: result.success ? 'Action executed successfully' : 'Action failed',
-        data: result,
-      };
-    } catch (error: any) {
-      set.status = 500;
-      return { 
-        success: false, 
-        error: error.message || 'Failed to execute EDR action' 
-      };
-    }
+    return {
+      success: result.success,
+      message: result.success ? 'Action executed successfully' : 'Action failed',
+      data: result,
+    };
   }, {
     body: t.Object({
       provider: t.String(),
