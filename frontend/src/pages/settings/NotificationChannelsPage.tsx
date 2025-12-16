@@ -6,8 +6,8 @@ import { Icon } from '../../shared/ui';
 import { Plus, Check, Zap } from 'lucide-react';
 
 // Slack/Teams Logos
-const SLACK_LOGO = "https://cdn.iconscout.com/icon/free/png-256/free-slack-1425877-1205068.png";
-const TEAMS_LOGO = "https://cdn.iconscout.com/icon/free/png-256/free-microsoft-teams-3392312-2826315.png";
+const SLACK_LOGO = "https://cdn-icons-png.flaticon.com/512/5968/5968863.png";
+const TEAMS_LOGO = "https://cdn-icons-png.flaticon.com/512/4401/4401460.png";
 
 interface NotificationChannel {
   id: string;
