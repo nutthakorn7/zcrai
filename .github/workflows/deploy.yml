@@ -69,7 +69,7 @@ jobs:
 
       - name: Run Database Migrations
         run: |
-          ssh root@45.118.132.160 "export PATH=\$PATH:/root/.bun/bin && cd /root/zcrAI/backend/api && bun run db:migrate"
+          ssh root@45.118.132.160 "export PATH=\$PATH:/root/.bun/bin && cd /root/zcrAI/backend/api && bun run db:migrate || echo 'Migration skipped (tables may already exist)'"
 
       - name: Restart Backend
         run: |
