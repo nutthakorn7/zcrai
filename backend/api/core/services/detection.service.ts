@@ -172,5 +172,27 @@ export const DetectionService = {
   
   async getRules(tenantId: string) {
       return await db.select().from(detectionRules).where(eq(detectionRules.tenantId, tenantId));
+  },
+
+  // Test Rule (Dry Run)
+  async testRule(tenantId: string, queryStr: string, limit: number = 20) {
+    const finalQuery = `
+        SELECT *
+        FROM security_events
+        WHERE tenant_id = {tenantId:String}
+          AND (${queryStr})
+        ORDER BY timestamp DESC
+        LIMIT {limit:UInt32}
+    `;
+
+    try {
+        const hits = await query<any>(finalQuery, {
+            tenantId,
+            limit
+        });
+        return hits;
+    } catch (e: any) {
+        throw new Error(`ClickHouse Query Failed: ${e.message}`);
+    }
   }
 };

@@ -45,5 +45,10 @@ export const DetectionRulesAPI = {
   runNow: async (id: string) => {
     const response = await api.post(`/detection-rules/${id}/run`);
     return response.data;
+  },
+
+  test: async (query: string) => {
+    const response = await api.post('/detection-rules/test', { query });
+    return response.data;
   }
 };

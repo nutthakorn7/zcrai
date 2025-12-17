@@ -11,6 +11,25 @@ export default function DetectionRulesPage() {
   const [selectedRule, setSelectedRule] = useState<DetectionRule | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editForm, setEditForm] = useState<Partial<DetectionRule>>({});
+  
+  // Test State
+  const [isTesting, setIsTesting] = useState(false);
+  const [testResults, setTestResults] = useState<any>(null);
+
+  const handleTest = async () => {
+      if (!editForm.query) return;
+      setIsTesting(true);
+      setTestResults(null);
+      try {
+          const res = await DetectionRulesAPI.test(editForm.query);
+          setTestResults(res);
+      } catch (e) {
+          console.error(e);
+          setTestResults({ success: false, error: 'Failed to execute test query' });
+      } finally {
+          setIsTesting(false);
+      }
+  };
 
   const fetchRules = async () => {
     try {
@@ -40,6 +59,7 @@ export default function DetectionRulesPage() {
   const handleEdit = (rule: DetectionRule) => {
       setSelectedRule(rule);
       setEditForm({ ...rule });
+      setTestResults(null); // Reset test
       setIsModalOpen(true);
   };
 
@@ -54,6 +74,7 @@ export default function DetectionRulesPage() {
           query: '',
           actions: { group_by: [] }
       });
+      setTestResults(null); // Reset test
       setIsModalOpen(true);
   };
 
@@ -210,9 +231,60 @@ export default function DetectionRulesPage() {
                     value={editForm.query} 
                     onValueChange={v => setEditForm({...editForm, query: v})} 
                   />
+
+                  {/* Test Results Section */}
+                  {testResults && (
+                      <div className="rounded-lg border border-divider p-3 bg-content1/50 text-xs">
+                          <div className="flex justify-between items-center mb-2">
+                              <span className="font-bold flex items-center gap-2">
+                                  {testResults.success ? (
+                                      <Icon.CheckCircle className="w-4 h-4 text-success"/>
+                                  ) : (
+                                      <Icon.Close className="w-4 h-4 text-danger"/>
+                                  )}
+                                  Test Result: {testResults.success ? `Found ${testResults.count} matches` : 'Error'}
+                              </span>
+                              {testResults.success && testResults.count > 0 && (
+                                  <span className="text-foreground/50">Last 24h</span>
+                              )}
+                          </div>
+                          
+                          {!testResults.success ? (
+                              <div className="text-danger font-mono p-2 bg-danger/10 rounded">{testResults.error}</div>
+                          ) : (
+                              testResults.events?.length > 0 && (
+                                  <div className="overflow-x-auto">
+                                      <table className="w-full text-left border-collapse">
+                                          <thead>
+                                              <tr className="border-b border-white/10 text-foreground/50">
+                                                  <th className="py-1 px-2">Time</th>
+                                                  <th className="py-1 px-2">Event</th>
+                                              </tr>
+                                          </thead>
+                                          <tbody>
+                                              {testResults.events.slice(0, 3).map((e: any, i: number) => (
+                                                  <tr key={i} className="border-b border-white/5 last:border-0">
+                                                      <td className="py-1 px-2 whitespace-nowrap">{new Date(e.timestamp).toLocaleTimeString()}</td>
+                                                      <td className="py-1 px-2 font-mono truncate max-w-[200px]">{JSON.stringify(e).substring(0, 100)}...</td>
+                                                  </tr>
+                                              ))}
+                                          </tbody>
+                                      </table>
+                                      {testResults.count > 3 && (
+                                          <div className="text-center mt-2 italic text-foreground/50">...and {testResults.count - 3} more</div>
+                                      )}
+                                  </div>
+                              )
+                          )}
+                      </div>
+                  )}
+
               </ModalBody>
               <ModalFooter>
                   <Button variant="light" onPress={() => setIsModalOpen(false)}>Cancel</Button>
+                  <Button variant="flat" color="warning" onPress={handleTest} isLoading={isTesting} startContent={<Icon.Search className="w-4 h-4"/>}>
+                      Test Rule
+                  </Button>
                   <Button color="primary" onPress={handleSave}>Save Changes</Button>
               </ModalFooter>
           </ModalContent>

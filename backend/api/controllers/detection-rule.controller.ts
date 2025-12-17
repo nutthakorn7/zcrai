@@ -101,6 +101,30 @@ export const detectionRuleController = new Elysia({ prefix: '/detection-rules' }
     await DetectionService.runRule(rule)
     
     return { success: true, message: 'Rule execution started' }
+    return { success: true, message: 'Rule execution started' }
+  })
+
+  // Test Rule (Dry Run) - [NEW]
+  .post('/test', async ({ body, user }: any) => {
+    if (!user || !user.tenantId) throw new Error('Tenant ID required')
+    
+    // Validate syntax (basic)
+    if (!body.query) throw new Error('Query is required')
+
+    try {
+      const hits = await DetectionService.testRule(user.tenantId, body.query)
+      return { 
+        success: true, 
+        count: hits.length,
+        events: hits 
+      }
+    } catch (e: any) {
+      return { success: false, error: e.message }
+    }
+  }, {
+    body: t.Object({
+      query: t.String()
+    })
   })
   
   // Delete Rule
