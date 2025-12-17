@@ -57,7 +57,188 @@ const NODE_SIZES: Record<string, number> = {
   hash: 8,
 };
 
-// ... (existing code for component) ...
+interface InvestigationGraphProps {
+  caseId?: string;
+  alertId?: string;
+  className?: string;
+}
+
+export function InvestigationGraph({ caseId, alertId, className }: InvestigationGraphProps) {
+  const [graphData, setGraphData] = useState<InvestigationGraphData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
+  const graphRef = useRef<any>();
+
+  useEffect(() => {
+    fetchGraphData();
+  }, [caseId, alertId]);
+
+  const fetchGraphData = async () => {
+    setLoading(true);
+    try {
+      let response;
+      if (caseId) {
+        response = await api.get(`/graph/case/${caseId}`);
+      } else if (alertId) {
+        response = await api.get(`/graph/alert/${alertId}`);
+      } else {
+        // Mock data for demo
+        setGraphData(mockGraphData);
+        setLoading(false);
+        return;
+      }
+      setGraphData(response.data.data);
+    } catch (e) {
+      // Use mock data on error
+      setGraphData(mockGraphData);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleNodeClick = useCallback((node: any) => {
+    setSelectedNode(node);
+    // Center on clicked node
+    if (graphRef.current) {
+      graphRef.current.centerAt(node.x, node.y, 500);
+      graphRef.current.zoom(2, 500);
+    }
+  }, []);
+
+  const handleReset = () => {
+    setSelectedNode(null);
+    if (graphRef.current) {
+      graphRef.current.zoomToFit(400);
+    }
+  };
+
+  if (loading) {
+    return (
+      <Card className={`bg-content1/50 border border-white/5 ${className}`}>
+        <CardBody className="flex items-center justify-center h-[400px]">
+          <Spinner size="lg" />
+          <span className="ml-3">Building investigation graph...</span>
+        </CardBody>
+      </Card>
+    );
+  }
+
+  if (!graphData) {
+    return null;
+  }
+
+  // Transform data for react-force-graph
+  const forceGraphData = {
+    nodes: graphData.nodes.map(n => ({
+      ...n,
+      val: NODE_SIZES[n.type] || 8,
+      color: NODE_COLORS[n.type] || '#888',
+    })),
+    links: graphData.edges.map(e => ({
+      source: e.source,
+      target: e.target,
+      label: e.label,
+    })),
+  };
+
+  return (
+    <Card className={`bg-content1/50 border border-white/5 ${className}`}>
+      <CardHeader className="flex items-center justify-between px-6 pt-6">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-secondary/20">
+            <Icon.Network className="w-5 h-5 text-secondary" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold">Investigation Graph</h3>
+            <p className="text-xs text-default-500">
+              {graphData.summary.totalNodes} nodes, {graphData.summary.totalEdges} edges
+            </p>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <Button size="sm" variant="flat" onPress={handleReset}>
+            <Icon.Maximize className="w-4 h-4 mr-1" /> Reset View
+          </Button>
+        </div>
+      </CardHeader>
+
+      <CardBody className="p-0">
+        <div className="relative h-[400px] bg-content2/30 rounded-b-lg overflow-hidden">
+          <ForceGraph2D
+            ref={graphRef}
+            graphData={forceGraphData}
+            nodeLabel={(node: any) => `${node.type}: ${node.label}`}
+            nodeColor={(node: any) => node.color}
+            nodeVal={(node: any) => node.val}
+            linkColor={() => 'rgba(255,255,255,0.2)'}
+            linkDirectionalArrowLength={4}
+            linkDirectionalArrowRelPos={1}
+            onNodeClick={handleNodeClick}
+            nodeCanvasObject={(node: any, ctx, globalScale) => {
+              const label = node.label;
+              const fontSize = 10 / globalScale;
+              ctx.font = `${fontSize}px Sans-Serif`;
+              
+              // Draw node
+              ctx.beginPath();
+              ctx.arc(node.x, node.y, node.val, 0, 2 * Math.PI, false);
+              ctx.fillStyle = node.color;
+              ctx.fill();
+              
+              // Draw label below node
+              if (globalScale > 0.8) {
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'top';
+                ctx.fillStyle = 'rgba(255,255,255,0.8)';
+                ctx.fillText(label.substring(0, 15), node.x, node.y + node.val + 2);
+              }
+            }}
+            enableNodeDrag={true}
+            enableZoomInteraction={true}
+            cooldownTicks={100}
+            onEngineStop={() => graphRef.current?.zoomToFit(400)}
+          />
+
+          {/* Legend */}
+          <div className="absolute bottom-3 left-3 bg-content1/80 backdrop-blur-sm rounded-lg p-3 text-xs">
+            <div className="font-medium mb-2">Node Types</div>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+              {Object.entries(NODE_COLORS).map(([type, color]) => (
+                <div key={type} className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: color }} />
+                  <span className="capitalize">{type}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Selected Node Panel */}
+          {selectedNode && (
+            <div className="absolute top-3 right-3 bg-content1/90 backdrop-blur-sm rounded-lg p-4 w-64">
+              <div className="flex items-center justify-between mb-2">
+                <Chip size="sm" style={{ backgroundColor: NODE_COLORS[selectedNode.type] }}>
+                  {selectedNode.type}
+                </Chip>
+                <Button isIconOnly size="sm" variant="light" onPress={() => setSelectedNode(null)}>
+                  <Icon.X className="w-4 h-4" />
+                </Button>
+              </div>
+              <h4 className="font-medium mb-2">{selectedNode.label}</h4>
+              <div className="space-y-1 text-xs text-default-500">
+                {Object.entries(selectedNode.properties).map(([key, value]) => (
+                  <div key={key} className="flex justify-between">
+                    <span className="capitalize">{key}:</span>
+                    <span className="font-mono">{String(value).substring(0, 20)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </CardBody>
+    </Card>
+  );
+}
 
 // Mock data for demo
 const mockGraphData: InvestigationGraphData = {
