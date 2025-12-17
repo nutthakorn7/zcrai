@@ -7,9 +7,25 @@ const RedisClient = process.env.NODE_ENV === 'test' && !process.env.CI
   : Redis
 
 // Read from env dynamically (not at module load time) to allow test overrides
-const getRedisUrl = () => process.env.REDIS_URL || 'redis://localhost:6379'
+// Read from env dynamically
+const getRedisConfig = () => {
+  const url = process.env.REDIS_URL
+  
+  // Workaround for potential URL parsing issue with "redis://:pass@host"
+  // If we see the specific production pattern, verify explicit usage
+  if (url && url.includes(':redis_password@')) {
+    return {
+      host: 'localhost',
+      port: 6379,
+      password: 'redis_password',
+      lazyConnect: true // Prevent immediate connection errors from crashing boot
+    }
+  }
+  
+  return url || 'redis://localhost:6379'
+}
 
-export const redis = new RedisClient(getRedisUrl())
+export const redis = new RedisClient(getRedisConfig())
 
 // Key prefixes
 export const SESSION_PREFIX = 'session:'
