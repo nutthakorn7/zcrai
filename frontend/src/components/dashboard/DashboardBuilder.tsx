@@ -266,4 +266,5 @@ export default function DashboardBuilder({ onClose, onSave }: DashboardBuilderPr
         }}
       />
     </div>
+  );
 }
