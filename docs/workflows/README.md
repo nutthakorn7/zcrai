@@ -22,6 +22,7 @@ Here is the direct map of which page to use for each step of the operation:
 | **3** | **Triage** | **Alerts** | `/alerts` | Review incoming signals. Promote valid ones. |
 | **4** | **Investigate** | **Case Board** | `/cases` | Manage incident status (Kanban). |
 | **-** | *Deep Dive* | **Case Details** | `/cases/:id` | Timeline analysis & evidence review. |
+| **-** | *IOC Analysis* | **Observables** | `/observables` | Review specific indicators (IPs, Hash) cross-case. |
 | **-** | *Enrichment* | **Threat Intel** | `/threat-intel` | Search IP/Hash reputation. |
 | **5** | **Respond** | **Playbooks** | `/playbooks` | Execute automated blocks & containment. |
 
