@@ -11,20 +11,25 @@ graph LR
     E -->|Remediation| F[Close Case]
 ```
 
-## Workflow to Page Mapping
+## Master System Reference (Combined Table)
 
-Here is the direct map of which page to use for each step of the operation:
+This table maps every major action in the platform to its specific page.
 
-| Step | Operation Name | Primary Page | URL Path | Key Action |
+| Category | Step / Function | Page Name | URL Path | Key Action |
 | :--- | :--- | :--- | :--- | :--- |
-| **1** | **Monitor** | **Dashboard** | `/` | Monitor KPI spikes & Health. |
-| **2** | **Detect** | **Detection Rules** | `/detection` | Configure *what* to look for (Sigma). |
-| **3** | **Triage** | **Alerts** | `/alerts` | Review incoming signals. Promote valid ones. |
-| **4** | **Investigate** | **Case Board** | `/cases` | Manage incident status (Kanban). |
-| **-** | *Deep Dive* | **Case Details** | `/cases/:id` | Timeline analysis & evidence review. |
-| **-** | *IOC Analysis* | **Observables** | `/observables` | Review specific indicators (IPs, Hash) cross-case. |
-| **-** | *Enrichment* | **Threat Intel** | `/threat-intel` | Search IP/Hash reputation. |
-| **5** | **Respond** | **Playbooks** | `/playbooks` | Execute automated blocks & containment. |
+| **Operations** | **1. Monitor** | **Dashboard** | `/` | Monitor KPIs & System Health. |
+| | **2. Detect** | **Detection Rules** | `/detection` | Enable/Disable Sigma rules. |
+| | **3. Triage** | **Alerts** | `/alerts` | Accept or Close incoming alerts. |
+| | **4. Investigate** | **Case Board** | `/cases` | Assign & track case progress. |
+| | *Deep Dive* | **Case Details** | `/cases/:id` | Analyze Timeline & Evidence. |
+| | **5. Respond** | **Playbooks** | `/playbooks` | Run automated response actions. |
+| **Analysis** | **Log Hunting** | **Log Viewer** | `/logs` | Search raw logs (Splunk-like). |
+| | **Enrichment** | **Threat Intel** | `/threat-intel` | Lookup IP/Hash reputation. |
+| | **IOCs** | **Observables** | `/observables` | Cross-referenced indicator view. |
+| **Settings** | **Integrations** | **Integrations** | `/settings/integrations` | Connect API Keys (EDR, VT). |
+| | **Notifications** | **Notification Channels** | `/settings/notifications` | Setup Slack/Teams webhooks. |
+| | **Access** | **Users & Teams** | `/settings/users` | Manage analyst access. |
+| | **Billing** | **Subscription** | `/settings/subscription` | View limits & usage. |
 
 ## Detailed Breakdown
 
