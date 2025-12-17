@@ -38,8 +38,8 @@ export default function DashboardBuilder({ onClose, onSave }: DashboardBuilderPr
   const [layout, setLayout] = useState<LayoutItem[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const { isOpen: isWidgetOpen, onOpen: openWidgets, onOpenChange: onWidgetChange } = useDisclosure();
-  const { isOpen: isCustomOpen, onOpen: openCustom, onClose: closeCustom } = useDisclosure();
+  const [isWidgetOpen, setIsWidgetOpen] = useState(false);
+  const [isCustomOpen, setIsCustomOpen] = useState(false);
 
   // Load saved layout
   useEffect(() => {
@@ -88,7 +88,7 @@ export default function DashboardBuilder({ onClose, onSave }: DashboardBuilderPr
       type: widgetType,
     };
     setLayout(prev => [...prev, newItem]);
-    onWidgetChange();
+    setIsWidgetOpen(false); // Close modal after adding
   };
 
   const removeWidget = (id: string) => {
@@ -139,10 +139,10 @@ export default function DashboardBuilder({ onClose, onSave }: DashboardBuilderPr
         <div className="flex gap-2">
           {isEditing ? (
             <>
-              <Button size="sm" variant="flat" onPress={openWidgets} startContent={<Icon.Add className="w-4 h-4" />}>
+              <Button size="sm" variant="flat" onPress={() => setIsWidgetOpen(true)} startContent={<Icon.Add className="w-4 h-4" />}>
                 Add Widget
               </Button>
-              <Button size="sm" variant="ghost" color="secondary" onPress={openCustom} startContent={<Icon.Chart className="w-4 h-4" />}>
+              <Button size="sm" variant="ghost" color="secondary" onPress={() => setIsCustomOpen(true)} startContent={<Icon.Chart className="w-4 h-4" />}>
                 Create Custom
               </Button>
               <Button size="sm" variant="flat" color="danger" onPress={handleReset}>
@@ -213,7 +213,7 @@ export default function DashboardBuilder({ onClose, onSave }: DashboardBuilderPr
       </div>
 
       {/* Widget Library Modal */}
-      <Modal isOpen={isWidgetOpen} onOpenChange={onWidgetChange} size="2xl">
+      <Modal isOpen={isWidgetOpen} onClose={() => setIsWidgetOpen(false)} size="2xl">
         <ModalContent>
           {() => (
             <>
@@ -250,7 +250,7 @@ export default function DashboardBuilder({ onClose, onSave }: DashboardBuilderPr
       {/* Custom Widget Creator Modal */}
       <CustomWidgetCreator 
         isOpen={isCustomOpen} 
-        onClose={closeCustom}
+        onClose={() => setIsCustomOpen(false)}
         onSave={(widget) => {
           // Add custom widget to layout
           const newItem: LayoutItem = {
@@ -262,8 +262,8 @@ export default function DashboardBuilder({ onClose, onSave }: DashboardBuilderPr
             type: `custom-${widget.id}`
           };
           setLayout(prev => [...prev, newItem]);
+          setIsCustomOpen(false); // Close modal after adding
         }}
       />
     </div>
-  );
 }
