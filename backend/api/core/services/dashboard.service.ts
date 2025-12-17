@@ -1,4 +1,7 @@
 import { query } from '../../infra/clickhouse/client'
+import { db } from '../../infra/db'
+import { detectionRules } from '../../infra/db/schema'
+import { eq, and, isNotNull, sql } from 'drizzle-orm'
 
 /**
  * IMPORTANT: Data Consistency Strategy
@@ -160,10 +163,34 @@ export const DashboardService = {
   },
 
   // ==================== MITRE HEATMAP ====================
-  async getMitreHeatmap(tenantId: string, startDate: string, endDate: string, sources?: string[]) {
+  // ==================== MITRE HEATMAP ====================
+  async getMitreHeatmap(tenantId: string, startDate: string, endDate: string, sources?: string[], mode: 'detection' | 'coverage' = 'detection') {
+    
+    // MODE: COVERAGE (Query Rules from Postgres)
+    if (mode === 'coverage') {
+      const rows = await db.select({
+        mitre_tactic: detectionRules.mitreTactic,
+        mitre_technique: detectionRules.mitreTechnique,
+        count: sql<string>`count(*)::text`
+      })
+      .from(detectionRules)
+      .where(
+        and(
+          eq(detectionRules.tenantId, tenantId),
+          eq(detectionRules.isEnabled, true),
+          isNotNull(detectionRules.mitreTactic)
+        )
+      )
+      .groupBy(detectionRules.mitreTactic, detectionRules.mitreTechnique);
+
+      // Filter out nulls if any slipped through
+      return rows.filter(r => r.mitre_tactic && r.mitre_technique) as { mitre_tactic: string; mitre_technique: string; count: string }[];
+    }
+
+    // MODE: DETECTION (Query Logs from ClickHouse)
     if (isEmptySources(sources)) return []
     const sourceFilter = (sources && sources.length > 0) ? `AND source IN {sources:Array(String)}` : ''
-    const sql = `
+    const sqlQuery = `
       SELECT 
         mitre_tactic,
         mitre_technique,
@@ -180,7 +207,7 @@ export const DashboardService = {
       mitre_tactic: string
       mitre_technique: string
       count: string
-    }>(sql, { tenantId, startDate, endDate, sources })
+    }>(sqlQuery, { tenantId, startDate, endDate, sources })
   },
 
   // ==================== SOURCES BREAKDOWN ====================

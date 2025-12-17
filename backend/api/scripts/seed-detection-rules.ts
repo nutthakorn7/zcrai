@@ -34,9 +34,9 @@ export async function seedDetectionRules() {
             mitreTechnique: 'T1110',
             actions: { 
                 auto_case: true,
-                case_title_template: '[Auto] Brute Force Detected from {src_ip}',
+                case_title_template: '[Auto] Brute Force Detected from {network_src_ip}',
                 severity_override: 'critical',
-                group_by: ['src_ip']
+                group_by: ['network_src_ip']
             }
         },
         // 2. Modified System File (High)
@@ -61,14 +61,14 @@ export async function seedDetectionRules() {
             isEnabled: true,
             mitreTactic: 'Discovery',
             mitreTechnique: 'T1046',
-            actions: { auto_case: false, group_by: ['src_ip'] }
+            actions: { auto_case: false, group_by: ['network_src_ip'] }
         },
         // 4. Ransomware Pattern (Critical -> Auto Case)
         {
             name: 'Ransomware File Extension Activity',
             description: 'Detects creation of files with known ransomware extensions (.lock, .enc, .wcry).',
             severity: 'critical',
-            query: "event_type = 'file_create' AND file_extension IN ('lock', 'enc', 'wcry')",
+            query: "event_type = 'file_create' AND (file_name LIKE '%.lock' OR file_name LIKE '%.enc' OR file_name LIKE '%.wcry')",
             runIntervalSeconds: 60,
             isEnabled: true,
             mitreTactic: 'Impact',

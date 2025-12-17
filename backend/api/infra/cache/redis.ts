@@ -12,17 +12,18 @@ const getRedisConfig = () => {
   const url = process.env.REDIS_URL
   
   // Workaround for potential URL parsing issue with "redis://:pass@host"
-  // If we see the specific production pattern, verify explicit usage
   if (url && url.includes(':redis_password@')) {
     return {
-      host: 'localhost',
+      host: '127.0.0.1',
       port: 6379,
       password: 'redis_password',
-      lazyConnect: true // Prevent immediate connection errors from crashing boot
+      lazyConnect: true 
     }
   }
   
-  return url || 'redis://localhost:6379'
+  const finalUrl = url || 'redis://:redis_password@127.0.0.1:6379'
+  console.log('[DEBUG_REDIS] Config URL:', finalUrl);
+  return finalUrl
 }
 
 export const redis = new RedisClient(getRedisConfig())
