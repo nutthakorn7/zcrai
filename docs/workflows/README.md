@@ -18,6 +18,7 @@ This table maps every major action in the platform to its specific page.
 | Category | Step / Function | Page Name | URL Path | Key Action |
 | :--- | :--- | :--- | :--- | :--- |
 | **Operations** | **1. Monitor** | **Dashboard** | `/` | Monitor KPIs & System Health. |
+| | *Customize* | **Dashboard Builder** | `/dashboard/builder` | Customize Widget & Layout. |
 | | **2. Detect** | **Detection Rules** | `/detection` | Enable/Disable Sigma rules. |
 | | **3. Triage** | **Alerts** | `/alerts` | Accept or Close incoming alerts. |
 | | *Fast Triage* | **Alert Queue** | `/queue` | Rapid fire triage (Inbox zero style). |
@@ -30,13 +31,17 @@ This table maps every major action in the platform to its specific page.
 | | **Enrichment** | **Threat Intel** | `/threat-intel` | Lookup IP/Hash reputation. |
 | | **IOCs** | **Observables** | `/observables` | Cross-referenced indicator view. |
 | **Settings** | **Integrations** | **Integrations** | `/settings/integrations` | Connect API Keys (EDR, VT). |
+| | *Configuration* | **EDR Actions** | `/settings/edr-actions` | Configure EDR commands (Isolate/Kill). |
 | | **Notifications** | **Notification Channels** | `/settings/notifications` | Setup Slack/Teams webhooks. |
 | | **Access** | **Users & Teams** | `/settings/users` | Manage analyst access. |
+| | *Admin* | **Tenants** | `/settings/tenants` | Manage Tenants (Multi-tenant). |
 | | **Billing** | **Subscription** | `/settings/subscription` | View limits & usage. |
 | | **Security** | **SSO / MFA** | `/settings/sso` | Configure Login & 2FA. |
 | | **Auditing** | **Audit Logs** | `/settings/audit-logs` | Track usage & internal changes. |
 | | **System** | **System Health** | `/settings/system` | Monitor CPU, RAM, Services. |
 | | **Data** | **Retention** | `/settings/retention` | Configure log storage duration. |
+| | *Parsing* | **Parsers** | `/settings/parsers` | Configure Log Parsing Rules. |
+| | **Account** | **Profile** | `/settings/profile` | Edit Profile & Password. |
 
 ## Detailed Breakdown
 
