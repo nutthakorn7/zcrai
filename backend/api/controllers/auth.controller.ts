@@ -51,38 +51,53 @@ export const authController = new Elysia({ prefix: '/auth' })
    * @throws {400} MFA code required/invalid
    */
   .post('/login', async ({ body, jwt, cookie: { access_token, refresh_token }, set, headers }) => {
-    console.log(`[DEBUG_AUTH] Login Controller Hit! Email: ${body.email}`);
+    console.log(`[DEBUG_AUTH] 1. Login Controller Hit!`);
     try {
-      const user = await AuthService.login(body)
+      console.log('[DEBUG_AUTH] 2. About to call AuthService.login');
+      const user = await AuthService.login(body as any)
+      console.log('[DEBUG_AUTH] 3. AuthService.login completed successfully');
       
       if (user.mfaEnabled) {
-        if (!body.mfaCode) {
+        console.log('[DEBUG_AUTH] 4. MFA is enabled, checking code');
+        if (!(body as any).mfaCode) {
           return { requireMFA: true, message: 'MFA code required' }
         }
-        await MFAService.verifyCode(user.id, body.mfaCode)
+        await MFAService.verifyCode(user.id, (body as any).mfaCode)
       }
 
+      console.log('[DEBUG_AUTH] 5. About to sign access token');
       const accessToken = await jwt.sign({
         id: user.id,
         role: user.role,
         tenantId: user.tenantId
       })
+      console.log('[DEBUG_AUTH] 6. Access token signed');
 
       const userAgent = headers['user-agent'] || undefined
       // header names are lowercased in Elysia headers object? Usually yes.
       const ipAddress = (headers['x-forwarded-for'] || '').split(',')[0]?.trim() || 
                         headers['x-real-ip'] || 
                         'unknown'
+      console.log('[DEBUG_AUTH] 7. Got user agent and IP');
 
+      console.log('[DEBUG_AUTH] 8. About to sign refresh token');
       const refreshToken = await jwt.sign({
         id: user.id,
         type: 'refresh'
       })
+      console.log('[DEBUG_AUTH] 9. Refresh token signed');
 
+      console.log('[DEBUG_AUTH] 10. Setting cookies');
       setAccessTokenCookie(access_token, accessToken)
       setRefreshTokenCookie(refresh_token, refreshToken)
+      console.log('[DEBUG_AUTH] 11. Cookies set');
 
-      await analyticsService.trackLogin(user.id, user.tenantId || '', ipAddress, userAgent, true)
+      // Track login analytics (non-critical, don't fail login if this fails)
+      try {
+        await analyticsService.trackLogin(user.id, user.tenantId || '', ipAddress, userAgent, true)
+      } catch (analyticsError) {
+        console.error('[Auth] Analytics tracking failed:', analyticsError)
+      }
 
       return {
         success: true,
@@ -96,6 +111,10 @@ export const authController = new Elysia({ prefix: '/auth' })
         }
       }
     } catch (error: any) {
+      console.error('[Auth] Login error:', error);
+      console.error('[Auth] Error message:', error?.message);
+      console.error('[Auth] Error stack:', error?.stack);
+      
       if (error.message === 'Invalid credentials' || error.message?.includes('Invalid credentials')) {
         set.status = 401
         return { success: false, message: 'Invalid credentials' }
