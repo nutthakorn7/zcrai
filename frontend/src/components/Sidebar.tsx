@@ -35,59 +35,45 @@ export function Sidebar() {
   const [expandedGroups, setExpandedGroups] = React.useState<Set<string>>(new Set());
 
   const navConfig: NavEntry[] = [
-    // Direct Links
-    { icon: Icon.Dashboard, label: 'Dashboard', path: '/dashboard' },
-    { icon: Icon.Chart, label: 'Reports', path: '/reports' },
-
-    // Security Operations Group
+    // 1. Operations Group
     {
       icon: Icon.Shield,
-      label: 'Security Ops',
+      label: 'Operations',
       children: [
-        { label: 'Alerts', path: '/alerts' },
-        { label: 'Cases', path: '/cases' },
+        { label: 'Monitor (Dashboard)', path: '/dashboard' },
+        { label: 'Detect (Rules)', path: '/detection' },
+        { label: 'Triage (Alerts)', path: '/alerts' },
+        { label: 'Investigate (Cases)', path: '/cases' },
+        { label: 'Respond (Playbooks)', path: '/playbooks' },
+      ],
+    },
+
+    // 2. Analysis Group
+    {
+      icon: Icon.Search, 
+      label: 'Analysis',
+      children: [
+        { label: 'Log Hunting', path: '/logs' },
+        { label: 'Threat Intel', path: '/threat-intel' },
         { label: 'Observables', path: '/observables' },
       ],
     },
 
-    // Threat Intelligence Group
-    {
-      icon: Icon.Eye,
-      label: 'Threat Intel',
-      children: [
-        { label: 'Intel Feeds', path: '/threat-intel' },
-        { label: 'Detection Rules', path: '/detection' },
-      ],
-    },
-
-    // Automation Group
-    {
-      icon: Icon.Terminal,
-      label: 'Automation',
-      children: [
-        { label: 'Playbooks', path: '/playbooks' },
-        { label: 'Actions', path: '/approvals' },
-      ],
-    },
-
-    // Logs - Direct Link
-    { icon: Icon.Document, label: 'Logs', path: '/logs' },
-
-    // Settings Group
+    // 3. Settings Group
     {
       icon: Icon.Settings,
       label: 'Settings',
       children: [
-        { label: 'Profile', path: '/settings/profile' },
-        { label: 'Subscription', path: '/settings/subscription' },
-        { label: 'System', path: '/settings/system' },
         { label: 'Integrations', path: '/settings/integrations' },
         { label: 'Notifications', path: '/settings/notifications' },
+        { label: 'Access (Users)', path: '/settings/users' },
+        { label: 'Billing', path: '/settings/subscription' },
+        { label: 'System', path: '/settings/system' }, 
       ],
     },
 
-    // Admin - Superadmin Only
-    { icon: Icon.Users, label: 'Admin', path: '/admin', adminOnly: true },
+    // Admin - Superadmin Only (kept for fallback)
+    { icon: Icon.Users, label: 'Admin Panel', path: '/admin', adminOnly: true },
   ];
 
   const toggleGroup = (label: string) => {
