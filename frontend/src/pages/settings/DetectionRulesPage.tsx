@@ -43,16 +43,37 @@ export default function DetectionRulesPage() {
       setIsModalOpen(true);
   };
 
+  const handleNewRule = () => {
+      setSelectedRule(null);
+      setEditForm({
+          name: '',
+          description: '',
+          severity: 'medium',
+          isEnabled: true,
+          runIntervalSeconds: 3600,
+          query: '',
+          actions: { group_by: [] }
+      });
+      setIsModalOpen(true);
+  };
+
   const handleSave = async () => {
-      if (!selectedRule) return;
       try {
           // Ensure actions object is structured correctly
           const actions = editForm.actions || {};
           
-          await DetectionRulesAPI.update(selectedRule.id, {
-              ...editForm,
-              actions
-          });
+          if (selectedRule) {
+              await DetectionRulesAPI.update(selectedRule.id, {
+                  ...editForm,
+                  actions
+              });
+          } else {
+              await DetectionRulesAPI.create({
+                  ...editForm,
+                  actions
+              });
+          }
+
           fetchRules();
           setIsModalOpen(false);
       } catch (e) {
@@ -67,7 +88,7 @@ export default function DetectionRulesPage() {
           <h2 className="text-2xl font-bold tracking-tight">Detection Rules</h2>
           <p className="text-foreground/60">Manage SIGMA-based detection logic and automation</p>
         </div>
-        <Button color="primary" startContent={<Icon.Add className="w-4 h-4"/>}>New Rule</Button>
+        <Button color="primary" onPress={handleNewRule} startContent={<Icon.Add className="w-4 h-4"/>}>New Rule</Button>
       </div>
 
       <Table aria-label="Detection Rules Table">
@@ -129,7 +150,7 @@ export default function DetectionRulesPage() {
 
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} size="2xl">
           <ModalContent>
-              <ModalHeader>Edit Detection Rule</ModalHeader>
+              <ModalHeader>{selectedRule ? 'Edit Detection Rule' : 'Create Detection Rule'}</ModalHeader>
               <ModalBody className="gap-4">
                   <Input label="Name" value={editForm.name} onValueChange={v => setEditForm({...editForm, name: v})} />
                   <Textarea label="Description" value={editForm.description} onValueChange={v => setEditForm({...editForm, description: v})} />
