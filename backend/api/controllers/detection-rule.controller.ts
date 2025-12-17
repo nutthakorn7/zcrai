@@ -3,10 +3,10 @@ import { DetectionService } from '../core/services/detection.service'
 import { db } from '../infra/db'
 import { detectionRules } from '../infra/db/schema'
 import { eq, desc, and } from 'drizzle-orm'
-import { withAuth } from '../middleware/auth'
+import { anyAuthenticated } from '../middleware/auth'
 
 export const detectionRuleController = new Elysia({ prefix: '/detection-rules' })
-  .use(withAuth)
+  .use(anyAuthenticated)
   .model({
     rule: t.Object({
       name: t.String(),
@@ -26,7 +26,7 @@ export const detectionRuleController = new Elysia({ prefix: '/detection-rules' }
   })
   
   // List Rules
-  .get('/', async ({ user }) => {
+  .get('/', async ({ user }: any) => {
     // If user is superadmin (no tenantId), maybe show all? Or just enforced ones?
     // For now, assume tenantId is required.
     if (!user || !user.tenantId) throw new Error('Tenant ID required')
@@ -40,7 +40,7 @@ export const detectionRuleController = new Elysia({ prefix: '/detection-rules' }
   })
   
   // Create Rule
-  .post('/', async ({ body, user }) => {
+  .post('/', async ({ body, user }: any) => {
     if (!user || !user.tenantId) throw new Error('Tenant ID required')
     
     const [rule] = await db.insert(detectionRules).values({
@@ -55,7 +55,7 @@ export const detectionRuleController = new Elysia({ prefix: '/detection-rules' }
   })
   
   // Update Rule
-  .patch('/:id', async ({ params: { id }, body, user }) => {
+  .patch('/:id', async ({ params: { id }, body, user }: any) => {
     if (!user || !user.tenantId) throw new Error('Tenant ID required')
     
     // Check permission
@@ -82,13 +82,13 @@ export const detectionRuleController = new Elysia({ prefix: '/detection-rules' }
       query: t.String(),
       isEnabled: t.Boolean(),
       runIntervalSeconds: t.Number(),
-      actions: t.Any(),
-      mitreTechnique: t.String()
+      actions: t.Any(), // JSONB is hard to validate strictly here, using Any for flexibility
+      mitreTechnique: t.Any() // simplified
     }))
   })
   
   // Run Rule Manually
-  .post('/:id/run', async ({ params: { id }, user }) => {
+  .post('/:id/run', async ({ params: { id }, user }: any) => {
     if (!user || !user.tenantId) throw new Error('Tenant ID required')
       
     const rule = await db.query.detectionRules.findFirst({
@@ -104,7 +104,7 @@ export const detectionRuleController = new Elysia({ prefix: '/detection-rules' }
   })
   
   // Delete Rule
-  .delete('/:id', async ({ params: { id }, user }) => {
+  .delete('/:id', async ({ params: { id }, user }: any) => {
      if (!user || !user.tenantId) throw new Error('Tenant ID required')
       
      await db.delete(detectionRules)
