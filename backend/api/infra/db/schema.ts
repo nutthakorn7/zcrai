@@ -597,6 +597,7 @@ export const detectionRules = pgTable('detection_rules', {
   isEnabled: boolean('is_enabled').default(true).notNull(),
   runIntervalSeconds: integer('run_interval_seconds').default(60).notNull(),
   lastRunAt: timestamp('last_run_at'),
+  mitreTactic: text('mitre_tactic'), // e.g., 'Initial Access'
   mitreTechnique: text('mitre_technique'), // e.g., 'T1059.001'
   createdBy: uuid('created_by').references(() => users.id),
   createdAt: timestamp('created_at').defaultNow().notNull(),
