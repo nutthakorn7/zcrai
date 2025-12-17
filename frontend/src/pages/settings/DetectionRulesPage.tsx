@@ -144,10 +144,12 @@ export default function DetectionRulesPage() {
                       <Input type="number" label="Interval (Seconds)" value={editForm.runIntervalSeconds?.toString()} onValueChange={v => setEditForm({...editForm, runIntervalSeconds: parseInt(v)})} />
                   </div>
 
-                  <div className="p-4 bg-default-100 rounded-lg">
-                      <h4 className="text-sm font-bold mb-2 flex items-center gap-2">
+                  <div className="p-4 bg-default-100 rounded-lg space-y-4">
+                      <h4 className="text-sm font-bold flex items-center gap-2">
                           <Icon.Cpu className="w-4 h-4 text-warning"/> Automation Actions
                       </h4>
+                      
+                      {/* Auto Case Toggle */}
                       <div className="flex items-center justify-between">
                           <div>
                               <div className="text-sm">Auto-Create Case</div>
@@ -159,6 +161,24 @@ export default function DetectionRulesPage() {
                                   ...editForm, 
                                   actions: { ...editForm.actions, auto_case: v }
                               })} 
+                          />
+                      </div>
+
+                      {/* Grouping Params */}
+                      <div className="border-t border-divider pt-4">
+                          <div className="text-sm font-medium mb-1">Alert Aggregation (Noise Reduction)</div>
+                          <div className="text-xs text-foreground/50 mb-2">Group multiple events into a single alert based on these fields (comma separated). Leave empty for no grouping.</div>
+                          <Input 
+                            placeholder="e.g. src_ip, user.name" 
+                            size="sm"
+                            value={(editForm.actions?.group_by as string[])?.join(', ') || ''}
+                            onValueChange={v => {
+                                const list = v.split(',').map(s => s.trim()).filter(Boolean);
+                                setEditForm({
+                                    ...editForm,
+                                    actions: { ...editForm.actions, group_by: list }
+                                });
+                            }}
                           />
                       </div>
                   </div>
