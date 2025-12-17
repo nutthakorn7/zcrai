@@ -36,6 +36,7 @@ import { graphController } from './controllers/graph.controller'
 import { threatIntelController } from './controllers/threat-intel.controller'
 import { systemController } from './controllers/system.controller'
 import { billingController } from './controllers/billing.controller'
+import { detectionRuleController } from './controllers/detection-rule.controller'
 import { SchedulerService } from './core/services/scheduler.service'
 
 
@@ -173,6 +174,7 @@ const app = new Elysia()
   .use(threatIntelController) // Threat Intel Feeds & Retro Scan
   .use(systemController) // System Management (Backups, License)
   .use(billingController) // Billing & Subscription
+  .use(detectionRuleController) // Detection Rules
   .get('/health', () => ({ status: 'ok', timestamp: new Date().toISOString() }))
 
 if (import.meta.main) {
