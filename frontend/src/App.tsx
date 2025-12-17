@@ -126,9 +126,16 @@ function App() {
   const hasCheckedAuth = useRef(false);
 
   useEffect(() => {
-    if (!hasCheckedAuth.current) {
+    // Don't check auth on login/register pages to avoid 401 loop
+    const isAuthPage = window.location.pathname.startsWith('/login') || 
+                       window.location.pathname.startsWith('/register');
+    
+    if (!hasCheckedAuth.current && !isAuthPage) {
       hasCheckedAuth.current = true;
       checkAuth();
+      preloadImages();
+    } else if (isAuthPage) {
+      // Just preload images on auth pages
       preloadImages();
     }
   }, [checkAuth]);
