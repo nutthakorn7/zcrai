@@ -1,9 +1,9 @@
 import { Elysia, t } from 'elysia';
 import { CloudIntegrationService } from '../core/services/cloud-integration.service';
-import { tenantGuard } from '../middlewares/auth.middleware';
+import { withAuth } from '../middleware/auth';
 
 export const cloudController = new Elysia({ prefix: '/cloud' })
-  .use(tenantGuard)
+  .use(withAuth)
 
   /**
    * List cloud provider integrations
@@ -12,6 +12,10 @@ export const cloudController = new Elysia({ prefix: '/cloud' })
    * @returns {Object} List of configured cloud integrations (AWS, M365, GCP)
    */
   .get('/integrations', async (ctx: any) => {
+      if (!ctx.user?.tenantId) {
+        ctx.set.status = 401;
+        return { error: 'Unauthorized - No tenant' };
+      }
       return await CloudIntegrationService.list(ctx.user.tenantId);
   })
 
@@ -28,6 +32,10 @@ export const cloudController = new Elysia({ prefix: '/cloud' })
    */
   .post('/integrations', async (ctx: any) => {
       const { user, body } = ctx;
+      if (!user?.tenantId) {
+        ctx.set.status = 401;
+        return { error: 'Unauthorized - No tenant' };
+      }
       const integration = await CloudIntegrationService.create({
           tenantId: user.tenantId,
           provider: body.provider,
@@ -75,6 +83,10 @@ export const cloudController = new Elysia({ prefix: '/cloud' })
    * @throws {400} Connection failed
    */
   .post('/integrations/:id/test', async (ctx: any) => {
+      if (!ctx.user?.tenantId) {
+        ctx.set.status = 401;
+        return { error: 'Unauthorized - No tenant' };
+      }
       return await CloudIntegrationService.testConnection(ctx.params.id, ctx.user.tenantId);
   })
 
@@ -86,6 +98,10 @@ export const cloudController = new Elysia({ prefix: '/cloud' })
    * @returns {Object} Success status
    */
   .delete('/integrations/:id', async (ctx: any) => {
+      if (!ctx.user?.tenantId) {
+        ctx.set.status = 401;
+        return { error: 'Unauthorized - No tenant' };
+      }
       await CloudIntegrationService.delete(ctx.params.id, ctx.user.tenantId);
       return { success: true };
   });
