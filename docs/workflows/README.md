@@ -20,9 +20,12 @@ This table maps every major action in the platform to its specific page.
 | **Operations** | **1. Monitor** | **Dashboard** | `/` | Monitor KPIs & System Health. |
 | | **2. Detect** | **Detection Rules** | `/detection` | Enable/Disable Sigma rules. |
 | | **3. Triage** | **Alerts** | `/alerts` | Accept or Close incoming alerts. |
+| | *Fast Triage* | **Alert Queue** | `/queue` | Rapid fire triage (Inbox zero style). |
 | | **4. Investigate** | **Case Board** | `/cases` | Assign & track case progress. |
 | | *Deep Dive* | **Case Details** | `/cases/:id` | Analyze Timeline & Evidence. |
 | | **5. Respond** | **Playbooks** | `/playbooks` | Run automated response actions. |
+| | *Approvals* | **Approvals** | `/approvals` | Authorize high-risk automated actions. |
+| | **Reporting** | **Reports** | `/reports` | Generate PDF executive summaries. |
 | **Analysis** | **Log Hunting** | **Log Viewer** | `/logs` | Search raw logs (Splunk-like). |
 | | **Enrichment** | **Threat Intel** | `/threat-intel` | Lookup IP/Hash reputation. |
 | | **IOCs** | **Observables** | `/observables` | Cross-referenced indicator view. |
@@ -30,6 +33,10 @@ This table maps every major action in the platform to its specific page.
 | | **Notifications** | **Notification Channels** | `/settings/notifications` | Setup Slack/Teams webhooks. |
 | | **Access** | **Users & Teams** | `/settings/users` | Manage analyst access. |
 | | **Billing** | **Subscription** | `/settings/subscription` | View limits & usage. |
+| | **Security** | **SSO / MFA** | `/settings/sso` | Configure Login & 2FA. |
+| | **Auditing** | **Audit Logs** | `/settings/audit-logs` | Track usage & internal changes. |
+| | **System** | **System Health** | `/settings/system` | Monitor CPU, RAM, Services. |
+| | **Data** | **Retention** | `/settings/retention` | Configure log storage duration. |
 
 ## Detailed Breakdown
 
