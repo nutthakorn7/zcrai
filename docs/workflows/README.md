@@ -11,10 +11,27 @@ graph LR
     E -->|Remediation| F[Close Case]
 ```
 
-## 1. Monitor (Situational Awareness)
+## Workflow to Page Mapping
+
+Here is the direct map of which page to use for each step of the operation:
+
+| Step | Operation Name | Primary Page | URL Path | Key Action |
+| :--- | :--- | :--- | :--- | :--- |
+| **1** | **Monitor** | **Dashboard** | `/` | Monitor KPI spikes & Health. |
+| **2** | **Detect** | **Detection Rules** | `/detection` | Configure *what* to look for (Sigma). |
+| **3** | **Triage** | **Alerts** | `/alerts` | Review incoming signals. Promote valid ones. |
+| **4** | **Investigate** | **Case Board** | `/cases` | Manage incident status (Kanban). |
+| **-** | *Deep Dive* | **Case Details** | `/cases/:id` | Timeline analysis & evidence review. |
+| **-** | *Enrichment* | **Threat Intel** | `/threat-intel` | Search IP/Hash reputation. |
+| **5** | **Respond** | **Playbooks** | `/playbooks` | Execute automated blocks & containment. |
+
+## Detailed Breakdown
+
+### 1. Monitor (Situational Awareness)
 **Goal**: Keep an eye on the overall health of the organization.
 *   **Action**: Analyst checks the **Dashboard** for spikes in `Active Cases` or `Events per Second (EPS)`.
-*   **Outcome**: Early detection of anomalies (e.g., mass login failures).
+*   **Page**: [Dashboard](monitor.md)
+
 
 ## 2. Detect (Automated Identification)
 **Goal**: Find specific malicious patterns automatically.
