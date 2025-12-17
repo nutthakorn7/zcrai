@@ -10,14 +10,17 @@ import { DetectionService } from '../core/services/detection.service';
 export async function seedDetectionRules() {
     console.log('🌱 Seeding Detection Rules...');
 
-    // 1. Get Tenant (Assuming first tenant or specific one)
-    const tenant = await db.query.tenants.findFirst();
-    if (!tenant) {
-        console.error('❌ No tenant found. Please seed tenant first.');
+    // 1. Get All Tenants
+    const allTenants = await db.query.tenants.findMany();
+    
+    if (allTenants.length === 0) {
+        console.error('❌ No tenants found. Please seed tenant first.');
         return;
     }
 
-    const rules = [
+    console.log(`🔍 Found ${allTenants.length} tenants. Seeding rules for all...`);
+
+    const rulesTemplate = [
         // 1. Brute Force (Critical -> Auto Case)
         {
             name: 'Critical Brute Force Attack',
@@ -26,11 +29,11 @@ export async function seedDetectionRules() {
             query: "event_type = 'login_failed' GROUP BY src_ip HAVING count() > 20",
             runIntervalSeconds: 60,
             isEnabled: true,
-            tenantId: tenant.id,
             actions: { 
                 auto_case: true,
                 case_title_template: '[Auto] Brute Force Detected from {src_ip}',
-                severity_override: 'critical'
+                severity_override: 'critical',
+                group_by: ['src_ip']
             }
         },
         // 2. Modified System File (High)
@@ -41,7 +44,6 @@ export async function seedDetectionRules() {
             query: "event_type = 'file_modification' AND file_path IN ('/etc/passwd', '/etc/shadow', 'C:\\Windows\\System32\\cmd.exe')",
             runIntervalSeconds: 300,
             isEnabled: true,
-            tenantId: tenant.id,
             actions: { auto_case: false }
         },
         // 3. Port Scan (Medium)
@@ -52,8 +54,7 @@ export async function seedDetectionRules() {
             query: "event_type = 'network_connection' GROUP BY src_ip HAVING uniq(dest_port) > 50",
             runIntervalSeconds: 600,
             isEnabled: true,
-            tenantId: tenant.id,
-            actions: { auto_case: false }
+            actions: { auto_case: false, group_by: ['src_ip'] }
         },
         // 4. Ransomware Pattern (Critical -> Auto Case)
         {
@@ -63,11 +64,11 @@ export async function seedDetectionRules() {
             query: "event_type = 'file_create' AND file_extension IN ('lock', 'enc', 'wcry') GROUP BY user HAVING count() > 50",
             runIntervalSeconds: 60,
             isEnabled: true,
-            tenantId: tenant.id,
             actions: { 
                 auto_case: true,
                 case_title_template: '[Auto] Ransomware Behavior Detected',
-                severity_override: 'critical'
+                severity_override: 'critical',
+                group_by: ['user']
             }
         },
         // 5. Root Login (High)
@@ -78,22 +79,33 @@ export async function seedDetectionRules() {
             query: "event_type = 'login_success' AND user IN ('root', 'Administrator')",
             runIntervalSeconds: 60,
             isEnabled: true,
-            tenantId: tenant.id,
             actions: { auto_case: false }
         }
     ];
 
-    for (const rule of rules) {
-        // Upsert based on name
-        const existing = await db.query.detectionRules.findFirst({
-            where: (dt, { eq, and }) => and(eq(dt.name, rule.name), eq(dt.tenantId, tenant.id))
-        });
-
-        if (!existing) {
-            await DetectionService.createRule(rule);
-            console.log(`✅ Created rule: ${rule.name}`);
-        } else {
-            console.log(`ℹ️ Rule already exists: ${rule.name}`);
+    for (const tenant of allTenants) {
+        console.log(`\n👉 Processing Tenant: ${tenant.name} (${tenant.id})`);
+        
+        for (const template of rulesTemplate) {
+            const ruleData = { ...template, tenantId: tenant.id };
+            
+            // Upsert based on name
+            const existing = await db.query.detectionRules.findFirst({
+                where: (dt, { eq, and }) => and(eq(dt.name, ruleData.name), eq(dt.tenantId, tenant.id))
+            });
+    
+            if (!existing) {
+                await DetectionService.createRule(ruleData as any);
+                console.log(`   ✅ Created rule: ${ruleData.name}`);
+            } else {
+                console.log(`   ℹ️ Rule already exists: ${ruleData.name}`);
+                
+                // Optional: Update Actions to include new fields if missing
+                if (!existing.actions || !(existing.actions as any).group_by) {
+                     // Check if template has group_by, if so, we might want to patch it.
+                     // For now, let's keep it simple.
+                }
+            }
         }
     }
 
