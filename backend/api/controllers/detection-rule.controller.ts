@@ -3,10 +3,10 @@ import { DetectionService } from '../core/services/detection.service'
 import { db } from '../infra/db'
 import { detectionRules } from '../infra/db/schema'
 import { eq, desc, and } from 'drizzle-orm'
-import { anyAuthenticated } from '../middleware/auth'
+import { withAuth } from '../middleware/auth'
 
 export const detectionRuleController = new Elysia({ prefix: '/detection-rules' })
-  .use(anyAuthenticated)
+  .use(withAuth)
   .model({
     rule: t.Object({
       name: t.String(),
