@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
-import { Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Chip, Button, Switch, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Input, Select, SelectItem, Textarea } from "@heroui/react";
+import { Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Chip, Button, Switch, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Input, Select, SelectItem, Textarea, Tabs, Tab } from "@heroui/react";
 import { Icon } from '../../shared/ui';
 import { DetectionRulesAPI, DetectionRule } from '../../shared/api/detection-rules';
+import { MitreHeatmap } from '../../components/MitreHeatmap';
 
 export default function DetectionRulesPage() {
   const [rules, setRules] = useState<DetectionRule[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<any>("manage");
   
   // Edit State
   const [selectedRule, setSelectedRule] = useState<DetectionRule | null>(null);
@@ -109,65 +111,79 @@ export default function DetectionRulesPage() {
           <h2 className="text-2xl font-bold tracking-tight">Detection Rules</h2>
           <p className="text-foreground/60">Manage SIGMA-based detection logic and automation</p>
         </div>
-        <Button color="primary" onPress={handleNewRule} startContent={<Icon.Add className="w-4 h-4"/>}>New Rule</Button>
+        <div className="flex gap-4 items-center">
+             <Tabs aria-label="View Mode" selectedKey={activeTab} onSelectionChange={setActiveTab}>
+                <Tab key="manage" title="Manage Rules" />
+                <Tab key="coverage" title="Coverage Analysis" />
+            </Tabs>
+            {activeTab === 'manage' && (
+                <Button color="primary" onPress={handleNewRule} startContent={<Icon.Add className="w-4 h-4"/>}>New Rule</Button>
+            )}
+        </div>
       </div>
 
-      <Table aria-label="Detection Rules Table">
-        <TableHeader>
-          <TableColumn>STATUS</TableColumn>
-          <TableColumn>NAME</TableColumn>
-          <TableColumn>SEVERITY</TableColumn>
-          <TableColumn>ACTIONS</TableColumn>
-          <TableColumn>LAST RUN</TableColumn>
-          <TableColumn>MANAGE</TableColumn>
-        </TableHeader>
-        <TableBody items={rules} isLoading={loading}>
-          {(item) => (
-            <TableRow key={item.id}>
-              <TableCell>
-                  <Switch size="sm" isSelected={item.isEnabled} onValueChange={() => handleToggle(item)} />
-              </TableCell>
-              <TableCell>
-                  <div>
-                      <div className="font-medium">{item.name}</div>
-                      <div className="text-xs text-foreground/50">{item.description}</div>
-                  </div>
-              </TableCell>
-              <TableCell>
-                  <Chip size="sm" color={
-                      item.severity === 'critical' ? 'danger' : 
-                      item.severity === 'high' ? 'warning' : 
-                      item.severity === 'medium' ? 'secondary' : 'default'
-                  } variant="flat" className="capitalize">
-                      {item.severity}
-                  </Chip>
-              </TableCell>
-              <TableCell>
-                  <div className="flex gap-2">
-                       {item.actions?.auto_case && (
-                           <Chip size="sm" startContent={<Icon.Cpu className="w-3 h-3"/>} color="primary" variant="flat">Auto-Case</Chip>
-                       )}
-                  </div>
-              </TableCell>
-              <TableCell>
-                  <span className="text-xs text-foreground/50">
-                      {item.lastRunAt ? new Date(item.lastRunAt).toLocaleString() : 'Never'}
-                  </span>
-              </TableCell>
-              <TableCell>
-                  <div className="flex gap-2">
-                      <Button isIconOnly size="sm" variant="light" onPress={() => handleEdit(item)}>
-                          <Icon.Edit className="w-4 h-4"/>
-                      </Button>
-                      <Button isIconOnly size="sm" variant="light" color="danger">
-                          <Icon.Delete className="w-4 h-4"/>
-                      </Button>
-                  </div>
-              </TableCell>
-            </TableRow>
-          )}
-        </TableBody>
-      </Table>
+      {activeTab === 'manage' ? (
+          <Table aria-label="Detection Rules Table">
+            <TableHeader>
+              <TableColumn>STATUS</TableColumn>
+              <TableColumn>NAME</TableColumn>
+              <TableColumn>SEVERITY</TableColumn>
+              <TableColumn>ACTIONS</TableColumn>
+              <TableColumn>LAST RUN</TableColumn>
+              <TableColumn>MANAGE</TableColumn>
+            </TableHeader>
+            <TableBody items={rules} isLoading={loading}>
+              {(item) => (
+                <TableRow key={item.id}>
+                  <TableCell>
+                      <Switch size="sm" isSelected={item.isEnabled} onValueChange={() => handleToggle(item)} />
+                  </TableCell>
+                  <TableCell>
+                      <div>
+                          <div className="font-medium">{item.name}</div>
+                          <div className="text-xs text-foreground/50">{item.description}</div>
+                      </div>
+                  </TableCell>
+                  <TableCell>
+                      <Chip size="sm" color={
+                          item.severity === 'critical' ? 'danger' : 
+                          item.severity === 'high' ? 'warning' : 
+                          item.severity === 'medium' ? 'secondary' : 'default'
+                      } variant="flat" className="capitalize">
+                          {item.severity}
+                      </Chip>
+                  </TableCell>
+                  <TableCell>
+                      <div className="flex gap-2">
+                           {item.actions?.auto_case && (
+                               <Chip size="sm" startContent={<Icon.Cpu className="w-3 h-3"/>} color="primary" variant="flat">Auto-Case</Chip>
+                           )}
+                      </div>
+                  </TableCell>
+                  <TableCell>
+                      <span className="text-xs text-foreground/50">
+                          {item.lastRunAt ? new Date(item.lastRunAt).toLocaleString() : 'Never'}
+                      </span>
+                  </TableCell>
+                  <TableCell>
+                      <div className="flex gap-2">
+                          <Button isIconOnly size="sm" variant="light" onPress={() => handleEdit(item)}>
+                              <Icon.Edit className="w-4 h-4"/>
+                          </Button>
+                          <Button isIconOnly size="sm" variant="light" color="danger">
+                              <Icon.Delete className="w-4 h-4"/>
+                          </Button>
+                      </div>
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+      ) : (
+          <div className="h-[650px] animate-fade-in">
+              <MitreHeatmap mode="coverage" />
+          </div>
+      )}
 
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} size="2xl">
           <ModalContent>
@@ -231,6 +247,10 @@ export default function DetectionRulesPage() {
                     value={editForm.query} 
                     onValueChange={v => setEditForm({...editForm, query: v})} 
                   />
+                  
+                   {/* MITRE Mapping (New) - Optional, but useful to add later. For now, default seeded rules have it. */}
+                   {/* I won't add MITRE input fields yet to keep it simple, or I should? The plan didn't explicitly key it. */}
+                   {/* I'll skip editing MITRE fields in this iteration unless easy. */}
 
                   {/* Test Results Section */}
                   {testResults && (

@@ -1,6 +1,7 @@
 import { db } from '../infra/db';
 import { detectionRules, tenants } from '../infra/db/schema';
 import { DetectionService } from '../core/services/detection.service';
+import { eq } from 'drizzle-orm';
 
 /**
  * Seed Default Detection Rules
@@ -29,11 +30,13 @@ export async function seedDetectionRules() {
             query: "event_type = 'login_failed'",
             runIntervalSeconds: 60,
             isEnabled: true,
+            mitreTactic: 'Credential Access',
+            mitreTechnique: 'T1110',
             actions: { 
                 auto_case: true,
-                case_title_template: '[Auto] Brute Force Detected from {src_ip}',
+                case_title_template: '[Auto] Brute Force Detected from {network_src_ip}',
                 severity_override: 'critical',
-                group_by: ['src_ip']
+                group_by: ['network_src_ip']
             }
         },
         // 2. Modified System File (High)
@@ -44,6 +47,8 @@ export async function seedDetectionRules() {
             query: "event_type = 'file_modification' AND file_path IN ('/etc/passwd', '/etc/shadow', 'C:\\Windows\\System32\\cmd.exe')",
             runIntervalSeconds: 300,
             isEnabled: true,
+            mitreTactic: 'Credential Access',
+            mitreTechnique: 'T1003',
             actions: { auto_case: false }
         },
         // 3. Port Scan (Medium)
@@ -54,16 +59,20 @@ export async function seedDetectionRules() {
             query: "event_type = 'network_connection'",
             runIntervalSeconds: 600,
             isEnabled: true,
-            actions: { auto_case: false, group_by: ['src_ip'] }
+            mitreTactic: 'Discovery',
+            mitreTechnique: 'T1046',
+            actions: { auto_case: false, group_by: ['network_src_ip'] }
         },
         // 4. Ransomware Pattern (Critical -> Auto Case)
         {
             name: 'Ransomware File Extension Activity',
             description: 'Detects creation of files with known ransomware extensions (.lock, .enc, .wcry).',
             severity: 'critical',
-            query: "event_type = 'file_create' AND file_extension IN ('lock', 'enc', 'wcry')",
+            query: "event_type = 'file_create' AND (file_name LIKE '%.lock' OR file_name LIKE '%.enc' OR file_name LIKE '%.wcry')",
             runIntervalSeconds: 60,
             isEnabled: true,
+            mitreTactic: 'Impact',
+            mitreTechnique: 'T1486',
             actions: { 
                 auto_case: true,
                 case_title_template: '[Auto] Ransomware Behavior Detected',
@@ -79,6 +88,8 @@ export async function seedDetectionRules() {
             query: "event_type = 'login_success' AND user_name IN ('root', 'Administrator')",
             runIntervalSeconds: 60,
             isEnabled: true,
+            mitreTactic: 'Initial Access',
+            mitreTechnique: 'T1078',
             actions: { auto_case: false }
         }
     ];
@@ -98,13 +109,17 @@ export async function seedDetectionRules() {
                 await DetectionService.createRule(ruleData as any);
                 console.log(`   ✅ Created rule: ${ruleData.name}`);
             } else {
-                console.log(`   ℹ️ Rule already exists: ${ruleData.name}`);
+                console.log(`   🔄 Updating existing rule: ${ruleData.name}`);
                 
-                // Optional: Update Actions to include new fields if missing
-                if (!existing.actions || !(existing.actions as any).group_by) {
-                     // Check if template has group_by, if so, we might want to patch it.
-                     // For now, let's keep it simple.
-                }
+                await db.update(detectionRules)
+                    .set({
+                        query: ruleData.query,
+                        actions: ruleData.actions,
+                        description: ruleData.description,
+                        mitreTactic: ruleData.mitreTactic,
+                        mitreTechnique: ruleData.mitreTechnique
+                    })
+                    .where(eq(detectionRules.id, existing.id));
             }
         }
     }

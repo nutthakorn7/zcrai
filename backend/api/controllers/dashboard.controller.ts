@@ -286,6 +286,7 @@ export const dashboardController = new Elysia({ prefix: '/dashboard' })
 
       const tenantId = getEffectiveTenantId(payload, selected_tenant)
       const { startDate, endDate } = parseDateRange(query)
+      const mode = (query.mode as 'detection' | 'coverage') || 'detection'
       
       let sources: string[] | undefined = undefined
       if (query.sources) {
@@ -296,7 +297,7 @@ export const dashboardController = new Elysia({ prefix: '/dashboard' })
         sources = [query.source as string]
       }
 
-      return await DashboardService.getMitreHeatmap(tenantId, startDate, endDate, sources)
+      return await DashboardService.getMitreHeatmap(tenantId, startDate, endDate, sources, mode)
     } catch (e: any) {
       set.status = 400
       return { error: e.message }

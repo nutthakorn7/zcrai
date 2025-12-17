@@ -39,26 +39,33 @@ export const AuthService = {
 
   // ==================== LOGIN ====================
   async login(body: { email: string; password: string }) {
+    console.log(`[AuthService] Login attempt for: ${body.email}`);
     try {
+      console.log(`[AuthService] Checking lockout...`);
       const lockout = await this.checkLockout(body.email)
       if (lockout.locked) {
         throw new Error(`Account locked. Try again in ${lockout.remainingTime} seconds`)
       }
 
+      console.log(`[AuthService] Querying user from DB...`);
       const [user] = await db.select().from(users).where(eq(users.email, body.email))
       
       if (!user) {
+        console.log(`[AuthService] User not found.`);
         await this.incrementFailedAttempts(body.email)
         throw new Error('Invalid credentials')
       }
 
+      console.log(`[AuthService] Verifying password...`);
       const isValid = await verifyPassword(body.password, user.passwordHash);
 
       if (!isValid) {
+        console.log(`[AuthService] Invalid password.`);
         await this.incrementFailedAttempts(body.email)
         throw new Error('Invalid credentials')
       }
 
+      console.log(`[AuthService] Login successful.`);
       await this.resetFailedAttempts(body.email)
       return user
     } catch (error: any) {

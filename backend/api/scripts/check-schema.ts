@@ -1,30 +1,17 @@
-import postgres from 'postgres';
-
-const connectionString = process.env.DATABASE_URL || 'postgresql://admin:password@localhost:5432/zcrai';
-const sql = postgres(connectionString);
+import { query } from '../infra/clickhouse/client';
 
 async function checkSchema() {
-  console.log('🔍 Checking alerts table columns...\n');
-
-  try {
-    const columns = await sql`
-      SELECT column_name, data_type 
-      FROM information_schema.columns 
-      WHERE table_name = 'alerts' 
-      ORDER BY ordinal_position
-    `;
-    
-    console.log('Current alerts columns:');
-    columns.forEach((col: any) => {
-      console.log(`  - ${col.column_name}: ${col.data_type}`);
-    });
-
-    console.log('\n✅ Schema check complete');
-  } catch (error: any) {
-    console.error('❌ Error:', error.message);
-  } finally {
-    await sql.end();
-  }
+    console.log('🔍 Checking ClickHouse Schema for security_events...');
+    try {
+        const result = await query('DESCRIBE security_events');
+        console.log(result);
+    } catch (e: any) {
+        console.error('❌ Failed to describe table:', e.message);
+    }
 }
 
-checkSchema();
+if (import.meta.main) {
+    checkSchema()
+        .then(() => process.exit(0))
+        .catch(console.error);
+}

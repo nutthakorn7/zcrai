@@ -1,0 +1,1 @@
+ALTER TABLE "detection_rules" ADD COLUMN "mitre_tactic" text;

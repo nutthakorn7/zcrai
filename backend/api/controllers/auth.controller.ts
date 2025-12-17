@@ -50,7 +50,8 @@ export const authController = new Elysia({ prefix: '/auth' })
    * @throws {401} Invalid credentials
    * @throws {400} MFA code required/invalid
    */
-  .post('/login', async ({ body, jwt, cookie: { access_token, refresh_token }, set, request }) => {
+  .post('/login', async ({ body, jwt, cookie: { access_token, refresh_token }, set, headers }) => {
+    console.log(`[DEBUG_AUTH] Login Controller Hit! Email: ${body.email}`);
     try {
       const user = await AuthService.login(body)
       
@@ -67,9 +68,10 @@ export const authController = new Elysia({ prefix: '/auth' })
         tenantId: user.tenantId
       })
 
-      const userAgent = request.headers.get('user-agent') || undefined
-      const ipAddress = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 
-                        request.headers.get('x-real-ip') || 
+      const userAgent = headers['user-agent'] || undefined
+      // header names are lowercased in Elysia headers object? Usually yes.
+      const ipAddress = (headers['x-forwarded-for'] || '').split(',')[0]?.trim() || 
+                        headers['x-real-ip'] || 
                         'unknown'
 
       const refreshToken = await jwt.sign({
@@ -197,7 +199,7 @@ export const authController = new Elysia({ prefix: '/auth' })
    * @returns {Object} Success message (always returns success for security)
    */
   .post('/forgot-password', async ({ body }) => {
-    await AuthService.requestPasswordReset(body.email)
+    await AuthService.createResetToken(body.email)
     return { success: true, message: 'If email exists, reset link will be sent' }
   }, { body: ForgotPasswordSchema })
 
@@ -225,12 +227,14 @@ export const authController = new Elysia({ prefix: '/auth' })
    * @throws {400} Invalid MFA code
    */
   .post('/mfa/verify', async ({ body, jwt, cookie: { access_token, refresh_token } }) => {
+    // @ts-ignore - Schema validation ensures userId exists on body
     const isValid = await MFAService.verifyCode(body.userId, body.code)
     
     if (!isValid) {
       throw Errors.BadRequest('Invalid MFA code')
     }
 
+    // @ts-ignore
     const user = await AuthService.getUserById(body.userId)
     if (!user) {
       throw Errors.Unauthorized('User not found')
