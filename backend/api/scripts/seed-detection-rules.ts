@@ -24,9 +24,9 @@ export async function seedDetectionRules() {
         // 1. Brute Force (Critical -> Auto Case)
         {
             name: 'Critical Brute Force Attack',
-            description: 'Detects more than 20 failed login attempts from a single IP within 1 minute.',
+            description: 'Detects repeated failed login attempts from a single IP.',
             severity: 'critical',
-            query: "event_type = 'login_failed' GROUP BY src_ip HAVING count() > 20",
+            query: "event_type = 'login_failed'",
             runIntervalSeconds: 60,
             isEnabled: true,
             actions: { 
@@ -49,9 +49,9 @@ export async function seedDetectionRules() {
         // 3. Port Scan (Medium)
         {
             name: 'Port Scanning Activity',
-            description: 'Detects connection attempts to more than 50 unique ports from single IP.',
+            description: 'Detects aggressive network connection attempts from single IP.',
             severity: 'medium',
-            query: "event_type = 'network_connection' GROUP BY src_ip HAVING uniq(dest_port) > 50",
+            query: "event_type = 'network_connection'",
             runIntervalSeconds: 600,
             isEnabled: true,
             actions: { auto_case: false, group_by: ['src_ip'] }
@@ -59,16 +59,16 @@ export async function seedDetectionRules() {
         // 4. Ransomware Pattern (Critical -> Auto Case)
         {
             name: 'Ransomware File Extension Activity',
-            description: 'Detects rapid creation of files with known ransomware extensions (.lock, .enc, .wcry).',
+            description: 'Detects creation of files with known ransomware extensions (.lock, .enc, .wcry).',
             severity: 'critical',
-            query: "event_type = 'file_create' AND file_extension IN ('lock', 'enc', 'wcry') GROUP BY user HAVING count() > 50",
+            query: "event_type = 'file_create' AND file_extension IN ('lock', 'enc', 'wcry')",
             runIntervalSeconds: 60,
             isEnabled: true,
             actions: { 
                 auto_case: true,
                 case_title_template: '[Auto] Ransomware Behavior Detected',
                 severity_override: 'critical',
-                group_by: ['user']
+                group_by: ['user_name']
             }
         },
         // 5. Root Login (High)
@@ -76,7 +76,7 @@ export async function seedDetectionRules() {
             name: 'Root/Administrator Login',
             description: 'Detects direct login as root or Administrator user.',
             severity: 'high',
-            query: "event_type = 'login_success' AND user IN ('root', 'Administrator')",
+            query: "event_type = 'login_success' AND user_name IN ('root', 'Administrator')",
             runIntervalSeconds: 60,
             isEnabled: true,
             actions: { auto_case: false }
