@@ -1,4 +1,4 @@
-import { useEffect, Suspense, lazy } from "react";
+import { useEffect, useRef, Suspense, lazy } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "./shared/store/useAuth";
 import { ChatWidget } from "./components/ChatWidget";
@@ -123,11 +123,15 @@ function SuperAdminRoute({ children }: { children: JSX.Element }) {
 
 function App() {
   const { checkAuth } = useAuth();
+  const hasCheckedAuth = useRef(false);
 
   useEffect(() => {
-    checkAuth();
-    preloadImages();
-  }, []);
+    if (!hasCheckedAuth.current) {
+      hasCheckedAuth.current = true;
+      checkAuth();
+      preloadImages();
+    }
+  }, [checkAuth]);
 
   return (
     <PageContextProvider>
