@@ -15,6 +15,7 @@ export interface DetectionRule {
     auto_case?: boolean;
     case_title_template?: string;
     severity_override?: string;
+    group_by?: string[];
   };
   createdAt: string;
   updatedAt: string;
