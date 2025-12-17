@@ -10,14 +10,14 @@ export const COOKIE_CONFIG = {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax' as const,
-    maxAge: DEFAULTS.SESSION_DURATION,
+    maxAge: DEFAULTS.SESSION_DURATION * 1000, // Convert seconds to milliseconds
     path: '/'
   },
   refresh: {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax' as const,
-    maxAge: DEFAULTS.SESSION_DURATION,
+    maxAge: DEFAULTS.SESSION_DURATION * 1000, // Convert seconds to milliseconds
     path: '/auth/refresh'
   }
 } as const

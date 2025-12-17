@@ -4,6 +4,8 @@ import { useAuth } from "../../shared/store/useAuth";
 import { useNavigate } from "react-router-dom";
 import { Icon } from '../../shared/ui';
 import ZcrAILogo from '../../assets/logo/zcrailogo.svg';
+import { startAuthentication } from '@simplewebauthn/browser';
+import { api } from '../../shared/api/api';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -11,7 +13,7 @@ export default function LoginPage() {
   const [mfaCode, setMfaCode] = useState('');
   const [requireMFA, setRequireMFA] = useState(false);
   const [isSSO, setIsSSO] = useState(false); // Toggle SSO Mode
-  const [isDemo, setIsDemo] = useState(true); // Default to Demo Mode
+  const [isDemo, setIsDemo] = useState(false); // Default to Manual Login
   const [ssoIdentifier, setSsoIdentifier] = useState(''); // Tenant ID or Email
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -34,6 +36,37 @@ export default function LoginPage() {
       navigate('/');
     } catch (err: any) {
       setError(err.response?.data?.error || 'Login failed');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handlePasskeyLogin = async () => {
+    setIsLoading(true);
+    setError('');
+    try {
+      // Get authentication options from server
+      const optionsRes = await api.post('/passkey/login-options', { email: email || undefined });
+      const options = optionsRes.data;
+      
+      // Trigger browser's passkey prompt (TouchID/FaceID/Windows Hello)
+      const credential = await startAuthentication({ optionsJSON: options });
+      
+      // Verify with server and get tokens
+      const verifyRes = await api.post('/passkey/login-verify', {
+        credential,
+        email: email || undefined
+      });
+      
+      if (verifyRes.data.success) {
+        // Refresh auth state and navigate
+        window.location.href = '/';
+      } else {
+        setError(verifyRes.data.message || 'Passkey authentication failed');
+      }
+    } catch (err: any) {
+      console.error('Passkey error:', err);
+      setError(err.message || 'Passkey authentication failed');
     } finally {
       setIsLoading(false);
     }
@@ -275,6 +308,17 @@ export default function LoginPage() {
                           startContent={<Icon.Key className="w-5 h-5 text-primary" />}
                       >
                           Sign in with SSO
+                      </Button>
+
+                      <Button
+                          variant="bordered"
+                          type="button"
+                          onClick={handlePasskeyLogin}
+                          isLoading={isLoading}
+                          className="h-[50px] border-default-200 hover:border-primary/50 text-foreground"
+                          startContent={<Icon.Fingerprint className="w-5 h-5 text-primary" />}
+                      >
+                          Sign in with Passkey (TouchID)
                       </Button>
                       
                       <Button

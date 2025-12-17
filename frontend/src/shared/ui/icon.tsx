@@ -36,6 +36,7 @@ import {
   PencilIcon,
   LockClosedIcon,
   KeyIcon,
+  FingerPrintIcon,
   
   // Users & Social
   UsersIcon,
@@ -133,6 +134,7 @@ export const Icon = {
   Edit: PencilIcon,
   Lock: LockClosedIcon,
   Key: KeyIcon,
+  Fingerprint: FingerPrintIcon,
   
   // Users
   Users: UsersIcon,

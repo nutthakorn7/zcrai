@@ -5,6 +5,7 @@ import { rateLimit } from 'elysia-rate-limit'
 import { helmet } from 'elysia-helmet'
 import { errorHandler } from './middleware/error'
 import { authController } from './controllers/auth.controller'
+import { passkeyController } from './controllers/passkey.controller'
 import { ssoController } from './controllers/sso.controller'
 import { tenantController } from './controllers/tenant.controller'
 import { userController } from './controllers/user.controller'
@@ -141,6 +142,7 @@ const app = new Elysia()
      max: 100 // 100 requests per minute
   }))
   .use(authController)
+  .use(passkeyController)
   .use(ssoController)
   .use(tenantController)
   .use(userController)

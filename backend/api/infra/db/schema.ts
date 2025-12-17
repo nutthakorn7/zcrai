@@ -91,6 +91,27 @@ export const loginHistoryRelations = relations(loginHistory, ({ one }) => ({
   }),
 }))
 
+// Passkeys (WebAuthn)
+export const userPasskeys = pgTable('user_passkeys', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  credentialId: text('credential_id').notNull().unique(),
+  publicKey: text('public_key').notNull(),
+  counter: integer('counter').default(0).notNull(),
+  deviceType: text('device_type'), // 'platform' | 'cross-platform'
+  transports: text('transports'), // JSON array: ['internal', 'usb', 'ble', 'nfc']
+  name: text('name'), // User-friendly name like "MacBook Pro TouchID"
+  lastUsedAt: timestamp('last_used_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+})
+
+export const userPasskeysRelations = relations(userPasskeys, ({ one }) => ({
+  user: one(users, {
+    fields: [userPasskeys.userId],
+    references: [users.id],
+  }),
+}))
+
 // API Keys
 export const apiKeys = pgTable('api_keys', {
   id: uuid('id').defaultRandom().primaryKey(),
