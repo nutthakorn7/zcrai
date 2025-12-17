@@ -481,11 +481,20 @@ func (c *S1Client) FetchThreats(ctx context.Context, startTime, endTime time.Tim
 			zap.Bool("hasCursor", cursor != ""))
 
 		resp, err := c.client.R().
+			SetContext(ctx).
 			SetHeader("Authorization", "ApiToken "+c.apiToken).
 			SetQueryParams(params).
 			Get(c.baseURL + "/web/api/v2.1/threats")
 
 		if err != nil {
+			// Check if error is due to context cancellation
+			if ctx.Err() != nil {
+				c.logger.Warn("HTTP request cancelled due to context cancellation",
+					zap.String("integrationId", c.integrationID),
+					zap.Int("fetchedSoFar", totalFetched),
+					zap.Error(ctx.Err()))
+				return totalFetched, ctx.Err()
+			}
 			return totalFetched, fmt.Errorf("failed to fetch threats: %w", err)
 		}
 
@@ -512,6 +521,15 @@ func (c *S1Client) FetchThreats(ctx context.Context, startTime, endTime time.Tim
 				threat := c.parseThreatResponse(r)
 				event := c.transformThreat(threat)
 				events = append(events, event)
+			}
+
+			// Check context before publishing (prevent publishing if cancelled during processing)
+			if ctx.Err() != nil {
+				c.logger.Warn("Context cancelled before publishing events, discarding page",
+					zap.String("integrationId", c.integrationID),
+					zap.Int("discardedEvents", len(events)),
+					zap.Error(ctx.Err()))
+				return totalFetched, ctx.Err()
 			}
 
 			// ส่ง events ไป Vector ทันที (Streaming)
@@ -772,9 +790,17 @@ func (c *S1Client) FetchActivities(ctx context.Context, startTime, endTime time.
 			zap.Int("page", page),
 			zap.Bool("hasCursor", cursor != ""))
 
-		resp, err := req.Get(c.baseURL + "/web/api/v2.1/activities")
+		resp, err := req.SetContext(ctx).Get(c.baseURL + "/web/api/v2.1/activities")
 
 		if err != nil {
+			// Check if error is due to context cancellation
+			if ctx.Err() != nil {
+				c.logger.Warn("HTTP request cancelled due to context cancellation",
+					zap.String("integrationId", c.integrationID),
+					zap.Int("fetchedSoFar", totalFetched),
+					zap.Error(ctx.Err()))
+				return totalFetched, ctx.Err()
+			}
 			return totalFetched, fmt.Errorf("failed to fetch activities: %w", err)
 		}
 
@@ -800,6 +826,15 @@ func (c *S1Client) FetchActivities(ctx context.Context, startTime, endTime time.
 			for _, a := range result.Data {
 				event := c.transformActivity(a)
 				events = append(events, event)
+			}
+
+			// Check context before publishing (prevent publishing if cancelled during processing)
+			if ctx.Err() != nil {
+				c.logger.Warn("Context cancelled before publishing events, discarding page",
+					zap.String("integrationId", c.integrationID),
+					zap.Int("discardedEvents", len(events)),
+					zap.Error(ctx.Err()))
+				return totalFetched, ctx.Err()
 			}
 
 			// ส่ง events ไป Vector ทันที (Streaming)
@@ -938,11 +973,20 @@ func (c *S1Client) FetchAlerts(ctx context.Context, startTime, endTime time.Time
 			zap.Bool("hasCursor", cursor != ""))
 
 		resp, err := c.client.R().
+			SetContext(ctx).
 			SetHeader("Authorization", "ApiToken "+c.apiToken).
 			SetQueryParams(params).
 			Get(c.baseURL + "/web/api/v2.1/cloud-detection/alerts")
 
 		if err != nil {
+			// Check if error is due to context cancellation
+			if ctx.Err() != nil {
+				c.logger.Warn("HTTP request cancelled due to context cancellation",
+					zap.String("integrationId", c.integrationID),
+					zap.Int("fetchedSoFar", totalFetched),
+					zap.Error(ctx.Err()))
+				return totalFetched, ctx.Err()
+			}
 			return totalFetched, fmt.Errorf("failed to fetch alerts: %w", err)
 		}
 
@@ -968,6 +1012,15 @@ func (c *S1Client) FetchAlerts(ctx context.Context, startTime, endTime time.Time
 			for _, a := range result.Data {
 				event := c.transformAlert(a)
 				events = append(events, event)
+			}
+
+			// Check context before publishing (prevent publishing if cancelled during processing)
+			if ctx.Err() != nil {
+				c.logger.Warn("Context cancelled before publishing events, discarding page",
+					zap.String("integrationId", c.integrationID),
+					zap.Int("discardedEvents", len(events)),
+					zap.Error(ctx.Err()))
+				return totalFetched, ctx.Err()
 			}
 
 			// ส่ง events ไป Vector ทันที (Streaming)

@@ -561,6 +561,7 @@ func (c *CrowdStrikeClient) FetchAlerts(ctx context.Context, startTime, endTime 
 			zap.Int("offset", offset))
 
 		resp, err := c.client.R().
+			SetContext(ctx).
 			SetHeader("Authorization", "Bearer "+c.accessToken).
 			SetQueryParams(map[string]string{
 				"filter": filter,
@@ -571,6 +572,14 @@ func (c *CrowdStrikeClient) FetchAlerts(ctx context.Context, startTime, endTime 
 			Get(c.baseURL + "/alerts/queries/alerts/v2")
 
 		if err != nil {
+			// Check if error is due to context cancellation
+			if ctx.Err() != nil {
+				c.logger.Warn("HTTP request cancelled due to context cancellation",
+					zap.String("integrationId", c.integrationID),
+					zap.Int("fetchedSoFar", totalFetched),
+					zap.Error(ctx.Err()))
+				return totalFetched, ctx.Err()
+			}
 			return totalFetched, fmt.Errorf("failed to query alerts: %w", err)
 		}
 
@@ -602,6 +611,15 @@ func (c *CrowdStrikeClient) FetchAlerts(ctx context.Context, startTime, endTime 
 				for _, a := range alerts {
 					event := c.transformAlert(a)
 					events = append(events, event)
+				}
+
+				// Check context before publishing (prevent publishing if cancelled during processing)
+				if ctx.Err() != nil {
+					c.logger.Warn("Context cancelled before publishing events, discarding page",
+						zap.String("integrationId", c.integrationID),
+						zap.Int("discardedEvents", len(events)),
+						zap.Error(ctx.Err()))
+					return totalFetched, ctx.Err()
 				}
 
 				// ส่ง events ไป Vector ทันที
@@ -943,6 +961,7 @@ func (c *CrowdStrikeClient) FetchIncidents(ctx context.Context, startTime, endTi
 			zap.Int("offset", offset))
 
 		resp, err := c.client.R().
+			SetContext(ctx).
 			SetHeader("Authorization", "Bearer "+c.accessToken).
 			SetQueryParams(map[string]string{
 				"filter": filter,
@@ -953,6 +972,14 @@ func (c *CrowdStrikeClient) FetchIncidents(ctx context.Context, startTime, endTi
 			Get(c.baseURL + "/incidents/queries/incidents/v1")
 
 		if err != nil {
+			// Check if error is due to context cancellation
+			if ctx.Err() != nil {
+				c.logger.Warn("HTTP request cancelled due to context cancellation",
+					zap.String("integrationId", c.integrationID),
+					zap.Int("fetchedSoFar", totalFetched),
+					zap.Error(ctx.Err()))
+				return totalFetched, ctx.Err()
+			}
 			return totalFetched, fmt.Errorf("failed to query incidents: %w", err)
 		}
 
@@ -984,6 +1011,15 @@ func (c *CrowdStrikeClient) FetchIncidents(ctx context.Context, startTime, endTi
 				for _, inc := range incidents {
 					event := c.transformIncident(inc)
 					events = append(events, event)
+				}
+
+				// Check context before publishing (prevent publishing if cancelled during processing)
+				if ctx.Err() != nil {
+					c.logger.Warn("Context cancelled before publishing events, discarding page",
+						zap.String("integrationId", c.integrationID),
+						zap.Int("discardedEvents", len(events)),
+						zap.Error(ctx.Err()))
+					return totalFetched, ctx.Err()
 				}
 
 				// ส่ง events ไป Vector ทันที
