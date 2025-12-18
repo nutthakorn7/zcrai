@@ -14,9 +14,14 @@ import { SchedulerService } from '../core/services/scheduler.service'
 
 // Helper: Get effective tenantId (supports superadmin impersonation)
 const getEffectiveTenantId = (payload: any, selectedTenant: { value?: unknown } | undefined): string => {
-  if (payload.role === 'superadmin' && selectedTenant?.value) {
-    return String(selectedTenant.value)
+  if (payload.role === 'superadmin') {
+    if (selectedTenant?.value) {
+      return String(selectedTenant.value)
+    }
+    // Fallback to system tenant ID for superadmin view
+    return 'c8abd753-3015-4508-aa7b-6bcf732934e5'
   }
+  
   if (!payload.tenantId) {
     throw new Error('No tenant selected. Super Admin must select a tenant first.')
   }

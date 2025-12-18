@@ -69,7 +69,8 @@ export const authController = new Elysia({ prefix: '/auth' })
       const accessToken = await jwt.sign({
         id: user.id,
         role: user.role,
-        tenantId: user.tenantId
+        tenantId: user.tenantId,
+        exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60) // 24 hours
       })
       console.log('[DEBUG_AUTH] 6. Access token signed');
 
@@ -83,7 +84,8 @@ export const authController = new Elysia({ prefix: '/auth' })
       console.log('[DEBUG_AUTH] 8. About to sign refresh token');
       const refreshToken = await jwt.sign({
         id: user.id,
-        type: 'refresh'
+        type: 'refresh',
+        exp: Math.floor(Date.now() / 1000) + (30 * 24 * 60 * 60) // 30 days
       })
       console.log('[DEBUG_AUTH] 9. Refresh token signed');
 
@@ -93,11 +95,11 @@ export const authController = new Elysia({ prefix: '/auth' })
       console.log('[DEBUG_AUTH] 11. Cookies set');
 
       // Track login analytics (non-critical, don't fail login if this fails)
-      try {
+      /*try {
         await analyticsService.trackLogin(user.id, user.tenantId || '', ipAddress, userAgent, true)
       } catch (analyticsError) {
         console.error('[Auth] Analytics tracking failed:', analyticsError)
-      }
+      }*/
 
       return {
         success: true,

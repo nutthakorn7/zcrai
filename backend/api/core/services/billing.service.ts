@@ -84,7 +84,7 @@ export const BillingService = {
             const startTimestamp = Math.floor(startOfMonth.getTime() / 1000)
             
             const q = `
-                SELECT sum(length(toString(*))) as bytes
+                SELECT sum(length(toJSONString(*))) as bytes
                 FROM security_events
                 WHERE tenant_id = {tenantId:String}
                 AND timestamp >= toDateTime({start:UInt32})

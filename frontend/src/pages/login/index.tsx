@@ -13,7 +13,7 @@ export default function LoginPage() {
   const [mfaCode, setMfaCode] = useState('');
   const [requireMFA, setRequireMFA] = useState(false);
   const [isSSO, setIsSSO] = useState(false); // Toggle SSO Mode
-  const [isDemo, setIsDemo] = useState(false); // Default to Manual Login
+
   const [ssoIdentifier, setSsoIdentifier] = useState(''); // Tenant ID or Email
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -146,49 +146,7 @@ export default function LoginPage() {
           className="w-full flex flex-col gap-6"
         >
           
-          {isDemo ? (
-            /* Demo Login Mode */
-            <div className="space-y-6 animate-fade-in">
-                 <div className="text-center p-4 bg-primary/10 rounded-xl border border-primary/20">
-                    <Icon.Cpu className="w-10 h-10 text-primary mx-auto mb-3" />
-                    <h3 className="font-bold text-foreground">Test Drive Environment</h3>
-                    <p className="text-xs text-foreground/60 mt-1">One-click access to full SOC Platform</p>
-                 </div>
-
-                 <Button 
-                    size="lg"
-                    isLoading={isLoading}
-                    onPress={() => {
-                        // Auto-fill and Login
-                        setEmail('superadmin@zcr.ai');
-                        setPassword('SuperAdmin@123!');
-                        // We need to trigger the login function directly with these values
-                        // But since state might not update immediately, let's call login directly with params
-                        // wait, useAuth.login accepts args? Yes, line 25: matches args.
-                        login({ email: 'superadmin@zcr.ai', password: 'SuperAdmin@123!' })
-                            .then((res) => {
-                                if (res?.requireMFA) { setRequireMFA(true); return; }
-                                navigate('/');
-                            })
-                            .catch(err => setError(err.message || 'Login failed'));
-                    }}
-                    className="w-full h-[60px] text-lg bg-gradient-to-r from-primary to-secondary hover:translate-y-[-2px] transition-all shadow-xl shadow-primary/20 text-white font-bold"
-                    endContent={<Icon.ChevronRight className="w-6 h-6" />}
-                 >
-                    ENTER DASHBOARD
-                 </Button>
-
-                 <div className="text-center">
-                    <button 
-                        type="button"
-                        onClick={() => setIsDemo(false)}
-                        className="text-xs text-foreground/40 hover:text-foreground/80 transition-colors"
-                    >
-                        Switch to Manual Login
-                    </button>
-                 </div>
-            </div>
-          ) : (
+          {
              /* Standard/MFA/SSO Form Container */
              !requireMFA ? (
                isSSO ? (
@@ -321,14 +279,7 @@ export default function LoginPage() {
                           Sign in with Passkey (TouchID)
                       </Button>
                       
-                      <Button
-                          variant="light"
-                          type="button"
-                          onClick={() => setIsDemo(true)}
-                          className="text-xs text-foreground/40 hover:text-foreground/80"
-                      >
-                          Back to Demo Mode
-                      </Button>
+
                   </div>
                   </div>
                )
@@ -381,7 +332,7 @@ export default function LoginPage() {
                </div>
               </div>
             )
-          )}
+          }
         </form>
 
         {/* Footer */}

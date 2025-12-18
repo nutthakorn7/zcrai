@@ -1,0 +1,11 @@
+version: '3.8'
+services:
+  nginx:
+    image: nginx:alpine
+    container_name: zcrai-nginx
+    restart: always
+    network_mode: "host"
+    volumes:
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
+      - /var/www/zcrai:/var/www/zcrai
+      - /etc/letsencrypt:/etc/letsencrypt

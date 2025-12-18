@@ -22,10 +22,13 @@ export function NotificationBell() {
   const fetchNotifications = async () => {
     try {
       const res = await api.get('/notifications');
-      setNotifications(res.data.slice(0, 5)); // Show latest 5
+      // API returns { success, data: [] }, not just []
+      const notificationsData = Array.isArray(res.data) ? res.data : (res.data.data || []);
+      setNotifications(notificationsData.slice(0, 5)); // Show latest 5
       
       const countRes = await api.get('/notifications/unread-count');
-      setUnreadCount(countRes.data.count);
+      const count = countRes.data.count !== undefined ? countRes.data.count : 0;
+      setUnreadCount(count);
     } catch (e) {
       console.error('Failed to fetch notifications:', e);
     }

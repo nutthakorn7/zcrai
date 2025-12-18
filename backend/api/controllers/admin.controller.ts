@@ -6,10 +6,22 @@ import { MetricsService } from '../core/services/metrics.service'
 
 // Middleware: Check if user is superadmin
 const requireSuperAdmin = async (jwt: any, access_token: any) => {
-  if (!access_token.value) throw new Error('Unauthorized')
+  console.log('[DEBUG_ADMIN] 1. Checking SuperAdmin access');
+  if (!access_token?.value) {
+    console.log('[DEBUG_ADMIN] No access token value found');
+    throw new Error('Unauthorized')
+  }
+  console.log('[DEBUG_ADMIN] 2. Token found, verifying...');
   const payload = await jwt.verify(access_token.value)
-  if (!payload) throw new Error('Invalid token')
-  if (payload.role !== 'superadmin') throw new Error('Forbidden: Super Admin access required')
+  if (!payload) {
+    console.log('[DEBUG_ADMIN] Token verification failed (check secret or expiry)');
+    throw new Error('Invalid token')
+  }
+  console.log(`[DEBUG_ADMIN] 3. Token verified. Role: ${payload.role}`);
+  if (payload.role !== 'superadmin') {
+    console.log(`[DEBUG_ADMIN] Forbidden. User role is: ${payload.role}`);
+    throw new Error('Forbidden: Super Admin access required')
+  }
   return payload
 }
 

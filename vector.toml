@@ -1,0 +1,54 @@
+
+[sources.syslog_feed]
+type = "syslog"
+address = "0.0.0.0:514"
+mode = "tcp"
+
+[sources.http_feed]
+type = "http"
+address = "0.0.0.0:8088"
+encoding = "json"
+
+[transforms.parse_logs]
+type = "remap"
+inputs = ["syslog_feed"]
+source = '''
+# Basic Syslog parsing
+.event_type = "syslog"
+.source = "syslog_feed"
+.timestamp = now()
+.tenant_id = "c8abd753-3015-4508-aa7b-6bcf732934e5" # Default to system/admin tenant if unknown
+
+# Try to extract standard fields
+if exists(.message) {
+  .raw_data = .message
+}
+'''
+
+[transforms.parse_http]
+type = "remap"
+inputs = ["http_feed"]
+source = '''
+# HTTP JSON parsing
+.event_type = .event_type || "api_log"
+.source = "http_feed"
+.timestamp = .timestamp || now()
+.tenant_id = .tenant_id || "c8abd753-3015-4508-aa7b-6bcf732934e5"
+'''
+
+[sinks.clickhouse]
+type = "clickhouse"
+inputs = ["parse_logs", "parse_http"]
+endpoint = "http://zcrai_clickhouse:8123"
+database = "zcrai"
+table = "security_events"
+encoding.timestamp_format = "unix"
+
+  [sinks.clickhouse.auth]
+  strategy = "basic"
+  user = "default"
+  password = "clickhouse"
+
+  [sinks.clickhouse.batch]
+  max_events = 100
+  timeout_secs = 5

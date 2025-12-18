@@ -8,16 +8,16 @@ import { DEFAULTS } from './constants'
 export const COOKIE_CONFIG = {
   access: {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: false, // process.env.NODE_ENV === 'production', -> DISABLED FOR DEBUGGING
     sameSite: 'lax' as const,
-    maxAge: DEFAULTS.SESSION_DURATION * 1000, // Convert seconds to milliseconds
+    maxAge: DEFAULTS.SESSION_DURATION * 1000, 
     path: '/'
   },
   refresh: {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: false, // process.env.NODE_ENV === 'production', -> DISABLED FOR DEBUGGING
     sameSite: 'lax' as const,
-    maxAge: DEFAULTS.SESSION_DURATION * 1000, // Convert seconds to milliseconds
+    maxAge: DEFAULTS.SESSION_DURATION * 1000, 
     path: '/auth/refresh'
   }
 } as const

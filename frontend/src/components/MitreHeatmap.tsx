@@ -82,7 +82,9 @@ export function MitreHeatmap({ mode = 'detection', dateRange }: MitreHeatmapProp
           mode
       });
       
-      processData(response.data);
+      // Backend returns {success, data: []} format, not just []
+      const mitreData = Array.isArray(response.data) ? response.data : (response.data?.data || []);
+      processData(mitreData);
     } catch (e) {
       console.error("Failed to load MITRE data", e);
       // Fallback empty data if fail
@@ -144,29 +146,50 @@ export function MitreHeatmap({ mode = 'detection', dateRange }: MitreHeatmapProp
 
   if (loading) {
     return (
-      <Card className="bg-content1/50 border border-white/5 h-full">
-        <CardBody className="p-6 flex items-center justify-center">
-          <div className="animate-pulse">Loading MITRE ATT&CK data...</div>
+      <Card className="border border-white/5">
+        <CardBody className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-default-500">Loading MITRE {mode === 'coverage' ? 'Coverage' : 'Detection'} Data...</p>
+          </div>
+        </CardBody>
+      </Card>
+    );
+  }
+
+  // Guard: If no data after loading, show empty state
+  if (!coverage || coverage.length === 0) {
+    return (
+      <Card className="border border-white/5">
+        <CardBody className="flex items-center justify-center h-96">
+          <div className="text-center space-y-2">
+            <Icon.Layers className="w-16 h-16 mx-auto text-default-300" />
+            <p className="text-default-500">No {mode === 'coverage' ? 'coverage' : 'detection'} data available</p>
+            <p className="text-xs text-default-400">
+              {mode === 'coverage' 
+                ? 'Create detection rules to see MITRE ATT&CK coverage'
+                : 'No recent detections found for the selected time range'
+              }
+            </p>
+          </div>
         </CardBody>
       </Card>
     );
   }
 
   return (
-    <Card className="bg-content1/50 border border-white/5 h-full">
-      <CardHeader className="flex items-center justify-between px-6 pt-6">
-        <div className="flex items-center gap-3">
-          <div className={`p-2 rounded-lg ${mode === 'coverage' ? 'bg-success/20 text-success' : 'bg-danger/20 text-danger'}`}>
-            <Icon.Grid className="w-5 h-5" />
-          </div>
-          <div>
-            <h3 className="text-lg font-semibold">
-                {mode === 'coverage' ? 'Detection Coverage' : 'Threat Activity'}
-            </h3>
-            <p className="text-xs text-default-500">
-                {mode === 'coverage' ? 'Rules mapped to ATT&CK Matrix' : 'Detections in selected period'}
-            </p>
-          </div>
+    <Card className="border border-white/5">
+      <CardHeader className="flex justify-between items-center pb-3">
+        <div>
+          <h3 className="text-lg font-semibold">
+            {mode === 'coverage' ? 'Detection Coverage Matrix' : 'MITRE ATT&CK Detection Heatmap'}
+          </h3>
+          <p className="text-xs text-default-500">
+            {mode === 'coverage' 
+              ? 'Rule mapping across Enterprise Matrix tactics'
+              : 'Real-time threat detection distribution'
+            }
+          </p>
         </div>
         {summary && (
           <Chip color={mode === 'coverage' ? 'success' : 'danger'} variant="flat">
@@ -176,59 +199,61 @@ export function MitreHeatmap({ mode = 'detection', dateRange }: MitreHeatmapProp
       </CardHeader>
 
       <CardBody className="px-6 pb-6 space-y-4">
-        {/* Summary Stats */}
-        {summary && (
+        {/* Summary Stats - Only render if summary exists */}
+        {summary && summary.totalDetections !== undefined && (
           <div className="grid grid-cols-3 gap-3 text-center">
             <div className="p-2 rounded-lg bg-content2/50">
-              <div className="text-xl font-bold">{summary.totalDetections}</div>
+              <div className="text-xl font-bold">{summary.totalDetections || 0}</div>
               <div className="text-xs text-default-500">{mode === 'coverage' ? 'Rules' : 'Events'}</div>
             </div>
             <div className="p-2 rounded-lg bg-content2/50">
-              <div className="text-xl font-bold">{summary.activeTactics}/{summary.totalTactics}</div>
+              <div className="text-xl font-bold">{summary.activeTactics || 0}/{summary.totalTactics || 14}</div>
               <div className="text-xs text-default-500">Tactics</div>
             </div>
             <div className="p-2 rounded-lg bg-content2/50">
               <div className={`text-xl font-bold ${mode === 'coverage' ? 'text-success' : 'text-danger'}`}>
-                {summary.coveragePercent}%
+                {summary.coveragePercent || 0}%
               </div>
               <div className="text-xs text-default-500">Breadth</div>
             </div>
           </div>
         )}
 
-        {/* Heatmap Grid - Responsive Grid (2 cols on small, 4 on medium, 7 on large) */}
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2">
-          {coverage.map((tactic) => (
-            <Tooltip 
-              key={tactic.id}
-              content={
-                <div className="p-2">
-                  <div className="font-medium">{tactic.name}</div>
-                  <div className="text-xs text-default-400">{tactic.id}</div>
-                  <div className="text-sm mt-1">
-                      {tactic.count} {mode === 'coverage' ? 'rules' : 'events'}
+        {/* Heatmap Grid - Only render if coverage array exists and has items */}
+        {coverage && coverage.length > 0 && (
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2">
+            {coverage.map((tactic) => tactic && tactic.id ? (
+              <Tooltip 
+                key={tactic.id}
+                content={
+                  <div className="p-2">
+                    <div className="font-medium">{tactic.name || 'Unknown'}</div>
+                    <div className="text-xs text-default-400">{tactic.id}</div>
+                    <div className="text-sm mt-1">
+                        {tactic.count || 0} {mode === 'coverage' ? 'rules' : 'events'}
+                    </div>
+                    {/* List active techniques if any exist */}
+                    {tactic.techniques && tactic.techniques.length > 0 && (
+                        <div className="mt-2 text-xs text-default-400">
+                            {tactic.techniques.slice(0, 3).map((tech, i) => tech && tech.id ? (
+                                <div key={`${tactic.id}-tech-${i}`}>{tech.id} ({tech.count || 0})</div>
+                            ) : null)}
+                            {tactic.techniques.length > 3 && <div>...and {tactic.techniques.length - 3} more</div>}
+                        </div>
+                    )}
                   </div>
-                  {/* List active techniques if few */}
-                  {tactic.techniques.length > 0 && (
-                      <div className="mt-2 text-xs text-default-400">
-                          {tactic.techniques.slice(0, 3).map((tech, i) => (
-                              <div key={i}>{tech.id} ({tech.count})</div>
-                          ))}
-                          {tactic.techniques.length > 3 && <div>...and {tactic.techniques.length - 3} more</div>}
-                      </div>
-                  )}
-                </div>
-              }
-            >
-              <div 
-                className={`p-2 rounded-lg border border-white/5 cursor-default transition-transform hover:scale-105 ${getIntensityColor(tactic.intensity)} h-20 flex flex-col justify-between`}
+                }
               >
-                <div className="text-[10px] font-medium leading-tight">{tactic.shortName}</div>
-                <div className="text-xl font-bold self-end">{tactic.count}</div>
-              </div>
-            </Tooltip>
-          ))}
-        </div>
+                <div 
+                  className={`p-2 rounded-lg border border-white/5 cursor-default transition-transform hover:scale-105 ${getIntensityColor(tactic.intensity || 0)} h-20 flex flex-col justify-between`}
+                >
+                  <div className="text-[10px] font-medium leading-tight">{tactic.shortName || tactic.name || 'N/A'}</div>
+                  <div className="text-xl font-bold self-end">{tactic.count || 0}</div>
+                </div>
+              </Tooltip>
+            ) : null)}
+          </div>
+        )}
 
         {/* Legend */}
         <div className="flex items-center justify-between text-xs text-default-500 px-1">
