@@ -14,7 +14,7 @@
     "db:migrate": "drizzle-kit migrate",
     "db:seed": "bun run scripts/seed-superadmin.ts",
     "db:setup": "bun run db:migrate && bun run db:seed",
-    "deploy": "pm2 start ecosystem.config.cjs && pm2 save"
+    "deploy": "pm2 start scripts/start-prod.sh --name zcrAI-backend --interpreter bash && pm2 save"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.0",

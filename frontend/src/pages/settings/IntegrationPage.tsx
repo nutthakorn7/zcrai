@@ -32,88 +32,144 @@ const PROVIDER_LOGOS: Record<string, string> = {
 };
 
 // ⭐ Provider Config
-const PROVIDER_CONFIG: Record<string, { name: string; color: string; gradient: string; description: string; category?: string }> = {
+// ⭐ Provider Config
+const PROVIDER_CONFIG: Record<string, { 
+  name: string; 
+  color: "primary" | "secondary" | "success" | "warning" | "danger" | "default";
+  gradient: string; 
+  border: string;
+  iconBg: string;
+  iconColor: string;
+  description: string; 
+  category?: string 
+}> = {
   sentinelone: { 
     name: 'SentinelOne', 
     color: 'primary',
-    gradient: 'from-purple-500/20 to-purple-600/10',
+    gradient: 'from-purple-500/10 via-purple-500/5 to-transparent',
+    border: 'border-purple-500/20 group-hover:border-purple-500/50',
+    iconBg: 'bg-purple-500/10',
+    iconColor: 'text-purple-400',
     description: 'AI-Powered Endpoint Security',
     category: 'EDR'
   },
   crowdstrike: { 
     name: 'CrowdStrike', 
     color: 'danger',
-    gradient: 'from-red-500/20 to-orange-500/10',
+    gradient: 'from-red-500/10 via-red-500/5 to-transparent',
+    border: 'border-red-500/20 group-hover:border-red-500/50',
+    iconBg: 'bg-red-500/10',
+    iconColor: 'text-red-400',
     description: 'Cloud-Native Endpoint Protection',
     category: 'EDR'
   },
   aws: { 
     name: 'AWS CloudTrail', 
     color: 'warning', 
-    gradient: 'from-orange-500/20 to-amber-500/10',
+    gradient: 'from-orange-500/10 via-orange-500/5 to-transparent',
+    border: 'border-orange-500/20 group-hover:border-orange-500/50',
+    iconBg: 'bg-orange-500/10',
+    iconColor: 'text-orange-400',
     description: 'AWS Log Ingestion & Threat Detection',
     category: 'Cloud'
   },
   openai: { 
     name: 'OpenAI', 
     color: 'success',
-    gradient: 'from-emerald-500/20 to-teal-500/10',
+    gradient: 'from-emerald-500/10 via-emerald-500/5 to-transparent',
+    border: 'border-emerald-500/20 group-hover:border-emerald-500/50',
+    iconBg: 'bg-emerald-500/10',
+    iconColor: 'text-emerald-400',
     description: 'GPT Models & AI Assistant',
     category: 'AI'
   },
   claude: { 
     name: 'Anthropic Claude', 
     color: 'warning',
-    gradient: 'from-amber-500/20 to-orange-400/10',
+    gradient: 'from-amber-500/10 via-amber-500/5 to-transparent',
+    border: 'border-amber-500/20 group-hover:border-amber-500/50',
+    iconBg: 'bg-amber-500/10',
+    iconColor: 'text-amber-400',
     description: 'Safe & Helpful AI Assistant',
     category: 'AI'
   },
   gemini: { 
     name: 'Google Gemini', 
     color: 'secondary',
-    gradient: 'from-blue-500/20 to-cyan-400/10',
+    gradient: 'from-blue-500/10 via-blue-500/5 to-transparent',
+    border: 'border-blue-500/20 group-hover:border-blue-500/50',
+    iconBg: 'bg-blue-500/10',
+    iconColor: 'text-blue-400',
     description: 'Multimodal AI by Google',
+    category: 'AI'
+  },
+  deepseek: { 
+    name: 'DeepSeek', 
+    color: 'primary',
+    gradient: 'from-indigo-500/10 via-indigo-500/5 to-transparent',
+    border: 'border-indigo-500/20 group-hover:border-indigo-500/50',
+    iconBg: 'bg-indigo-500/10',
+    iconColor: 'text-indigo-400',
+    description: 'Open Source LLM',
     category: 'AI'
   },
   virustotal: {
     name: 'VirusTotal',
     color: 'primary',
-    gradient: 'from-blue-500/20 to-indigo-500/10',
+    gradient: 'from-blue-500/10 via-blue-500/5 to-transparent',
+    border: 'border-blue-500/20 group-hover:border-blue-500/50',
+    iconBg: 'bg-blue-500/10',
+    iconColor: 'text-blue-400',
     description: 'Threat Intelligence & IOC Enrichment',
     category: 'Enrichment'
   },
   abuseipdb: {
     name: 'AbuseIPDB',
     color: 'danger',
-    gradient: 'from-red-500/20 to-pink-500/10',
+    gradient: 'from-red-500/10 via-pink-500/5 to-transparent',
+    border: 'border-red-500/20 group-hover:border-red-500/50',
+    iconBg: 'bg-red-500/10',
+    iconColor: 'text-red-400',
     description: 'IP Reputation & Abuse Reports',
     category: 'Enrichment'
   },
   alienvault: {
     name: 'AlienVault OTX',
     color: 'secondary',
-    gradient: 'from-cyan-500/20 to-blue-500/10',
+    gradient: 'from-cyan-500/10 via-cyan-500/5 to-transparent',
+    border: 'border-cyan-500/20 group-hover:border-cyan-500/50',
+    iconBg: 'bg-cyan-500/10',
+    iconColor: 'text-cyan-400',
     description: 'Open Threat Exchange Intelligence',
     category: 'Enrichment'
   },
   azure: {
     name: 'Microsoft Azure',
     color: 'primary',
-    gradient: 'from-blue-600/20 to-blue-400/10',
+    gradient: 'from-blue-600/10 via-blue-400/5 to-transparent',
+    border: 'border-blue-500/20 group-hover:border-blue-500/50',
+    iconBg: 'bg-blue-500/10',
+    iconColor: 'text-blue-400',
     description: 'Azure Activity Logs & Security Center',
     category: 'Cloud'
   },
   gcp: {
     name: 'Google Cloud',
     color: 'warning',
-    gradient: 'from-yellow-500/20 to-red-500/10',
+    gradient: 'from-yellow-500/10 via-red-500/5 to-transparent',
+    border: 'border-yellow-500/20 group-hover:border-yellow-500/50',
+    iconBg: 'bg-yellow-500/10',
+    iconColor: 'text-yellow-400',
     description: 'GCP Audit Logs & Security Command Center',
     category: 'Cloud'
   },
   m365: {
     name: 'Microsoft 365',
     color: 'secondary',
-    gradient: 'from-indigo-500/20 to-blue-500/10',
+    gradient: 'from-indigo-500/10 via-blue-500/5 to-transparent',
+    border: 'border-indigo-500/20 group-hover:border-indigo-500/50',
+    iconBg: 'bg-indigo-500/10',
+    iconColor: 'text-indigo-400',
     description: 'Exchange, SharePoint, Teams Audit Logs',
     category: 'SaaS'
   },
@@ -582,69 +638,47 @@ export default function IntegrationPage() {
             // Find active integration for this provider
             const int = integrations.find(i => i.provider === provider);
             const isConfigured = !!int;
-            const config = PROVIDER_CONFIG[provider] || { name: provider, color: 'default', gradient: '', description: '' }; // Fallback
+            // Fallback config if provider not found (shouldn't happen)
+            const config = PROVIDER_CONFIG[provider] || { 
+               name: provider, color: 'default', gradient: '', border: '', iconBg: '', iconColor: '', description: '' 
+            } as any;
 
             return isConfigured ? (
               // ⭐ Active Card
               <Card 
                 key={int?.id} 
-                className={`bg-gradient-to-br ${config.gradient} border transition-all duration-300 ${
-                    config.color === 'primary' ? 'border-purple-500/20 hover:border-purple-500/40' : 
-                    config.color === 'danger' ? 'border-red-500/20 hover:border-red-500/40' :
-                    config.color === 'warning' ? 'border-orange-500/20 hover:border-orange-500/40' :
-                    'border-default-200'
-                }`}
+                className={`bg-gradient-to-br ${config.gradient} border ${config.border.replace('group-hover:', '')} transition-all duration-300`}
               >
                 <CardBody className="p-5">
                   <div className="flex items-center gap-3 mb-3">
-                    <div className={`w-10 h-10 rounded-xl ${
-                      config.color === 'primary' ? 'bg-purple-500/20' : 
-                      config.color === 'danger' ? 'bg-red-500/20' :
-                      config.color === 'warning' ? 'bg-orange-500/20' :
-                      'bg-default-100'
-                    } flex items-center justify-center`}>
+                    <div className={`w-10 h-10 rounded-xl ${config.iconBg} flex items-center justify-center`}>
                       {PROVIDER_LOGOS[provider] ? (
-                        <img src={PROVIDER_LOGOS[provider]} alt={provider} className="w-6 h-6" />
+                        <img src={PROVIDER_LOGOS[provider]} alt={provider} className="w-6 h-6 object-contain" />
                       ) : (
-                        <Icon.Cloud className={`w-6 h-6 ${
-                          config.color === 'primary' ? 'text-purple-400' : 
-                          config.color === 'danger' ? 'text-red-400' :
-                          config.color === 'warning' ? 'text-orange-400' :
-                          'text-default-400'
-                        }`} />
+                        <Icon.Cloud className={`w-6 h-6 ${config.iconColor}`} />
                       )}
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
                         <h3 className="font-semibold text-sm">{config.name}</h3>
-                        <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
+                        <div className="w-2 h-2 rounded-full bg-success animate-pulse shadow-[0_0_8px_rgba(74,222,128,0.5)]" />
                       </div>
-                      <p className="text-xs text-default-400 capitalize">{int.label}</p>
+                      <p className="text-xs text-default-400 capitalize truncate">{int.label}</p>
                     </div>
                     <Chip 
                       size="sm" 
                       color={int.lastSyncStatus === 'success' ? "success" : "warning"} 
                       variant="dot" 
                       classNames={{ 
-                        base: `border-none ${
-                            config.color === 'primary' ? 'bg-purple-500/20' : 
-                            config.color === 'danger' ? 'bg-red-500/20' :
-                            config.color === 'warning' ? 'bg-orange-500/20' :
-                            'bg-default-100'
-                        }`, 
-                        content: `${
-                            config.color === 'primary' ? 'text-purple-400' : 
-                            config.color === 'danger' ? 'text-red-400' :
-                            config.color === 'warning' ? 'text-orange-400' :
-                            'text-default-400'
-                        } font-medium` 
+                        base: `border-none ${config.iconBg}`, 
+                        content: `${config.iconColor} font-medium` 
                       }}
                     >
                       {int.lastSyncStatus === 'success' ? 'Active' : 'Syncing'}
                     </Chip>
                   </div>
                   
-                  <p className="text-xs text-default-600 mb-4 line-clamp-2">
+                  <p className="text-xs text-default-600 mb-4 line-clamp-2 min-h-[32px]">
                     {config.description}
                   </p>
 
@@ -652,12 +686,7 @@ export default function IntegrationPage() {
                     <Button 
                       size="sm" 
                       variant="flat" 
-                      className={`flex-1 ${
-                        config.color === 'primary' ? 'bg-purple-500/10 hover:bg-purple-500/20 text-purple-400' : 
-                        config.color === 'danger' ? 'bg-red-500/10 hover:bg-red-500/20 text-red-400' :
-                        config.color === 'warning' ? 'bg-orange-500/10 hover:bg-orange-500/20 text-orange-400' :
-                        'bg-default-100'
-                      }`} 
+                      className={`flex-1 ${config.iconBg.replace('10', '5')} hover:${config.iconBg.replace('10', '20')} ${config.iconColor}`} 
                       onPress={() => handleOpenEdit(int)}
                     >
                       Configure
@@ -681,58 +710,35 @@ export default function IntegrationPage() {
                 onClick={() => handleOpenAdd(
                     provider === 'crowdstrike' ? 'cs' : 
                     provider === 'sentinelone' ? 's1' : 
-                    provider === 'aws-cloudtrail' ? 'aws' :
+                    provider === 'aws' ? 'aws' :
                     provider === 'm365' ? 'm365' : 'aws' 
-                    // Note: 'aws' fallback for others
                 , provider)}
                 className={`group relative overflow-hidden rounded-xl 
-                           border transition-all duration-300 p-4 text-left h-full
-                           ${config.color === 'primary'
-                             ? 'border-purple-500/20 bg-gradient-to-br from-purple-500/10 to-purple-600/5 hover:from-purple-500/20 hover:to-purple-600/10 hover:border-purple-500/40' 
-                             : config.color === 'danger'
-                             ? 'border-red-500/20 bg-gradient-to-br from-red-500/10 to-orange-500/5 hover:from-red-500/20 hover:to-orange-500/10 hover:border-red-500/40'
-                             : 'border-orange-500/20 bg-gradient-to-br from-orange-500/10 to-yellow-500/5 hover:from-orange-500/20 hover:to-yellow-500/10 hover:border-orange-500/40'
-                           }
+                           border ${config.border}
+                           bg-gradient-to-br ${config.gradient}
+                           w-full
+                           transition-all duration-300 p-4 text-left h-full
+                           hover:shadow-lg hover:shadow-${config.color}-500/5
                            active:scale-[0.98]`}
               >
                 <div className="flex items-center gap-3">
-                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform ${
-                    config.color === 'primary' ? 'bg-purple-500/20' : 
-                    config.color === 'danger' ? 'bg-red-500/20' : 
-                    'bg-orange-500/20'
-                  }`}>
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform ${config.iconBg}`}>
                     {PROVIDER_LOGOS[provider] ? (
-                      <img src={PROVIDER_LOGOS[provider]} alt={provider} className="w-7 h-7" />
+                      <img src={PROVIDER_LOGOS[provider]} alt={provider} className="w-7 h-7 object-contain" />
                     ) : (
-                      <Icon.Cloud className={`w-7 h-7 ${
-                        config.color === 'primary' ? 'text-purple-400' : 
-                        config.color === 'danger' ? 'text-red-400' : 
-                        'text-orange-400'
-                      }`} />
+                      <Icon.Cloud className={`w-7 h-7 ${config.iconColor}`} />
                     )}
                   </div>
                   <div className="flex-1">
-                    <span className={`font-semibold transition-colors block ${
-                      config.color === 'primary' ? 'text-purple-400 group-hover:text-purple-300' : 
-                      config.color === 'danger' ? 'text-red-400 group-hover:text-red-300' :
-                      'text-orange-400 group-hover:text-orange-300'
-                    }`}>
+                    <span className={`font-semibold transition-colors block group-hover:${config.iconColor.split(' ')[0]}`}>
                       {config.name}
                     </span>
                     <span className="text-xs text-default-400">
                       {config.category || 'Security Tool'}
                     </span>
                   </div>
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
-                    config.color === 'primary' ? 'bg-purple-500/10 group-hover:bg-purple-500/20' : 
-                    config.color === 'danger' ? 'bg-red-500/10 group-hover:bg-red-500/20' :
-                    'bg-orange-500/10 group-hover:bg-orange-500/20'
-                  }`}>
-                    <span className={`text-lg font-light ${
-                      config.color === 'primary' ? 'text-purple-400' : 
-                      config.color === 'danger' ? 'text-red-400' :
-                      'text-orange-400'
-                    }`}>+</span>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${config.iconBg.replace('10', '5')} group-hover:${config.iconBg}`}>
+                    <span className={`text-lg font-light ${config.iconColor}`}>+</span>
                   </div>
                 </div>
               </button>
@@ -754,95 +760,30 @@ export default function IntegrationPage() {
             const int = integrations.find(i => i.provider === provider && i.id !== 'system-gemini');
             const isConfigured = !!int;
             
-            // Define colors/logos helper (Expanded)
-            const getProviderConfig = (p: string) => {
-               // ... existing switch ...
-               // Added DeepSeek
-               if (p === 'deepseek') return {
-                  color: 'blue',
-                  logo: null, // No logo yet
-                  name: 'DeepSeek',
-                  desc: 'Open Source LLM',
-                  gradient: 'from-blue-600/10 to-indigo-500/5',
-                  border: 'border-blue-500/20',
-                  hoverBorder: 'hover:border-blue-500/40',
-                  bg: 'bg-blue-500/20',
-                  text: 'text-blue-400',
-                  hoverText: 'group-hover:text-blue-300',
-                  hoverBg: 'group-hover:bg-blue-500/20'
-               };
-               // ... existing ...
-              switch(p) {
-                case 'openai': return { 
-                  color: 'emerald', 
-                  logo: OpenAILogo, 
-                  name: 'OpenAI', 
-                  desc: 'GPT Models',
-                  gradient: 'from-emerald-500/10 to-teal-500/5',
-                  border: 'border-emerald-500/20',
-                  hoverBorder: 'hover:border-emerald-500/40',
-                  bg: 'bg-emerald-500/20',
-                  text: 'text-emerald-400',
-                  hoverText: 'group-hover:text-emerald-300',
-                  hoverBg: 'group-hover:bg-emerald-500/20'
-                };
-                case 'claude': return { 
-                  color: 'amber', 
-                  logo: ClaudeLogo, 
-                  name: 'Claude', 
-                  desc: 'Anthropic',
-                  gradient: 'from-amber-500/10 to-orange-400/5',
-                  border: 'border-amber-500/20',
-                  hoverBorder: 'hover:border-amber-500/40',
-                  bg: 'bg-amber-500/20',
-                  text: 'text-amber-400',
-                  hoverText: 'group-hover:text-amber-300',
-                  hoverBg: 'group-hover:bg-amber-500/20'
-                };
-                case 'gemini': return { 
-                  color: 'blue', 
-                  logo: GeminiLogo, 
-                  name: 'Gemini', 
-                  desc: 'Google AI',
-                  gradient: 'from-blue-500/10 to-cyan-400/5',
-                  border: 'border-blue-500/20',
-                  hoverBorder: 'hover:border-blue-500/40',
-                  bg: 'bg-blue-500/20',
-                  text: 'text-blue-400',
-                  hoverText: 'group-hover:text-blue-300',
-                  hoverBg: 'group-hover:bg-blue-500/20'
-                };
-                default: return { 
-                  color: 'default', 
-                  logo: null, 
-                  name: p, 
-                  desc: 'AI Provider',
-                  gradient: '', border: '', hoverBorder: '', bg: '', text: '', hoverText: '', hoverBg: ''
-                };
-              }
-            };
-
-            const config = getProviderConfig(provider);
+            // Get Config from PROVIDER_CONFIG directly
+            const config = PROVIDER_CONFIG[provider] || { 
+               name: provider, color: 'default', gradient: '', border: '', iconBg: '', iconColor: '', description: '' 
+            } as any;
 
             return isConfigured ? (
               // ⭐ Active Card
               <Card 
                 key={int?.id} 
-                className={`bg-gradient-to-br ${config.gradient} border ${config.border} ${config.hoverBorder} transition-all duration-300`}
+                className={`bg-gradient-to-br ${config.gradient} border ${config.border.replace('group-hover:', '')} transition-all duration-300`}
               >
                 <CardBody className="p-5">
                   <div className="flex items-center gap-3 mb-3">
-                    <div className={`w-10 h-10 rounded-xl ${config.bg} flex items-center justify-center`}>
-                      {config.logo ? (
-                        <img src={config.logo} alt={provider} className="w-6 h-6" />
+                    <div className={`w-10 h-10 rounded-xl ${config.iconBg} flex items-center justify-center`}>
+                      {PROVIDER_LOGOS[provider] ? (
+                        <img src={PROVIDER_LOGOS[provider]} alt={provider} className="w-6 h-6 object-contain" />
                       ) : (
-                        <Icon.Cpu className={`w-6 h-6 ${config.text}`} />
+                        <Icon.Cpu className={`w-6 h-6 ${config.iconColor}`} />
                       )}
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
                         <h3 className="font-semibold text-sm">{config.name}</h3>
-                        <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
+                        <div className="w-2 h-2 rounded-full bg-success animate-pulse shadow-[0_0_8px_rgba(74,222,128,0.5)]" />
                       </div>
                       <p className="text-xs text-default-400 capitalize">{int.label === provider ? config.name : int.label}</p>
                     </div>
@@ -851,23 +792,23 @@ export default function IntegrationPage() {
                       color="success"
                       variant="dot" 
                       classNames={{ 
-                        base: `border-none ${config.bg}`, 
-                        content: `${config.text} font-medium` 
+                        base: `border-none ${config.iconBg}`, 
+                        content: `${config.iconColor} font-medium` 
                       }}
                     >
                       Active
                     </Chip>
                   </div>
                   
-                  <p className="text-xs text-default-600 mb-4 line-clamp-2">
-                    {config.desc} Integration
+                  <p className="text-xs text-default-600 mb-4 line-clamp-2 min-h-[32px]">
+                    {config.description}
                   </p>
 
                   <div className="flex gap-2">
                     <Button 
                       size="sm" 
                       variant="flat" 
-                      className={`flex-1 bg-white/5 hover:bg-white/10 ${config.text}`} 
+                      className={`flex-1 ${config.iconBg.replace('10', '5')} hover:${config.iconBg.replace('10', '20')} ${config.iconColor}`} 
                       onPress={() => handleOpenEdit(int)}
                     >
                       Configure
@@ -890,29 +831,31 @@ export default function IntegrationPage() {
                 key={provider}
                 onClick={() => handleOpenAdd('ai', provider)}
                 className={`group relative overflow-hidden rounded-xl 
-                           border transition-all duration-300 p-4 text-left h-full
-                           ${config.border} bg-gradient-to-br ${config.gradient} 
-                           ${config.hoverBorder}
+                           border ${config.border}
+                           bg-gradient-to-br ${config.gradient}
+                           w-full
+                           transition-all duration-300 p-4 text-left h-full
+                           hover:shadow-lg hover:shadow-${config.color}-500/5
                            active:scale-[0.98]`}
               >
                 <div className="flex items-center gap-3">
-                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform ${config.bg}`}>
-                    {config.logo ? (
-                      <img src={config.logo} alt={provider} className="w-7 h-7" />
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform ${config.iconBg}`}>
+                    {PROVIDER_LOGOS[provider] ? (
+                      <img src={PROVIDER_LOGOS[provider]} alt={provider} className="w-7 h-7 object-contain" />
                     ) : (
-                       <Icon.Cpu className={`w-7 h-7 ${config.text}`} />
+                       <Icon.Cpu className={`w-7 h-7 ${config.iconColor}`} />
                     )}
                   </div>
                   <div className="flex-1">
-                    <span className={`font-semibold transition-colors block ${config.text} ${config.hoverText}`}>
+                    <span className={`font-semibold transition-colors block group-hover:${config.iconColor.split(' ')[0]}`}>
                       {config.name}
                     </span>
                     <span className="text-xs text-default-400">
-                      {config.desc}
+                      {config.description}
                     </span>
                   </div>
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${config.hoverBg.replace('group-hover:', 'bg-').replace('500/20', '500/10')} ${config.hoverBg}`}>
-                    <span className={`text-lg font-light ${config.text}`}>+</span>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${config.iconBg.replace('10', '5')} group-hover:${config.iconBg}`}>
+                    <span className={`text-lg font-light ${config.iconColor}`}>+</span>
                   </div>
                 </div>
               </button>
@@ -932,40 +875,39 @@ export default function IntegrationPage() {
           {['virustotal', 'abuseipdb', 'alienvault'].map(provider => {
              const int = integrations.find(i => i.provider === provider);
              const isConfigured = !!int;
-             const config = PROVIDER_CONFIG[provider];
+             const config = PROVIDER_CONFIG[provider] || { 
+                name: provider, color: 'default', gradient: '', border: '', iconBg: '', iconColor: '', description: '' 
+             } as any;
              
              return isConfigured ? (
                <Card 
                  key={int.id} 
-                 className={`bg-gradient-to-br ${config.gradient} border border-${config.color}-500/20 hover:border-${config.color}-500/40 transition-all duration-300`}
+                 className={`bg-gradient-to-br ${config.gradient} border ${config.border.replace('group-hover:', '')} transition-all duration-300`}
                >
                  <CardBody className="p-5">
                    <div className="flex items-center gap-3 mb-3">
-                     <div className={`w-10 h-10 rounded-xl bg-${config.color}-500/20 flex items-center justify-center`}>
-                       {config.name === 'VirusTotal' ? <Icon.Shield className={`w-5 h-5 text-${config.color}-400`} /> : <Icon.Global className={`w-5 h-5 text-${config.color}-400`} />}
+                     <div className={`w-10 h-10 rounded-xl ${config.iconBg} flex items-center justify-center`}>
+                       {config.name === 'VirusTotal' ? <Icon.Shield className={`w-5 h-5 ${config.iconColor}`} /> : <Icon.Global className={`w-5 h-5 ${config.iconColor}`} />}
                      </div>
                      <div className="flex-1">
                        <div className="flex items-center gap-2">
                          <h3 className="font-semibold text-sm">{config.name}</h3>
-                         <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
+                         <div className="w-2 h-2 rounded-full bg-success animate-pulse shadow-[0_0_8px_rgba(74,222,128,0.5)]" />
                        </div>
                        <p className="text-xs text-default-400 capitalize">{int.label}</p>
                      </div>
-                     {/* Note: dynamic color class interpolation might not work in tailwind if full class name not present in source. 
-                         However, we used standard names like blue-500, red-500. 
-                         Safest to use style or explicit maps if this breaks. 
-                         For now, assuming safe list or JIT matches 'bg-primary-500' if configured? 
-                         Wait, config.color is 'primary', 'danger'. That maps to variables or explicit colors?
-                         In PROVIDER_CONFIG: 'primary', 'danger', 'secondary', 'warning'.
-                         Tailwind classes like 'bg-primary-500' might not exist by default unless extended.
-                         Earlier code used explicit 'bg-red-500/20'.
-                         Safest is to revert to explicit mapping or use style.
-                         Let's use the same logic as Security Tools (explicit conditional classes).
-                      */} 
-                      <Chip size="sm" color="success" variant="dot" classNames={{ base: "border-none bg-default-100", content: "text-success font-medium" }}>Active</Chip> 
+                     <Chip 
+                        size="sm" 
+                        color="success" 
+                        variant="dot" 
+                        classNames={{ 
+                            base: `border-none ${config.iconBg}`, 
+                            content: `${config.iconColor} font-medium` 
+                        }}
+                     >Active</Chip> 
                    </div>
                    
-                   <p className="text-xs text-default-600 mb-4 line-clamp-2">
+                   <p className="text-xs text-default-600 mb-4 line-clamp-2 min-h-[32px]">
                      {config.description}
                    </p>
  
@@ -973,7 +915,7 @@ export default function IntegrationPage() {
                      <Button 
                        size="sm" 
                        variant="flat" 
-                       className="flex-1 bg-default-100 hover:bg-default-200" 
+                       className={`flex-1 ${config.iconBg.replace('10', '5')} hover:${config.iconBg.replace('10', '20')} ${config.iconColor}`}
                        onPress={() => handleOpenEdit(int)}
                      >
                        Configure
@@ -995,22 +937,22 @@ export default function IntegrationPage() {
                  key={provider}
                  onClick={() => handleOpenAdd('enrichment', provider)}
                  className={`group relative overflow-hidden rounded-xl 
-                          border border-default-200 
+                          border ${config.border}
                           bg-gradient-to-br ${config.gradient}
-                          hover:border-default-400 
+                          hover:shadow-lg hover:shadow-${config.color}-500/5
                           active:scale-[0.98]
-                          transition-all duration-300 p-4 text-left h-full`}
+                          transition-all duration-300 p-4 text-left h-full w-full`}
                >
                  <div className="flex items-center gap-3">
-                   <div className={`w-12 h-12 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform bg-default-100`}>
-                      {provider === 'virustotal' ? <Icon.Shield className="w-6 h-6 text-primary" /> : <Icon.Global className="w-6 h-6 text-primary" />}
+                   <div className={`w-12 h-12 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform ${config.iconBg}`}>
+                      {provider === 'virustotal' ? <Icon.Shield className={`w-6 h-6 ${config.iconColor}`} /> : <Icon.Global className={`w-6 h-6 ${config.iconColor}`} />}
                    </div>
                    <div className="flex-1">
-                     <span className="font-semibold text-default-600 group-hover:text-default-800 transition-colors block">{config.name}</span>
+                     <span className={`font-semibold group-hover:${config.iconColor.split(' ')[0]} transition-colors block`}>{config.name}</span>
                      <span className="text-xs text-default-400">{config.description}</span>
                    </div>
-                   <div className="w-8 h-8 rounded-full bg-default-100 group-hover:bg-default-200 flex items-center justify-center transition-colors">
-                     <span className="text-default-600 text-lg font-light">+</span>
+                   <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${config.iconBg.replace('10', '5')} group-hover:${config.iconBg}`}>
+                     <span className={`text-lg font-light ${config.iconColor}`}>+</span>
                    </div>
                  </div>
                </button>

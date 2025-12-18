@@ -18,7 +18,7 @@ expect {
 }
 
 # 2. Deploy to web root
-spawn ssh -o StrictHostKeyChecking=no $host "rm -rf /var/www/zcr-ai/* && cp -r /root/temp_dist/* /var/www/zcr-ai/ && chown -R www-data:www-data /var/www/zcr-ai"
+spawn ssh -o StrictHostKeyChecking=no $host "rm -rf /var/www/zcrai/* && cp -r /root/temp_dist/* /var/www/zcrai/ && chown -R www-data:www-data /var/www/zcrai"
 expect {
     "password:" { send "$pass\r"; exp_continue }
     eof

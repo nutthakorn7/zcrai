@@ -180,16 +180,14 @@ export default function DashboardPage() {
       setAvailableProviders(uniqueActiveProviders);
 
       // 2. Determine sources query param
-      let targetSources = uniqueActiveProviders;
+      let targetSources: string[] = []; // Default to empty (show all)
       if (selectedProvider !== 'all') {
         targetSources = [selectedProvider];
       }
 
       if (targetSources.length > 0) {
         dateParams += `&sources=${targetSources.join(',')}`;
-      } else if (selectedProvider === 'all') {
-        dateParams += `&sources=none`; 
-      } else {
+      } else if (selectedProvider !== 'all') {
          dateParams += `&sources=${selectedProvider}`;
       }
 
@@ -207,12 +205,9 @@ export default function DashboardPage() {
       const prevEnd = `${prevEndDate.getFullYear()}-${String(prevEndDate.getMonth() + 1).padStart(2, '0')}-${String(prevEndDate.getDate()).padStart(2, '0')}`;
       let prevDateParams = `startDate=${prevStart}&endDate=${prevEnd}`;
       
-      // Add same sources filter to previous period for fair comparison
       if (targetSources.length > 0) {
         prevDateParams += `&sources=${targetSources.join(',')}`;
-      } else if (selectedProvider === 'all') {
-        prevDateParams += `&sources=none`;
-      } else {
+      } else if (selectedProvider !== 'all') {
         prevDateParams += `&sources=${selectedProvider}`;
       }
 
