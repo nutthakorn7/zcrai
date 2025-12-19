@@ -252,11 +252,10 @@ export default function DashboardPage() {
       setTimeline(timelineRes.data);
       setMitreData(mitreRes.data);
       
-      const activeIntegrationIds = new Set(activeIntegrations.map((i: any) => i.id));
-      const filteredIntegrations = intRes.data.filter((i: IntegrationData) => 
-        activeIntegrationIds.has(i.integration_id)
-      );
-      setIntegrations(filteredIntegrations);
+      
+      // Show all integration breakdown data (source-based grouping)
+      // No need to filter by activeIntegrationIds since data is now grouped by source
+      setIntegrations(intRes.data || []);
       
       setSites(sitesRes.data);
 
@@ -309,27 +308,37 @@ export default function DashboardPage() {
 
 
   // Transform timeline data for chart - รวม data ตาม time และแยก source
-  // Output format: { time: 'Jan 1', crowdstrike_total: 10, crowdstrike_critical: 2, sentinelone_total: 50, ... }
+  // Fill missing dates to create continuous timeline
   const chartData = (() => {
-    const grouped: { [time: string]: any } = {};
+    // 1. Generate full date range
+    const dateMap: { [dateKey: string]: any } = {};
+    const currentDate = new Date(startDate);
+    const end = new Date(endDate);
     
+    while (currentDate <= end) {
+      const formattedTime = currentDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      dateMap[formattedTime] = { time: formattedTime };
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+    
+    // 2. Merge actual data from backend
     timeline.forEach(t => {
       const formattedTime = new Date(t.time).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
       const src = t.source?.toLowerCase() || 'unknown';
       
-      if (!grouped[formattedTime]) {
-        grouped[formattedTime] = { time: formattedTime };
+      if (!dateMap[formattedTime]) {
+        dateMap[formattedTime] = { time: formattedTime };
       }
       
       // Add source-specific data
-      grouped[formattedTime][`${src}_total`] = (grouped[formattedTime][`${src}_total`] || 0) + parseInt(t.count);
-      grouped[formattedTime][`${src}_critical`] = (grouped[formattedTime][`${src}_critical`] || 0) + parseInt(t.critical);
-      grouped[formattedTime][`${src}_high`] = (grouped[formattedTime][`${src}_high`] || 0) + parseInt(t.high);
-      grouped[formattedTime][`${src}_medium`] = (grouped[formattedTime][`${src}_medium`] || 0) + parseInt(t.medium);
-      grouped[formattedTime][`${src}_low`] = (grouped[formattedTime][`${src}_low`] || 0) + parseInt(t.low);
+      dateMap[formattedTime][`${src}_total`] = (dateMap[formattedTime][`${src}_total`] || 0) + parseInt(t.count);
+      dateMap[formattedTime][`${src}_critical`] = (dateMap[formattedTime][`${src}_critical`] || 0) + parseInt(t.critical);
+      dateMap[formattedTime][`${src}_high`] = (dateMap[formattedTime][`${src}_high`] || 0) + parseInt(t.high);
+      dateMap[formattedTime][`${src}_medium`] = (dateMap[formattedTime][`${src}_medium`] || 0) + parseInt(t.medium);
+      dateMap[formattedTime][`${src}_low`] = (dateMap[formattedTime][`${src}_low`] || 0) + parseInt(t.low);
     });
     
-    return Object.values(grouped);
+    return Object.values(dateMap);
   })();
 
   // หา sources ที่มีใน timeline data
@@ -705,6 +714,8 @@ export default function DashboardPage() {
                   <Line type="monotone" dataKey="crowdstrike_total" name="crowdstrike_total" stroke="#EF4444" strokeWidth={2.5} dot={false} activeDot={{ r: 6, fill: '#EF4444' }} />
                   <Line type="monotone" dataKey="sentinelone_total" name="sentinelone_total" stroke="#A855F7" strokeWidth={2.5} dot={false} activeDot={{ r: 6, fill: '#A855F7' }} />
                   <Line type="monotone" dataKey="aws-cloudtrail_total" name="aws-cloudtrail_total" stroke="#F59E0B" strokeWidth={2.5} dot={false} activeDot={{ r: 6, fill: '#F59E0B' }} />
+                  <Line type="monotone" dataKey="simulation_total" name="simulation_total" stroke="#3B82F6" strokeWidth={2.5} dot={false} activeDot={{ r: 6, fill: '#3B82F6' }} />
+                  <Line type="monotone" dataKey="simulation_script_total" name="simulation_script_total" stroke="#00C49F" strokeWidth={2.5} dot={false} activeDot={{ r: 6, fill: '#00C49F' }} />
                 </LineChart>
               </ResponsiveContainer>
             </div>

@@ -51,78 +51,32 @@ export const withAuth = (app: Elysia) => app
   .use(jwt({
     name: 'jwt',
     secret: process.env.JWT_SECRET || 'super_secret_dev_key',
-    exp: '1h', // Ensure exp is included if it was in jwtConfig
+    exp: '1h',
   }))
   .derive(async ({ jwt, cookie: { access_token }, set }) => {
-    // 🔓 BYPASS MODE: Auto-inject mock user (skip all auth)
-    // ⚠️ WARNING: Only use for DEMO/TESTING - NOT for production with real data!
-    const bypassAuth = process.env.NODE_ENV === 'development' 
-                    || process.env.DEV_AUTH_BYPASS === 'true'
-                    || process.env.BYPASS_AUTH === 'true';  // ⚠️ PRODUCTION BYPASS
-    
-    if (bypassAuth) {
-      console.log('🔓 [Auth] BYPASS MODE: Auto-authenticated as superadmin');
-      console.warn('⚠️  WARNING: Authentication is DISABLED - Anyone can access!');
-      
-      // Fetch actual superadmin from database to get valid tenant ID
-      try {
-        const { db } = await import('../infra/db');
-        const { users, tenants } = await import('../infra/db/schema');
-        const { eq } = await import('drizzle-orm');
-        
-        const superadmin = await db.query.users.findFirst({
-          where: eq(users.role, 'superadmin')
-        });
-        
-        if (superadmin) {
-          return {
-            user: {
-              userId: superadmin.id,
-              id: superadmin.id,
-              email: superadmin.email,
-              name: superadmin.name || 'Super Admin',
-              role: 'superadmin',
-              tenantId: superadmin.tenantId || 'c8abd753-3015-4508-aa7b-6bcf732934e5' // Fallback to System Admin tenant
-            } as JWTUserPayload
-          };
-        }
-      } catch (e) {
-        console.error('[Auth] Failed to fetch superadmin for bypass mode:', e);
-      }
-      
-      // Fallback with real System Admin tenant ID from database
-      return {
-        user: {
-          userId: 'demo-user-id',
-          id: 'demo-user-id',
-          email: 'demo@zcr.ai',
-          name: 'Demo User',
-          role: 'superadmin',
-          tenantId: 'c8abd753-3015-4508-aa7b-6bcf732934e5' // Real System Admin tenant UUID
-        } as JWTUserPayload
-      };
-    }
-
-
     // Production: Normal JWT verification
     if (!access_token?.value || typeof access_token.value !== 'string') {
+      console.log('[Auth] No access token found');
       return { user: null };
     }
 
     try {
       const payload = await jwt.verify(access_token.value);
       if (!payload) {
+        console.log('[Auth] JWT verification returned null payload');
         return { user: null };
       }
+      console.log('[Auth] User authenticated:', payload.email || payload.userId);
       return { user: payload as unknown as JWTUserPayload };
     } catch (e: any) {
+      console.error('[Auth] JWT verification failed:', e.message);
       return { user: null };
     }
   })
   .onBeforeHandle(({ user, set }: any) => {
     if (!user) {
       set.status = 401;
-      return { error: 'Unauthorized', message: 'Valid authentication token required' };
+      throw new Error('Unauthorized: Valid authentication token required');
     }
   });
 

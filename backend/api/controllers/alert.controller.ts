@@ -20,15 +20,30 @@ export const alertController = new Elysia({ prefix: '/alerts' })
    * @returns {Object} Filtered list of alerts
    */
   .get('/', async ({ query, user }: any) => {
-    const alerts = await AlertService.list({
-      tenantId: user.tenantId,
-      status: query.status ? query.status.split(',') : undefined,
-      severity: query.severity ? query.severity.split(',') : undefined,
-      source: query.source ? query.source.split(',') : undefined,
+    console.log('[ALERTS] === GET / endpoint called ===');
+    console.log('[ALERTS] User:', user?.email, 'Role:', user?.role, 'TenantId:', user?.tenantId);
+    
+    // Build filters - superadmin can see all tenants, regular users only their tenant
+    const filters: any = {
       limit: query.limit ? parseInt(query.limit) : 100,
       offset: query.offset ? parseInt(query.offset) : 0,
-    });
+    };
+    
+    // Only filter by tenantId for non-superadmin users
+    if (user.role !== 'superadmin') {
+      filters.tenantId = user.tenantId;
+      console.log('[ALERTS] Filtering by tenantId:', user.tenantId);
+    } else {
+      console.log('[ALERTS] Superadmin - showing all tenants');
+    }
+    
+    if (query.status) filters.status = query.status.split(',');
+    if (query.severity) filters.severity = query.severity.split(',');
+    if (query.source) filters.source = query.source.split(',');
+    
+    const alerts = await AlertService.list(filters);
 
+    console.log('[ALERTS] Retrieved alerts count:', alerts.length);
     return { success: true, data: alerts };
   })
 

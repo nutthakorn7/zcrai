@@ -235,7 +235,7 @@ export const DashboardService = {
     const sourceFilter = (sources && sources.length > 0) ? `AND source IN {sources:Array(String)}` : ''
     const sql = `
       SELECT 
-        integration_id,
+        COALESCE(NULLIF(integration_id, ''), source) as integration_id,
         '' as integration_name,
         source,
         count() as count,
@@ -245,7 +245,6 @@ export const DashboardService = {
       WHERE tenant_id = {tenantId:String}
         AND toDate(timestamp) >= {startDate:String}
         AND toDate(timestamp) <= {endDate:String}
-        AND integration_id != ''
         ${sourceFilter}
       GROUP BY integration_id, source
       ORDER BY count DESC

@@ -105,14 +105,19 @@ export class AlertService {
 
   // List alerts with filters
   static async list(filters: {
-    tenantId: string;
+    tenantId?: string; // Optional for superadmin
     status?: string[];
     severity?: string[];
     source?: string[];
     limit?: number;
     offset?: number;
   }) {
-    const conditions = [eq(alerts.tenantId, filters.tenantId)];
+    const conditions = [];
+    
+    // Only filter by tenantId if provided (non-superadmin users)
+    if (filters.tenantId) {
+      conditions.push(eq(alerts.tenantId, filters.tenantId));
+    }
 
     if (filters.status && filters.status.length > 0) {
       conditions.push(inArray(alerts.status, filters.status));
@@ -126,13 +131,17 @@ export class AlertService {
       conditions.push(inArray(alerts.source, filters.source));
     }
 
-    const result = await db
+    const query = db
       .select()
       .from(alerts)
-      .where(and(...conditions))
       .orderBy(desc(alerts.createdAt))
       .limit(filters.limit || 100)
       .offset(filters.offset || 0);
+    
+    // Only add where clause if there are conditions
+    const result = conditions.length > 0 
+      ? await query.where(and(...conditions))
+      : await query;
 
     return result;
   }

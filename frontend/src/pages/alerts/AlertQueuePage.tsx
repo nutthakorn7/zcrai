@@ -40,10 +40,13 @@ export default function AlertQueuePage() {
 
   const fetchAlerts = async () => {
     try {
+      console.log('[Alerts] Fetching alerts from API...');
       const data = await AlertsAPI.list();
+      console.log('[Alerts] Received alerts:', data);
+      console.log('[Alerts] Number of alerts:', data?.length || 0);
       setAlerts(data);
     } catch (e) {
-      console.error(e);
+      console.error('[Alerts] Error fetching alerts:', e);
     }
   };
 
@@ -108,13 +111,16 @@ export default function AlertQueuePage() {
           if (!matchesAll) return false;
       }
       
-      // 3. Date Filter Logic
+      // 3. Date Filter Logic - DISABLED to show all alerts
+      // Uncomment below to enable exact date matching
+      /*
       if (dateFilter) {
           const alertDate = new Date(a.createdAt);
           const formattedDate = alertDate.toISOString().split('T')[0];
           const shortDate = alertDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
           if (dateFilter !== formattedDate && dateFilter !== shortDate) return false; 
       }
+      */
 
       return true;
     });

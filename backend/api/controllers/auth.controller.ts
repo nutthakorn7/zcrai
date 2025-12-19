@@ -67,7 +67,9 @@ export const authController = new Elysia({ prefix: '/auth' })
 
       console.log('[DEBUG_AUTH] 5. About to sign access token');
       const accessToken = await jwt.sign({
+        userId: user.id,
         id: user.id,
+        email: user.email,
         role: user.role,
         tenantId: user.tenantId,
         exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60) // 24 hours
@@ -202,7 +204,9 @@ export const authController = new Elysia({ prefix: '/auth' })
     }
 
     const newAccessToken = await jwt.sign({
+      userId: user.id,
       id: user.id,
+      email: user.email,
       role: user.role,
       tenantId: user.tenantId
     })
@@ -262,7 +266,9 @@ export const authController = new Elysia({ prefix: '/auth' })
     }
 
     const accessToken = await jwt.sign({
+      userId: user.id,
       id: user.id,
+      email: user.email,
       role: user.role,
       tenantId: user.tenantId
     })
