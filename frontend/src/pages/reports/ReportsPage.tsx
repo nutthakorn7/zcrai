@@ -11,6 +11,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Icon } from '../../shared/ui/icon';
 import { api } from '../../shared/api/api';
+import { CustomReportTab } from './CustomReportTab';
 
 // Use same colors as Dashboard
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
@@ -324,6 +325,10 @@ export default function ReportsPage() {
                     </Card>
                 </div>
             </div>
+        </Tab>
+
+        <Tab key="custom" title="Custom Builder">
+            <CustomReportTab />
         </Tab>
         
         <Tab key="schedules" title="Scheduled Reports">
