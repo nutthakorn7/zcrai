@@ -301,8 +301,15 @@ export const integrationController = new Elysia({ prefix: '/integrations' })
       const provider = params.provider.toLowerCase()
 
       if (!apiKey) throw new Error('API Key is required')
-      if (!['virustotal', 'abuseipdb', 'alienvault-otx'].includes(provider)) {
-        throw new Error('Invalid enrichment provider. Must be virustotal, abuseipdb, or alienvault-otx')
+      
+      // Normalize provider name: alienvault -> alienvault-otx
+      let normalizedProvider = provider
+      if (provider === 'alienvault') {
+        normalizedProvider = 'alienvault-otx'
+      }
+      
+      if (!['virustotal', 'abuseipdb', 'alienvault-otx'].includes(normalizedProvider)) {
+        throw new Error('Invalid enrichment provider. Must be virustotal, abuseipdb, or alienvault')
       }
 
       const defaultLabels: Record<string, string> = {
@@ -311,9 +318,9 @@ export const integrationController = new Elysia({ prefix: '/integrations' })
         'alienvault-otx': 'AlienVault OTX'
       }
 
-      return await IntegrationService.addEnrichment(user.tenantId as string, provider, {
+      return await IntegrationService.addEnrichment(user.tenantId as string, normalizedProvider, {
         apiKey,
-        label: label || defaultLabels[provider] || provider
+        label: label || defaultLabels[normalizedProvider] || normalizedProvider
       })
     } catch (e: any) {
       set.status = 400

@@ -25,7 +25,6 @@ export default function CaseDetailPage() {
   const [newComment, setNewComment] = useState('');
 
   // AI State
-  // AI State
   const [aiResult, setAiResult] = useState<{ summary: string, verdict: string, confidence: number, evidence_analysis: string } | null>(null);
   const [aiSuggestion, setAiSuggestion] = useState<any>(null);
   const [aiLoading, setAiLoading] = useState(false);
@@ -384,8 +383,8 @@ export default function CaseDetailPage() {
                             <div>
                                 <div className="text-xs text-gray-400">Verdict</div>
                                 <div className={`font-bold ${
-                                    aiResult.verdict?.toLowerCase().includes('true') ? 'text-danger' : 
-                                    aiResult.verdict?.toLowerCase().includes('false') ? 'text-success' : 'text-warning'
+                                    (aiResult.verdict || '').toLowerCase().includes('true') ? 'text-danger' : 
+                                    (aiResult.verdict || '').toLowerCase().includes('false') ? 'text-success' : 'text-warning'
                                 }`}>
                                     {aiResult.verdict}
                                 </div>

@@ -376,7 +376,10 @@ export default function IntegrationPage() {
       setAiProvider(providerOverride);
     } else if (type === 'enrichment' && providerOverride) {
       // For enrichment providers, set label from provider name
-      setLabel(providerOverride === 'virustotal' ? 'VirusTotal' : 'AbuseIPDB');
+      setLabel(
+        providerOverride === 'virustotal' ? 'VirusTotal' : 
+        providerOverride === 'alienvault' ? 'AlienVault OTX' : 'AbuseIPDB'
+      );
       // Store provider in a state (reuse aiProvider for simplicity)
       setAiProvider(providerOverride);
     }
@@ -400,7 +403,7 @@ export default function IntegrationPage() {
     } else if (int.provider === 'crowdstrike') {
       setModalType('cs');
       setCsSecret('');
-    } else if (int.provider === 'virustotal' || int.provider === 'abuseipdb') {
+    } else if (int.provider === 'virustotal' || int.provider === 'abuseipdb' || int.provider === 'alienvault') {
       setModalType('enrichment');
       setAiProvider(int.provider);
       setAiKey('');
@@ -449,7 +452,7 @@ export default function IntegrationPage() {
               setCsFetchSettings(data.fetchSettings);
               setShowAdvanced(true);
             }
-          } else if (int.provider === 'virustotal' || int.provider === 'abuseipdb') {
+          } else if (int.provider === 'virustotal' || int.provider === 'abuseipdb' || int.provider === 'alienvault') {
             setHasExistingKey(data.hasKey || false);
           } else {
             setAiModel(data.model || '');
@@ -495,7 +498,10 @@ export default function IntegrationPage() {
           // Enrichment providers (VirusTotal, AbuseIPDB)
           await api.post(`/integrations/enrichment/${aiProvider}`, {
             apiKey: aiKey,
-            label: label || (aiProvider === 'virustotal' ? 'VirusTotal' : 'AbuseIPDB'),
+            label: label || (
+                aiProvider === 'virustotal' ? 'VirusTotal' : 
+                aiProvider === 'alienvault' ? 'AlienVault OTX' : 'AbuseIPDB'
+            ),
           });
         } else if (modalType === 'aws') {
           // Use New Cloud Controller
@@ -555,7 +561,7 @@ export default function IntegrationPage() {
               clientSecret: csSecret || undefined, // undefined = keep existing
               fetchSettings: csFetchSettings,
             });
-          } else if (provider === 'virustotal' || provider === 'abuseipdb') {
+          } else if (provider === 'virustotal' || provider === 'abuseipdb' || provider === 'alienvault') {
             // Enrichment Provider
             await api.put(`/integrations/${selectedIntegration.id}`, {
               label: label,
@@ -1103,7 +1109,10 @@ export default function IntegrationPage() {
                      modalType === 'cs' ? 'CrowdStrike' : 
                      modalType === 'aws' ? 'AWS CloudTrail' :
                      modalType === 'm365' ? 'Microsoft 365' :
-                     modalType === 'enrichment' ? (aiProvider === 'virustotal' ? 'VirusTotal' : 'AbuseIPDB') :
+                     modalType === 'enrichment' ? (
+                        aiProvider === 'virustotal' ? 'VirusTotal' : 
+                        aiProvider === 'alienvault' ? 'AlienVault OTX' : 'AbuseIPDB'
+                     ) :
                      PROVIDER_CONFIG[aiProvider]?.name || 'AI Provider'}
                   </h3>
                   <p className="text-xs text-default-400 font-normal">
@@ -1547,17 +1556,22 @@ export default function IntegrationPage() {
                         <Icon.Info className="w-4 h-4 text-blue-400 mt-0.5" />
                         <div className="text-xs text-default-400">
                           <p className="font-medium text-blue-400 mb-1">
-                            {aiProvider === 'virustotal' ? 'VirusTotal API Key' : 'AbuseIPDB API Key'}
+                            {aiProvider === 'virustotal' ? 'VirusTotal API Key' : 
+                             aiProvider === 'alienvault' ? 'AlienVault OTX Key' : 'AbuseIPDB API Key'}
                           </p>
                           <p className="mb-1">
                             {aiProvider === 'virustotal' 
                               ? 'Get your free API key from virustotal.com (4 requests/minute)'
-                              : 'Get your free API key from abuseipdb.com (1000 requests/day)'}
+                              : aiProvider === 'alienvault'
+                                ? 'Get your free API key from otx.alienvault.com'
+                                : 'Get your free API key from abuseipdb.com (1000 requests/day)'}
                           </p>
                           <a 
                             href={aiProvider === 'virustotal' 
                               ? 'https://www.virustotal.com/gui/join-us' 
-                              : 'https://www.abuseipdb.com/pricing'}
+                              : aiProvider === 'alienvault'
+                                ? 'https://otx.alienvault.com/api'
+                                : 'https://www.abuseipdb.com/pricing'}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-blue-400 hover:text-blue-300 underline"
