@@ -347,10 +347,10 @@ export default function AlertsPage() {
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold tracking-tight">
-              {viewMode === 'incidents' ? 'Incidents' : 'Log Viewer'}
+              Detections
             </h1>
             <span className="text-sm text-foreground/60 border-l border-white/10 pl-3">
-              {viewMode === 'incidents' ? 'Active Security Alerts' : 'Raw Event Telemetry'}
+              {viewMode === 'incidents' ? 'Review Active Incidents' : 'Explore Raw Telemetry'}
             </span>
           </div>
           

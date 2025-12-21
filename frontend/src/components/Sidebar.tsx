@@ -42,8 +42,8 @@ export function Sidebar() {
       children: [
         { label: 'Monitor (Dashboard)', path: '/dashboard' },
         { label: 'Builder', path: '/dashboard/builder' }, // [NEW]
-        { label: 'Detect (Rules)', path: '/detection' },
-        { label: 'Triage (Alerts)', path: '/alerts' },
+        { label: 'Rules', path: '/detection' },
+        { label: 'Detections', path: '/alerts' },
         { label: 'Alert Queue', path: '/queue' },         // [NEW]
         { label: 'Investigate (Cases)', path: '/cases' },
         { label: 'Respond (Playbooks)', path: '/playbooks' },
