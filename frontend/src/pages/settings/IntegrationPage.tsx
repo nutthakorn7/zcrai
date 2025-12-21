@@ -286,6 +286,31 @@ export default function IntegrationPage() {
   const [m365ClientId, setM365ClientId] = useState('');
   const [m365ClientSecret, setM365ClientSecret] = useState('');
 
+  // ⭐ Test Connection State
+  const [testingId, setTestingId] = useState<string | null>(null);
+  const [testResult, setTestResult] = useState<Record<string, 'success' | 'error' | null>>({});
+
+  // ⭐ Test Connection Handler
+  const handleTestConnection = async (integrationId: string) => {
+    setTestingId(integrationId);
+    setTestResult(prev => ({ ...prev, [integrationId]: null }));
+    
+    try {
+      await api.post(`/integrations/${integrationId}/test`);
+      setTestResult(prev => ({ ...prev, [integrationId]: 'success' }));
+      // Auto-clear success after 3 seconds
+      setTimeout(() => {
+        setTestResult(prev => ({ ...prev, [integrationId]: null }));
+      }, 3000);
+    } catch (error: any) {
+      setTestResult(prev => ({ ...prev, [integrationId]: 'error' }));
+      alert(`Test Failed: ${error.response?.data?.error || error.message}`);
+    } finally {
+      setTestingId(null);
+      fetchIntegrations(); // Refresh to get updated sync status
+    }
+  };
+
   const fetchIntegrations = async () => {
     try {
       const [legacyRes, cloudRes] = await Promise.all([
@@ -678,11 +703,66 @@ export default function IntegrationPage() {
                     </Chip>
                   </div>
                   
-                  <p className="text-xs text-default-600 mb-4 line-clamp-2 min-h-[32px]">
+                  {/* ⭐ Last Sync Display - Enhanced */}
+                  <div className="flex items-center gap-2 mb-3 px-2 py-1.5 bg-default-100/50 rounded-lg">
+                     <Icon.Clock className={`w-3.5 h-3.5 ${
+                        int.lastSyncAt && new Date(int.lastSyncAt).getTime() < Date.now() - 60 * 60 * 1000 
+                          ? 'text-warning animate-pulse' 
+                          : int.lastSyncAt ? 'text-success' : 'text-default-400'
+                     }`} />
+                     <span className="text-xs text-default-500 font-medium">
+                        {int.lastSyncAt ? (
+                          <>
+                            Last sync: {new Date(int.lastSyncAt).toLocaleString(undefined, { 
+                              month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' 
+                            })}
+                            {new Date(int.lastSyncAt).getTime() < Date.now() - 60 * 60 * 1000 && (
+                              <span className="text-warning ml-1 font-semibold">(Stale)</span>
+                            )}
+                          </>
+                        ) : (
+                          <span className="text-default-400">Waiting for first sync...</span>
+                        )}
+                     </span>
+                  </div>
+
+                  {/* ⭐ API Key Display */}
+                  {int.hasApiKey && (
+                    <div className="flex items-center gap-2 mb-3 px-2 py-1.5 bg-default-100/50 rounded-lg">
+                       <Icon.Key className="w-3.5 h-3.5 text-success" />
+                       <span className="text-xs text-default-500 font-medium">
+                          Key: {int.keyId ? `••••${int.keyId.slice(-4)}` : 'Configured ✓'}
+                       </span>
+                    </div>
+                  )}
+
+                  <p className="text-xs text-default-600 mb-4 line-clamp-2 min-h-[20px]">
                     {config.description}
                   </p>
 
                   <div className="flex gap-2">
+                    {/* ⭐ Test Connection Button */}
+                    <Button 
+                      size="sm" 
+                      variant="flat" 
+                      className={`${
+                        testResult[int.id] === 'success' ? 'bg-success/20 text-success' :
+                        testResult[int.id] === 'error' ? 'bg-danger/20 text-danger' :
+                        'bg-default-100 hover:bg-default-200'
+                      }`}
+                      isIconOnly
+                      isLoading={testingId === int.id}
+                      onPress={() => handleTestConnection(int.id)}
+                      title="Test Connection"
+                    >
+                      {testResult[int.id] === 'success' ? (
+                        <Icon.Check className="w-4 h-4" />
+                      ) : testResult[int.id] === 'error' ? (
+                        <Icon.XCircle className="w-4 h-4" />
+                      ) : (
+                        <Icon.Signal className="w-4 h-4" />
+                      )}
+                    </Button>
                     <Button 
                       size="sm" 
                       variant="flat" 
@@ -905,6 +985,22 @@ export default function IntegrationPage() {
                             content: `${config.iconColor} font-medium` 
                         }}
                      >Active</Chip> 
+                   </div>
+                   
+                   {/* ⭐ API Key Display */}
+                   {int.hasApiKey && (
+                     <div className="flex items-center gap-2 mb-2 px-2 py-1.5 bg-default-100/50 rounded-lg">
+                        <Icon.Key className="w-3.5 h-3.5 text-success" />
+                        <span className="text-xs text-default-500 font-medium">
+                           Key: {int.keyId ? `••••${int.keyId}` : 'Configured ✓'}
+                        </span>
+                     </div>
+                   )}
+                   
+                   {/* ⭐ Ready Status */}
+                   <div className="flex items-center gap-2 mb-3 px-2 py-1.5 bg-default-100/50 rounded-lg">
+                      <Icon.Check className="w-3.5 h-3.5 text-success" />
+                      <span className="text-xs text-default-500 font-medium">Ready for enrichment</span>
                    </div>
                    
                    <p className="text-xs text-default-600 mb-4 line-clamp-2 min-h-[32px]">
