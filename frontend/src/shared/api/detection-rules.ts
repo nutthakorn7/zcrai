@@ -50,5 +50,10 @@ export const DetectionRulesAPI = {
   test: async (query: string) => {
     const response = await api.post('/detection-rules/test', { query });
     return response.data;
+  },
+
+  generateQuery: async (prompt: string) => {
+    const response = await api.post<{success: boolean, data: { sql: string, explanation: string }}>('/ai/query', { prompt });
+    return response.data;
   }
 };

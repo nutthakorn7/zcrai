@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Chip, Button, Switch, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Input, Select, SelectItem, Textarea, Tabs, Tab } from "@heroui/react";
+import { Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Chip, Button, Switch, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Input, Select, SelectItem, Textarea, Tabs, Tab, Popover, PopoverTrigger, PopoverContent, Spinner } from "@heroui/react";
 import { Icon } from '../../shared/ui';
 import { DetectionRulesAPI, DetectionRule } from '../../shared/api/detection-rules';
 import { MitreHeatmap } from '../../components/MitreHeatmap';
@@ -17,6 +17,30 @@ export default function DetectionRulesPage() {
   // Test State
   const [isTesting, setIsTesting] = useState(false);
   const [testResults, setTestResults] = useState<any>(null);
+  
+  // AI Generation State
+  const [isAiGenerating, setIsAiGenerating] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [isAiPopoverOpen, setIsAiPopoverOpen] = useState(false);
+
+  const handleAiGenerate = async () => {
+      if (!aiPrompt) return;
+      setIsAiGenerating(true);
+      try {
+          const res = await DetectionRulesAPI.generateQuery(aiPrompt);
+          if (res.success && res.data.sql) {
+              setEditForm({ ...editForm, query: res.data.sql });
+              setIsAiPopoverOpen(false); // Close popover on success
+          } else {
+              alert('Failed to generate query');
+          }
+      } catch (e) {
+          console.error(e);
+          alert('AI Generation failed');
+      } finally {
+          setIsAiGenerating(false);
+      }
+  };
 
   const handleTest = async () => {
       if (!editForm.query) return;
@@ -247,6 +271,37 @@ export default function DetectionRulesPage() {
                     value={editForm.query} 
                     onValueChange={v => setEditForm({...editForm, query: v})} 
                   />
+                  
+                  <div className="flex justify-end -mt-2 mb-2">
+                       <Popover isOpen={isAiPopoverOpen} onOpenChange={setIsAiPopoverOpen} placement="top">
+                           <PopoverTrigger>
+                               <Button size="sm" variant="flat" color="secondary" startContent={<Icon.Cpu className="w-4 h-4"/>}>
+                                   Generate with AI
+                               </Button>
+                           </PopoverTrigger>
+                           <PopoverContent className="w-[300px] p-4 bg-content1 border border-white/10">
+                               <div className="space-y-2">
+                                   <div className="font-bold text-sm">Describe Detection Logic</div>
+                                   <Textarea 
+                                        placeholder="e.g. Detect 5 failed logins followed by success from same IP within 10 minutes"
+                                        minRows={2}
+                                        value={aiPrompt}
+                                        onValueChange={setAiPrompt}
+                                   />
+                                   <Button 
+                                    size="sm" 
+                                    color="primary" 
+                                    onPress={handleAiGenerate} 
+                                    isLoading={isAiGenerating}
+                                    fullWidth
+                                    isDisabled={!aiPrompt}
+                                   >
+                                       Generate SQL
+                                   </Button>
+                               </div>
+                           </PopoverContent>
+                       </Popover>
+                  </div>
                   
                    {/* MITRE Mapping (New) - Optional, but useful to add later. For now, default seeded rules have it. */}
                    {/* I won't add MITRE input fields yet to keep it simple, or I should? The plan didn't explicitly key it. */}

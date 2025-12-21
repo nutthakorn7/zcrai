@@ -1,0 +1,14 @@
+#!/usr/bin/expect -f
+
+set timeout 600
+set host "zcrAI"
+
+# 1. Sync Backend Code (using rsync via ssh alias)
+# Exclude node_modules, logs, and temp files
+# We use the SSH alias 'zcrAI' as provided by user
+spawn rsync -avz --exclude 'node_modules' --exclude '.git' --exclude 'logs' --exclude 'dist' --exclude '.env' /Users/pop7/Code/zcrAI/backend/api/ $host:/root/zcrAI/backend/api/
+expect eof
+
+# 2. Restart Backend Service
+spawn ssh $host "cd /root/zcrAI/backend/api && npm install && pm2 restart zcrAI-backend"
+expect eof
