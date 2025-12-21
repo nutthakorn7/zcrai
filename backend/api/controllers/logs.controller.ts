@@ -1,10 +1,15 @@
 import { Elysia } from 'elysia'
 import { LogsService } from '../core/services/logs.service'
-import { tenantAdminOnly } from '../middlewares/auth.middleware'
+import { withAuth } from '../middleware/auth'
 import { Errors } from '../middleware/error'
 
 // Helper: Get effective tenantId (supports superadmin impersonation)
 const getEffectiveTenantId = (payload: any, selectedTenant: any): string => {
+  // Guard against undefined user (auth failure)
+  if (!payload) {
+    throw Errors.Unauthorized('Authentication required')
+  }
+  
   if (payload.role === 'superadmin' && selectedTenant?.value) {
     return selectedTenant.value
   }
@@ -15,7 +20,7 @@ const getEffectiveTenantId = (payload: any, selectedTenant: any): string => {
 }
 
 export const logsController = new Elysia({ prefix: '/logs' })
-  .use(tenantAdminOnly)
+  .use(withAuth)
 
   /**
    * Get available filter options for logs

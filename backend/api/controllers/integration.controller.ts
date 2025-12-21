@@ -20,10 +20,7 @@ interface AddAIBody {
 }
 
 export const integrationController = new Elysia({ prefix: '/integrations' })
-  .use(jwt({
-    name: 'jwt',
-    secret: process.env.JWT_SECRET || 'super_secret_dev_key',
-  }))
+  // Note: JWT is configured in withAuth middleware, no need to duplicate here
 
   /**
    * Get active integrations for data collector

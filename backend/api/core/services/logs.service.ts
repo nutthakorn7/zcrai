@@ -80,15 +80,13 @@ export const LogsService = {
     const whereClause = conditions.join(' AND ')
     const orderClause = `${sortBy} ${sortOrder.toUpperCase()}`
 
-    // Query data - เพิ่ม fields ใหม่สำหรับ Integration และ S1 Tenant
+    // Query data - use only columns that exist in the ClickHouse table
     const dataSql = `
       SELECT 
-        id, source, timestamp, severity, event_type, title, description,
+        id, source, timestamp, severity, event_type,
         host_name, host_ip, user_name, mitre_tactic, mitre_technique,
-        process_name, file_name,
-        integration_id, integration_name,
-        host_account_id, host_account_name, host_site_id, host_site_name, host_group_name
-      FROM security_events FINAL
+        process_name, file_name, integration_id
+      FROM security_events
       WHERE ${whereClause}
       ORDER BY ${orderClause}
       LIMIT {limit:UInt32}
@@ -98,7 +96,7 @@ export const LogsService = {
     // Query total count
     const countSql = `
       SELECT count() as total
-      FROM security_events FINAL
+      FROM security_events
       WHERE ${whereClause}
     `
 
@@ -124,7 +122,7 @@ export const LogsService = {
   async getById(tenantId: string, id: string) {
     const sql = `
       SELECT *
-      FROM security_events FINAL
+      FROM security_events
       WHERE tenant_id = {tenantId:String} AND id = {id:String}
       LIMIT 1
     `

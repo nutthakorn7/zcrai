@@ -93,6 +93,11 @@ export const requireRole = (...allowedRoles: Role[]) => {
     .use(authGuard)
     .onBeforeHandle((ctx: any) => {
       const user = ctx.user as JWTPayload
+      // Guard against undefined user (auth failure)
+      if (!user) {
+        ctx.set.status = 401
+        return { error: 'Unauthorized: Authentication required' }
+      }
       const userRole = user.role as Role
       if (!allowedRoles.includes(userRole)) {
         ctx.set.status = 403

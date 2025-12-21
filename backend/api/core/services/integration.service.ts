@@ -509,11 +509,15 @@ export const IntegrationService = {
   async addEnrichment(tenantId: string, provider: string, data: { apiKey: string; label: string }) {
     // Save Encrypted Key (as JSON for consistency)
     const encryptedKey = Encryption.encrypt(JSON.stringify({ apiKey: data.apiKey }))
+    
+    // ⭐ Save last 4 chars for masked display
+    const keyId = data.apiKey.slice(-4)
 
     const [integration] = await db.insert(apiKeys).values({
       tenantId,
       provider,
       encryptedKey,
+      keyId, // ⭐ For masked display like "Key: ••••xxxx"
       label: data.label,
       lastSyncStatus: 'success', // Enrichment providers show as active immediately
     }).returning()

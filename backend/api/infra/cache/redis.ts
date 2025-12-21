@@ -11,7 +11,8 @@ const RedisClient = process.env.NODE_ENV === 'test' && !process.env.CI
 const getRedisConfig = () => {
   const url = process.env.REDIS_URL
   
-  // Workaround for potential URL parsing issue with "redis://:pass@host"
+  /* 
+  // Workaround removed for debugging
   if (url && url.includes(':redis_password@')) {
     return {
       host: '127.0.0.1',
@@ -20,9 +21,11 @@ const getRedisConfig = () => {
       lazyConnect: true 
     }
   }
+  */
   
   const finalUrl = url || 'redis://:redis_password@127.0.0.1:6379'
-  console.log('[DEBUG_REDIS] Config URL:', finalUrl);
+  console.log('[DEBUG_REDIS] Checking REDIS_URL from Env:', url);
+  console.log('[DEBUG_REDIS] Final Config URL:', finalUrl);
   return finalUrl
 }
 
