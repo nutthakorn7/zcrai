@@ -1,8 +1,9 @@
 module.exports = {
   apps: [{
     name: "zcrAI-backend",
-    script: "/usr/bin/bun",
-    args: "run index.ts",
+    script: "index.ts",
+    interpreter: "/usr/bin/bun",
+    interpreterArgs: "run",
     cwd: "/root/zcrAI/backend/api",
     env_file: "/root/zcrAI/backend/api/.env",
     env: {
