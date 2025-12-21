@@ -47,7 +47,7 @@ export function Sidebar() {
 
         { label: 'Investigate (Cases)', path: '/cases' },
         { label: 'Respond (Playbooks)', path: '/playbooks' },
-        { label: 'Approvals', path: '/approvals' },       // [NEW]
+
         { label: 'Reports', path: '/reports' },           // [NEW]
       ],
     },

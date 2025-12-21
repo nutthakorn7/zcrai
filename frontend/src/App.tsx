@@ -23,8 +23,7 @@ const ObservablesPage = lazy(() => import("./pages/observables/ObservablesPage")
 const ThreatIntelPage = lazy(() => import("./pages/ThreatIntelPage"));
 const PlaybooksPage = lazy(() => import("./pages/playbooks/PlaybooksPage"));
 const ReportsPage = lazy(() => import("./pages/reports/ReportsPage"));
-const ActionsPage = lazy(() => import('./pages/approvals'));
-const ApprovalsPage = lazy(() => import("./pages/approvals")); // Added
+
 const AdminDashboard = lazy(() => import("./pages/admin"));
 
 // Settings Pages
@@ -202,14 +201,7 @@ function App() {
 
 
 
-            <Route 
-              path="/approvals" 
-              element={
-                <ProtectedRoute>
-                  <ApprovalsPage />
-                </ProtectedRoute>
-              } 
-            />
+
 
             <Route 
               path="/cases" 
@@ -304,11 +296,7 @@ function App() {
               <Route path="parsers" element={<ParsersPage />} />
               <Route path="edr-actions" element={<EDRActionsPage />} />
               <Route path="system" element={<SystemPage />} />
-              <Route path="approvals" element={
-                <Suspense fallback={<LoadingState />}>
-                  <ActionsPage />
-                </Suspense>
-              } />
+
               <Route path="threat-intel" element={
                 <Suspense fallback={<LoadingState />}>
                   <ThreatIntelPage />
