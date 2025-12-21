@@ -27,6 +27,7 @@ import { AnomalyDashboardCard } from '../../components/AnomalyDashboardCard';
 
 
 import { MyTasksWidget } from './widgets/MyTasksWidget';
+import { TopStatsWidget } from './widgets/TopStatsWidget';
 
 // Import logos
 import sentineloneLogo from '../../assets/logo/sentinelone.png';
@@ -875,93 +876,10 @@ export default function DashboardPage() {
           </CardBody>
         </Card>
 
-        {/* Top Hosts */}
-        <Card className="bg-content1/50 border border-white/5 h-[450px]">
-          <CardHeader className="flex gap-3 px-5 pt-5">
-            <div className="p-2 rounded-lg bg-secondary/10">
-              <Icon.Server className="w-5 h-5 text-secondary" />
-            </div>
-            <div className="flex flex-col">
-              <p className="text-md font-bold text-foreground">Top Hosts</p>
-              <p className="text-small text-default-500">Most targeted endpoints</p>
-            </div>
-          </CardHeader>
-          <CardBody className="px-5 pb-5">
-            <div className="space-y-2 overflow-y-auto scrollbar-thin h-full pr-2">
-              {topHosts.map((host, i) => (
-                <div 
-                  key={i} 
-                  className="flex items-center justify-between p-3 rounded-xl bg-content2/30 hover:bg-content2 transition-all cursor-pointer group border border-transparent hover:border-white/5"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-content3 flex items-center justify-center text-xs font-bold text-foreground/70">
-                      {i + 1}
-                    </div>
-                    <div>
-                      <span className="text-sm font-medium text-foreground block truncate max-w-[120px]">{host.host_name}</span>
-                      <span className="text-[10px] text-default-400 font-mono">{host.count} Alerts</span>
-                    </div>
-                  </div>
-                  {parseInt(host.critical) > 0 && (
-                     <Chip size="sm" color="danger" variant="flat" className="h-6">
-                        {host.critical} Crit
-                     </Chip>
-                  )}
-                </div>
-              ))}
-              {topHosts.length === 0 && (
-                <div className="flex flex-col items-center justify-center h-full text-default-400 gap-2">
-                  <Icon.Server className="w-8 h-8 opacity-20" />
-                  <p className="text-xs">No host data available</p>
-                </div>
-              )}
-            </div>
-          </CardBody>
-        </Card>
-
-        {/* Top Users */}
-        <Card className="bg-content1/50 border border-white/5 h-[450px]">
-          <CardHeader className="flex gap-3 px-5 pt-5">
-            <div className="p-2 rounded-lg bg-warning/10">
-              <Icon.Users className="w-5 h-5 text-warning" />
-            </div>
-            <div className="flex flex-col">
-              <p className="text-md font-bold text-foreground">Top Users</p>
-              <p className="text-small text-default-500">Most targeted identities</p>
-            </div>
-          </CardHeader>
-          <CardBody className="px-5 pb-5">
-             <div className="space-y-2 overflow-y-auto scrollbar-thin h-full pr-2">
-              {topUsers.map((u, i) => (
-                <div 
-                  key={i} 
-                  className="flex items-center justify-between p-3 rounded-xl bg-content2/30 hover:bg-content2 transition-all cursor-pointer group border border-transparent hover:border-white/5"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-content3 flex items-center justify-center text-xs font-bold text-foreground/70">
-                      {i + 1}
-                    </div>
-                    <div>
-                      <span className="text-sm font-medium text-foreground block truncate max-w-[120px]">{u.user_name}</span>
-                      <span className="text-[10px] text-default-400 font-mono">{u.count} Alerts</span>
-                    </div>
-                  </div>
-                  {parseInt(u.critical) > 0 && (
-                     <Chip size="sm" color="danger" variant="flat" className="h-6">
-                        {u.critical} Crit
-                     </Chip>
-                  )}
-                </div>
-              ))}
-              {topUsers.length === 0 && (
-                <div className="flex flex-col items-center justify-center h-full text-default-400 gap-2">
-                   <Icon.Users className="w-8 h-8 opacity-20" />
-                   <p className="text-xs">No user data available</p>
-                </div>
-              )}
-            </div>
-          </CardBody>
-        </Card>
+        {/* Top Stats (Hosts/Users/Threats) */}
+        <div className="lg:col-span-1 h-[550px]">
+             <TopStatsWidget topHosts={topHosts} topUsers={topUsers} />
+        </div>
       </div>
 
       {/* Integrations & Sites */}
