@@ -25,7 +25,8 @@ export default function CaseDetailPage() {
   const [newComment, setNewComment] = useState('');
 
   // AI State
-  const [aiSummary, setAiSummary] = useState('');
+  // AI State
+  const [aiResult, setAiResult] = useState<{ summary: string, verdict: string, confidence: number, evidence_analysis: string } | null>(null);
   const [aiSuggestion, setAiSuggestion] = useState<any>(null);
   const [aiLoading, setAiLoading] = useState(false);
 
@@ -51,7 +52,7 @@ export default function CaseDetailPage() {
         CasesAPI.summarize(caseItem.id),
         CasesAPI.suggestPlaybook(caseItem.id)
       ]);
-      setAiSummary(sumRes.data.summary);
+      setAiResult(sumRes.data);
       setAiSuggestion(sugRes.data);
     } catch (e) {
       console.error('AI Error:', e);
@@ -355,7 +356,7 @@ export default function CaseDetailPage() {
                         <Icon.Cpu className="w-5 h-5 text-secondary animate-pulse" />
                         <h3 className="font-bold text-secondary">AI Investigator</h3>
                     </div>
-                     {!aiSummary && (
+                     {!aiResult && (
                         <Button 
                             size="sm" 
                             color="secondary" 
@@ -376,12 +377,42 @@ export default function CaseDetailPage() {
                     </div>
                 )}
 
-                {aiSummary && (
-                    <div className="prose prose-invert prose-sm max-w-none max-h-96 overflow-y-auto">
-                         <Markdown remarkPlugins={[remarkGfm]}>{aiSummary}</Markdown>
-                         <div className="mt-4 flex justify-end">
+                {aiResult && (
+                    <div className="flex flex-col gap-4">
+                        {/* Verdict Badge */}
+                        <div className="flex justify-between items-center p-3 rounded-lg border border-white/10 bg-white/5">
+                            <div>
+                                <div className="text-xs text-gray-400">Verdict</div>
+                                <div className={`font-bold ${
+                                    aiResult.verdict?.toLowerCase().includes('true') ? 'text-danger' : 
+                                    aiResult.verdict?.toLowerCase().includes('false') ? 'text-success' : 'text-warning'
+                                }`}>
+                                    {aiResult.verdict}
+                                </div>
+                            </div>
+                            <div className="text-right">
+                                <div className="text-xs text-gray-400">Confidence</div>
+                                <div className="font-bold">{aiResult.confidence}%</div>
+                            </div>
+                        </div>
+
+                        {/* Summary */}
+                        <div className="prose prose-invert prose-sm max-w-none max-h-60 overflow-y-auto">
+                             <h4 className="text-sm font-semibold text-gray-300 m-0 mb-2">Executive Summary</h4>
+                             <Markdown remarkPlugins={[remarkGfm]}>{aiResult.summary}</Markdown>
+                        </div>
+
+                         {/* Evidence Analysis */}
+                        {aiResult.evidence_analysis && (
+                            <div className="prose prose-invert prose-sm max-w-none max-h-60 overflow-y-auto border-t border-white/10 pt-2">
+                                <h4 className="text-sm font-semibold text-gray-300 m-0 mb-2">Evidence Analysis</h4>
+                                <Markdown remarkPlugins={[remarkGfm]}>{aiResult.evidence_analysis}</Markdown>
+                            </div>
+                        )}
+
+                        <div className="mt-2 flex justify-end">
                              <Button size="sm" variant="light" color="secondary" onPress={handleGenerateAI} isLoading={aiLoading} startContent={<Icon.Refresh className="w-3 h-3"/>}>Re-analyze</Button>
-                         </div>
+                        </div>
                     </div>
                 )}
 
@@ -414,7 +445,7 @@ export default function CaseDetailPage() {
                     </div>
                 )}
 
-                {!aiSummary && !aiLoading && (
+                {!aiResult && !aiLoading && (
                     <p className="text-xs text-secondary/70">
                         Generates a comprehensive summary, including timeline analysis, severity assessment, and recommended remediation steps.
                     </p>

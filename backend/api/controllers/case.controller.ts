@@ -106,8 +106,8 @@ export const caseController = new Elysia({ prefix: '/cases' })
     const caseDetail = await CaseService.getById(user.tenantId, id);
     if (!caseDetail) throw Errors.NotFound('Case');
     
-    const summary = await AIService.summarizeCase(caseDetail);
-    return { success: true, data: { summary } };
+    const summaryData = await AIService.summarizeCase(caseDetail);
+    return { success: true, data: summaryData };
   })
 
   /**

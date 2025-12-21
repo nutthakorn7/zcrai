@@ -58,7 +58,7 @@ export const CasesAPI = {
   },
 
   summarize: async (id: string) => {
-    const res = await api.post<{ success: boolean; data: { summary: string } }>(`/cases/${id}/ai/summarize`);
+    const res = await api.post<{ success: boolean; data: { summary: string; verdict: string; confidence: number; evidence_analysis: string } }>(`/cases/${id}/ai/summarize`);
     return res.data;
   },
 

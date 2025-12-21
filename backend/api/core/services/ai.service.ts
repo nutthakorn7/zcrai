@@ -23,12 +23,12 @@ export class AIService {
         }
     }
 
-    static async summarizeCase(caseData: any): Promise<string> {
+    static async summarizeCase(caseData: any): Promise<{ summary: string, verdict: string, confidence: number, evidence_analysis: string }> {
         if (!this.provider) this.initialize();
 
         const prompt = `
-You are a Cyber Security Analyst AI (zcrAI).
-Analyze the following Security Incident Case and provide a concise summary, key findings, and recommended actions.
+You are a designated Tier-3 SOC Analyst AI (zcrAI).
+Analyze the following Security Incident Case to determine if it is a True Positive or False Positive.
 
 **Case Details**:
 - Title: ${caseData.title}
@@ -39,10 +39,35 @@ Analyze the following Security Incident Case and provide a concise summary, key 
 **Alerts**:
 ${caseData.alerts?.map((a: any) => `- [${a.severity}] ${a.title}: ${a.description}`).join('\n') || "No correlated alerts."}
 
-**Format**: Markdown.
-**Tone**: Professional, Urgent if high severity.
+**Instructions**:
+1. Analyze the indicators (IPs, domains, hashes) and behavior.
+2. Determine a **Verdict**: "True Positive", "False Positive", or "Suspicious" (if unsure).
+3. Assign a **Confidence Score** (0-100).
+4. Provide a **Summary** of the incident.
+5. Provide a detailed **Evidence Analysis** (bullet points).
+
+**Output Format**:
+Return valid JSON only.
+{
+  "summary": "Markdown summary...",
+  "verdict": "True Positive" | "False Positive" | "Suspicious",
+  "confidence": number,
+  "evidence_analysis": "Markdown analysis..."
+}
 `;
-        return this.provider.generateText(prompt);
+        const text = await this.provider.generateText(prompt);
+        try {
+            const jsonStr = text.replace(/```json\n?|\n?```/g, '').trim();
+            return JSON.parse(jsonStr);
+        } catch (e) {
+            console.error("Failed to parse AI Summary JSON", text);
+            return { 
+                summary: text, 
+                verdict: "Suspicious", 
+                confidence: 0, 
+                evidence_analysis: "Failed to parse structured analysis." 
+            };
+        }
     }
 
     static async suggestPlaybook(caseData: any, playbooks: any[]): Promise<AIPlaybookSuggestion> {
