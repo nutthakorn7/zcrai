@@ -104,6 +104,8 @@ export default function AlertsPage() {
   // Filter State
   const [selectedProvider, setSelectedProvider] = useState<string>('all');
   const [availableProviders, setAvailableProviders] = useState<string[]>([]);
+  const [queueFilter, setQueueFilter] = useState<'all' | 'unassigned' | 'my_queue'>('unassigned'); // Default to Unassigned for Triage
+
   
   // Promotion State
   const [promotingId, setPromotingId] = useState<string | null>(null);
@@ -113,7 +115,7 @@ export default function AlertsPage() {
 
   useEffect(() => {
     loadData();
-  }, [startDate, endDate, selectedProvider, viewMode]);
+  }, [startDate, endDate, selectedProvider, viewMode, queueFilter]);
 
   const loadData = async () => {
     setLoading(true);
@@ -135,10 +137,14 @@ export default function AlertsPage() {
       }
 
       if (viewMode === 'incidents') {
-        const [alertsRes, statsRes] = await Promise.all([
-          api.get(`/alerts?startDate=${start}&endDate=${end}${sourcesParam}`),
-          api.get(`/alerts/stats/summary`)
-        ]);
+          let statusParam = '';
+          if (queueFilter === 'unassigned') statusParam = '&status=new';
+          if (queueFilter === 'my_queue') statusParam = '&status=investigating';
+
+          const [alertsRes, statsRes] = await Promise.all([
+            api.get(`/alerts?startDate=${start}&endDate=${end}${sourcesParam}${statusParam}`),
+            api.get(`/alerts/stats/summary`)
+          ]);
         
         setAlerts(alertsRes.data.data || []);
         setSummary(statsRes.data.data);
@@ -384,6 +390,31 @@ export default function AlertsPage() {
               </div>
             }/>
           </Tabs>
+
+          {viewMode === 'incidents' && (
+            <div className="flex bg-content1 rounded-lg p-1 border border-white/5 ml-4 h-8 items-center">
+                <button
+                    onClick={() => setQueueFilter('unassigned')}
+                    className={`px-3 h-6 flex items-center rounded-md text-[10px] font-bold uppercase tracking-wider transition-all ${queueFilter === 'unassigned' ? 'bg-primary/20 text-primary' : 'text-foreground/40 hover:text-foreground'}`}
+                >
+                    Queue
+                </button>
+                <div className="w-px h-3 bg-white/10 mx-1" />
+                 <button
+                    onClick={() => setQueueFilter('my_queue')}
+                     className={`px-3 h-6 flex items-center rounded-md text-[10px] font-bold uppercase tracking-wider transition-all ${queueFilter === 'my_queue' ? 'bg-warning/20 text-warning' : 'text-foreground/40 hover:text-foreground'}`}
+                >
+                    In Progress
+                </button>
+                <div className="w-px h-3 bg-white/10 mx-1" />
+                <button
+                    onClick={() => setQueueFilter('all')}
+                    className={`px-3 h-6 flex items-center rounded-md text-[10px] font-bold uppercase tracking-wider transition-all ${queueFilter === 'all' ? 'bg-content2 text-foreground' : 'text-foreground/40 hover:text-foreground'}`}
+                >
+                    All
+                </button>
+            </div>
+          )}
         </div>
         
         <div className="flex items-center gap-3">

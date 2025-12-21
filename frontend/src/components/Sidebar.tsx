@@ -44,7 +44,7 @@ export function Sidebar() {
         { label: 'Builder', path: '/dashboard/builder' }, // [NEW]
         { label: 'Rules', path: '/rules' },
         { label: 'Detections', path: '/detections' },
-        { label: 'Alert Queue', path: '/queue' },         // [NEW]
+
         { label: 'Investigate (Cases)', path: '/cases' },
         { label: 'Respond (Playbooks)', path: '/playbooks' },
         { label: 'Approvals', path: '/approvals' },       // [NEW]
