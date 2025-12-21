@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react';
 import { 
   Button, Card, CardBody, Input, Chip, 
-  Textarea, Select, SelectItem, Tabs, Tab
+  Textarea, Select, SelectItem, Tabs, Tab,
+  Modal, ModalContent, ModalHeader, ModalBody, ModalFooter,
+  Spinner, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell
 } from "@heroui/react";
 import { Icon } from '../../shared/ui';
-import { Playbook, PlaybookStep, PlaybooksAPI, Action } from '../../shared/api/playbooks';
+import { Playbook, PlaybookStep, PlaybooksAPI, Action, PlaybookExecution } from '../../shared/api/playbooks';
+import { CasesAPI } from '../../shared/api/cases';
 
 interface PlaybookEditorProps {
     playbook: Playbook;
@@ -19,6 +22,16 @@ export default function PlaybookEditor({ playbook, onClose, onUpdate, onDelete }
     const [isSaving, setIsSaving] = useState(false);
     const [availableActions, setAvailableActions] = useState<Action[]>([]);
     
+    // Test Run State
+    const [isTestRunOpen, setIsTestRunOpen] = useState(false);
+    const [testCases, setTestCases] = useState<any[]>([]);
+    const [selectedCaseId, setSelectedCaseId] = useState('');
+    const [isRunning, setIsRunning] = useState(false);
+
+    // Run History State
+    const [executions, setExecutions] = useState<PlaybookExecution[]>([]);
+    const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+
     // Step Form State
     const [newStepName, setNewStepName] = useState('');
     const [newStepType, setNewStepType] = useState<'manual' | 'automation'>('manual');
@@ -97,6 +110,53 @@ export default function PlaybookEditor({ playbook, onClose, onUpdate, onDelete }
         setLocalPlaybook({ ...localPlaybook, steps: newSteps });
     };
 
+    // Test Run Logic
+    const openTestRun = async () => {
+        try {
+            setIsTestRunOpen(true);
+            const cases = await CasesAPI.list({ status: 'open' }); // Fetch open cases
+            setTestCases(cases.slice(0, 10)); // Limit to recent 10
+        } catch (e) {
+            console.error("Failed to fetch cases for test run", e);
+        }
+    };
+
+    const handleTestRun = async () => {
+        if (!selectedCaseId) return;
+        setIsRunning(true);
+        try {
+            await PlaybooksAPI.run(selectedCaseId, localPlaybook.id);
+            alert('Playbook execution started!');
+            setIsTestRunOpen(false);
+            // Switch to history tab to show it running? 
+            setActiveTab('runs');
+            loadHistory();
+        } catch (e) {
+            console.error(e);
+            alert('Failed to start playbook run');
+        } finally {
+            setIsRunning(false);
+        }
+    };
+
+    const loadHistory = async () => {
+        setIsLoadingHistory(true);
+        try {
+            const data = await PlaybooksAPI.listExecutionsByPlaybook(localPlaybook.id);
+            setExecutions(data);
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setIsLoadingHistory(false);
+        }
+    };
+
+    useEffect(() => {
+        if (activeTab === 'runs') {
+            loadHistory();
+        }
+    }, [activeTab]);
+
     return (
         <div className="flex-1 flex flex-col min-w-0">
              {/* Header */}
@@ -118,6 +178,7 @@ export default function PlaybookEditor({ playbook, onClose, onUpdate, onDelete }
                     </div>
                 </div>
                 <div className="flex gap-2">
+                    <Button size="sm" variant="flat" startContent={<Icon.Terminal className="w-4 h-4"/>} onPress={openTestRun}>Test Run</Button>
                     <Button size="sm" variant="flat" startContent={<Icon.Download className="w-4 h-4"/>}>Export</Button>
                     <Button 
                         size="sm" 
@@ -259,15 +320,50 @@ export default function PlaybookEditor({ playbook, onClose, onUpdate, onDelete }
                     )}
                     
                     {activeTab === 'runs' && (
-                            <div className="max-w-4xl mx-auto">
+                        <div className="max-w-4xl mx-auto space-y-4">
+                            {isLoadingHistory ? (
+                                <div className="flex justify-center p-8"><Spinner /></div>
+                            ) : executions.length === 0 ? (
                                 <Card className="bg-content1/50 border border-white/5">
                                     <CardBody className="p-6 text-center text-foreground/60">
-                                    <Icon.Clock className="w-8 h-8 mx-auto mb-2 opacity-50"/>
-                                    <p>Run history verification is currently supported only within a Case context.</p>
-                                    <p className="text-xs mt-2">To view executions, go to a Case and run a playbook.</p>
+                                        <Icon.Clock className="w-8 h-8 mx-auto mb-2 opacity-50"/>
+                                        <p>No execution history found for this playbook.</p>
+                                        <p className="text-xs mt-2">Click "Test Run" to execute it against a case.</p>
                                     </CardBody>
                                 </Card>
-                            </div>
+                            ) : (
+                                <div className="space-y-4">
+                                     <Table aria-label="Execution History">
+                                        <TableHeader>
+                                            <TableColumn>STATUS</TableColumn>
+                                            <TableColumn>STARTED</TableColumn>
+                                            <TableColumn>CASE STATUS</TableColumn>
+                                            <TableColumn>DURATION</TableColumn>
+                                        </TableHeader>
+                                        <TableBody items={executions}>
+                                            {(run) => (
+                                                <TableRow key={run.id}>
+                                                    <TableCell>
+                                                        <Chip size="sm" color={run.status === 'completed' ? 'success' : run.status === 'failed' ? 'danger' : 'warning'} variant="flat">
+                                                            {run.status}
+                                                        </Chip>
+                                                    </TableCell>
+                                                    <TableCell>{new Date(run.startedAt).toLocaleString()}</TableCell>
+                                                    <TableCell>
+                                                        {run.completedAt ? 'Completed' : 'Running'}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        {run.completedAt ? 
+                                                            `${Math.round((new Date(run.completedAt).getTime() - new Date(run.startedAt).getTime()) / 1000)}s` 
+                                                            : '-'}
+                                                    </TableCell>
+                                                </TableRow>
+                                            )}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                            )}
+                        </div>
                     )}
 
                     {activeTab === 'settings' && (
@@ -305,6 +401,40 @@ export default function PlaybookEditor({ playbook, onClose, onUpdate, onDelete }
                     )}
                 </div>
             </div>
+        {/* Test Run Modal */}
+        <Modal isOpen={isTestRunOpen} onClose={() => setIsTestRunOpen(false)}>
+            <ModalContent>
+                {(onClose) => (
+                    <>
+                        <ModalHeader>Test Run Playbook</ModalHeader>
+                        <ModalBody>
+                             <p className="text-sm text-foreground/60 mb-4">Select a case to run this playbook against. The actions will be executed in the context of the selected case.</p>
+                             <Select 
+                                label="Select Case" 
+                                placeholder="Choose a case..." 
+                                selectedKeys={selectedCaseId ? [selectedCaseId] : []}
+                                onChange={(e) => setSelectedCaseId(e.target.value)}
+                            >
+                                {testCases.map(c => (
+                                    <SelectItem key={c.id} textValue={c.title}>
+                                        <div className="flex flex-col">
+                                            <span className="text-small">{c.title}</span>
+                                            <span className="text-tiny text-default-500">{c.id.slice(0,8)} • {c.severity}</span>
+                                        </div>
+                                    </SelectItem>
+                                ))}
+                            </Select>
+                        </ModalBody>
+                        <ModalFooter>
+                             <Button variant="light" onPress={onClose}>Cancel</Button>
+                             <Button color="primary" onPress={handleTestRun} isLoading={isRunning} isDisabled={!selectedCaseId}>
+                                 Run Playbook
+                             </Button>
+                        </ModalFooter>
+                    </>
+                )}
+            </ModalContent>
+        </Modal>
         </div>
     );
 }

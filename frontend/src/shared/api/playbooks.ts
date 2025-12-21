@@ -92,6 +92,11 @@ export const PlaybooksAPI = {
     return res.data.data || [];
   },
 
+  listExecutionsByPlaybook: async (playbookId: string) => {
+    const res = await api.get<{success: boolean, data: PlaybookExecution[]}>(`/playbooks/executions?playbookId=${playbookId}`);
+    return res.data.data || [];
+  },
+
   updateStepStatus: async (executionId: string, stepId: string, status: string, result?: any) => {
     const res = await api.put<{success: boolean, data: any}>(`/playbooks/executions/${executionId}/steps/${stepId}`, { status, result });
     return res.data.data;
