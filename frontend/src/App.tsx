@@ -187,13 +187,15 @@ function App() {
               } 
             />
             <Route 
-              path="/alerts" 
+              path="/detections" 
               element={
                 <ProtectedRoute>
                   <AlertsPage />
                 </ProtectedRoute>
               } 
             />
+            {/* Redirect old alerts path */}
+            <Route path="/alerts" element={<Navigate to="/detections" replace />} />
 
             <Route 
               path="/queue" 
@@ -249,13 +251,15 @@ function App() {
             />
 
             <Route 
-              path="/detection" 
+              path="/rules" 
               element={
                 <ProtectedRoute>
                   <DetectionRulesPage />
                 </ProtectedRoute>
               } 
             />
+            {/* Redirect old detection path */}
+            <Route path="/detection" element={<Navigate to="/rules" replace />} />
             <Route 
               path="/playbooks" 
               element={

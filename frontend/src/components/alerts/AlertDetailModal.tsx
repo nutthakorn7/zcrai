@@ -78,7 +78,7 @@ export function AlertDetailModal({ alert, isOpen, onClose }: AlertDetailModalPro
 
   const handleViewRelatedAlert = (alertId: string) => {
     // Navigate to the related alert (you can enhance this later)
-    window.location.href = `/alerts?id=${alertId}`;
+    window.location.href = `/detections?id=${alertId}`;
   };
 
   if (!alert) return null;

@@ -92,19 +92,19 @@ export default function DashboardPage() {
 
   const handleTimelineClick = (data: any) => {
     if (data && data.activeLabel) {
-      navigate(`/alerts?date=${data.activeLabel}`);
+      navigate(`/detections?date=${data.activeLabel}`);
     }
   };
 
   const handlePieClick = (data: any) => {
     if (data && data.name) {
-      navigate(`/alerts?source=${data.name.toLowerCase()}`);
+      navigate(`/detections?source=${data.name.toLowerCase()}`);
     }
   };
 
   const handleSummaryClick = (sev: string) => {
-      if (sev === 'total') return navigate('/alerts');
-      navigate(`/alerts?severity=${sev.toLowerCase()}`);
+      if (sev === 'total') return navigate('/detections');
+      navigate(`/detections?severity=${sev.toLowerCase()}`);
   };
 
   useEffect(() => {
