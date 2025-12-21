@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { api } from "../../shared/api/api";
 import { CasesAPI } from "../../shared/api/cases";
 import { DateRangePicker } from "../../components/DateRangePicker";
+import { AlertDetailDrawer } from '../../components/alerts/AlertDetailDrawer';
 import { Icon } from '../../shared/ui';
 import sentineloneLogo from '../../assets/logo/sentinelone.png';
 import crowdstrikeLogo from '../../assets/logo/crowdstrike.png';
@@ -45,7 +46,10 @@ const VendorLogo = ({ source }: { source: string }) => {
   );
 };
 
-interface Alert {
+
+
+// Unified Alert Interface (Combines API Alert and Log Entry)
+interface PageAlert {
   id: string;
   title: string;
   severity: string;
@@ -84,7 +88,7 @@ export default function AlertsPage() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'incidents' | 'logs'>('incidents');
-  const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [alerts, setAlerts] = useState<PageAlert[]>([]);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [startDate, setStartDate] = useState(() => {
     const d = new Date();
@@ -103,6 +107,9 @@ export default function AlertsPage() {
   
   // Promotion State
   const [promotingId, setPromotingId] = useState<string | null>(null);
+
+  // Drawer State
+  const [selectedAlert, setSelectedAlert] = useState<PageAlert | null>(null);
 
   useEffect(() => {
     loadData();
@@ -153,7 +160,7 @@ export default function AlertsPage() {
     }
   };
 
-  const handlePromote = async (alert: Alert) => {
+  const handlePromote = async (alert: PageAlert) => {
     if (promotingId) return;
     setPromotingId(alert.id);
     try {
@@ -183,7 +190,7 @@ export default function AlertsPage() {
     }
   };
 
-  const renderCell = (alert: Alert, columnKey: string) => {
+  const renderCell = (alert: PageAlert, columnKey: string) => {
     switch (columnKey) {
       case "time":
         const ts = alert.createdAt || alert.timestamp;
@@ -477,6 +484,14 @@ export default function AlertsPage() {
         <section>
           <Table 
             aria-label="Alerts table"
+            selectionMode="single"
+            onSelectionChange={(keys) => {
+                const id = Array.from(keys)[0] as string;
+                if (id) {
+                    const alert = alerts.find(a => a.id === id);
+                    if (alert) setSelectedAlert(alert);
+                }
+            }}
             classNames={{
               wrapper: "bg-transparent shadow-none border border-white/5 rounded-lg",
               th: "bg-transparent text-[10px] font-bold text-foreground/60 uppercase tracking-widest border-b border-white/5",
@@ -504,6 +519,16 @@ export default function AlertsPage() {
             </TableBody>
           </Table>
         </section>
+        <AlertDetailDrawer 
+            alert={selectedAlert as any} 
+            isOpen={!!selectedAlert} 
+            onClose={() => setSelectedAlert(null)} 
+            onPromote={(alert) => handlePromote(alert as any)}
+            onDismiss={(alert) => {
+                console.log("Dismiss", alert.id);
+                // Todo: Implement API call
+            }}
+        />
       </div>
     </div>
   );
