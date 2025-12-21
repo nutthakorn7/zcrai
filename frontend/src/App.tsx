@@ -16,7 +16,7 @@ const DashboardPage = lazy(() => import("./pages/dashboard"));
 const DashboardBuilder = lazy(() => import("./components/dashboard/DashboardBuilder"));
 const LogViewerPage = lazy(() => import("./pages/log-viewer"));
 const AlertsPage = lazy(() => import("./pages/alerts"));
-const AlertQueuePage = lazy(() => import("./pages/alerts/AlertQueuePage"));
+
 const CaseBoardPage = lazy(() => import("./pages/cases"));
 const CaseDetailPage = lazy(() => import("./pages/cases/CaseDetailPage"));
 const ObservablesPage = lazy(() => import("./pages/observables/ObservablesPage"));
@@ -197,14 +197,10 @@ function App() {
             {/* Redirect old alerts path */}
             <Route path="/alerts" element={<Navigate to="/detections" replace />} />
 
-            <Route 
-              path="/queue" 
-              element={
-                <ProtectedRoute>
-                  <AlertQueuePage />
-                </ProtectedRoute>
-              } 
-            />
+            {/* Redirect old queue path */}
+            <Route path="/queue" element={<Navigate to="/detections?status=new" replace />} />
+
+
 
             <Route 
               path="/approvals" 
