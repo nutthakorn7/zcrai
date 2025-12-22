@@ -11,6 +11,7 @@ export class RateLimitService {
         'gemini': { capacity: 15, refillRate: 15 / 60 }, // 15 RPM (Free tier is often 15 RPM, Pay-as-you-go is 60+)
         'virustotal': { capacity: 4, refillRate: 4 / 60 }, // 4 RPM (Public API limit)
         'abuseipdb': { capacity: 10, refillRate: 10 / 60 }, // 10 RPM (Free tier)
+        'alienvault': { capacity: 100, refillRate: 100 / 60 }, // OTX is generous but let's be safe
         'default': { capacity: 60, refillRate: 1 } // 1 TPS
     };
 

@@ -22,9 +22,11 @@ const alienVaultProvider = new AlienVaultOTXProvider();
 // --- Tool Implementations ---
 const checkThreatIntel = async (ip: string) => {
     const results: any[] = [];
+    const { RateLimitService } = await import('./rate-limit.service');
     
     try {
         console.log(`[Agent] 🔍 VirusTotal: ${ip}`);
+        await RateLimitService.consume('virustotal', 1);
         const vtResult = await virusTotalProvider.enrichIP(ip);
         results.push({
             source: 'VirusTotal',
@@ -40,6 +42,7 @@ const checkThreatIntel = async (ip: string) => {
     
     try {
         console.log(`[Agent] 🛡️ AbuseIPDB: ${ip}`);
+        await RateLimitService.consume('abuseipdb', 1);
         const abuseResult = await abuseIPDBProvider.checkIP(ip);
         results.push({
             source: 'AbuseIPDB',
@@ -54,6 +57,7 @@ const checkThreatIntel = async (ip: string) => {
     
     try {
         console.log(`[Agent] 👽 AlienVault OTX: ${ip}`);
+        await RateLimitService.consume('alienvault', 1);
         const otxResult = await alienVaultProvider.checkIP(ip);
         results.push({
             source: 'AlienVault OTX',
