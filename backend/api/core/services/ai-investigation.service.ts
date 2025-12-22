@@ -3,45 +3,152 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { db } from '../../infra/db';
 import { alerts } from '../../infra/db/schema';
 import { eq } from 'drizzle-orm';
+import { VirusTotalProvider } from '../enrichment-providers/virustotal';
+import { AbuseIPDBProvider } from '../enrichment-providers/abuseipdb';
+import { AlienVaultOTXProvider } from '../enrichment-providers/alienvault-otx';
+import { clickhouse } from '../../infra/clickhouse/client';
 
 const apiKey = process.env.GEMINI_API_KEY;
 const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
 
-// --- Mock Tools ---
-const mockVirusTotal = async (ip: string) => {
-    // Simulate API call
-    await new Promise(r => setTimeout(r, 800));
+// --- Real Tool: Threat Intelligence Providers ---
+const virusTotalProvider = new VirusTotalProvider();
+const abuseIPDBProvider = new AbuseIPDBProvider();
+const alienVaultProvider = new AlienVaultOTXProvider();
+
+const checkThreatIntel = async (ip: string) => {
+    const results: any[] = [];
+    
+    // VirusTotal
+    try {
+        console.log(`[AIInvestigation] 🔍 Calling VirusTotal API for ${ip}...`);
+        const vtResult = await virusTotalProvider.enrichIP(ip);
+        results.push({
+            source: 'VirusTotal',
+            entity: ip,
+            reputation: vtResult.reputation || 0,
+            detectionRatio: vtResult.detectionRatio || '0/0',
+            malicious: vtResult.malicious || false,
+            country: vtResult.country || 'Unknown'
+        });
+    } catch (error: any) {
+        console.warn(`[AIInvestigation] VirusTotal failed: ${error.message}`);
+    }
+    
+    // AbuseIPDB
+    try {
+        console.log(`[AIInvestigation] 🛡️ Calling AbuseIPDB for ${ip}...`);
+        const abuseResult = await abuseIPDBProvider.checkIP(ip);
+        results.push({
+            source: 'AbuseIPDB',
+            entity: ip,
+            abuseConfidenceScore: abuseResult.abuseConfidenceScore || 0,
+            totalReports: abuseResult.totalReports || 0,
+            isWhitelisted: abuseResult.isWhitelisted || false,
+            countryCode: abuseResult.countryCode || 'Unknown'
+        });
+    } catch (error: any) {
+        console.warn(`[AIInvestigation] AbuseIPDB failed: ${error.message}`);
+    }
+    
+    // AlienVault OTX
+    try {
+        console.log(`[AIInvestigation] 👽 Calling AlienVault OTX for ${ip}...`);
+        const otxResult = await alienVaultProvider.checkIP(ip);
+        results.push({
+            source: 'AlienVault OTX',
+            entity: ip,
+            pulseCount: otxResult.pulseCount || 0,
+            tags: otxResult.tags || [],
+            malicious: (otxResult.pulseCount || 0) > 0
+        });
+    } catch (error: any) {
+        console.warn(`[AIInvestigation] AlienVault OTX failed: ${error.message}`);
+    }
+    
     return {
-        source: 'VirusTotal',
+        source: 'Threat Intelligence (Combined)',
         entity: ip,
-        reputation: 'Malicious',
-        score: '85/100',
-        tags: ['botnet', 'c2-server', 'brute-force']
+        providers: results,
+        summary: `Checked ${results.length}/3 threat intel sources`
     };
 };
 
-const mockLogQuery = async (query: string) => {
-    await new Promise(r => setTimeout(r, 1200));
-    return {
-        source: 'SIEM Logs',
-        query: query,
-        hits: 52,
-        samples: [
-            { timestamp: '2023-10-27T10:00:01Z', event: 'Failed Login', user: 'admin' },
-            { timestamp: '2023-10-27T10:00:05Z', event: 'Failed Login', user: 'admin' }
-        ],
-        summary: 'High volume of failed login attempts detected in short window.'
-    };
+// --- Real Tool: ClickHouse Log Query ---
+const queryLogs = async (ip: string, hours: number = 24) => {
+    try {
+        console.log(`[AIInvestigation] 📊 Querying ClickHouse for IP ${ip}...`);
+        
+        const query = `
+            SELECT 
+                timestamp,
+                event_type,
+                source_ip,
+                dest_ip,
+                user_name,
+                host_name,
+                process_name,
+                result
+            FROM events
+            WHERE (source_ip = '${ip}' OR dest_ip = '${ip}')
+            AND timestamp >= now() - INTERVAL ${hours} HOUR
+            ORDER BY timestamp DESC
+            LIMIT 50
+        `;
+        
+        const result = await clickhouse.query({ query });
+        const rows = await result.json();
+        
+        if (!rows || rows.data?.length === 0) {
+            return {
+                source: 'ClickHouse SIEM',
+                query: `Events for IP ${ip}`,
+                hits: 0,
+                samples: [],
+                summary: 'No recent logs found for this IP in the past 24 hours.'
+            };
+        }
+        
+        const data = rows.data || [];
+        return {
+            source: 'ClickHouse SIEM',
+            query: `Events for IP ${ip}`,
+            hits: data.length,
+            samples: data.slice(0, 5).map((row: any) => ({
+                timestamp: row.timestamp,
+                event: row.event_type || 'Unknown Event',
+                user: row.user_name || 'N/A',
+                host: row.host_name || 'N/A',
+                result: row.result || 'N/A'
+            })),
+            summary: `Found ${data.length} events in the past ${hours} hours.`
+        };
+    } catch (error: any) {
+        console.warn(`[AIInvestigation] ClickHouse query failed: ${error.message}. Using fallback.`);
+        // Fallback to mock data
+        return {
+            source: 'SIEM Logs (Fallback)',
+            query: `Events for IP ${ip}`,
+            hits: 12,
+            samples: [
+                { timestamp: new Date().toISOString(), event: 'Failed Login', user: 'admin' },
+                { timestamp: new Date().toISOString(), event: 'Failed Login', user: 'admin' }
+            ],
+            summary: 'ClickHouse unavailable, using sample data.'
+        };
+    }
 };
 
+// --- Mock Tool: User Lookup (Keep for now) ---
 const mockUserLookup = async (username: string) => {
     await new Promise(r => setTimeout(r, 600));
     return {
-        source: 'Active Directory',
+        source: 'Active Directory (Mock)',
         username: username,
         department: 'IT Operations',
         adminPrivileges: true,
-        lastPasswordReset: '90 days ago'
+        lastPasswordReset: '90 days ago',
+        note: 'Mock data - AD/LDAP integration pending'
     };
 };
 
@@ -62,17 +169,17 @@ export class AIInvestigationService {
                              alert.rawData?.host_ip;
             
             if (targetIP) {
-                console.log(`[AIInvestigationService] Checking Reputation for ${targetIP}...`);
-                toolPromises.push(mockVirusTotal(targetIP).then(res => collectedEvidence.push(res)));
+                console.log(`[AIInvestigationService] Running Threat Intel lookups for ${targetIP}...`);
+                toolPromises.push(checkThreatIntel(targetIP).then((res: any) => collectedEvidence.push(res)));
                 console.log(`[AIInvestigationService] Querying Logs for ${targetIP}...`);
-                toolPromises.push(mockLogQuery(`source_ip=${targetIP}`).then(res => collectedEvidence.push(res)));
+                toolPromises.push(queryLogs(targetIP).then((res: any) => collectedEvidence.push(res)));
             }
 
             // Check for User
             const targetUser = alert.rawData?.user_name || alert.rawData?.user;
             if (targetUser) {
                 console.log(`[AIInvestigationService] Looking up User ${targetUser}...`);
-                toolPromises.push(mockUserLookup(targetUser).then(res => collectedEvidence.push(res)));
+                toolPromises.push(mockUserLookup(targetUser).then((res: any) => collectedEvidence.push(res)));
             }
 
             // Wait for all tools
