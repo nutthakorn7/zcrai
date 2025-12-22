@@ -85,6 +85,10 @@ export class AITriageService {
         let analysis;
         
         try {
+            // Apply Rate Limiting
+            const { RateLimitService } = await import('./rate-limit.service');
+            await RateLimitService.consume('gemini', 1);
+
             const { GeminiService } = await import('../ai/gemini.provider');
             
             // Define Schema

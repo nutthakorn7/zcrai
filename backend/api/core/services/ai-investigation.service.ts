@@ -196,7 +196,7 @@ export class AIInvestigationService {
         const steps: { step: number; tool: string; result: any }[] = [];
 
         try {
-            if (!genAI) {
+            if (!process.env.GEMINI_API_KEY) {
                 console.warn('[AIAgent] Gemini Not Configured - Using Single-Pass Mode');
                 // Fallback: Run threat intel if IP exists
                 const ip = alert.observables?.find((o: any) => o.type === 'ip')?.value || 
@@ -209,7 +209,11 @@ export class AIInvestigationService {
                 return;
             }
 
-            const model = genAI.getGenerativeModel({ 
+            // Apply Rate Limiting for Gemini (Free tier ~15 RPM)
+            const { RateLimitService } = await import('./rate-limit.service');
+            await RateLimitService.consume('gemini', 1);
+
+            const model = genAI!.getGenerativeModel({ 
                 model: "gemini-1.5-flash"
             });
 
