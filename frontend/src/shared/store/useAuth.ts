@@ -72,8 +72,10 @@ export const useAuth = create<AuthState>((set) => ({
   checkAuth: async () => {
     set({ isLoading: true });
     try {
-      const { data } = await api.get<User>('/auth/me');
-      set({ user: data, isAuthenticated: true });
+      const { data } = await api.get<any>('/auth/me');
+      if (data.user) {
+        set({ user: data.user, isAuthenticated: true });
+      }
     } catch {
       set({ user: null, isAuthenticated: false });
     } finally {

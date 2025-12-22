@@ -26,7 +26,13 @@ const AdminContext = createContext<AdminContextType | undefined>(undefined)
 
 export function AdminProvider({ children, userRole }: { children: ReactNode; userRole: string }) {
   const [tenants, setTenants] = useState<Tenant[]>([])
-  const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null)
+  // Initialize from localStorage to persist across reloads
+  const [selectedTenantId, setSelectedTenantId] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('admin_selected_tenant_id')
+    }
+    return null
+  })
   const [loading, setLoading] = useState(false)
 
   const isSuperAdmin = userRole === 'superadmin'
@@ -55,6 +61,7 @@ export function AdminProvider({ children, userRole }: { children: ReactNode; use
     try {
       await api.post(`/admin/impersonate/${tenantId}`)
       setSelectedTenantId(tenantId)
+      localStorage.setItem('admin_selected_tenant_id', tenantId)
       // Reload page to refresh data
       window.location.reload()
     } catch (e) {
@@ -66,6 +73,7 @@ export function AdminProvider({ children, userRole }: { children: ReactNode; use
     try {
       await api.post('/admin/impersonate/clear')
       setSelectedTenantId(null)
+      localStorage.removeItem('admin_selected_tenant_id')
       window.location.reload()
     } catch (e) {
       console.error('Failed to clear selection:', e)
