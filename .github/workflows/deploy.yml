@@ -52,6 +52,7 @@ jobs:
           FRONTEND_URL=https://app.zcr.ai
           SUPERADMIN_EMAIL=superadmin@zcr.ai
           SUPERADMIN_PASSWORD=${{ secrets.SUPERADMIN_PASSWORD }}
+          GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
           BYPASS_AUTH=false
           EOF"
 
