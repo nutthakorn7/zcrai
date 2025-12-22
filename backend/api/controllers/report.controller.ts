@@ -11,8 +11,20 @@ export const reportController = new Elysia({ prefix: '/reports' })
    * @access Protected - Requires authentication
    * @returns {Object} List of report schedules
    */
-  .get('/schedules', async (ctx: any) => {
-      return await ReportSchedulerService.listSchedules(ctx.user.tenantId);
+  .get('/schedules', async ({ jwt, cookie: { access_token }, set }) => {
+      // Manual Auth Check (Fixing middleware context issue)
+      if (!access_token?.value) {
+          set.status = 401
+          throw new Error('Unauthorized')
+      }
+      const payload = await jwt.verify(access_token.value as string)
+      if (!payload) {
+          set.status = 401
+          throw new Error('Invalid token')
+      }
+      const user = payload as any
+      
+      return await ReportSchedulerService.listSchedules(user.tenantId);
   })
 
   /**

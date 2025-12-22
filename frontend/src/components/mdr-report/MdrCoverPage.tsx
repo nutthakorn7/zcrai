@@ -5,13 +5,15 @@ interface MdrCoverPageProps {
   tenantName: string
   monthYear: string
   dateRange: { start: string; end: string }
+  companyLogo?: string
+  customerLogo?: string
 }
 
 /**
  * Cover Page - First page of the MDR Report
  * Matches the Monster Connect branding with Lime Green accent
  */
-export function MdrCoverPage({ tenantName, monthYear, dateRange }: MdrCoverPageProps) {
+export function MdrCoverPage({ tenantName, monthYear, dateRange, companyLogo, customerLogo }: MdrCoverPageProps) {
   // Format month name in Thai
   const formatMonthYear = (my: string) => {
     const [year, month] = my.split('-')
@@ -42,20 +44,32 @@ export function MdrCoverPage({ tenantName, monthYear, dateRange }: MdrCoverPageP
       
       {/* Content */}
       <div className="relative z-10 h-full flex flex-col">
-        {/* Top: Logo */}
+        {/* Top: Logos */}
         <div className="flex justify-between items-start p-8">
+          {/* Left: Company (Provider) Logo */}
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-lime-500 rounded-lg flex items-center justify-center">
-              <span className="text-2xl text-white font-bold">MC</span>
-            </div>
+             {companyLogo ? (
+                <img src={companyLogo} alt="Company Logo" className="h-12 w-auto object-contain" />
+             ) : (
+                <div className="w-12 h-12 bg-lime-500 rounded-lg flex items-center justify-center">
+                  <span className="text-2xl text-white font-bold">MC</span>
+                </div>
+             )}
             <div>
               <p className="font-bold text-lime-600">MONSTER CONNECT</p>
               <p className="text-xs text-gray-500">Managed Security Services</p>
             </div>
           </div>
-          <div className="text-right text-sm text-gray-500">
-            <p>MDR Monthly Report</p>
-            <p>Confidential</p>
+
+          {/* Right: Customer Logo or Report Info */}
+          <div className="text-right">
+            {customerLogo && (
+                <img src={customerLogo} alt="Customer Logo" className="h-16 w-auto object-contain mb-2 ml-auto" />
+            )}
+            <div className="text-sm text-gray-500">
+                <p>MDR Monthly Report</p>
+                <p>Confidential</p>
+            </div>
           </div>
         </div>
         

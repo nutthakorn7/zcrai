@@ -6,7 +6,6 @@ import { mockMdrReportData, MOCK_REPORT_ID } from '../../mocks/mdr-report.mock'
 // Import MDR Report Components
 import {
   MdrCoverPage,
-  MdrAttentionPage,
   MdrTableOfContents,
   MdrOverviewSection,
   MdrIncidentDetailSection,
@@ -139,55 +138,130 @@ export default function MdrReportPrintPage() {
   
   return (
     <div 
-      className="mdr-report-print bg-white"
+      className="mdr-print-container print:bg-white bg-gray-100 min-h-screen"
       data-report-ready="true"
     >
-      {/* Cover Page */}
+      {/* Page 1: Cover */}
       <MdrCoverPage 
         tenantName={data.tenantName}
         monthYear={data.monthYear}
         dateRange={data.dateRange}
+        // companyLogo="/logo/provider.png" // Example: Add logic to fetch real logo if available
+        // customerLogo="/logo/customer.png" 
       />
       
-      {/* Attention / Confidentiality Notice */}
-      <MdrAttentionPage />
+      {/* Page 2: Table of Contents & Overview */}
+      <div className="mdr-page relative flex flex-col min-h-[1123px] bg-white text-gray-900">
+          {/* Header */}
+          <div className="absolute top-8 right-8 text-right">
+             <div className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Confidential</div>
+             <div className="text-[10px] text-gray-300">MDR Monthly Report</div>
+          </div>
+
+          <div className="p-16 pt-20 flex-1">
+            <MdrTableOfContents />
+            
+            <div className="mt-12">
+               <h2 className="text-2xl font-bold text-gray-800 mb-6 border-b-2 border-lime-500 inline-block pb-2">
+                 1. Executive Overview
+               </h2>
+               <MdrOverviewSection 
+                  overview={data.overview}
+                  topEndpoints={data.topEndpoints}
+                  topThreats={data.topThreats}
+                />
+            </div>
+          </div>
+          
+           {/* Footer */}
+           <div className="absolute bottom-8 left-0 w-full text-center">
+             <div className="border-t border-gray-100 mx-16 pt-3">
+                <p className="text-[10px] text-gray-400">Monster Connect | Managed Security Services</p>
+             </div>
+           </div>
+      </div>
       
-      {/* Table of Contents */}
-      <MdrTableOfContents />
+      {/* Page 3: Incident Detail */}
+      <div className="mdr-page relative flex flex-col min-h-[1123px] bg-white text-gray-900">
+          {/* Header */}
+          <div className="absolute top-8 right-8 text-right">
+             <div className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Confidential</div>
+          </div>
+
+          <div className="p-16 pt-20 flex-1">
+            <h2 className="text-2xl font-bold text-gray-800 mb-6 border-b-2 border-lime-500 inline-block pb-2">
+                 2. Incident Details
+            </h2>
+            <MdrIncidentDetailSection 
+              incidents={data.incidents}
+              recommendation={data.incidentRecommendation}
+            />
+          </div>
+
+           {/* Footer */}
+           <div className="absolute bottom-8 left-0 w-full text-center">
+             <div className="border-t border-gray-100 mx-16 pt-3">
+                <p className="text-[10px] text-gray-400">Monster Connect | Managed Security Services</p>
+             </div>
+           </div>
+      </div>
       
-      {/* Section 1: Overview Incident Report */}
-      <MdrOverviewSection 
-        overview={data.overview}
-        topEndpoints={data.topEndpoints}
-        topThreats={data.topThreats}
-      />
+      {/* Page 4: Risk Assessment & Vulnerability */}
+      <div className="mdr-page relative flex flex-col min-h-[1123px] bg-white text-gray-900">
+          {/* Header */}
+          <div className="absolute top-8 right-8 text-right">
+             <div className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Confidential</div>
+          </div>
+
+          <div className="p-16 pt-20 flex-1 space-y-12">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-800 mb-6 border-b-2 border-lime-500 inline-block pb-2">
+                  3. Risk Assessment
+              </h2>
+              <MdrRiskAssessmentSection 
+                result={data.riskAssessment.result}
+                recommendation={data.riskAssessment.recommendation}
+              />
+            </div>
+
+            <div>
+              <h2 className="text-2xl font-bold text-gray-800 mb-6 border-b-2 border-lime-500 inline-block pb-2">
+                  4. Vulnerability Application
+              </h2>
+              <MdrVulnerabilitySection 
+                appsByVulnerabilities={data.vulnerabilities.appsByVulnerabilities}
+                endpointsByVulnerabilities={data.vulnerabilities.endpointsByVulnerabilities}
+                recommendation={data.vulnerabilities.recommendation}
+              />
+            </div>
+          </div>
+
+           {/* Footer */}
+           <div className="absolute bottom-8 left-0 w-full text-center">
+             <div className="border-t border-gray-100 mx-16 pt-3">
+                <p className="text-[10px] text-gray-400">Monster Connect | Managed Security Services</p>
+             </div>
+           </div>
+      </div>
       
-      {/* Section 2: Incident Detail */}
-      <MdrIncidentDetailSection 
-        incidents={data.incidents}
-        recommendation={data.incidentRecommendation}
-      />
-      
-      {/* Section 3: Risk Assessment */}
-      <MdrRiskAssessmentSection 
-        result={data.riskAssessment.result}
-        recommendation={data.riskAssessment.recommendation}
-      />
-      
-      {/* Section 4: Vulnerability Application */}
-      <MdrVulnerabilitySection 
-        appsByVulnerabilities={data.vulnerabilities.appsByVulnerabilities}
-        endpointsByVulnerabilities={data.vulnerabilities.endpointsByVulnerabilities}
-        recommendation={data.vulnerabilities.recommendation}
-      />
-      
-      {/* Section 5: Appendix */}
-      <MdrAppendixSection 
-        glossary={data.glossary}
-      />
-      
-      {/* Contact Us */}
-      <MdrContactPage />
+      {/* Page 5: Appendix */}
+      <div className="mdr-page relative flex flex-col min-h-[1123px] bg-white text-gray-900">
+          <div className="p-16 pt-20 flex-1">
+             <MdrAppendixSection 
+                glossary={data.glossary}
+              />
+              <div className="mt-12">
+                 <MdrContactPage />
+              </div>
+          </div>
+          
+           {/* Footer */}
+           <div className="absolute bottom-8 left-0 w-full text-center">
+             <div className="border-t border-gray-100 mx-16 pt-3">
+                <p className="text-[10px] text-gray-400">Monster Connect | Managed Security Services</p>
+             </div>
+           </div>
+      </div>
     </div>
   )
 }

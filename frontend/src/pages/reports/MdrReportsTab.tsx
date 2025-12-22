@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import {
   Card, CardBody, CardHeader, Button, Chip, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell,
-  Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure, Input, Textarea, Spinner
+  Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure, Input, Textarea, Spinner,
+  Select, SelectItem, Selection
 } from "@heroui/react"
 import { Icon } from '../../shared/ui/icon'
 import { api } from '../../shared/api/api'
@@ -51,6 +52,13 @@ const STATUS_COLORS: Record<string, 'default' | 'primary' | 'secondary' | 'succe
   error: 'danger'
 }
 
+const MOCK_SITES = [
+  { key: "Headquarters", label: "Headquarters" },
+  { key: "Branch A", label: "Branch A" },
+  { key: "CloudNet", label: "CloudNet" },
+  { key: "DataCenter", label: "DataCenter" }
+]
+
 export function MdrReportsTab() {
   const [loading, setLoading] = useState(true)
   const [reports, setReports] = useState<MdrReport[]>([])
@@ -60,11 +68,26 @@ export function MdrReportsTab() {
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
   })
   
+  // Site Selection
+  const [selectedSites, setSelectedSites] = useState<Selection>(new Set([]))
+  const [sites, setSites] = useState<{key: string, label: string}[]>([])
+  
   // Edit Modal State
   const { isOpen: isEditOpen, onOpen: onEditOpen, onClose: onEditClose } = useDisclosure()
   const [editingReport, setEditingReport] = useState<MdrReport | null>(null)
   const [editData, setEditData] = useState<MdrReportData | null>(null)
   const [saving, setSaving] = useState(false)
+
+  const fetchSites = async () => {
+      try {
+          const res = await api.get('/mdr-reports/sites')
+          if (res.data?.success) {
+              setSites(res.data.data.map((s: string) => ({ key: s, label: s })))
+          }
+      } catch (err) {
+          console.error("Failed to fetch sites", err)
+      }
+  }
 
   const fetchReports = async () => {
     try {
@@ -82,20 +105,43 @@ export function MdrReportsTab() {
 
   useEffect(() => {
     fetchReports()
+    fetchSites()
   }, [])
 
   const handleGenerate = async () => {
     try {
       setGenerating(true)
-      const res = await api.post('/mdr-reports/generate', { monthYear })
-      if (res.data?.success) {
-        fetchReports()
-      }
-    } catch (err) {
+      // Convert Set to Array
+      const siteNames = Array.from(selectedSites).map(String)
+      
+      const res = await api.post('/mdr-reports/generate', { 
+         monthYear,
+         siteNames: siteNames.length > 0 ? siteNames : undefined
+      })
+      setReports([res.data.data, ...reports])
+      alert('Report generated successfully!')
+    } catch (err: any) {
       console.error('Failed to generate report', err)
-      alert('Failed to generate report')
+      if (err.response?.data?.error === 'Failed to generate report' && err.message?.includes('AI_NOT_CONNECTED')) {
+          alert('Connect AI before use this function')
+      } else if (err.response?.data?.error?.includes('AI_NOT_CONNECTED')) {
+          alert('Connect AI before use this function')
+      } else {
+           alert(err.response?.data?.error === 'AI_NOT_CONNECTED' ? 'Connect AI before use this function' : 'Failed to generate report')
+      }
     } finally {
       setGenerating(false)
+    }
+  }
+
+  const handleDelete = async (reportId: string) => {
+    if (!confirm('Are you sure you want to delete this draft? This cannot be undone.')) return
+    try {
+        await api.delete(`/mdr-reports/${reportId}`)
+        fetchReports()
+    } catch (err) {
+        console.error('Failed to delete report', err)
+        alert('Failed to delete report')
     }
   }
 
@@ -120,9 +166,18 @@ export function MdrReportsTab() {
       await api.put(`/mdr-reports/${editingReport.id}/snapshot`, { data: editData })
       onEditClose()
       fetchReports()
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to save report', err)
-      alert('Failed to save report')
+      if (err.response?.data?.error === 'Failed to generate report' && err.message?.includes('AI_NOT_CONNECTED')) {
+          // This might be tricky depending on how Elysia returns errors.
+          // Usually response.data.error contains the message.
+          alert('Connect AI before use this function')
+      } else if (err.response?.data?.error?.includes('AI_NOT_CONNECTED')) {
+          alert('Connect AI before use this function')
+      } else {
+          // Check for message text directly if wrapper isn't standard
+           alert(err.response?.data?.error === 'AI_NOT_CONNECTED' ? 'Connect AI before use this function' : 'Failed to save report')
+      }
     } finally {
       setSaving(false)
     }
@@ -160,12 +215,16 @@ export function MdrReportsTab() {
   }
 
   const formatMonthYear = (my: string) => {
-    const [year, month] = my.split('-')
+    if (!my) return 'Unknown Date'
+    const parts = my.split('-')
+    if (parts.length < 2) return my
+    const [year, month] = parts
     const monthNames = [
       'January', 'February', 'March', 'April', 'May', 'June',
       'July', 'August', 'September', 'October', 'November', 'December'
     ]
-    return `${monthNames[parseInt(month) - 1]} ${year}`
+    const mIndex = parseInt(month) - 1
+    return `${monthNames[mIndex] || month} ${year}`
   }
 
   return (
@@ -178,6 +237,21 @@ export function MdrReportsTab() {
             <p className="text-sm text-default-500">Create a new monthly security report</p>
           </div>
           <div className="flex gap-3 items-center">
+            <Select
+                label="Select Sites"
+                selectionMode="multiple"
+                placeholder="All Sites"
+                selectedKeys={selectedSites}
+                onSelectionChange={setSelectedSites}
+                className="min-w-[200px]"
+                size="sm"
+                items={sites}
+            >
+                {(site) => (
+                    <SelectItem key={site.key}>{site.label}</SelectItem>
+                )}
+            </Select>
+
             <MonthPicker
               value={monthYear}
               onChange={setMonthYear}
@@ -225,7 +299,7 @@ export function MdrReportsTab() {
                         color={STATUS_COLORS[report.status] || 'default'}
                         variant="flat"
                       >
-                        {report.status.toUpperCase()}
+                        {report.status ? report.status.toUpperCase() : 'UNKNOWN'}
                       </Chip>
                     </TableCell>
                     <TableCell>
@@ -250,30 +324,39 @@ export function MdrReportsTab() {
                         </Button>
 
                         {/* Edit (only for drafts) */}
-                        {report.status === 'draft' && (
-                          <Button
+                        <Button
                             size="sm"
                             variant="flat"
-                            color="secondary"
+                            color="warning"
                             onPress={() => handleEdit(report)}
+                            isDisabled={report.status === 'approved'}
                             startContent={<Icon.Edit className="w-4 h-4" />}
-                          >
+                        >
                             Edit
-                          </Button>
-                        )}
+                        </Button>
 
                         {/* Approve (only for drafts) */}
-                        {report.status === 'draft' && (
-                          <Button
+                        <Button
                             size="sm"
                             color="success"
                             variant="flat"
                             onPress={() => handleApprove(report.id)}
+                            isDisabled={report.status === 'approved'}
                             startContent={<Icon.CheckCircle className="w-4 h-4" />}
-                          >
+                        >
                             Approve
-                          </Button>
-                        )}
+                        </Button>
+
+                        {/* Delete (always enabled for drafts, maybe check status) */}
+                        <Button 
+                            isIconOnly 
+                            size="sm" 
+                            variant="flat" 
+                            color="danger" 
+                            onPress={() => handleDelete(report.id)}
+                        >
+                            <Icon.Delete className="w-4 h-4" />
+                        </Button>
 
                         {/* Download (only for approved/sent) */}
                         {(report.status === 'approved' || report.status === 'sent') && report.pdfUrl && (

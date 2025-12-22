@@ -717,14 +717,6 @@ export const IntegrationService = {
     const aiKeys = keys.filter(k => providers.includes(k.provider.toLowerCase()))
     
     if (aiKeys.length === 0) {
-      // Fallback to System Environment Variables (for Self-Hosted Single Tenant)
-      if (process.env.GEMINI_API_KEY) {
-        return {
-          provider: 'gemini',
-          apiKey: process.env.GEMINI_API_KEY,
-          model: 'gemini-2.0-flash'
-        }
-      }
       return null
     }
 

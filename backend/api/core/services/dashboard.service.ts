@@ -35,6 +35,10 @@ export const DashboardService = {
     // ถ้าไม่มี active integration ให้ return empty result
     if (isEmptySources(sources)) return { ...emptyCount }
     
+    // Sanitize dates to YYYY-MM-DD to avoid ClickHouse type mismatch
+    const sanitizedStart = startDate.split('T')[0]
+    const sanitizedEnd = endDate.split('T')[0]
+    
     const sourceFilter = (sources && sources.length > 0) ? `AND source IN {sources:Array(String)}` : ''
     const sql = `
       SELECT 
@@ -48,7 +52,12 @@ export const DashboardService = {
       GROUP BY severity
       ORDER BY severity
     `
-    const rows = await query<{ severity: string; count: string }>(sql, { tenantId, startDate, endDate, sources })
+    const rows = await query<{ severity: string; count: string }>(sql, { 
+      tenantId, 
+      startDate: sanitizedStart, 
+      endDate: sanitizedEnd, 
+      sources 
+    })
     
     // แปลงเป็น object
     const result: Record<string, number> = {
@@ -74,6 +83,10 @@ export const DashboardService = {
   async getTimeline(tenantId: string, startDate: string, endDate: string, interval: 'hour' | 'day' = 'day', sources?: string[]) {
     // ถ้าไม่มี active integration ให้ return empty array
     if (isEmptySources(sources)) return []
+
+    // Sanitize dates
+    const sanitizedStart = startDate.split('T')[0]
+    const sanitizedEnd = endDate.split('T')[0]
     
     const dateFunc = interval === 'hour' ? 'toStartOfHour' : 'toDate'
     const sourceFilter = (sources && sources.length > 0) ? `AND source IN {sources:Array(String)}` : ''
@@ -103,7 +116,7 @@ export const DashboardService = {
       high: string
       medium: string
       low: string
-    }>(sql, { tenantId, startDate, endDate, sources })
+    }>(sql, { tenantId, startDate: sanitizedStart, endDate: sanitizedEnd, sources })
   },
 
   // ==================== TOP HOSTS ====================
@@ -126,12 +139,15 @@ export const DashboardService = {
       ORDER BY count DESC
       LIMIT {limit:UInt32}
     `
+    const sanitizedStart = startDate.split('T')[0]
+    const sanitizedEnd = endDate.split('T')[0]
+
     return await query<{
       host_name: string
       count: string
       critical: string
       high: string
-    }>(sql, { tenantId, startDate, endDate, limit, sources })
+    }>(sql, { tenantId, startDate: sanitizedStart, endDate: sanitizedEnd, limit, sources })
   },
 
   // ==================== TOP USERS ====================
@@ -154,12 +170,15 @@ export const DashboardService = {
       ORDER BY count DESC
       LIMIT {limit:UInt32}
     `
+    const sanitizedStart = startDate.split('T')[0]
+    const sanitizedEnd = endDate.split('T')[0]
+
     return await query<{
       user_name: string
       count: string
       critical: string
       high: string
-    }>(sql, { tenantId, startDate, endDate, limit, sources })
+    }>(sql, { tenantId, startDate: sanitizedStart, endDate: sanitizedEnd, limit, sources })
   },
 
   // ==================== MITRE HEATMAP ====================
@@ -190,30 +209,40 @@ export const DashboardService = {
     // MODE: DETECTION (Query Logs from ClickHouse)
     if (isEmptySources(sources)) return []
     const sourceFilter = (sources && sources.length > 0) ? `AND source IN {sources:Array(String)}` : ''
-    const sqlQuery = `
+    
+    // Sanitize dates
+    const sanitizedStart = startDate.split('T')[0]
+    const sanitizedEnd = endDate.split('T')[0]
+
+    const querySql = `
       SELECT 
         mitre_tactic,
         mitre_technique,
-        count() as count
+        toString(count()) as count
       FROM security_events
       WHERE tenant_id = {tenantId:String}
         AND toDate(timestamp) >= {startDate:String}
         AND toDate(timestamp) <= {endDate:String}
+        AND mitre_tactic != ''
         ${sourceFilter}
       GROUP BY mitre_tactic, mitre_technique
-      ORDER BY count DESC
     `
     return await query<{
       mitre_tactic: string
       mitre_technique: string
       count: string
-    }>(sqlQuery, { tenantId, startDate, endDate, sources })
+    }>(querySql, { tenantId, startDate: sanitizedStart, endDate: sanitizedEnd, sources })
   },
 
   // ==================== SOURCES BREAKDOWN ====================
   async getSourcesBreakdown(tenantId: string, startDate: string, endDate: string, sources?: string[]) {
     if (isEmptySources(sources)) return []
     const sourceFilter = (sources && sources.length > 0) ? `AND source IN {sources:Array(String)}` : ''
+    
+    // Sanitize dates
+    const sanitizedStart = startDate.split('T')[0]
+    const sanitizedEnd = endDate.split('T')[0]
+
     const sql = `
       SELECT 
         source,
@@ -226,13 +255,18 @@ export const DashboardService = {
       GROUP BY source
       ORDER BY count DESC
     `
-    return await query<{ source: string; count: string }>(sql, { tenantId, startDate, endDate, sources })
+    return await query<{ source: string; count: string }>(sql, { tenantId, startDate: sanitizedStart, endDate: sanitizedEnd, sources })
   },
 
   // ==================== INTEGRATION BREAKDOWN ====================
   async getIntegrationBreakdown(tenantId: string, startDate: string, endDate: string, sources?: string[]) {
     if (isEmptySources(sources)) return []
     const sourceFilter = (sources && sources.length > 0) ? `AND source IN {sources:Array(String)}` : ''
+    
+    // Sanitize dates
+    const sanitizedStart = startDate.split('T')[0]
+    const sanitizedEnd = endDate.split('T')[0]
+
     const sql = `
       SELECT 
         COALESCE(NULLIF(integration_id, ''), source) as integration_id,
@@ -256,7 +290,7 @@ export const DashboardService = {
       count: string
       critical: string
       high: string
-    }>(sql, { tenantId, startDate, endDate, sources })
+    }>(sql, { tenantId, startDate: sanitizedStart, endDate: sanitizedEnd, sources })
   },
 
   // ==================== SITE BREAKDOWN (All Sources) ====================
@@ -266,6 +300,10 @@ export const DashboardService = {
     
     const sourceFilter = (sources && sources.length > 0) ? `AND source IN {sources:Array(String)}` : ''
     
+    // Sanitize dates
+    const sanitizedStart = startDate.split('T')[0]
+    const sanitizedEnd = endDate.split('T')[0]
+
     // รองรับทั้ง SentinelOne (host_site_name) และ CrowdStrike (host_site_name = MSSP site name)
     const sql = `
       SELECT 

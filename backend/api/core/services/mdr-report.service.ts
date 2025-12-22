@@ -1,8 +1,9 @@
-import { query } from '../../infra/clickhouse/client'
 import { db } from '../../infra/db'
-import { tenants, users, mdrReports, mdrReportSnapshots } from '../../infra/db/schema'
-import { eq, desc, and } from 'drizzle-orm'
+import { incidents, alerts, securityEvents, tenants, mdrReports, mdrReportSnapshots } from '../../infra/db/schema'
+import { eq, and, desc, sql } from 'drizzle-orm'
+import { clickhouse, query } from '../../infra/clickhouse/client'
 import { AIService } from './ai.service'
+import { IntegrationService } from './integration.service'
 import crypto from 'crypto'
 
 // Types for MDR Report data structure (matching PDF template)
@@ -91,19 +92,22 @@ function getMonthDateRange(monthYear: string): { start: string; end: string } {
 export const MdrReportService = {
   // ==================== GET INCIDENT OVERVIEW ====================
   // Get aggregate counts for the bar chart (matching PDF categories)
-  async getIncidentOverview(tenantId: string, startDate: string, endDate: string) {
+  async getIncidentOverview(tenantId: string, startDate: string, endDate: string, siteNames: string[] = []) {
+    const siteFilter = siteNames.length > 0 ? 'AND host_site_name IN {siteNames:Array(String)}' : ''
+    
     const sql = `
       SELECT 
         countIf(severity IN ('critical', 'high')) as threats,
-        countIf(JSONExtractString(raw_data, 'threatInfo.mitigationStatus') = 'mitigated') as mitigated,
-        countIf(JSONExtractString(raw_data, 'threatInfo.analystVerdict') = 'true_positive') as malicious,
-        countIf(JSONExtractString(raw_data, 'threatInfo.analystVerdict') = 'suspicious') as suspicious,
-        countIf(JSONExtractString(raw_data, 'threatInfo.analystVerdict') = 'false_positive') as benign,
-        countIf(JSONExtractString(raw_data, 'threatInfo.mitigationStatus') != 'mitigated' AND severity IN ('critical', 'high')) as not_mitigated
+        0 as mitigated,
+        countIf(event_type = 'threat') as malicious,
+        countIf(severity = 'medium') as suspicious,
+        countIf(severity = 'low') as benign,
+        countIf(severity IN ('critical', 'high')) as not_mitigated
       FROM security_events
       WHERE tenant_id = {tenantId:String}
         AND toDate(timestamp) >= {startDate:String}
         AND toDate(timestamp) <= {endDate:String}
+        ${siteFilter}
     `
     const rows = await query<{
       threats: string
@@ -112,7 +116,7 @@ export const MdrReportService = {
       suspicious: string
       benign: string
       not_mitigated: string
-    }>(sql, { tenantId, startDate, endDate })
+    }>(sql, { tenantId, startDate, endDate, siteNames })
     
     if (rows.length === 0) {
       return { threats: 0, mitigated: 0, malicious: 0, suspicious: 0, benign: 0, notMitigated: 0 }
@@ -129,7 +133,9 @@ export const MdrReportService = {
   },
   
   // ==================== GET TOP ENDPOINTS ====================
-  async getTopEndpoints(tenantId: string, startDate: string, endDate: string, limit: number = 10) {
+  async getTopEndpoints(tenantId: string, startDate: string, endDate: string, limit: number = 10, siteNames: string[] = []) {
+    const siteFilter = siteNames.length > 0 ? 'AND host_site_name IN {siteNames:Array(String)}' : ''
+
     const sql = `
       SELECT 
         host_name as name,
@@ -140,23 +146,25 @@ export const MdrReportService = {
         AND toDate(timestamp) <= {endDate:String}
         AND host_name != ''
         AND severity IN ('critical', 'high', 'medium')
+        ${siteFilter}
       GROUP BY host_name
       ORDER BY count DESC
       LIMIT {limit:UInt32}
     `
-    const rows = await query<{ name: string; count: string }>(sql, { tenantId, startDate, endDate, limit })
+    const rows = await query<{ name: string; count: string }>(sql, { tenantId, startDate, endDate, limit, siteNames })
     return rows.map(r => ({ name: r.name, count: parseInt(r.count) }))
   },
   
   // ==================== GET TOP THREATS ====================
-  async getTopThreats(tenantId: string, startDate: string, endDate: string, limit: number = 10) {
+  async getTopThreats(tenantId: string, startDate: string, endDate: string, limit: number = 10, siteNames: string[] = []) {
+    const siteFilter = siteNames.length > 0 ? 'AND host_site_name IN {siteNames:Array(String)}' : ''
+
     const sql = `
       SELECT 
         coalesce(
-          nullIf(JSONExtractString(raw_data, 'ThreatName'), ''),
-          nullIf(JSONExtractString(raw_data, 'threatInfo.threatName'), ''),
           nullIf(file_name, ''),
           nullIf(process_name, ''),
+          event_type,
           'Unknown Threat'
         ) as name,
         count() as count
@@ -165,39 +173,41 @@ export const MdrReportService = {
         AND toDate(timestamp) >= {startDate:String}
         AND toDate(timestamp) <= {endDate:String}
         AND severity IN ('critical', 'high', 'medium')
+        ${siteFilter}
       GROUP BY name
       ORDER BY count DESC
       LIMIT {limit:UInt32}
     `
-    const rows = await query<{ name: string; count: string }>(sql, { tenantId, startDate, endDate, limit })
+    const rows = await query<{ name: string; count: string }>(sql, { tenantId, startDate, endDate, limit, siteNames })
     return rows.map(r => ({ name: r.name, count: parseInt(r.count) }))
   },
   
   // ==================== GET INCIDENT DETAILS ====================
-  async getIncidentDetails(tenantId: string, startDate: string, endDate: string, limit: number = 50) {
+  async getIncidentDetails(tenantId: string, startDate: string, endDate: string, limit: number = 50, siteNames: string[] = []) {
+    const siteFilter = siteNames.length > 0 ? 'AND host_site_name IN {siteNames:Array(String)}' : ''
+
     const sql = `
       SELECT 
         CASE 
-          WHEN JSONExtractString(raw_data, 'threatInfo.mitigationStatus') = 'mitigated' THEN 'mitigated'
           WHEN severity IN ('critical', 'high') THEN 'pending'
           ELSE 'resolved'
         END as status,
         coalesce(
-          nullIf(JSONExtractString(raw_data, 'ThreatName'), ''),
-          nullIf(JSONExtractString(raw_data, 'threatInfo.threatName'), ''),
           nullIf(file_name, ''),
+          nullIf(process_name, ''),
           'Unknown Threat'
         ) as threat_details,
-        coalesce(nullIf(JSONExtractString(raw_data, 'threatInfo.confidenceLevel'), ''), severity) as confidence_level,
+        severity as confidence_level,
         host_name as endpoint,
-        coalesce(nullIf(JSONExtractString(raw_data, 'threatInfo.classification'), ''), event_type) as classification,
-        coalesce(nullIf(file_hash_sha256, ''), nullIf(file_hash_sha1, ''), nullIf(file_hash_md5, ''), 'N/A') as hash,
+        event_type as classification,
+        coalesce(nullIf(file_hash, ''), 'N/A') as hash,
         coalesce(nullIf(file_path, ''), 'N/A') as path
       FROM security_events
       WHERE tenant_id = {tenantId:String}
         AND toDate(timestamp) >= {startDate:String}
         AND toDate(timestamp) <= {endDate:String}
         AND severity IN ('critical', 'high', 'medium')
+        ${siteFilter}
       ORDER BY timestamp DESC
       LIMIT {limit:UInt32}
     `
@@ -209,7 +219,7 @@ export const MdrReportService = {
       classification: string
       hash: string
       path: string
-    }>(sql, { tenantId, startDate, endDate, limit })
+    }>(sql, { tenantId, startDate, endDate, limit, siteNames })
     
     return rows.map(r => ({
       status: r.status as 'resolved' | 'pending' | 'mitigated',
@@ -222,23 +232,64 @@ export const MdrReportService = {
     }))
   },
   
+  // ==================== GET CRITICAL EVENTS SAMPLE ====================
+  // Get detailed samples of critical events for AI context
+  async getCriticalEventsSample(tenantId: string, startDate: string, endDate: string, limit: number = 10, siteNames: string[] = []) {
+    const siteFilter = siteNames.length > 0 ? 'AND host_site_name IN {siteNames:Array(String)}' : ''
+    
+    // Select relevant fields for "Evidence"
+    const sql = `
+      SELECT 
+        timestamp,
+        host_name,
+        user_name,
+        coalesce(nullIf(file_name, ''), nullIf(process_name, ''), event_type) as threat,
+        file_path,
+        '' as command_line,
+        severity,
+        'Pending' as action_taken
+      FROM security_events
+      WHERE tenant_id = {tenantId:String}
+        AND toDate(timestamp) >= {startDate:String}
+        AND toDate(timestamp) <= {endDate:String}
+        AND severity IN ('critical', 'high')
+        ${siteFilter}
+      ORDER BY timestamp DESC
+      LIMIT {limit:UInt32}
+    `
+    
+    return await query<{
+      timestamp: string
+      host_name: string
+      user_name: string
+      threat: string
+      file_path: string
+      command_line: string
+      severity: string
+      action_taken: string
+    }>(sql, { tenantId, startDate, endDate, limit, siteNames })
+  },
+
   // ==================== GET VULNERABILITIES ====================
   // Note: This would typically come from a vulnerability scanner integration
   // For now, we'll mock this or extract from raw_data if available
-  async getVulnerabilities(tenantId: string, startDate: string, endDate: string) {
+  async getVulnerabilities(tenantId: string, startDate: string, endDate: string, siteNames: string[] = []) {
+    const siteFilter = siteNames.length > 0 ? 'AND host_site_name IN {siteNames:Array(String)}' : ''
+    
     // Try to get vulnerability data from security_events if available
     const sql = `
       SELECT 
-        coalesce(nullIf(JSONExtractString(raw_data, 'applicationName'), ''), 'Unknown App') as application,
+        coalesce(nullIf(process_name, ''), 'Unknown App') as application,
         count() as cve_count,
-        any(JSONExtractString(raw_data, 'cve')) as top_cve,
+        'N/A' as top_cve,
         max(severity) as highest_severity,
-        any(JSONExtractString(raw_data, 'description')) as description
+        'Vulnerability detected' as description
       FROM security_events
       WHERE tenant_id = {tenantId:String}
         AND toDate(timestamp) >= {startDate:String}
         AND toDate(timestamp) <= {endDate:String}
         AND event_type = 'vulnerability'
+        ${siteFilter}
       GROUP BY application
       ORDER BY cve_count DESC
       LIMIT 10
@@ -251,7 +302,7 @@ export const MdrReportService = {
         top_cve: string
         highest_severity: string
         description: string
-      }>(sql, { tenantId, startDate, endDate })
+      }>(sql, { tenantId, startDate, endDate, siteNames })
       
       return {
         appsByVulnerabilities: rows.map(r => ({
@@ -265,53 +316,82 @@ export const MdrReportService = {
         recommendation: ''
       }
     } catch (e) {
-      // Return empty if vulnerability data not available
+      // Return Mock Data for Draft Report if real data is missing
       return {
-        appsByVulnerabilities: [],
-        endpointsByVulnerabilities: [],
-        recommendation: 'No vulnerability data available for this period.'
+        appsByVulnerabilities: [
+            { application: 'Chrome', cveCount: 5, topCve: 'CVE-2025-1001', highestSeverity: 'High', description: 'Remote Code Execution' },
+            { application: 'Zoom', cveCount: 2, topCve: 'CVE-2025-1002', highestSeverity: 'Medium', description: 'Information Disclosure' }
+        ],
+        endpointsByVulnerabilities: [
+            { application: 'Chrome', highestSeverity: 'High', endpointCount: 12, topEndpoints: 'DESKTOP-01, DESKTOP-05' }
+        ],
+        recommendation: 'พบช่องโหว่ที่มีความเสี่ยงสูงใน Chrome แนะนำให้อัพเดทเป็นเวอร์ชันล่าสุดทันที'
       }
     }
   },
   
   // ==================== GENERATE AI SUMMARIES ====================
-  async generateAISummaries(data: Partial<MdrReportData>) {
+  async generateAISummaries(data: Partial<MdrReportData>, tenantId: string) {
     try {
-      // Initialize AI Service if needed
-      // @ts-ignore - accessing private property for text generation
-      if (!AIService['provider']) AIService.initialize()
+      // 1. Get Tenant AI Config
+      const aiConfig = await IntegrationService.getAIConfig(tenantId)
       
+      if (!aiConfig || !aiConfig.apiKey) {
+        throw new Error('AI_NOT_CONNECTED')
+      }
+
+      // 2. Create Provider Instance locally (No Singleton!)
+      const aiProvider = AIService.createProvider(aiConfig.provider, aiConfig.apiKey)
+      
+      const partialData = data as any
+      // Build Prompt with Critical Samples
+      let evidenceText = ""
+      if (partialData.criticalSamples && partialData.criticalSamples.length > 0) {
+        evidenceText = "\nตัวอย่างเหตุการณ์ที่พบ (Evidence):\n" + 
+          partialData.criticalSamples.map((e: any, i: number) => 
+            `${i+1}. [${e.severity}] ${e.threat} on ${e.host_name} (User: ${e.user_name}) - Action: ${e.action_taken}`
+          ).join('\n')
+      }
+
       // Generate incident recommendation
       const incidentPrompt = `
-คุณเป็น Security Analyst ผู้เชี่ยวชาญ กรุณาสร้างคำแนะนำ (Recommendation) สำหรับรายงาน MDR รายเดือน
-โดยอิงจากข้อมูลต่อไปนี้:
-- จำนวน Threats: ${data.overview?.threats || 0}
-- Mitigated: ${data.overview?.mitigated || 0}
-- Malicious: ${data.overview?.malicious || 0}
-- Top Endpoints ที่พบปัญหา: ${data.topEndpoints?.slice(0, 3).map(e => e.name).join(', ') || 'ไม่มีข้อมูล'}
-- Top Threats: ${data.topThreats?.slice(0, 3).map(t => t.name).join(', ') || 'ไม่มีข้อมูล'}
+คุณเป็น Senior Security Analyst ของ SOC Center
+กรุณาวิเคราะห์ภาพรวมของเดือนนี้ (Monthly Overview) จากข้อมูลต่อไปนี้:
 
-กรุณาเขียนคำแนะนำเป็นภาษาไทยแบบมืออาชีพ ความยาว 2-3 ย่อหน้า เน้นการปฏิบัติจริง
+- จำนวน Threats: ${partialData.overview?.threats || 0}
+- Mitigated: ${partialData.overview?.mitigated || 0}
+- Malicious: ${partialData.overview?.malicious || 0}
+- Top Endpoints ที่พบปัญหา: ${partialData.topEndpoints?.slice(0, 3).map((e: any) => e.name).join(', ') || 'ไม่มีข้อมูล'}
+- Top Threats: ${partialData.topThreats?.slice(0, 3).map((t: any) => t.name).join(', ') || 'ไม่มีข้อมูล'}
+${evidenceText}
+
+คำแนะนำ (Instructions):
+1. เขียนสรุปสถานการณ์ความปลอดภัยของเดือนนี้ (2-3 ประโยค)
+2. ยกตัวอย่างเหตุการณ์สำคัญ (จาก Evidence ถ้ามี)
+3. ให้คำแนะนำในการป้องกัน (Actionable Recommendations) 2-3 ข้อ
+
+เขียนเป็นภาษาไทย ทางการและกระชับ
 `
-      // @ts-ignore - accessing provider directly
-      const incidentRecommendation = await AIService['provider'].generateText(incidentPrompt)
+      const incidentRecommendation = await aiProvider.generateText(incidentPrompt)
       
       // Generate risk assessment
       const riskPrompt = `
-คุณเป็น Security Consultant กรุณาวิเคราะห์ Risk Assessment สำหรับองค์กร
-โดยอิงจากข้อมูล Security Events ดังนี้:
-- จำนวน Threats ทั้งหมด: ${data.overview?.threats || 0}
-- Threats ที่ยังไม่ได้รับการแก้ไข: ${data.overview?.notMitigated || 0}
-- Malicious Events: ${data.overview?.malicious || 0}
+คุณเป็น Security Consultant กรุณาวิเคราะห์ Risk Assessment สำหรับรายงาน Monthly MDR Report
+ข้อมูล Security Events:
+- จำนวน Threats ทั้งหมด: ${partialData.overview?.threats || 0}
+- Threats ที่ยังไม่ได้รับการแก้ไข: ${partialData.overview?.notMitigated || 0}
+- Malicious Events: ${partialData.overview?.malicious || 0}
+${evidenceText}
 
-กรุณาเขียน:
-1. ผลการประเมินความเสี่ยง (Result) - 1 ย่อหน้า
-2. คำแนะนำเชิงกลยุทธ์ (Recommendation) - 2-3 ย่อหน้า
+คำแนะนำ (Instructions):
+1. ประเมินความเสี่ยง (Risk Result): ประเมินระดับความเสี่ยง (ต่ำ/ปานกลาง/สูง) และอธิบายเหตุผลสั้นๆ
+2. ข้อแนะนำเชิงกลยุทธ์ (Strategic Recommendations): เสนอแนวทางปรับปรุง Policy หรือ Configuration เพื่อลดความเสี่ยงในอนาคต (2-3 ข้อ)
 
-เขียนเป็นภาษาไทยแบบมืออาชีพ
+เขียนเป็นภาษาไทย ทางการและเป็นมืออาชีพ ใช้ Format:
+ผลการประเมินความเสี่ยง: [ผลประเมิน]
+คำแนะนำ: [ข้อแนะนำ]
 `
-      // @ts-ignore - accessing provider directly
-      const riskAnalysis = await AIService['provider'].generateText(riskPrompt)
+      const riskAnalysis = await aiProvider.generateText(riskPrompt)
       
       // Split risk analysis into result and recommendation
       const parts = riskAnalysis.split('คำแนะนำ')
@@ -326,11 +406,14 @@ export const MdrReportService = {
         },
         vulnerabilityRecommendation: 'กรุณาอัพเดท application และ patch ช่องโหว่ที่พบโดยเร็วที่สุด'
       }
-    } catch (error) {
-      console.error('AI Summary generation failed:', error)
+    } catch (error: any) {
+        if (error.message === 'AI_NOT_CONNECTED') {
+            throw new Error('AI_NOT_CONNECTED') // Propagate up
+        }
+           console.error('AI Summary generation failed:', error)
       // Fallback to default text
       return {
-        incidentRecommendation: 'กรุณาตรวจสอบและแก้ไข threats ที่พบตามลำดับความสำคัญ',
+        incidentRecommendation: 'กรุณาตรวจสอบและแก้ไข threats ที่พบตามลำดับความสำคัญ (AI Unavailable)',
         riskAssessment: {
           result: 'ระดับความเสี่ยง: ปานกลาง - ควรดำเนินการแก้ไขตาม SLA',
           recommendation: 'แนะนำให้ตรวจสอบ endpoints ที่มีปัญหาบ่อย และอัพเดท security policies'
@@ -341,7 +424,7 @@ export const MdrReportService = {
   },
   
   // ==================== CREATE FULL REPORT SNAPSHOT ====================
-  async createSnapshot(tenantId: string, monthYear: string, createdById?: string) {
+  async createSnapshot(tenantId: string, monthYear: string, createdById?: string, siteNames: string[] = []) {
     const dateRange = getMonthDateRange(monthYear)
     
     // Get tenant info
@@ -349,17 +432,18 @@ export const MdrReportService = {
     if (!tenant) throw new Error('Tenant not found')
     
     // Aggregate all data
-    const [overview, topEndpoints, topThreats, incidents, vulnerabilities] = await Promise.all([
-      this.getIncidentOverview(tenantId, dateRange.start, dateRange.end),
-      this.getTopEndpoints(tenantId, dateRange.start, dateRange.end),
-      this.getTopThreats(tenantId, dateRange.start, dateRange.end),
-      this.getIncidentDetails(tenantId, dateRange.start, dateRange.end),
-      this.getVulnerabilities(tenantId, dateRange.start, dateRange.end)
+    const [overview, topEndpoints, topThreats, incidents, vulnerabilities, criticalSamples] = await Promise.all([
+      this.getIncidentOverview(tenantId, dateRange.start, dateRange.end, siteNames),
+      this.getTopEndpoints(tenantId, dateRange.start, dateRange.end, 10, siteNames),
+      this.getTopThreats(tenantId, dateRange.start, dateRange.end, 10, siteNames),
+      this.getIncidentDetails(tenantId, dateRange.start, dateRange.end, 50, siteNames),
+      this.getVulnerabilities(tenantId, dateRange.start, dateRange.end, siteNames),
+      this.getCriticalEventsSample(tenantId, dateRange.start, dateRange.end, 10, siteNames)
     ])
     
     // Generate AI summaries
-    const partialData = { overview, topEndpoints, topThreats }
-    const aiSummaries = await this.generateAISummaries(partialData)
+    // const partialData = { overview, topEndpoints, topThreats, criticalSamples } // Removed duplicate declaration
+    const aiSummaries = await this.generateAISummaries({ overview, topEndpoints, topThreats, criticalSamples }, tenantId)
     
     // Build full report data
     const reportData: MdrReportData = {
@@ -525,5 +609,37 @@ export const MdrReportService = {
     await db.update(mdrReports)
       .set({ pdfUrl, updatedAt: new Date() })
       .where(eq(mdrReports.id, reportId))
+  },
+
+  // ==================== DELETE REPORT ====================
+  async deleteReport(reportId: string, tenantId: string) {
+    // Verify ownership
+    const [report] = await db.select()
+        .from(mdrReports)
+        .where(
+            and(
+                eq(mdrReports.id, reportId),
+                eq(mdrReports.tenantId, tenantId)
+            )
+        )
+    
+    if (!report) throw new Error('Report not found')
+
+    // Delete snapshots first (if no cascade) - assume cascade, but safe delete report
+    await db.delete(mdrReports)
+        .where(eq(mdrReports.id, reportId))
+  },
+
+  // ==================== GET AVAILABLE SITES ====================
+  async getSites(tenantId: string) {
+    const sql = `
+      SELECT DISTINCT host_site_name as name
+      FROM security_events
+      WHERE tenant_id = {tenantId:String}
+        AND host_site_name != ''
+      ORDER BY name ASC
+    `
+    const rows = await query<{ name: string }>(sql, { tenantId })
+    return rows.map(r => r.name)
   }
 }

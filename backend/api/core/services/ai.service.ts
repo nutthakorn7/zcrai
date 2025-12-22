@@ -5,6 +5,18 @@ import { GeminiProvider } from "../ai/gemini.provider";
 export class AIService {
     private static provider: AIProvider;
 
+    static createProvider(providerType: string, apiKey: string): AIProvider {
+        switch (providerType.toLowerCase()) {
+            case 'gemini':
+                return new GeminiProvider(apiKey);
+            case 'openai':
+                // return new OpenAIProvider(apiKey);
+                return new MockAIProvider(); // Placeholder
+            default:
+                return new MockAIProvider();
+        }
+    }
+
     static initialize() {
         const geminiKey = process.env.GEMINI_API_KEY;
         const openaiKey = process.env.OPENAI_API_KEY;
@@ -21,6 +33,11 @@ export class AIService {
             console.log("[AIService] No API Key found, using Mock Provider");
             this.provider = new MockAIProvider();
         }
+    }
+
+    static reload() {
+        console.log("[AIService] Reloading provider...");
+        this.initialize();
     }
 
     static async summarizeCase(caseData: any): Promise<{ summary: string, verdict: string, confidence: number, evidence_analysis: string }> {

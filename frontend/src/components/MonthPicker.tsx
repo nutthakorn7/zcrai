@@ -17,11 +17,12 @@ const monthNamesShort = [
   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
 ]
 
-export function MonthPicker({ value, onChange }: MonthPickerProps) {
+export function MonthPicker({ value = "2025-01", onChange }: MonthPickerProps) {
   const [isOpen, setIsOpen] = useState(false)
   
   // Parse current value
-  const [currentYear, currentMonth] = value.split('-').map(Number)
+  const safeValue = value || new Date().toISOString().slice(0, 7)
+  const [currentYear, currentMonth] = safeValue.split('-').map(Number)
   const [viewingYear, setViewingYear] = useState(currentYear)
 
   const formatDisplay = (monthYear: string) => {
