@@ -403,7 +403,7 @@ export default function IntegrationPage() {
     } else if (int.provider === 'crowdstrike') {
       setModalType('cs');
       setCsSecret('');
-    } else if (int.provider === 'virustotal' || int.provider === 'abuseipdb' || int.provider === 'alienvault') {
+    } else if (int.provider === 'virustotal' || int.provider === 'abuseipdb' || int.provider === 'alienvault' || int.provider === 'alienvault-otx') {
       setModalType('enrichment');
       setAiProvider(int.provider);
       setAiKey('');
@@ -452,7 +452,7 @@ export default function IntegrationPage() {
               setCsFetchSettings(data.fetchSettings);
               setShowAdvanced(true);
             }
-          } else if (int.provider === 'virustotal' || int.provider === 'abuseipdb' || int.provider === 'alienvault') {
+          } else if (int.provider === 'virustotal' || int.provider === 'abuseipdb' || int.provider === 'alienvault' || int.provider === 'alienvault-otx') {
             setHasExistingKey(data.hasKey || false);
           } else {
             setAiModel(data.model || '');
@@ -561,7 +561,7 @@ export default function IntegrationPage() {
               clientSecret: csSecret || undefined, // undefined = keep existing
               fetchSettings: csFetchSettings,
             });
-          } else if (provider === 'virustotal' || provider === 'abuseipdb' || provider === 'alienvault') {
+          } else if (provider === 'virustotal' || provider === 'abuseipdb' || provider === 'alienvault' || provider === 'alienvault-otx') {
             // Enrichment Provider
             await api.put(`/integrations/${selectedIntegration.id}`, {
               label: label,
@@ -959,7 +959,11 @@ export default function IntegrationPage() {
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {['virustotal', 'abuseipdb', 'alienvault'].map(provider => {
-             const int = integrations.find(i => i.provider === provider);
+             // Match alienvault or alienvault-otx from backend
+             const int = integrations.find(i => 
+               i.provider === provider || 
+               (provider === 'alienvault' && i.provider === 'alienvault-otx')
+             );
              const isConfigured = !!int;
              const config = PROVIDER_CONFIG[provider] || { 
                 name: provider, color: 'default', gradient: '', border: '', iconBg: '', iconColor: '', description: '' 

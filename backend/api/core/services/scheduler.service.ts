@@ -86,6 +86,26 @@ export const SchedulerService = {
     );
     this.jobs.push(reportJob);
 
+    // Integration Sync Job (Every 15 minutes)
+    // Triggers Collector to sync CrowdStrike/SentinelOne data
+    const integrationSyncJob = new CronJob(
+        '*/15 * * * *', // Every 15 minutes
+        async () => {
+             console.log('🔄 Triggering Integration Sync...');
+             try {
+                 const collectorUrl = process.env.COLLECTOR_URL || 'http://localhost:8001';
+                 await fetch(`${collectorUrl}/collect/all`, { method: 'POST' });
+                 console.log('✅ Integration sync triggered');
+             } catch (error) {
+                 console.error('❌ Integration Sync Failed:', error);
+             }
+        },
+        null,
+        true,
+        'Asia/Bangkok'
+    );
+    this.jobs.push(integrationSyncJob);
+
     console.log(`✅ Scheduler started with ${this.jobs.length} jobs.`);
   },
 

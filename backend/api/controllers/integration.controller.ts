@@ -323,6 +323,7 @@ export const integrationController = new Elysia({ prefix: '/integrations' })
         label: label || defaultLabels[normalizedProvider] || normalizedProvider
       })
     } catch (e: any) {
+      console.error('[Enrichment Add Error]', e.message, e.stack)
       set.status = 400
       return { error: e.message }
     }
