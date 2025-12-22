@@ -133,12 +133,14 @@ export default function CaseDetailPage() {
   };
 
   const { isOpen: isGraphOpen, onOpen: onGraphOpen, onClose: onGraphClose } = useDisclosure();
+  const { activeUsers, typingUsers, emitTyping } = useCaseSocket(id || '');
   
   if (loading) return <div className="flex justify-center p-10"><Spinner /></div>;
   if (!caseItem) return <div className="p-10 text-center">Case not found</div>;
 
   // SLA Logic
   const getSLAHours = (severity: string) => {
+    if (!severity) return 24;
     switch(severity.toLowerCase()) {
         case 'critical': return 4;
         case 'high': return 8;
@@ -159,8 +161,6 @@ export default function CaseDetailPage() {
       const m = Math.floor((absMs % (1000 * 60 * 60)) / (1000 * 60));
       return `${h}h ${m}m`;
   };
-
-  const { activeUsers, typingUsers, emitTyping } = useCaseSocket(id || '');
 
   return (
     <div className="p-6 h-full flex flex-col gap-6 w-full">
