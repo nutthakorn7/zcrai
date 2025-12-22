@@ -17,6 +17,7 @@
         "@google/generative-ai": "^0.24.1",
         "@simplewebauthn/server": "^13.2.2",
         "@types/cron": "^2.4.3",
+        "@types/js-yaml": "^4.0.9",
         "axios": "^1.13.2",
         "cron": "^4.3.4",
         "drizzle-orm": "latest",
@@ -27,6 +28,7 @@
         "haversine": "^1.1.1",
         "ioredis": "^5.8.2",
         "jose": "^6.1.3",
+        "js-yaml": "^4.1.1",
         "nanoid": "^5.1.6",
         "openai": "^6.9.1",
         "openid-client": "^6.8.1",
@@ -394,6 +396,8 @@
     "@types/haversine": ["@types/haversine@1.1.8", "", {}, "sha512-t2loPC7vWBPGUlViZy0K5KeyHBL5FP7UPhdzQMI98ofy+D9/tv+2ciAB1eAhCSseMDMLqQvS4KNk8PSMC+TOHg=="],
 
     "@types/ioredis-mock": ["@types/ioredis-mock@8.2.6", "", { "peerDependencies": { "ioredis": ">=5" } }, "sha512-5heqtZMvQ4nXARY0o8rc8cjkJjct2ScM12yCJ/h731S9He93a2cv+kAhwPCNwTKDfNH9gjRfLG4VpAEYJU0/gQ=="],
+
+    "@types/js-yaml": ["@types/js-yaml@4.0.9", "", {}, "sha512-k4MGaQl5TGo/iipqb2UDG2UwjXziSWkh0uysQelTlJpX1qGlpUZYm8PnO4DxG1qBomtJUdYJ6qR6xdIah10JLg=="],
 
     "@types/luxon": ["@types/luxon@3.7.1", "", {}, "sha512-H3iskjFIAn5SlJU7OuxUmTEpebK6TKB8rxZShDslBMZJ5u9S//KM1sbdAisiSrqwLQncVjnpi2OK2J51h+4lsg=="],
 

@@ -128,16 +128,7 @@ export const apiKeys = pgTable('api_keys', {
 })
 
 // Audit Logs
-export const auditLogs = pgTable('audit_logs', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  tenantId: uuid('tenant_id').references(() => tenants.id),
-  userId: uuid('user_id').references(() => users.id),
-  action: text('action').notNull(),
-  resource: text('resource'),
-  details: jsonb('details'),
-  ipAddress: text('ip_address'),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-})
+// Removed duplicate auditLogs definition
 
 // Collector States - เก็บ state ของ Collector (checkpoint, full sync status)
 export const collectorStates = pgTable('collector_states', {
@@ -307,6 +298,13 @@ export const alerts = pgTable('alerts', {
   status: text('status').default('new').notNull(), // 'new', 'investigating', 'resolved', 'dismissed'
   caseId: uuid('case_id').references(() => cases.id), // Link to case if escalated
   rawData: jsonb('raw_data'), // Original event from source
+  
+  // Missing columns restored to prevent data loss
+  correlationId: text('correlation_id'),
+  reviewedBy: uuid('reviewed_by').references(() => users.id),
+  reviewedAt: timestamp('reviewed_at'),
+  dismissReason: text('dismiss_reason'),
+  promotedCaseId: uuid('promoted_case_id').references(() => cases.id),
   
   // Deduplication fields
   fingerprint: varchar('fingerprint', { length: 64 }).notNull(), // SHA256 hash for deduplication
@@ -752,6 +750,21 @@ export const aiFeedback = pgTable('ai_feedback', {
   comment: text('comment'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 })
+
+// Audit Logs for Governance (Immutable)
+export const auditLogs = pgTable('audit_logs', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  tenantId: uuid('tenant_id').references(() => tenants.id), // Optional for system-wide events
+  userId: uuid('user_id').references(() => users.id),
+  action: text('action').notNull(), // e.g., 'CREATE_USER', 'DELETE_ALERT'
+  resource: text('resource').notNull(), // e.g., 'user', 'alert'
+  resourceId: text('resource_id'),
+  details: jsonb('details'), // Changed values, metadata
+  ipAddress: text('ip_address'),
+  userAgent: text('user_agent'),
+  status: text('status').default('SUCCESS'), // SUCCESS, FAILURE
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
 
 export const aiFeedbackRelations = relations(aiFeedback, ({ one }) => ({
   tenant: one(tenants, {

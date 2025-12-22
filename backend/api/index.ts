@@ -4,10 +4,12 @@ import { swagger } from '@elysiajs/swagger'
 import { cors } from '@elysiajs/cors'
 import { rateLimit } from 'elysia-rate-limit'
 import { helmet } from 'elysia-helmet'
+import { auditLogger } from './middleware/audit'
+import { tenantGuard } from './middlewares/auth.middleware'
 import { errorHandler } from './middleware/error'
 import { authController } from './controllers/auth.controller'
-import { passkeyController } from './controllers/passkey.controller'
 import { ssoController } from './controllers/sso.controller'
+import { passkeyController } from './controllers/passkey.controller'
 import { tenantController } from './controllers/tenant.controller'
 import { userController } from './controllers/user.controller'
 import { profileController } from './controllers/profile.controller'
@@ -108,6 +110,8 @@ export { seedSuperAdmin }
 import { approvalsController } from './controllers/approvals.controller'
 import { inputsController } from './controllers/inputs.controller'
 import { feedbackController } from './controllers/feedback.controller'
+import { huntingController } from './controllers/hunting.controller'
+// import { reportController } from './controllers/report.controller'
 
 if (process.env.NODE_ENV !== 'test') {
   SchedulerService.init()
@@ -167,7 +171,8 @@ const app = new Elysia()
   .use(notificationController)
   .use(notificationChannelController) // Slack/Teams notifications
   .use(aiController)
-  .use(feedbackController) // AI Feedback & ROI
+  .use(feedbackController)
+  .use(huntingController)
   .use(reportController) // PDF report generation
   .use(adminController) // Super Admin routes
   .use(edrController) // EDR response actions

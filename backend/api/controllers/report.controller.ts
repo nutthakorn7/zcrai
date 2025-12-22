@@ -1,56 +1,39 @@
-import { Elysia, t } from 'elysia';
-import { ReportSchedulerService } from '../core/services/report-scheduler.service';
-import { tenantGuard } from '../middlewares/auth.middleware';
+import { Elysia, t } from 'elysia'
+import { ReportService } from '../core/services/report.service'
+import { withAuth } from '../middleware/auth'
 
 export const reportController = new Elysia({ prefix: '/reports' })
-  .use(tenantGuard)
-  
-  /**
-   * List scheduled reports
-   * @route GET /reports/schedules
-   * @access Protected - Requires authentication
-   * @returns {Object} List of report schedules
-   */
-  .get('/schedules', async (ctx: any) => {
-      return await ReportSchedulerService.listSchedules(ctx.user.tenantId);
-  })
+  .use(withAuth)
 
   /**
-   * Create scheduled report
-   * @route POST /reports/schedules
-   * @access Protected - Requires authentication
-   * @body {string} reportType - Report type (summary, detailed, compliance)
-   * @body {string} frequency - Schedule frequency (daily, weekly, monthly)
-   * @body {array} recipients - Email recipients
-   * @body {boolean} isEnabled - Enable/disable schedule
-   * @returns {Object} Created schedule
+   * Generate Compliance Report (PDF)
+   * @route POST /reports/generate
    */
-  .post('/schedules', async (ctx: any) => {
-      const { user, body } = ctx;
-      const schedule = await ReportSchedulerService.createSchedule({
-          tenantId: user.tenantId,
-          ...body,
-          recipients: body.recipients,
-          nextRunAt: new Date()
-      } as any);
-      return schedule;
+  .post('/generate', async ({ user, body, set }: any) => {
+    
+    // Role Check
+    if (user.role === 'customer') {
+        throw new Error('Unauthorized: Reporting requires analyst privileges');
+    }
+
+    try {
+        const pdfBuffer = await ReportService.generateReport(user.tenantId, body.type);
+
+        return new Response(pdfBuffer, {
+            headers: {
+                'Content-Type': 'application/pdf',
+                'Content-Disposition': `attachment; filename="zcrAI_${body.type}_Report.pdf"`,
+                'Content-Length': pdfBuffer.length.toString()
+            }
+        });
+
+    } catch (error: any) {
+        console.error("Report Generation Failed:", error);
+        set.status = 500;
+        return { success: false, message: "Failed to generate report", error: error.message };
+    }
   }, {
-      body: t.Object({
-          reportType: t.String(),
-          frequency: t.String(),
-          recipients: t.Array(t.String()),
-          isEnabled: t.Boolean()
-      }) 
+    body: t.Object({
+        type: t.Union([t.Literal('SOC2'), t.Literal('ISO27001')])
+    })
   })
-
-  /**
-   * Delete scheduled report
-   * @route DELETE /reports/schedules/:id
-   * @access Protected - Requires authentication
-   * @param {string} id - Schedule ID
-   * @returns {Object} Success status
-   */
-  .delete('/schedules/:id', async (ctx: any) => {
-      await ReportSchedulerService.deleteSchedule(ctx.params.id, ctx.user.tenantId);
-      return { success: true };
-  });

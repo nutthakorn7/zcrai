@@ -6,9 +6,18 @@
 import { Elysia } from 'elysia';
 import { tenantGuard } from '../middlewares/auth.middleware';
 import { InvestigationGraphService } from '../core/services/investigation-graph.service';
+import { TimelineService } from '../core/services/timeline.service';
 
 export const graphController = new Elysia({ prefix: '/graph' })
   .use(tenantGuard)
+
+  /**
+   * Get Consolidated Timeline
+   */
+   .get('/timeline/:alertId', async ({ user, params: { alertId } }: any) => {
+       const events = await TimelineService.getTimeline(user.tenantId, alertId);
+       return { success: true, data: events };
+   })
 
   /**
    * Get investigation graph for a case

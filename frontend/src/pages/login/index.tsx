@@ -81,9 +81,14 @@ export default function LoginPage() {
           // For now: Assume Identifier IS Tenant ID
           const tenantId = ssoIdentifier;
           // Redirect to Backend SSO Login
-          // Assuming backend running on port 8000 and proxy or full URL
-          const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
-          window.location.href = `${apiUrl}/auth/sso/login?tenantId=${tenantId}&provider=google`; 
+          // Redirect to Backend SSO Login
+          // Backend route: GET /auth/sso/login/:tenantId
+          // Ensure we strip /api if present in VITE_API_URL, or use a separate AUTH_URL
+          let baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+          if (baseUrl.endsWith('/api')) {
+              baseUrl = baseUrl.slice(0, -4);
+          }
+          window.location.href = `${baseUrl}/auth/sso/login/${tenantId}`; 
       } catch (e) {
           setError('Failed to initiate SSO');
           setIsLoading(false);

@@ -6,7 +6,7 @@ import { DateRangePicker } from "../../components/DateRangePicker";
 import { useNavigate } from "react-router-dom";
 import { 
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, AreaChart, Area, CartesianGrid
+  AreaChart, Area, CartesianGrid
 } from 'recharts';
 import { Icon } from '../../shared/ui';
 
@@ -103,11 +103,7 @@ export default function DashboardPage() {
     }
   };
 
-  const handlePieClick = (data: any) => {
-    if (data && data.name) {
-      navigate(`/detections?source=${data.name.toLowerCase()}`);
-    }
-  };
+
 
   const handleSummaryClick = (sev: string) => {
       if (sev === 'total') return navigate('/detections');
@@ -354,10 +350,7 @@ export default function DashboardPage() {
   const timelineSources = [...new Set(timeline.map(t => t.source?.toLowerCase()).filter(Boolean))];
 
   // Transform source data for pie chart
-  const pieData = sources.map(s => ({
-    name: s.source,
-    value: parseInt(s.count),
-  }));
+
 
   const Sparkline = ({ data, dataKey, color }: { data: any[], dataKey: string, color: string }) => (
     <div className="h-[40px] w-[80px]">
@@ -652,8 +645,8 @@ export default function DashboardPage() {
 
       {/* Bento Grid: Timeline + Sources */}
       <div className="grid grid-cols-12 gap-3 mb-6 animate-fade-in">
-        {/* Timeline Chart - 8 columns */}
-        <Card className="col-span-12 lg:col-span-8 border border-white/5 bg-content1/50">
+        {/* Timeline Chart - Full Width */}
+        <Card className="col-span-12 border border-white/5 bg-content1/50">
           <CardBody className="p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
@@ -737,58 +730,6 @@ export default function DashboardPage() {
                   <Line type="monotone" dataKey="simulation_script_total" name="simulation_script_total" stroke="#00C49F" strokeWidth={2.5} dot={false} activeDot={{ r: 6, fill: '#00C49F' }} />
                 </LineChart>
               </ResponsiveContainer>
-            </div>
-          </CardBody>
-        </Card>
-
-        {/* Sources Distribution - 4 columns */}
-        <Card className="col-span-12 lg:col-span-4 border border-white/5 bg-content1/50">
-          <CardBody className="p-6 flex flex-col">
-            <div className="flex items-center gap-2 mb-4">
-              <Icon.Chart className="w-4 h-4 text-primary" />
-              <h2 className="text-base font-semibold text-foreground">Source Distribution</h2>
-            </div>
-            <div className="flex-1 min-h-[250px] flex items-center justify-center">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={pieData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={80}
-                    dataKey="value"
-                    paddingAngle={4}
-                    stroke="none"
-                    onClick={handlePieClick}
-                    className="cursor-pointer"
-                  >
-                    {pieData.map((_, i) => (
-                      <Cell key={i} fill={['#EF4444', '#A855F7', '#3B82F6', '#22C55E'][i % 4]} className="hover:opacity-80 transition-opacity" />
-                    ))}
-                  </Pie>
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: '#18181b', 
-                      border: '1px solid rgba(255,255,255,0.1)', 
-                      borderRadius: 12,
-                      boxShadow: '0 4px 12px rgba(0,0,0,0.5)'
-                    }}
-                    itemStyle={{ color: '#e4e4e7' }}
-                    formatter={(value: number, name: string) => [value.toLocaleString(), name]}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            {/* Custom Legend */}
-            <div className="grid grid-cols-2 gap-2 mt-4">
-               {pieData.map((entry, index) => (
-                 <div key={index} className="flex items-center gap-2 p-2 rounded-lg bg-content2/50 cursor-pointer hover:bg-content2 transition-colors" onClick={() => handlePieClick(entry)}>
-                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: ['#EF4444', '#A855F7', '#3B82F6', '#22C55E'][index % 4] }} />
-                    <span className="text-xs text-foreground/70 capitalize truncate">{entry.name}</span>
-                    <span className="text-xs font-bold ml-auto">{entry.value}</span>
-                 </div>
-               ))}
             </div>
           </CardBody>
         </Card>

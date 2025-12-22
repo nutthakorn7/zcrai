@@ -12,6 +12,7 @@ const LoginPage = lazy(() => import("./pages/login"));
 const RegisterPage = lazy(() => import("./pages/register"));
 const ForgotPasswordPage = lazy(() => import("./pages/auth/ForgotPasswordPage"));
 const ResetPasswordPage = lazy(() => import("./pages/auth/ResetPasswordPage"));
+const SSOCallbackPage = lazy(() => import("./pages/auth/SSOCallbackPage"));
 const DashboardPage = lazy(() => import("./pages/dashboard"));
 const DashboardBuilder = lazy(() => import("./components/dashboard/DashboardBuilder"));
 const LogViewerPage = lazy(() => import("./pages/log-viewer"));
@@ -23,6 +24,7 @@ const ObservablesPage = lazy(() => import("./pages/observables/ObservablesPage")
 const ThreatIntelPage = lazy(() => import("./pages/ThreatIntelPage"));
 const PlaybooksPage = lazy(() => import("./pages/playbooks/PlaybooksPage"));
 const ReportsPage = lazy(() => import("./pages/reports/ReportsPage"));
+const HuntingPage = lazy(() => import("./pages/HuntingPage"));
 
 const AdminDashboard = lazy(() => import("./pages/admin"));
 
@@ -148,6 +150,7 @@ function App() {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/auth/callback" element={<SSOCallbackPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
             
             {/* Protected Routes */}
@@ -261,6 +264,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <ReportsPage />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/hunting" 
+              element={
+                <ProtectedRoute>
+                  <HuntingPage />
                 </ProtectedRoute>
               } 
             />

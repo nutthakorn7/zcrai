@@ -57,6 +57,7 @@ export function Sidebar() {
       icon: Icon.Search, 
       label: 'Analysis',
       children: [
+        { label: 'Threat Hunting', path: '/hunting' }, // [NEW]
         { label: 'Log Hunting', path: '/logs' },
         { label: 'Threat Intel', path: '/threat-intel' },
         { label: 'Observables', path: '/observables' },
