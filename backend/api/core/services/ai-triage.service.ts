@@ -162,11 +162,35 @@ export class AITriageService {
         }
         // ---------------------------------------------------
 
+        // --- PHASE 3.5: Auto-Case Promotion ---
+        let promotedCase = null;
+        if (alertData.severity === 'critical' && 
+            analysis.classification === 'TRUE_POSITIVE' && 
+            Number(analysis.confidence) >= 85 &&
+            !alertData.caseId) {  // Only if not already linked to a case
+            
+            try {
+                const { AlertService } = await import('./alert.service');
+                const result = await AlertService.promoteToCase(
+                    alertId, 
+                    alertData.tenantId, 
+                    'system-ai'  // System user for AI actions
+                );
+                promotedCase = result.case;
+                newTags.push('auto-promoted');
+                analysis.suggested_action = `[AUTO-PROMOTED to Case ${promotedCase.id}] ${analysis.suggested_action || ''}`;
+                console.log(`[AITriage] 📋 Auto-Promoted Alert ${alertId} to Case ${promotedCase.id}`);
+            } catch (e: any) {
+                console.warn(`[AITriage] Failed to auto-promote alert ${alertId}:`, e.message);
+            }
+        }
+        // ---------------------------------------
+
         // 3. Update Alert with Result
         await db.update(alerts)
             .set({
                 // Store tags inside aiAnalysis since alerts table has no tags column
-                aiAnalysis: { ...analysis, actionTaken, tags: newTags },
+                aiAnalysis: { ...analysis, actionTaken, tags: newTags, promotedCaseId: promotedCase?.id },
                 aiTriageStatus: 'processed',
                 status: newStatus
             })
@@ -174,6 +198,7 @@ export class AITriageService {
 
         console.log(`✅ AI Analysis for ${alertId}: ${analysis.classification} (${analysis.confidence}%)`);
         if (actionTaken) console.log(`🚀 AUTO-RESPONSE EXECUTED: ${JSON.stringify(actionTaken)}`);
+        if (promotedCase) console.log(`📋 AUTO-PROMOTED to Case: ${promotedCase.id}`);
 
         // 4. Investigation Trigger (Phase 3 Prep)
         if (analysis.classification === 'TRUE_POSITIVE') {
