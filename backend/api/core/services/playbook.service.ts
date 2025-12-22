@@ -244,13 +244,14 @@ export class PlaybookService {
         if (!actionId) throw new Error('No Action ID configured');
 
         // Import Registry dynamically or ensure it's loaded
-        const { ActionRegistry } = await import('../actions/registry');
+        const { ActionRegistry } = await import('../actions'); // Import from index to ensure actions are registered
         
         // 5. Execute
         const result = await ActionRegistry.execute(actionId, {
             tenantId,
             caseId: step.execution.caseId,
             executionId,
+            executionStepId: stepId,
             userId: step.execution.startedBy || undefined,
             inputs: config || {}
         });

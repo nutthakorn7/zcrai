@@ -1,35 +1,42 @@
-import { Action, ActionContext, ActionResult } from './types';
 
-// Registry to hold all available actions
+export interface ActionDefinition {
+    id: string;
+    name: string;
+    description: string;
+    execute: (context: ActionContext) => Promise<ActionResult>;
+}
+
+export interface ActionContext {
+    tenantId: string;
+    caseId: string;
+    executionId: string;
+    executionStepId?: string; // Added for granular logging
+    userId?: string;
+    inputs: Record<string, any>;
+}
+
+export interface ActionResult {
+    success: boolean;
+    data?: any;
+    error?: string;
+}
+
 export class ActionRegistry {
-  private static actions: Map<string, Action> = new Map();
+    private static actions: Map<string, ActionDefinition> = new Map();
 
-  static register(action: Action) {
-    this.actions.set(action.id, action);
-    console.log(`[ActionRegistry] Registered action: ${action.id}`);
-  }
-
-  static get(id: string): Action | undefined {
-    return this.actions.get(id);
-  }
-
-  static list(): Action[] {
-    return Array.from(this.actions.values());
-  }
-
-  static async execute(actionId: string, context: ActionContext): Promise<ActionResult> {
-    const action = this.get(actionId);
-    if (!action) {
-      return { success: false, error: `Action ${actionId} not found` };
+    static register(action: ActionDefinition) {
+        this.actions.set(action.id, action);
     }
-    
-    try {
-      // Basic input validation could go here (using zod/ajv)
-      console.log(`[ActionRegistry] Executing ${actionId} for Case ${context.caseId}`);
-      return await action.execute(context);
-    } catch (e: any) {
-      console.error(`[ActionRegistry] Execution failed for ${actionId}:`, e);
-      return { success: false, error: e.message };
+
+    static get(id: string) {
+        return this.actions.get(id);
     }
-  }
+
+    static async execute(id: string, context: ActionContext): Promise<ActionResult> {
+        const action = this.get(id);
+        if (!action) {
+            throw new Error(`Action ${id} not found`);
+        }
+        return await action.execute(context);
+    }
 }

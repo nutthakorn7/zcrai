@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Chip, Spinner } from '@heroui/react';
 import { api } from '../../shared/api/api';
 import { Icon } from '../../shared/ui';
+import { AIWorkforceWidget } from './AIWorkforceWidget';
 import { 
   PieChart, Pie, Cell, ResponsiveContainer,
   AreaChart, Area, XAxis, YAxis, Tooltip
@@ -399,6 +400,8 @@ export function WidgetRenderer({ type, className }: { type: string; className?: 
       return <TopHostsWidget className={className} />;
     case 'sources-donut':
       return <SourcesDonutWidget className={className} />;
+    case 'ai-workforce':
+      return <AIWorkforceWidget />;
     default:
       return (
         <div className="h-full flex items-center justify-center text-default-500">

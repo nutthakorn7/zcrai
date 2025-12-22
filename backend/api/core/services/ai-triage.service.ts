@@ -60,6 +60,24 @@ export class AITriageService {
             `- ${o.type}: ${o.value} (Malicious: ${o.isMalicious}, Tags: ${o.tags?.join(',') || 'None'})`
         ).join('\n') || 'None';
 
+        // --- RAG: Fetch Historical Context ---
+        let historicalContext = "";
+        try {
+            const { EmbeddingService } = await import('./embedding.service');
+            const alertContent = `Title: ${alertData.title}. Description: ${alertData.description}. Source: ${alertData.source}. Validated: ${alertData.status}`;
+            const similarAlerts = await EmbeddingService.searchSimilar(alertData.tenantId, alertContent, 3);
+            
+            if (similarAlerts.length > 0) {
+                historicalContext = `\n\nSimilar Past Alerts (RAG Context):\n` + similarAlerts.map((a: any) => 
+                    `- [${a.aiAnalysis?.classification || 'Unknown'}] ${a.title} (Action: ${a.aiAnalysis?.suggested_action || 'None'})`
+                ).join('\n');
+                console.log(`[AITriage] 🧠 RAG: Found ${similarAlerts.length} similar alerts`);
+            }
+        } catch (error) {
+            console.warn("[AITriage] RAG Fetch Failed:", error);
+        }
+        // -------------------------------------
+
         const prompt = `
         Start Analysis for Alert:
         - Title: ${alertData.title}
@@ -75,10 +93,12 @@ export class AITriageService {
         - Severity: ${alertData.severity}
         - Threat Intel / Observables:
         ${observablesContext}
+
+        ${historicalContext}
         
         Task:
         Is this likely a False Positive? (e.g., Backup, Update, Known Safe Activity) or a True Threat?
-        Use the Threat Intel context to weight your decision.
+        Use the Threat Intel context AND Historical Context to weight your decision.
         `;
 
         // 2. Call AI
@@ -106,9 +126,19 @@ export class AITriageService {
             const systemPrompt = `You are a Tier 3 SOC Analyst. 
             Analyze the alert and classify it as TRUE_POSITIVE or FALSE_POSITIVE.
             Provide a confidence score (0-100) and reasoning.
-            If FALSE_POSITIVE with high confidence, providing actionable reasoning is critical.`;
+            If FALSE_POSITIVE with high confidence, providing actionable reasoning is critical.
+            Use provided Historical Context (RAG) to consistency.`;
             
             analysis = await GeminiService.generateJSON(systemPrompt + "\n\n" + prompt, schema);
+
+            // --- RAG: Index this analysis for future ---
+            try {
+                const { EmbeddingService } = await import('./embedding.service');
+                const contentToIndex = `Title: ${alertData.title}. Description: ${alertData.description}. Source: ${alertData.source}. Verdict: ${analysis.classification}. Reasoning: ${analysis.reasoning}`;
+                // Fire and forget indexing
+                EmbeddingService.store(alertId, alertData.tenantId, contentToIndex).catch(e => console.warn("RAG Indexing failed", e));
+            } catch (e) { console.warn("RAG Indexing init failed", e); }
+            // ------------------------------------------
 
         } catch (e) {
             console.warn('Gemini Service Failed/Missing - Using Mock AI Response', e);

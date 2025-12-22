@@ -1,5 +1,5 @@
 import { relations, sql } from 'drizzle-orm'
-import { pgTable, uuid, text, varchar, timestamp, boolean, jsonb, integer, real, index } from 'drizzle-orm/pg-core'
+import { pgTable, uuid, text, varchar, timestamp, boolean, jsonb, integer, real, index, vector } from 'drizzle-orm/pg-core'
 
 // Tenants
 export const tenants = pgTable('tenants', {
@@ -741,3 +741,50 @@ export const subscriptionsRelations = relations(subscriptions, ({ one }) => ({
   }),
 }))
 
+
+// ==================== AI FEEDBACK ====================
+export const aiFeedback = pgTable('ai_feedback', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  tenantId: uuid('tenant_id').references(() => tenants.id).notNull(),
+  alertId: uuid('alert_id').references(() => alerts.id).notNull(),
+  userId: uuid('user_id').references(() => users.id).notNull(),
+  rating: integer('rating').notNull(), // 1 (helpful), 0 (neutral), -1 (unhelpful)
+  comment: text('comment'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+})
+
+export const aiFeedbackRelations = relations(aiFeedback, ({ one }) => ({
+  tenant: one(tenants, {
+    fields: [aiFeedback.tenantId],
+    references: [tenants.id],
+  }),
+  alert: one(alerts, {
+    fields: [aiFeedback.alertId],
+    references: [alerts.id],
+  }),
+  user: one(users, {
+    fields: [aiFeedback.userId],
+    references: [users.id],
+  }),
+}))
+
+
+// ==================== VECTOR STORE (RAG) ====================
+// Note: Requires 'vector' extension in Postgres
+// CREATE EXTENSION IF NOT EXISTS vector;
+
+export const alertEmbeddings = pgTable('alert_embeddings', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  alertId: uuid('alert_id').references(() => alerts.id).notNull(),
+  tenantId: uuid('tenant_id').references(() => tenants.id).notNull(),
+  content: text('content').notNull(), // The text used for embedding
+  vector: vector('vector', { dimensions: 768 }), // Gemini text-embedding-004
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+})
+
+export const alertEmbeddingsRelations = relations(alertEmbeddings, ({ one }) => ({
+  alert: one(alerts, {
+    fields: [alertEmbeddings.alertId],
+    references: [alerts.id],
+  }),
+}))

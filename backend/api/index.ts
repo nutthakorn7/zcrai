@@ -1,4 +1,5 @@
 import { Elysia } from 'elysia'
+import { registerActions } from './core/actions' // Keep this one
 import { swagger } from '@elysiajs/swagger'
 import { cors } from '@elysiajs/cors'
 import { rateLimit } from 'elysia-rate-limit'
@@ -12,6 +13,9 @@ import { userController } from './controllers/user.controller'
 import { profileController } from './controllers/profile.controller'
 import { integrationController } from './controllers/integration.controller'
 import { dashboardController } from './controllers/dashboard.controller'
+
+registerActions()
+
 import { logsController } from './controllers/logs.controller'
 import { caseController } from './controllers/case.controller'
 import { alertController } from './controllers/alert.controller'
@@ -103,6 +107,7 @@ export { seedSuperAdmin }
 // Don't start background workers during tests (they create Redis connections too early)
 import { approvalsController } from './controllers/approvals.controller'
 import { inputsController } from './controllers/inputs.controller'
+import { feedbackController } from './controllers/feedback.controller'
 
 if (process.env.NODE_ENV !== 'test') {
   SchedulerService.init()
@@ -162,6 +167,7 @@ const app = new Elysia()
   .use(notificationController)
   .use(notificationChannelController) // Slack/Teams notifications
   .use(aiController)
+  .use(feedbackController) // AI Feedback & ROI
   .use(reportController) // PDF report generation
   .use(adminController) // Super Admin routes
   .use(edrController) // EDR response actions

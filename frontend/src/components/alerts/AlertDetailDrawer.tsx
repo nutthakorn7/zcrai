@@ -10,7 +10,7 @@ import {
 } from '@heroui/react';
 import { Alert, AlertCorrelation, AlertsAPI } from '../../shared/api/alerts';
 import { CorrelationCard } from './CorrelationCard';
-import { AlertTriangle, CheckCircle, Activity, ShieldCheck, BookOpen } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Activity, ShieldCheck, BookOpen, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { Icon } from '../../shared/ui';
 
 interface AlertDetailDrawerProps {
@@ -56,6 +56,8 @@ export function AlertDetailDrawer({ alert, isOpen, onClose, onPromote, onDismiss
     }
   }, [alert, isOpen]);
 
+  const [feedbackStatus, setFeedbackStatus] = useState<'none' | 'sent'>('none');
+
   const loadCorrelations = async () => {
     if (!alert) return;
     
@@ -68,6 +70,17 @@ export function AlertDetailDrawer({ alert, isOpen, onClose, onPromote, onDismiss
     } finally {
       setIsLoadingCorrelations(false);
     }
+  };
+
+  const handleFeedback = async (rating: number) => {
+      if (!alert) return;
+      try {
+          const { api } = await import('../../shared/api/api');
+          await api.post(`/feedback/${alert.id}`, { rating });
+          setFeedbackStatus('sent');
+      } catch (error) {
+          console.error('Feedback failed:', error);
+      }
   };
 
   const loadSuggestions = async () => {
@@ -220,6 +233,22 @@ export function AlertDetailDrawer({ alert, isOpen, onClose, onPromote, onDismiss
                                                     {alert.aiAnalysis.confidence}%
                                                 </span>
                                             </div>
+                                        </div>
+                                        
+                                        {/* Feedback Buttons */}
+                                        <div className="flex items-center gap-1">
+                                            {feedbackStatus === 'sent' ? (
+                                                <span className="text-[10px] text-green-400 font-medium animate-pulse">Thanks for feedback!</span>
+                                            ) : (
+                                                <>
+                                                    <Button isIconOnly size="sm" variant="light" className="text-foreground/30 hover:text-green-400" onPress={() => handleFeedback(1)}>
+                                                        <ThumbsUp className="w-4 h-4" />
+                                                    </Button>
+                                                    <Button isIconOnly size="sm" variant="light" className="text-foreground/30 hover:text-red-400" onPress={() => handleFeedback(-1)}>
+                                                        <ThumbsDown className="w-4 h-4" />
+                                                    </Button>
+                                                </>
+                                            )}
                                         </div>
                                     </div>
 

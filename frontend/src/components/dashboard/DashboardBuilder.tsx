@@ -18,6 +18,7 @@ const WIDGET_LIBRARY = [
   { id: 'alerts-feed', name: 'Recent Alerts', description: 'Live alert feed', defaultW: 6, defaultH: 8 },
   { id: 'top-hosts', name: 'Top Hosts', description: 'Most active hosts', defaultW: 6, defaultH: 6 },
   { id: 'sources-donut', name: 'Sources Donut', description: 'Events by source', defaultW: 4, defaultH: 6 },
+  { id: 'ai-workforce', name: 'AI Workforce Value', description: 'ROI & Efficiency Stats', defaultW: 8, defaultH: 5 },
 ];
 
 interface LayoutItem {
