@@ -194,24 +194,34 @@ const app = new Elysia()
   // Temporary Simulation Endpoint for AI SOC verification
   .get('/api/test-ai-alert', async () => {
     const { AlertService } = await import('./core/services/alert.service');
+    const { clickhouse } = await import('./infra/clickhouse/client');
     // Fetch System Admin Tenant to ensure the alert shows up in the main dashboard
     const [sysTenant] = await db.select().from(tenants).where(eq(tenants.name, 'System Admin'));
     const tenantId = sysTenant?.id || '75a8f9a4-a1df-45a8-84c3-b2fa2721934b'; 
 
+    const alertId = crypto.randomUUID();
+    const rawData = {
+       event_type: 'network_connection',
+       dest_ip: '185.73.125.122', 
+       process: 'powershell.exe',
+       user_name: 'simulated_user'
+    };
+
+    // 1. Insert into ClickHouse (for Dashboard Stats)
+    await clickhouse.command({
+      query: `INSERT INTO security_events (id, tenant_id, timestamp, severity, source, event_type, host_name, user_name, mitre_tactic, mitre_technique, raw_data) VALUES ('${alertId}', '${tenantId}', now(), 'critical', 'simulation', 'network_connection', 'desktop-sim01', 'simulated_user', 'Command and Control', 'T1071', '${JSON.stringify(rawData).replace(/'/g, "\\'")}')`
+    });
+
+    // 2. Insert into Postgres (for My Workspace widget & AI Triage)
     const alert = await AlertService.create({
       tenantId,
       title: 'Simulated C2 Traffic to Known Malicious IP',
       description: 'Outbound connection detected to external IP 185.73.125.122. This IP is associated with Cobalt Strike C2 servers.',
       severity: 'critical',
       source: 'simulation',
-      rawData: {
-         event_type: 'network_connection',
-         dest_ip: '185.73.125.122', 
-         process: 'powershell.exe',
-         user_name: 'simulated_user'
-      }
+      rawData
     });
-    return { success: true, alertId: alert.id, message: 'Alert created. AI Analysis triggered.' };
+    return { success: true, alertId: alert.id, message: 'Alert created in ClickHouse + Postgres. AI Analysis triggered.' };
   })
 
 if (import.meta.main) {

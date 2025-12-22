@@ -24,6 +24,10 @@ services:
     ports:
       - "8123:8123" # HTTP
       - "9000:9000" # Native
+    environment:
+      - CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1
+      - CLICKHOUSE_USER=default
+      - CLICKHOUSE_PASSWORD=
     volumes:
       - clickhouse_data:/var/lib/clickhouse
       - ./clickhouse_logs:/var/log/clickhouse-server
@@ -70,6 +74,9 @@ services:
     environment:
       - DATABASE_URL=postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-zcrai}
       - REDIS_URL=redis://:${REDIS_PASSWORD:-redis_password}@redis:6379
+      - CLICKHOUSE_URL=http://zcrai_clickhouse:8123
+      - CLICKHOUSE_DB=default
+      - CLICKHOUSE_PASSWORD=
       - NODE_ENV=production
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - SSO_ISSUER=${SSO_ISSUER}
