@@ -393,4 +393,61 @@ export const DashboardService = {
       console_link: string
     }>(sql, { tenantId, startDate, endDate, limit, sources })
   },
+
+  // ==================== AI METRICS (AI SOC Performance) ====================
+  async getAIMetrics(tenantId: string) {
+    const { alerts } = await import('../../infra/db/schema');
+    
+    // Query alerts with AI analysis
+    const allAlerts = await db.select({
+      aiAnalysis: alerts.aiAnalysis,
+    })
+    .from(alerts)
+    .where(eq(alerts.tenantId, tenantId));
+
+    // Calculate metrics
+    let totalAnalyzed = 0;
+    let truePositives = 0;
+    let falsePositives = 0;
+    let autoClosedCount = 0;
+    let autoBlockedCount = 0;
+    let totalConfidence = 0;
+
+    for (const alert of allAlerts) {
+      const ai = alert.aiAnalysis as any;
+      if (!ai || !ai.classification) continue;
+
+      totalAnalyzed++;
+      totalConfidence += (ai.confidence || 0);
+
+      if (ai.classification === 'TRUE_POSITIVE') {
+        truePositives++;
+      } else if (ai.classification === 'FALSE_POSITIVE') {
+        falsePositives++;
+        // Auto-closed = FALSE_POSITIVE with high confidence
+        if ((ai.confidence || 0) >= 90) {
+          autoClosedCount++;
+        }
+      }
+
+      // Auto-blocked = has actionTaken containing 'block'
+      if (ai.actionTaken && String(ai.actionTaken).toLowerCase().includes('block')) {
+        autoBlockedCount++;
+      }
+    }
+
+    const avgConfidence = totalAnalyzed > 0 ? Math.round(totalConfidence / totalAnalyzed) : 0;
+    const autoCloseRate = totalAnalyzed > 0 ? Math.round((autoClosedCount / totalAnalyzed) * 100) : 0;
+    const truePositiveRate = totalAnalyzed > 0 ? Math.round((truePositives / totalAnalyzed) * 100) : 0;
+
+    return {
+      autoCloseRate,
+      autoBlockCount: autoBlockedCount,
+      avgConfidence,
+      truePositiveRate,
+      totalAnalyzed,
+      truePositives,
+      falsePositives,
+    };
+  },
 }

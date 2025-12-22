@@ -30,6 +30,7 @@ import { MyTasksWidget } from './widgets/MyTasksWidget';
 import { TopStatsWidget } from './widgets/TopStatsWidget';
 import { MitreHeatmapWidget } from './widgets/MitreHeatmapWidget';
 import { InvestigationGraphWidget } from './widgets/InvestigationGraphWidget';
+import { AIMetricsWidget } from './widgets/AIMetricsWidget';
 
 // Import logos
 import sentineloneLogo from '../../assets/logo/sentinelone.png';
@@ -801,6 +802,11 @@ export default function DashboardPage() {
       {/* ML Anomaly Detection */}
       <div className="mb-8 animate-fade-in">
         <AnomalyDashboardCard />
+      </div>
+
+      {/* AI SOC Performance Metrics */}
+      <div className="mb-8 animate-fade-in">
+        <AIMetricsWidget />
       </div>
 
       {/* Main Grid: Recent Detections, Hosts, Users */}
