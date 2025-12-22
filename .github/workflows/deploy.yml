@@ -55,28 +55,14 @@ jobs:
           BYPASS_AUTH=false
           EOF"
 
-      - name: Install Backend Dependencies
+      - name: Deploy with Docker Compose
         run: |
-          ssh root@45.118.132.160 "export PATH=\$PATH:/root/.bun/bin && cd /root/zcrAI/backend/api && bun install"
-
-      - name: Build Frontend
-        run: |
-          ssh root@45.118.132.160 "cd /root/zcrAI/frontend && npm install --force && npm run build"
-
-      - name: Deploy Frontend to Nginx
-        run: |
-          ssh root@45.118.132.160 "cp -r /root/zcrAI/frontend/dist/* /var/www/zcrai/"
-
-      - name: Run Database Migrations
-        run: |
-          ssh root@45.118.132.160 "export PATH=\$PATH:/root/.bun/bin && cd /root/zcrAI/backend/api && bun run db:migrate || echo 'Migration skipped (tables may already exist)'"
-
-      - name: Restart Backend
-        run: |
-          ssh root@45.118.132.160 "export PATH=\$PATH:/root/.bun/bin && pm2 delete zcrAI-backend || true && pm2 start 'bun run /root/zcrAI/backend/api/index.ts' --name zcrAI-backend"
+          ssh root@45.118.132.160 "cd /root/zcrAI && \
+          docker compose -f docker-compose.prod.yml build && \
+          docker compose -f docker-compose.prod.yml up -d --remove-orphans"
 
       - name: Health Check
         run: |
-          sleep 5
-          curl -f https://app.zcr.ai/health || exit 1
+          sleep 30
+          curl -k -f https://app.zcr.ai/api/health || exit 1
           echo "✅ Deployment successful!"
