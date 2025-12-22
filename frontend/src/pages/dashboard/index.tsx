@@ -63,7 +63,7 @@ export default function DashboardPage() {
   const { setPageContext } = usePageContext();
   
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [_error, setError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   // Date Range State
   const [startDate, setStartDate] = useState(() => {
