@@ -194,8 +194,10 @@ const app = new Elysia()
   // Temporary Simulation Endpoint for AI SOC verification
   .get('/api/test-ai-alert', async () => {
     const { AlertService } = await import('./core/services/alert.service');
-    // Use the System Tenant ID (or a known one)
-    const tenantId = '75a8f9a4-a1df-45a8-84c3-b2fa2721934b'; 
+    // Fetch System Admin Tenant to ensure the alert shows up in the main dashboard
+    const [sysTenant] = await db.select().from(tenants).where(eq(tenants.name, 'System Admin'));
+    const tenantId = sysTenant?.id || '75a8f9a4-a1df-45a8-84c3-b2fa2721934b'; 
+
     const alert = await AlertService.create({
       tenantId,
       title: 'Simulated C2 Traffic to Known Malicious IP',
