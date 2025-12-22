@@ -134,6 +134,7 @@ export class AlertService {
     status?: string[];
     severity?: string[];
     source?: string[];
+    aiStatus?: string[]; // 'verified', 'blocked', 'pending'
     limit?: number;
     offset?: number;
   }) {
@@ -154,6 +155,30 @@ export class AlertService {
 
     if (filters.source && filters.source.length > 0) {
       conditions.push(inArray(alerts.source, filters.source));
+    }
+
+    // AI Status Filter
+    if (filters.aiStatus && filters.aiStatus.length > 0) {
+        const aiConditions = [];
+        if (filters.aiStatus.includes('verified')) {
+            aiConditions.push(sql`alerts.ai_analysis->>'classification' = 'TRUE_POSITIVE'`);
+        }
+        if (filters.aiStatus.includes('blocked')) {
+            aiConditions.push(sql`alerts.ai_analysis->'actionTaken'->>'type' = 'BLOCK_IP'`);
+        }
+        if (filters.aiStatus.includes('pending')) {
+           aiConditions.push(or(
+               sql`alerts.ai_triage_status = 'pending'`,
+               sql`alerts.ai_triage_status IS NULL`
+           ));
+        }
+        if (filters.aiStatus.includes('promoted')) {
+            aiConditions.push(sql`alerts.ai_analysis->'promotedCaseId' IS NOT NULL`);
+        }
+        
+        if (aiConditions.length > 0) {
+            conditions.push(or(...aiConditions));
+        }
     }
 
     const query = db

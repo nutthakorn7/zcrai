@@ -40,6 +40,7 @@ export const alertController = new Elysia({ prefix: '/alerts' })
     if (query.status) filters.status = query.status.split(',');
     if (query.severity) filters.severity = query.severity.split(',');
     if (query.source) filters.source = query.source.split(',');
+    if (query.aiStatus) filters.aiStatus = query.aiStatus.split(',');
     
     const alerts = await AlertService.list(filters);
 

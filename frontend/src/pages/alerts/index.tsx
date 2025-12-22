@@ -104,7 +104,8 @@ export default function AlertsPage() {
   // Filter State
   const [selectedProvider, setSelectedProvider] = useState<string>('all');
   const [availableProviders, setAvailableProviders] = useState<string[]>([]);
-  const [queueFilter, setQueueFilter] = useState<'all' | 'unassigned' | 'my_queue'>('unassigned'); // Default to Unassigned for Triage
+  const [queueFilter, setQueueFilter] = useState<'all' | 'unassigned' | 'my_queue'>('unassigned'); 
+  const [aiStatus, setAiStatus] = useState<string>('all'); // 'all' | 'verified' | 'blocked' | 'pending'
 
   
   // Promotion State
@@ -115,7 +116,7 @@ export default function AlertsPage() {
 
   useEffect(() => {
     loadData();
-  }, [startDate, endDate, selectedProvider, viewMode, queueFilter]);
+  }, [startDate, endDate, selectedProvider, viewMode, queueFilter, aiStatus]);
 
   const loadData = async () => {
     setLoading(true);
@@ -131,18 +132,16 @@ export default function AlertsPage() {
         .filter((p: string) => ['sentinelone', 'crowdstrike'].includes(p));
       setAvailableProviders(Array.from(new Set(activeProviders)) as string[]);
       
-      let sourcesParam = '';
-      if (selectedProvider !== 'all') {
-        sourcesParam = `&source=${selectedProvider}&sources=${selectedProvider}`;
-      }
+      let params = `startDate=${start}&endDate=${end}`;
+      if (selectedProvider !== 'all') params += `&source=${selectedProvider}`;
+      if (aiStatus !== 'all') params += `&aiStatus=${aiStatus}`;
 
       if (viewMode === 'incidents') {
-          let statusParam = '';
-          if (queueFilter === 'unassigned') statusParam = '&status=new';
-          if (queueFilter === 'my_queue') statusParam = '&status=investigating';
+          if (queueFilter === 'unassigned') params += '&status=new';
+          if (queueFilter === 'my_queue') params += '&status=investigating';
 
           const [alertsRes, statsRes] = await Promise.all([
-            api.get(`/alerts?startDate=${start}&endDate=${end}${sourcesParam}${statusParam}`),
+            api.get(`/alerts?${params}`),
             api.get(`/alerts/stats/summary`)
           ]);
         
@@ -151,8 +150,8 @@ export default function AlertsPage() {
         
       } else {
         const [logsRes, summaryRes] = await Promise.all([
-          api.get(`/logs?startDate=${start}&endDate=${end}&limit=50${sourcesParam}`),
-          api.get(`/dashboard/summary?startDate=${start}&endDate=${end}${sourcesParam}`),
+          api.get(`/logs?${params}&limit=50`),
+          api.get(`/dashboard/summary?${params}`),
         ]);
         
         setAlerts(logsRes.data.data || []);
@@ -459,6 +458,42 @@ export default function AlertsPage() {
               </>
             )}
           </div>
+
+           {/* AI Status Filter */}
+           <div className="flex bg-content1 rounded-lg p-1 border border-white/5">
+                <Tooltip content="All AI Status">
+                    <button
+                        onClick={() => setAiStatus('all')}
+                        className={`px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all ${aiStatus === 'all' ? 'bg-content2 text-foreground shadow-sm' : 'text-foreground/40 hover:text-foreground'}`}
+                    >
+                        All
+                    </button>
+                </Tooltip>
+                
+                <div className="w-px bg-white/10 mx-1 my-1" />
+
+                <Tooltip content="AI Verified Threats">
+                    <button
+                        onClick={() => setAiStatus('verified')}
+                        className={`px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-1 ${aiStatus === 'verified' ? 'bg-danger/20 text-danger border border-danger/20' : 'text-foreground/40 hover:text-danger hover:bg-danger/10'}`}
+                    >
+                        <Icon.ShieldAlert className="w-3 h-3" />
+                        Verified
+                    </button>
+                </Tooltip>
+
+                <div className="w-px bg-white/10 mx-1 my-1" />
+
+                <Tooltip content="Auto-Blocked IPs">
+                    <button
+                         onClick={() => setAiStatus('blocked')}
+                         className={`px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-1 ${aiStatus === 'blocked' ? 'bg-purple-500/20 text-purple-400 border border-purple-500/20' : 'text-foreground/40 hover:text-purple-400 hover:bg-purple-500/10'}`}
+                    >
+                        <Icon.Shield className="w-3 h-3" />
+                        Blocked
+                    </button>
+                </Tooltip>
+           </div>
           
            {/* Filters */}
            <DateRangePicker startDate={startDate} endDate={endDate} onChange={(s, e) => { setStartDate(s); setEndDate(e); }} />
