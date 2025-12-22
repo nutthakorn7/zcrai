@@ -32,8 +32,13 @@ const emptyCount = { critical: 0, high: 0, medium: 0, low: 0, info: 0, total: 0 
 export const DashboardService = {
   // ==================== SUMMARY (Counts by Severity) ====================
   async getSummary(tenantId: string, startDate: string, endDate: string, sources?: string[]) {
+    console.log(`[DashboardService.getSummary] PARAMS: tenantId=${tenantId} start=${startDate} end=${endDate} sources=${sources}`);
+    
     // ถ้าไม่มี active integration ให้ return empty result
-    if (isEmptySources(sources)) return { ...emptyCount }
+    if (isEmptySources(sources)) {
+      console.log(`[DashboardService.getSummary] Empty sources, returning zero.`);
+      return { ...emptyCount }
+    }
     
     const sourceFilter = (sources && sources.length > 0) ? `AND source IN {sources:Array(String)}` : ''
     const sql = `
@@ -50,6 +55,8 @@ export const DashboardService = {
     `
     const rows = await query<{ severity: string; count: string }>(sql, { tenantId, startDate, endDate, sources })
     
+    console.log(`[DashboardService.getSummary] ROWS: ${JSON.stringify(rows)}`);
+
     // แปลงเป็น object
     const result: Record<string, number> = {
       critical: 0,
@@ -66,6 +73,7 @@ export const DashboardService = {
       result.total += count
     }
     
+    console.log(`[DashboardService.getSummary] RESULT: ${JSON.stringify(result)}`);
     return result
   },
 

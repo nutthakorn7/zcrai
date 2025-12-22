@@ -10,6 +10,13 @@ address = "0.0.0.0:8088"
 encoding = "ndjson"
 path = "/events"
 
+# Collector HTTP source on port 8686
+[sources.collector_feed]
+type = "http"
+address = "0.0.0.0:8686"
+encoding = "ndjson"
+path = "/events"
+
 [transforms.parse_logs]
 type = "remap"
 inputs = ["syslog_feed"]
@@ -37,19 +44,29 @@ source = '''
 .tenant_id = .tenant_id || "c8abd753-3015-4508-aa7b-6bcf732934e5"
 '''
 
+# Pass through collector events directly (already formatted)
+[transforms.parse_collector]
+type = "remap"
+inputs = ["collector_feed"]
+source = '''
+# Collector events are already properly formatted
+.timestamp = .timestamp || now()
+'''
+
 [sinks.clickhouse]
 type = "clickhouse"
-inputs = ["parse_logs", "parse_http"]
+inputs = ["parse_logs", "parse_http", "parse_collector"]
 endpoint = "http://zcrai_clickhouse:8123"
-database = "zcrai"
+database = "default"
 table = "security_events"
 encoding.timestamp_format = "unix"
 
   [sinks.clickhouse.auth]
   strategy = "basic"
   user = "default"
-  password = "clickhouse"
+  password = ""
 
   [sinks.clickhouse.batch]
   max_events = 100
   timeout_secs = 5
+

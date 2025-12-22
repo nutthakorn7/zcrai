@@ -18,8 +18,8 @@ const getEffectiveTenantId = (payload: any, selectedTenant: { value?: unknown } 
     if (selectedTenant?.value) {
       return String(selectedTenant.value)
     }
-    // Fallback to system tenant ID for superadmin view
-    return 'c8abd753-3015-4508-aa7b-6bcf732934e5'
+    // Fallback to system tenant ID for superadmin view (main demo tenant with data)
+    return '03c703a2-6731-4306-9a39-e68070415069'
   }
   
   if (!payload.tenantId) {
@@ -159,6 +159,7 @@ export const dashboardController = new Elysia({ prefix: '/dashboard' })
    */
   .get('/summary', async ({ jwt, cookie: { access_token, selected_tenant }, query, set }) => {
     try {
+      console.log(`[DashboardController] GET /summary called with query:`, query);
       const payload = await jwt.verify(access_token.value as string)
       if (!payload) throw new Error('Unauthorized')
 
@@ -190,6 +191,7 @@ export const dashboardController = new Elysia({ prefix: '/dashboard' })
    * @returns {Object} Time series data points
    */
   .get('/timeline', async ({ jwt, cookie: { access_token, selected_tenant }, query, set }) => {
+    console.log('[DashboardController] GET /timeline called');
     try {
       const payload = await jwt.verify(access_token.value as string)
       if (!payload) throw new Error('Unauthorized')
@@ -222,6 +224,7 @@ export const dashboardController = new Elysia({ prefix: '/dashboard' })
    * @returns {Object} List of hosts with event counts
    */
   .get('/top-hosts', async ({ jwt, cookie: { access_token, selected_tenant }, query, set }) => {
+    console.log('[DashboardController] GET /top-hosts called');
     try {
       const payload = await jwt.verify(access_token.value as string)
       if (!payload) throw new Error('Unauthorized')
@@ -254,6 +257,7 @@ export const dashboardController = new Elysia({ prefix: '/dashboard' })
    * @returns {Object} List of users with event counts
    */
   .get('/top-users', async ({ jwt, cookie: { access_token, selected_tenant }, query, set }) => {
+    console.log('[DashboardController] GET /top-users called');
     try {
       const payload = await jwt.verify(access_token.value as string)
       if (!payload) throw new Error('Unauthorized')
@@ -285,6 +289,7 @@ export const dashboardController = new Elysia({ prefix: '/dashboard' })
    * @returns {Object} MITRE techniques with frequency counts
    */
   .get('/mitre-heatmap', async ({ jwt, cookie: { access_token, selected_tenant }, query, set }) => {
+    console.log('[DashboardController] GET /mitre-heatmap called');
     try {
       const payload = await jwt.verify(access_token.value as string)
       if (!payload) throw new Error('Unauthorized')

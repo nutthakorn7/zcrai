@@ -171,9 +171,13 @@ export const integrationController = new Elysia({ prefix: '/integrations' })
    */
   .get('/', async ({ user, set }: any) => {
     try {
+      console.log(`[IntegrationController] GET / called. User: ${user?.email} Tenant: ${user?.tenantId}`);
       if (!user?.tenantId) throw new Error('Unauthorized - No tenant')
-      return await IntegrationService.list(user.tenantId as string)
+      const result = await IntegrationService.list(user.tenantId as string)
+      console.log(`[IntegrationController] List result count: ${result.length}`);
+      return result
     } catch (e: any) {
+      console.error(`[IntegrationController] GET / failed:`, e);
       set.status = 400
       return { error: e.message }
     }

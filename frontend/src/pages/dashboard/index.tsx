@@ -174,13 +174,21 @@ export default function DashboardPage() {
       const activeIntRes = await api.get('/integrations');
       const activeIntegrations = activeIntRes.data || [];
       
-      const activeProviders = activeIntegrations
+      // Map lastSyncStatus to status for ConnectivityStatusCard compatibility
+      // Backend uses 'lastSyncStatus: success/pending/error' but UI expects 'status: active/inactive'
+      const mappedIntegrations = activeIntegrations.map((i: any) => ({
+        ...i,
+        status: i.lastSyncStatus === 'success' ? 'active' : 'inactive'
+      }));
+      
+      const activeProviders = mappedIntegrations
+        .filter((i: any) => i.status === 'active')
         .map((i: any) => i.provider.toLowerCase())
         .filter((p: string) => ['sentinelone', 'crowdstrike', 'aws-cloudtrail'].includes(p));
         
       const uniqueActiveProviders = Array.from(new Set(activeProviders)) as string[];
       setAvailableProviders(uniqueActiveProviders);
-      setActiveIntegrationsList(activeIntegrations);
+      setActiveIntegrationsList(mappedIntegrations);
 
       // 2. Determine sources query param
       let targetSources: string[] = []; // Default to empty (show all)
@@ -227,16 +235,15 @@ export default function DashboardPage() {
       ]);
 
       // 3. Set Data with Validation
-      const summaryData = summaryRes.data;
+      const summaryData = { ...summaryRes.data };
       const prevSummaryData = prevSummaryRes.data;
       
       // Validate total = critical + high + medium + low + info
-      if (summaryData?.critical !== undefined && summaryData?.high !== undefined && 
-          summaryData?.medium !== undefined && summaryData?.low !== undefined) {
+      if (summaryData?.critical !== undefined) {
         // Fix: Include info in calculation
-        const calculatedTotal = summaryData.critical + summaryData.high + summaryData.medium + summaryData.low + (summaryData.info || 0);
+        const calculatedTotal = (summaryData.critical || 0) + (summaryData.high || 0) + (summaryData.medium || 0) + (summaryData.low || 0) + (summaryData.info || 0);
         if (summaryData.total !== calculatedTotal) {
-          // console.warn(`❌ Data Mismatch: Backend returned total ${summaryData.total}, but sum of severities is ${calculatedTotal}`);
+          // console.warn(`❌ Data Mismatch...`);
           // Correct it
           summaryData.total = calculatedTotal;
         }

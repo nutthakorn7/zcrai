@@ -26,6 +26,7 @@ RUN apk --no-cache add ca-certificates tzdata
 
 # Copy binary
 COPY --from=builder /app/collector .
+COPY --from=builder /app/infra ./infra
 
 # Expose port
 EXPOSE 8001

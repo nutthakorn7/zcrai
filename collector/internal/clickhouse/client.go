@@ -26,6 +26,7 @@ type Config struct {
 
 // NewClient สร้าง ClickHouse client ใหม่
 func NewClient(cfg Config, logger *zap.Logger) (*Client, error) {
+	// Use Native protocol (port 9000)
 	dsn := fmt.Sprintf("clickhouse://%s:%s@%s:%s/%s?debug=false",
 		cfg.Username, cfg.Password, cfg.Host, cfg.Port, cfg.Database)
 
@@ -215,3 +216,54 @@ func (c *Client) OptimizeTable(table string) error {
 	c.logger.Info("Optimized table", zap.String("table", table))
 	return nil
 }
+
+// InsertEvents inserts events directly to ClickHouse security_events table
+func (c *Client) InsertEvents(events []map[string]interface{}) error {
+	if len(events) == 0 {
+		return nil
+	}
+
+	tx, err := c.db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+
+	stmt, err := tx.Prepare(`
+		INSERT INTO security_events (
+			id, tenant_id, timestamp, severity, source, event_type,
+			host_name, user_name, mitre_tactic, mitre_technique, raw
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`)
+	if err != nil {
+		tx.Rollback()
+		return fmt.Errorf("failed to prepare statement: %w", err)
+	}
+	defer stmt.Close()
+
+	for _, event := range events {
+		_, err := stmt.Exec(
+			event["id"],
+			event["tenant_id"],
+			event["timestamp"],
+			event["severity"],
+			event["source"],
+			event["event_type"],
+			event["host_name"],
+			event["user_name"],
+			event["mitre_tactic"],
+			event["mitre_technique"],
+			event["raw_data"],
+		)
+		if err != nil {
+			c.logger.Warn("Failed to insert event", zap.Any("event_id", event["id"]), zap.Error(err))
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	c.logger.Info("Inserted events directly to ClickHouse", zap.Int("count", len(events)))
+	return nil
+}
+

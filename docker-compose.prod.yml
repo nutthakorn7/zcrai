@@ -27,10 +27,11 @@ services:
     environment:
       - CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1
       - CLICKHOUSE_USER=default
-      - CLICKHOUSE_PASSWORD=
+      - CLICKHOUSE_PASSWORD=zcrAI1234
     volumes:
       - clickhouse_data:/var/lib/clickhouse
       - ./clickhouse_logs:/var/log/clickhouse-server
+      # - ./clickhouse_config/users.xml:/etc/clickhouse-server/users.d/users.xml:ro
     ulimits:
       nofile:
         soft: 262144
@@ -75,8 +76,8 @@ services:
       - DATABASE_URL=postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-zcrai}
       - REDIS_URL=redis://:${REDIS_PASSWORD:-redis_password}@redis:6379
       - CLICKHOUSE_URL=http://zcrai_clickhouse:8123
-      - CLICKHOUSE_DB=default
-      - CLICKHOUSE_PASSWORD=
+      - CLICKHOUSE_DB=zcrai
+      - CLICKHOUSE_PASSWORD=zcrAI1234
       - NODE_ENV=production
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - SSO_ISSUER=${SSO_ISSUER}
@@ -84,6 +85,7 @@ services:
       - SSO_CLIENT_SECRET=${SSO_CLIENT_SECRET}
       - SSO_REDIRECT_URI=${SSO_REDIRECT_URI}
       - FRONTEND_URL=${FRONTEND_URL:-https://app.zcr.ai}
+      - COLLECTOR_URL=http://zcrai_collector:8001
     depends_on:
       postgres:
         condition: service_healthy
@@ -102,6 +104,31 @@ services:
       - /etc/letsencrypt:/etc/letsencrypt:ro
     depends_on:
       - backend
+
+  # Data Collector - Pulls from CrowdStrike/SentinelOne and pushes to Vector
+  collector:
+    build: ./collector
+    container_name: zcrai_collector
+    restart: unless-stopped
+    ports:
+      - "8001:8001"
+    environment:
+      - ENV=production
+      - PORT=8001
+      - ELYSIA_URL=http://zcrai_backend:8000
+      - VECTOR_URL=http://zcrai_vector:8088
+      - POLL_INTERVAL=5m
+      - LOOKBACK_DAYS=7
+      - COLLECTOR_API_KEY=${COLLECTOR_API_KEY:-dev_collector_key_change_in_production}
+      - CLICKHOUSE_HOST=zcrai_clickhouse
+      - CLICKHOUSE_PORT=9000
+      - CLICKHOUSE_DB=zcrai
+      - CLICKHOUSE_USER=default
+      - CLICKHOUSE_PASSWORD=zcrAI1234
+    depends_on:
+      - backend
+      - vector
+      - clickhouse
 
 volumes:
   postgres_data:
