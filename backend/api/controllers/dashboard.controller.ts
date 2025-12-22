@@ -369,6 +369,7 @@ export const dashboardController = new Elysia({ prefix: '/dashboard' })
 
       return await DashboardService.getIntegrationBreakdown(tenantId, startDate, endDate, sources)
     } catch (e: any) {
+      console.error('[DashboardController] GET /integrations failed:', e.message);
       set.status = 400
       return { error: e.message }
     }
@@ -399,6 +400,7 @@ export const dashboardController = new Elysia({ prefix: '/dashboard' })
 
       return await DashboardService.getSiteBreakdown(tenantId, startDate, endDate, sources)
     } catch (e: any) {
+      console.error('[DashboardController] GET /sites failed:', e.message);
       set.status = 400
       return { error: e.message }
     }
@@ -475,6 +477,7 @@ export const dashboardController = new Elysia({ prefix: '/dashboard' })
 
       return await DashboardService.getRecentDetections(tenantId, startDate, endDate, limit, sources)
     } catch (e: any) {
+      console.error('[DashboardController] GET /recent-detections failed:', e.message);
       set.status = 400
       return { error: e.message }
     }

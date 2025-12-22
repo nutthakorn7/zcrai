@@ -363,9 +363,9 @@ export const DashboardService = {
         severity,
         coalesce(
           nullIf(mitre_technique, ''),
-          nullIf(JSONExtractString(raw_data, 'ThreatName'), ''),
-          nullIf(JSONExtractString(raw_data, 'scenario'), ''),
-          nullIf(JSONExtractString(raw_data, 'DetectDescription'), ''),
+          nullIf(JSONExtractString(raw, 'ThreatName'), ''),
+          nullIf(JSONExtractString(raw, 'scenario'), ''),
+          nullIf(JSONExtractString(raw, 'DetectDescription'), ''),
           nullIf(file_name, ''),
           nullIf(process_name, ''),
           nullIf(event_type, ''),
@@ -376,7 +376,7 @@ export const DashboardService = {
         mitre_technique,
         host_name,
         user_name,
-        JSONExtractString(raw_data, 'ThreatName') as threat_name,
+        JSONExtractString(raw, 'ThreatName') as threat_name,
         '' as console_link
       FROM security_events
       WHERE tenant_id = {tenantId:String}

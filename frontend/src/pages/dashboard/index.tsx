@@ -63,6 +63,7 @@ export default function DashboardPage() {
   const { setPageContext } = usePageContext();
   
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   // Date Range State
   const [startDate, setStartDate] = useState(() => {
@@ -164,6 +165,7 @@ export default function DashboardPage() {
 
   const loadDashboard = async () => {
     setLoading(true);
+    setError(null); // Clear any previous errors
     // Use local date string to avoid timezone issues
     const start = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, '0')}-${String(startDate.getDate()).padStart(2, '0')}`;
     const end = `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, '0')}-${String(endDate.getDate()).padStart(2, '0')}`;
@@ -280,8 +282,9 @@ export default function DashboardPage() {
           timeRange: `${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}`,
         }
       });
-    } catch (e) {
+    } catch (e: any) {
       console.error('Failed to load dashboard:', e);
+      setError(e.message || String(e));
     } finally {
       setLoading(false);
     }
