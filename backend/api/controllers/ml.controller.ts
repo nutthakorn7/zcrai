@@ -29,9 +29,19 @@ export const mlController = new Elysia({ prefix: '/ml' })
    * @returns {Object} Current anomalies with severity, confidence scores, and time series data
    * @description Monitors: Alert Volume, Login Failures, Network Traffic, API Errors, Memory Usage
    */
-  .get('/anomalies', async (context) => {
+  .get('/anomalies', async ({ jwt, cookie: { access_token }, set }) => {
     try {
-      const user = (context as any).user;
+      if (!access_token?.value) {
+        set.status = 401
+        throw new Error('Unauthorized')
+      }
+      const payload = await jwt.verify(access_token.value as string)
+      if (!payload) {
+        set.status = 401
+        throw new Error('Invalid token')
+      }
+      
+      const user = payload as any
       const loginStats = await MLAnalyticsService.getLoginFailureStats(user.tenantId);
       const alertStats = await MLAnalyticsService.getAlertVolumeStats(user.tenantId);
 

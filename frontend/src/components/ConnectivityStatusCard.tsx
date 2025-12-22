@@ -21,7 +21,7 @@ export function ConnectivityStatusCard({ integrations }: ConnectivityStatusCardP
     
     // Helper to map API data to status
     const getStatus = (provider: string): IntegrationStatus => {
-        const integration = integrations.find(i => i.provider === provider && i.status === 'active');
+        const integration = integrations.find(i => i.provider === provider && i.lastSyncStatus === 'success');
         if (integration) {
             return { provider, status: 'active', lastSync: 'Now', name: integration.name };
         }
