@@ -8,7 +8,7 @@ import { tenantGuard } from '../middlewares/auth.middleware';
 import { AnomalyDetectionService } from '../core/services/anomaly.service';
 import { MLAnalyticsService } from '../core/services/ml-analytics.service';
 
-interface AnomalyMetric {
+export interface AnomalyMetric {
   metric: string;
   isAnomaly: boolean;
   severity: 'low' | 'medium' | 'high' | 'critical';
@@ -203,7 +203,6 @@ export const mlController = new Elysia({ prefix: '/ml' })
   }, {
     body: t.Object({
       timeSeries: t.Array(t.Number()),
-      windowSize: t.Optional(t.Number()),
       windowSize: t.Optional(t.Number()),
       threshold: t.Optional(t.Number()),
     }),

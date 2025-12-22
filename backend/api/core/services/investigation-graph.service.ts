@@ -23,7 +23,7 @@ interface GraphEdge {
   label: string;
 }
 
-interface InvestigationGraph {
+export interface InvestigationGraph {
   nodes: GraphNode[];
   edges: GraphEdge[];
   summary: {

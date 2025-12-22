@@ -14,7 +14,7 @@ interface CustodyEvent {
   notes?: string;
 }
 
-interface EvidenceItem {
+export interface EvidenceItem {
   id: string;
   caseId: string;
   type: 'memory_dump' | 'disk_image' | 'network_pcap' | 'log_file';

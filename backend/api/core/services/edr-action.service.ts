@@ -7,7 +7,7 @@ import { db } from '../../infra/db';
 import { playbookExecutionSteps } from '../../infra/db/schema';
 import { eq } from 'drizzle-orm';
 
-interface EDRActionResult {
+export interface EDRActionResult {
   success: boolean;
   message: string;
   data?: any;

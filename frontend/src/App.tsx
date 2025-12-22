@@ -23,6 +23,7 @@ const ObservablesPage = lazy(() => import("./pages/observables/ObservablesPage")
 const ThreatIntelPage = lazy(() => import("./pages/ThreatIntelPage"));
 const PlaybooksPage = lazy(() => import("./pages/playbooks/PlaybooksPage"));
 const ReportsPage = lazy(() => import("./pages/reports/ReportsPage"));
+const MdrReportPrintPage = lazy(() => import("./pages/reports/MdrReportPrintPage"));
 
 const AdminDashboard = lazy(() => import("./pages/admin"));
 
@@ -149,6 +150,9 @@ function App() {
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
+            
+            {/* MDR Report Print Route (No sidebar, for PDF generation) */}
+            <Route path="/report-print/:id" element={<MdrReportPrintPage />} />
             
             {/* Protected Routes */}
             <Route 

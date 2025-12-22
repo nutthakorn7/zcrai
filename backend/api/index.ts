@@ -20,6 +20,7 @@ import { notificationController } from './controllers/notification.controller'
 import { aiController } from './controllers/ai.controller'
 import { adminController } from './controllers/admin.controller'
 import { reportController } from './controllers/report.controller'
+import { mdrReportController } from './controllers/mdr-report.controller'
 import { notificationChannelController } from './controllers/notification-channel.controller'
 import { playbookController } from './controllers/playbook.controller'
 import { analyticsController } from './controllers/analytics.controller'
@@ -39,6 +40,16 @@ import { systemController } from './controllers/system.controller'
 import { billingController } from './controllers/billing.controller'
 import { detectionRuleController } from './controllers/detection-rule.controller'
 import { SchedulerService } from './core/services/scheduler.service'
+
+// Re-export types that are used by controllers (fixes TS4023 errors)
+export type { AnomalyMetric } from './controllers/ml.controller'
+export type { DetectionResult } from './core/services/anomaly.service'
+export type { EDRActionResult } from './core/services/edr-action.service'
+export type { EvidenceItem } from './core/services/evidence.service'
+export type { FPPattern, FeedbackStats } from './core/services/alert-feedback.service'
+export type { ForensicAnalysis } from './core/services/forensics.service'
+export type { InvestigationGraph } from './core/services/investigation-graph.service'
+export type { RiskScore, TrendPrediction } from './core/services/risk-score.service'
 
 
 import { LogRetentionService } from './core/services/log-retention.service'
@@ -139,7 +150,7 @@ const app = new Elysia()
   .use(errorHandler)  // Global error handler
   .use(rateLimit({
      duration: 60000, // 1 minute
-     max: 100 // 100 requests per minute
+     max: 500 // 500 requests per minute (increased for Dashboard)
   }))
   .use(authController)
   .use(passkeyController)
@@ -163,6 +174,7 @@ const app = new Elysia()
   .use(notificationChannelController) // Slack/Teams notifications
   .use(aiController)
   .use(reportController) // PDF report generation
+  .use(mdrReportController) // MDR Monthly Reports
   .use(adminController) // Super Admin routes
   .use(edrController) // EDR response actions
   .use(evidenceController) // Evidence chain-of-custody

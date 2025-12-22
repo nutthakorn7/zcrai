@@ -39,7 +39,7 @@ interface MemoryArtifacts {
   commandHistory: Array<{ command: string; timestamp: Date }>;
 }
 
-interface ForensicAnalysis {
+export interface ForensicAnalysis {
   dumpId: string;
   caseId: string;
   analyzedAt: Date;

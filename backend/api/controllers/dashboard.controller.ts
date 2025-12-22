@@ -18,8 +18,8 @@ const getEffectiveTenantId = (payload: any, selectedTenant: { value?: unknown } 
     if (selectedTenant?.value) {
       return String(selectedTenant.value)
     }
-    // Fallback to system tenant ID for superadmin view
-    return 'c8abd753-3015-4508-aa7b-6bcf732934e5'
+    // Fallback to user's tenant ID (likely the main tenant with data) if no specific tenant selected
+    return payload.tenantId || 'c8abd753-3015-4508-aa7b-6bcf732934e5'
   }
   
   if (!payload.tenantId) {
@@ -176,6 +176,7 @@ export const dashboardController = new Elysia({ prefix: '/dashboard' })
 
       return await DashboardService.getSummary(tenantId, startDate, endDate, sources)
     } catch (e: any) {
+      console.error('Dashboard summary error:', e)
       set.status = 400
       return { error: e.message }
     }

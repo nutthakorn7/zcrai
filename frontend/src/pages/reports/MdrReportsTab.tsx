@@ -1,0 +1,414 @@
+import { useEffect, useState } from 'react'
+import {
+  Card, CardBody, CardHeader, Button, Chip, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell,
+  Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure, Input, Textarea, Spinner
+} from "@heroui/react"
+import { Icon } from '../../shared/ui/icon'
+import { api } from '../../shared/api/api'
+import { MonthPicker } from '../../components/MonthPicker'
+
+interface MdrReport {
+  id: string
+  tenantId: string
+  monthYear: string
+  status: 'draft' | 'approved' | 'generating' | 'sent' | 'error'
+  pdfUrl: string | null
+  approvedBy: string | null
+  approvedAt: string | null
+  sentAt: string | null
+  errorMessage: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+interface MdrReportData {
+  tenantName: string
+  monthYear: string
+  dateRange: { start: string; end: string }
+  generatedAt: string
+  overview: {
+    threats: number
+    mitigated: number
+    malicious: number
+    suspicious: number
+    benign: number
+    notMitigated: number
+  }
+  topEndpoints: Array<{ name: string; count: number }>
+  topThreats: Array<{ name: string; count: number }>
+  incidentRecommendation: string
+  riskAssessment: {
+    result: string
+    recommendation: string
+  }
+}
+
+const STATUS_COLORS: Record<string, 'default' | 'primary' | 'secondary' | 'success' | 'warning' | 'danger'> = {
+  draft: 'warning',
+  approved: 'success',
+  generating: 'primary',
+  sent: 'success',
+  error: 'danger'
+}
+
+export function MdrReportsTab() {
+  const [loading, setLoading] = useState(true)
+  const [reports, setReports] = useState<MdrReport[]>([])
+  const [generating, setGenerating] = useState(false)
+  const [monthYear, setMonthYear] = useState(() => {
+    const now = new Date()
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  })
+  
+  // Edit Modal State
+  const { isOpen: isEditOpen, onOpen: onEditOpen, onClose: onEditClose } = useDisclosure()
+  const [editingReport, setEditingReport] = useState<MdrReport | null>(null)
+  const [editData, setEditData] = useState<MdrReportData | null>(null)
+  const [saving, setSaving] = useState(false)
+
+  const fetchReports = async () => {
+    try {
+      setLoading(true)
+      const res = await api.get('/mdr-reports')
+      if (res.data?.success) {
+        setReports(res.data.data || [])
+      }
+    } catch (err) {
+      console.error('Failed to fetch MDR reports', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchReports()
+  }, [])
+
+  const handleGenerate = async () => {
+    try {
+      setGenerating(true)
+      const res = await api.post('/mdr-reports/generate', { monthYear })
+      if (res.data?.success) {
+        fetchReports()
+      }
+    } catch (err) {
+      console.error('Failed to generate report', err)
+      alert('Failed to generate report')
+    } finally {
+      setGenerating(false)
+    }
+  }
+
+  const handleEdit = async (report: MdrReport) => {
+    try {
+      const res = await api.get(`/mdr-reports/${report.id}`)
+      if (res.data?.success) {
+        setEditingReport(report)
+        setEditData(res.data.data.reportData)
+        onEditOpen()
+      }
+    } catch (err) {
+      console.error('Failed to fetch report data', err)
+      alert('Failed to load report data')
+    }
+  }
+
+  const handleSave = async () => {
+    if (!editingReport || !editData) return
+    try {
+      setSaving(true)
+      await api.put(`/mdr-reports/${editingReport.id}/snapshot`, { data: editData })
+      onEditClose()
+      fetchReports()
+    } catch (err) {
+      console.error('Failed to save report', err)
+      alert('Failed to save report')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleApprove = async (reportId: string) => {
+    if (!confirm('Approve this report and generate PDF?')) return
+    try {
+      await api.post(`/mdr-reports/${reportId}/approve`)
+      fetchReports()
+    } catch (err) {
+      console.error('Failed to approve report', err)
+      alert('Failed to approve report')
+    }
+  }
+
+  const handlePreview = (reportId: string) => {
+    window.open(`/report-print/${reportId}`, '_blank')
+  }
+
+  const handleDownload = async (reportId: string, monthYear: string) => {
+    try {
+      const res = await api.get(`/mdr-reports/${reportId}/pdf`, { responseType: 'blob' })
+      const blob = new Blob([res.data], { type: 'application/pdf' })
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `MDR_Report_${monthYear}.pdf`
+      a.click()
+      window.URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error('Failed to download PDF', err)
+      alert('Failed to download PDF')
+    }
+  }
+
+  const formatMonthYear = (my: string) => {
+    const [year, month] = my.split('-')
+    const monthNames = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ]
+    return `${monthNames[parseInt(month) - 1]} ${year}`
+  }
+
+  return (
+    <div className="space-y-6 mt-4">
+      {/* Generate New Report */}
+      <Card className="bg-content1/50 border border-white/5">
+        <CardHeader className="flex justify-between items-center">
+          <div>
+            <h3 className="text-lg font-semibold">Generate MDR Report</h3>
+            <p className="text-sm text-default-500">Create a new monthly security report</p>
+          </div>
+          <div className="flex gap-3 items-center">
+            <MonthPicker
+              value={monthYear}
+              onChange={setMonthYear}
+            />
+            <Button
+              color="primary"
+              onPress={handleGenerate}
+              isLoading={generating}
+              startContent={!generating && <Icon.Add className="w-4 h-4" />}
+            >
+              Generate Draft
+            </Button>
+          </div>
+        </CardHeader>
+      </Card>
+
+      {/* Reports List */}
+      <Card className="bg-content1/50 border border-white/5">
+        <CardHeader>
+          <h3 className="text-lg font-semibold">Monthly Reports</h3>
+        </CardHeader>
+        <CardBody>
+          {loading ? (
+            <div className="flex justify-center py-8">
+              <Spinner />
+            </div>
+          ) : (
+            <Table aria-label="MDR Reports Table">
+              <TableHeader>
+                <TableColumn>MONTH</TableColumn>
+                <TableColumn>STATUS</TableColumn>
+                <TableColumn>CREATED</TableColumn>
+                <TableColumn>APPROVED</TableColumn>
+                <TableColumn>ACTIONS</TableColumn>
+              </TableHeader>
+              <TableBody items={reports} emptyContent="No reports found. Generate your first report above.">
+                {(report) => (
+                  <TableRow key={report.id}>
+                    <TableCell>
+                      <span className="font-medium">{formatMonthYear(report.monthYear)}</span>
+                    </TableCell>
+                    <TableCell>
+                      <Chip
+                        size="sm"
+                        color={STATUS_COLORS[report.status] || 'default'}
+                        variant="flat"
+                      >
+                        {report.status.toUpperCase()}
+                      </Chip>
+                    </TableCell>
+                    <TableCell>
+                      {new Date(report.createdAt).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell>
+                      {report.approvedAt 
+                        ? new Date(report.approvedAt).toLocaleDateString()
+                        : <span className="text-default-400">—</span>
+                      }
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
+                        {/* Preview */}
+                        <Button
+                          size="sm"
+                          variant="flat"
+                          onPress={() => handlePreview(report.id)}
+                          startContent={<Icon.Eye className="w-4 h-4" />}
+                        >
+                          Preview
+                        </Button>
+
+                        {/* Edit (only for drafts) */}
+                        {report.status === 'draft' && (
+                          <Button
+                            size="sm"
+                            variant="flat"
+                            color="secondary"
+                            onPress={() => handleEdit(report)}
+                            startContent={<Icon.Edit className="w-4 h-4" />}
+                          >
+                            Edit
+                          </Button>
+                        )}
+
+                        {/* Approve (only for drafts) */}
+                        {report.status === 'draft' && (
+                          <Button
+                            size="sm"
+                            color="success"
+                            variant="flat"
+                            onPress={() => handleApprove(report.id)}
+                            startContent={<Icon.CheckCircle className="w-4 h-4" />}
+                          >
+                            Approve
+                          </Button>
+                        )}
+
+                        {/* Download (only for approved/sent) */}
+                        {(report.status === 'approved' || report.status === 'sent') && report.pdfUrl && (
+                          <Button
+                            size="sm"
+                            color="primary"
+                            variant="flat"
+                            onPress={() => handleDownload(report.id, report.monthYear)}
+                            startContent={<Icon.Download className="w-4 h-4" />}
+                          >
+                            Download
+                          </Button>
+                        )}
+
+                        {/* Error message */}
+                        {report.status === 'error' && report.errorMessage && (
+                          <span className="text-danger text-xs">{report.errorMessage}</span>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          )}
+        </CardBody>
+      </Card>
+
+      {/* Edit Modal */}
+      <Modal isOpen={isEditOpen} onOpenChange={onEditClose} size="4xl" scrollBehavior="inside">
+        <ModalContent>
+          {(onClose) => (
+            <>
+              <ModalHeader>
+                Edit Report: {editingReport && formatMonthYear(editingReport.monthYear)}
+              </ModalHeader>
+              <ModalBody>
+                {editData && (
+                  <div className="space-y-6">
+                    {/* Overview Stats */}
+                    <Card className="bg-content2">
+                      <CardHeader>
+                        <h4 className="font-semibold">Overview Statistics</h4>
+                      </CardHeader>
+                      <CardBody>
+                        <div className="grid grid-cols-3 gap-4">
+                          <Input
+                            type="number"
+                            label="Threats"
+                            value={String(editData.overview.threats)}
+                            onChange={(e) => setEditData({
+                              ...editData,
+                              overview: { ...editData.overview, threats: parseInt(e.target.value) || 0 }
+                            })}
+                          />
+                          <Input
+                            type="number"
+                            label="Mitigated"
+                            value={String(editData.overview.mitigated)}
+                            onChange={(e) => setEditData({
+                              ...editData,
+                              overview: { ...editData.overview, mitigated: parseInt(e.target.value) || 0 }
+                            })}
+                          />
+                          <Input
+                            type="number"
+                            label="Not Mitigated"
+                            value={String(editData.overview.notMitigated)}
+                            onChange={(e) => setEditData({
+                              ...editData,
+                              overview: { ...editData.overview, notMitigated: parseInt(e.target.value) || 0 }
+                            })}
+                          />
+                        </div>
+                      </CardBody>
+                    </Card>
+
+                    {/* AI Generated Sections */}
+                    <Card className="bg-content2">
+                      <CardHeader>
+                        <h4 className="font-semibold">Incident Recommendation (AI Generated)</h4>
+                      </CardHeader>
+                      <CardBody>
+                        <Textarea
+                          value={editData.incidentRecommendation}
+                          onChange={(e) => setEditData({
+                            ...editData,
+                            incidentRecommendation: e.target.value
+                          })}
+                          minRows={4}
+                          placeholder="Recommendation text..."
+                        />
+                      </CardBody>
+                    </Card>
+
+                    <Card className="bg-content2">
+                      <CardHeader>
+                        <h4 className="font-semibold">Risk Assessment</h4>
+                      </CardHeader>
+                      <CardBody className="space-y-4">
+                        <Textarea
+                          label="Assessment Result"
+                          value={editData.riskAssessment.result}
+                          onChange={(e) => setEditData({
+                            ...editData,
+                            riskAssessment: { ...editData.riskAssessment, result: e.target.value }
+                          })}
+                          minRows={3}
+                        />
+                        <Textarea
+                          label="Recommendation"
+                          value={editData.riskAssessment.recommendation}
+                          onChange={(e) => setEditData({
+                            ...editData,
+                            riskAssessment: { ...editData.riskAssessment, recommendation: e.target.value }
+                          })}
+                          minRows={4}
+                        />
+                      </CardBody>
+                    </Card>
+                  </div>
+                )}
+              </ModalBody>
+              <ModalFooter>
+                <Button variant="light" onPress={onClose}>
+                  Cancel
+                </Button>
+                <Button color="primary" onPress={handleSave} isLoading={saving}>
+                  Save Changes
+                </Button>
+              </ModalFooter>
+            </>
+          )}
+        </ModalContent>
+      </Modal>
+    </div>
+  )
+}

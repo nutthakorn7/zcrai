@@ -657,6 +657,59 @@ export const reportSchedulesRelations = relations(reportSchedules, ({ one }) => 
   }),
 }))
 
+// ==================== MDR REPORTING ====================
+export const mdrReports = pgTable('mdr_reports', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  tenantId: uuid('tenant_id').references(() => tenants.id, { onDelete: 'cascade' }).notNull(),
+  monthYear: varchar('month_year', { length: 7 }).notNull(), // Format: '2025-11'
+  status: text('status').default('draft').notNull(), // 'draft', 'approved', 'generating', 'sent', 'error'
+  pdfUrl: text('pdf_url'),
+  downloadToken: text('download_token'),
+  approvedBy: uuid('approved_by').references(() => users.id),
+  approvedAt: timestamp('approved_at'),
+  sentAt: timestamp('sent_at'),
+  errorMessage: text('error_message'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  tenantMonthYearUnique: index('mdr_reports_tenant_month_year_idx').on(table.tenantId, table.monthYear),
+  statusIdx: index('mdr_reports_status_idx').on(table.status),
+}))
+
+export const mdrReportSnapshots = pgTable('mdr_report_snapshots', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  reportId: uuid('report_id').references(() => mdrReports.id, { onDelete: 'cascade' }).notNull(),
+  version: integer('version').default(1).notNull(),
+  data: jsonb('data').notNull(), // Complete report data structure
+  createdBy: uuid('created_by').references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  reportIdIdx: index('mdr_report_snapshots_report_id_idx').on(table.reportId),
+}))
+
+export const mdrReportsRelations = relations(mdrReports, ({ one, many }) => ({
+  tenant: one(tenants, {
+    fields: [mdrReports.tenantId],
+    references: [tenants.id],
+  }),
+  approver: one(users, {
+    fields: [mdrReports.approvedBy],
+    references: [users.id],
+  }),
+  snapshots: many(mdrReportSnapshots),
+}))
+
+export const mdrReportSnapshotsRelations = relations(mdrReportSnapshots, ({ one }) => ({
+  report: one(mdrReports, {
+    fields: [mdrReportSnapshots.reportId],
+    references: [mdrReports.id],
+  }),
+  creator: one(users, {
+    fields: [mdrReportSnapshots.createdBy],
+    references: [users.id],
+  }),
+}))
+
 // ==================== CLOUD INTEGRATIONS ====================
 export const cloudIntegrations = pgTable('cloud_integrations', {
   id: uuid('id').defaultRandom().primaryKey(),

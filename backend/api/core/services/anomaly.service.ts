@@ -3,7 +3,7 @@
  * Uses Z-score and other statistical methods to detect anomalies
  */
 
-interface DetectionResult {
+export interface DetectionResult {
   isAnomaly: boolean;
   severity: 'low' | 'medium' | 'high' | 'critical';
   confidence: number;

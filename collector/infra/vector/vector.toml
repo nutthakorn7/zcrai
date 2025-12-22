@@ -10,7 +10,7 @@ address = "0.0.0.0:8687"
 # รับ events จาก Collector via HTTP
 [sources.collector_events]
 type = "http_server"
-address = "0.0.0.0:8088"
+address = "0.0.0.0:8686"
 path = "/events"
 encoding = "ndjson"
 
@@ -232,24 +232,27 @@ strategy = "basic"
 user = "default"
 password = "clickhouse"
 
-# Batch settings
+# Batch settings - Increased for high ingestion rates
 [sinks.clickhouse.batch]
-max_bytes = 10485760  # 10MB
-max_events = 10000
-timeout_secs = 5
+max_bytes = 52428800  # 50MB (increased from 10MB)
+max_events = 50000    # 50k events (increased from 10k)
+timeout_secs = 30     # 30 sec (increased from 5)
 
 # Retry settings
 [sinks.clickhouse.request]
-retry_attempts = 5
-retry_initial_backoff_secs = 1
-retry_max_duration_secs = 60
+retry_attempts = 10
+retry_initial_backoff_secs = 2
+retry_max_duration_secs = 120
+concurrency = 10      # Limit concurrent requests to ClickHouse
+rate_limit_duration_secs = 1
+rate_limit_num = 5    # Max 5 requests per second
 
 # Console output for debugging (disable in production)
-# [sinks.console_debug]
-# type = "console"
-# inputs = ["clickhouse_compatible"]
-# target = "stdout"
-# 
-# [sinks.console_debug.encoding]
-# codec = "json"
+[sinks.console_debug]
+type = "console"
+inputs = ["collector_events"]
+target = "stdout"
+
+[sinks.console_debug.encoding]
+codec = "json"
 

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap");
 
 @tailwind base;
 @tailwind components;
@@ -8,15 +8,15 @@
   /* CSS Variables from Tailwind Config */
   :root {
     --color-background: #111315;
-    --color-foreground: #ECEDEE;
-    --color-content1: #1A1D1F;
+    --color-foreground: #ecedee;
+    --color-content1: #1a1d1f;
     --color-content2: #242527;
     --color-content3: #353839;
-    --color-content4: #4A4D50;
-    --color-primary: #C0DBEF;
-    --color-secondary: #FDC693;
-    --color-success: #FFEE98;
-    
+    --color-content4: #4a4d50;
+    --color-primary: #c0dbef;
+    --color-secondary: #fdc693;
+    --color-success: #ffee98;
+
     /* Spacing scale */
     --spacing-tight: 0.5rem;
     --spacing-base: 1rem;
@@ -26,10 +26,10 @@
 }
 
 body {
-  font-family: 'Roboto', sans-serif;
+  font-family: "Roboto", sans-serif;
   @apply bg-background text-foreground min-h-screen antialiased;
   @apply selection:bg-secondary selection:text-background;
-  
+
   /* Smooth scrolling */
   scroll-behavior: smooth;
 }
@@ -76,7 +76,9 @@ body {
 }
 
 /* Smooth transitions for interactive elements */
-button, a, [role="button"] {
+button,
+a,
+[role="button"] {
   @apply transition-colors duration-200;
 }
 
@@ -86,8 +88,86 @@ button, a, [role="button"] {
     @apply bg-content1 rounded-lg border border-white/5;
     @apply transition-all duration-200;
   }
-  
+
   .card-notion:hover {
     @apply border-white/10 shadow-sm;
+  }
+}
+
+/* ==================== MDR REPORT PRINT STYLES ==================== */
+
+/* MDR Report Print Container */
+.mdr-report-print {
+  width: 297mm;
+  background: white;
+  color: #1f2937;
+  font-family: "Roboto", "Noto Sans Thai", sans-serif;
+}
+
+/* Each page is A4 landscape (297mm x 210mm) */
+.mdr-page {
+  width: 297mm;
+  min-height: 210mm;
+  background: white;
+  position: relative;
+  page-break-after: always;
+  page-break-inside: avoid;
+  overflow: hidden;
+}
+
+/* Cover page with fixed full height */
+.mdr-cover-page {
+  height: 210mm;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Print media queries */
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 0;
+  }
+
+  html,
+  body {
+    width: 297mm;
+    height: 210mm;
+  }
+
+  body {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  .mdr-report-print {
+    width: 297mm;
+  }
+
+  .mdr-page {
+    width: 297mm;
+    min-height: 210mm;
+    page-break-after: always;
+    page-break-inside: avoid;
+  }
+
+  /* Hide everything except report during print */
+  .no-print,
+  .sidebar,
+  nav,
+  header:not(.mdr-report-print header) {
+    display: none !important;
+  }
+
+  /* Force background colors */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Prevent table rows from breaking */
+  tr {
+    page-break-inside: avoid;
   }
 }
