@@ -2,6 +2,7 @@ import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai';
 import { db } from '../../infra/db';
 import { alerts } from '../../infra/db/schema';
 import { eq } from 'drizzle-orm';
+import { NotificationChannelService } from './notification-channel.service';
 
 const apiKey = process.env.GEMINI_API_KEY;
 const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
@@ -139,6 +140,15 @@ export class AITriageService {
                     };
                     // Append action to reasoning for visibility
                     analysis.suggested_action = `[AUTO-BLOCKED] ${targetIP}. ${analysis.suggested_action || ''}`;
+
+                    // 🔔 Send notification to LINE/Slack/Teams
+                    NotificationChannelService.send(alertData.tenantId, {
+                        type: 'alert',
+                        severity: 'critical',
+                        title: `🚫 AI Auto-Blocked IP: ${targetIP}`,
+                        message: `Alert: ${alertData.title}\nReason: ${analysis.reasoning}\nConfidence: ${analysis.confidence}%`,
+                        metadata: { alertId, ip: targetIP, action: 'auto_block' }
+                    }).catch(e => console.warn('Failed to send auto-block notification:', e.message));
                 }
             }
         }
@@ -180,6 +190,16 @@ export class AITriageService {
                 newTags.push('auto-promoted');
                 analysis.suggested_action = `[AUTO-PROMOTED to Case ${promotedCase.id}] ${analysis.suggested_action || ''}`;
                 console.log(`[AITriage] 📋 Auto-Promoted Alert ${alertId} to Case ${promotedCase.id}`);
+
+                // 🔔 Send notification to LINE/Slack/Teams
+                NotificationChannelService.send(alertData.tenantId, {
+                    type: 'alert',
+                    severity: 'critical',
+                    title: `📋 AI Auto-Created Case from Critical Alert`,
+                    message: `Alert: ${alertData.title}\nCase ID: ${promotedCase.id}\nClassification: TRUE_POSITIVE (${analysis.confidence}%)`,
+                    metadata: { alertId, caseId: promotedCase.id, action: 'auto_promote' }
+                }).catch(e => console.warn('Failed to send auto-promote notification:', e.message));
+
             } catch (e: any) {
                 console.warn(`[AITriage] Failed to auto-promote alert ${alertId}:`, e.message);
             }
