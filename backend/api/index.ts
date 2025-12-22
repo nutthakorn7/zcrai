@@ -8,6 +8,7 @@ import { auditLogger } from './middleware/audit'
 import { tenantGuard } from './middlewares/auth.middleware'
 import { errorHandler } from './middleware/error'
 import { authController } from './controllers/auth.controller'
+import { monitoringController } from './controllers/monitoring.controller'
 import { ssoController } from './controllers/sso.controller'
 import { passkeyController } from './controllers/passkey.controller'
 import { tenantController } from './controllers/tenant.controller'
@@ -150,6 +151,7 @@ const app = new Elysia()
      duration: 60000, // 1 minute
      max: 100 // 100 requests per minute
   }))
+  .use(monitoringController) // Public Monitoring Endpoints
   .use(authController)
   .use(passkeyController)
   .use(ssoController)
@@ -188,7 +190,7 @@ const app = new Elysia()
   .use(systemController) // System Management (Backups, License)
   .use(billingController) // Billing & Subscription
   .use(detectionRuleController) // Detection Rules
-  .get('/health', () => ({ status: 'ok', timestamp: new Date().toISOString() }))
+  // .get('/health', () => ({ status: 'ok', timestamp: new Date().toISOString() })) // Moved to monitoringController
   // Temporary Simulation Endpoint for AI SOC verification
   .get('/api/test-ai-alert', async () => {
     const { AlertService } = await import('./core/services/alert.service');
