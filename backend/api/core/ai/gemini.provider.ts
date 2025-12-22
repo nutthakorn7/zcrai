@@ -3,8 +3,8 @@ import { AIProvider } from "./types";
 
 export class GeminiProvider implements AIProvider {
     name = "gemini";
-    private client: GoogleGenerativeAI;
-    private model: any;
+    private client?: GoogleGenerativeAI;
+    private model?: any;
 
     constructor(apiKey?: string) {
         const key = apiKey || process.env.GEMINI_API_KEY;
@@ -49,4 +49,18 @@ export class GeminiProvider implements AIProvider {
     }
 }
 
-export const GeminiService = new GeminiProvider();
+// Lazy initialization - env is loaded at runtime, not import time
+let _geminiInstance: GeminiProvider | null = null;
+export const getGeminiService = () => {
+    if (!_geminiInstance) {
+        _geminiInstance = new GeminiProvider();
+    }
+    return _geminiInstance;
+};
+
+// Backwards compatibility
+export const GeminiService = {
+    get instance() { return getGeminiService(); },
+    generateText: (prompt: string) => getGeminiService().generateText(prompt),
+    generateJSON: (prompt: string, schema?: any) => getGeminiService().generateJSON(prompt, schema),
+};
