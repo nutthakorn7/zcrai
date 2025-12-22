@@ -764,6 +764,11 @@ export const auditLogs = pgTable('audit_logs', {
   userAgent: text('user_agent'),
   status: text('status').default('SUCCESS'), // SUCCESS, FAILURE
   createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => {
+  return {
+    tenantIdx: index('audit_logs_tenant_idx').on(table.tenantId),
+    createdIdx: index('audit_logs_created_idx').on(table.createdAt),
+  }
 });
 
 export const aiFeedbackRelations = relations(aiFeedback, ({ one }) => ({

@@ -12,10 +12,9 @@ import { Icon } from '../../shared/ui';
 
 // Import Types from separate file
 import { 
-  Summary, 
+  Summary,
   TopHost, 
   TopUser, 
-  SourceBreakdown, 
   TimelineData, 
   MitreData, 
   IntegrationData, 
@@ -84,7 +83,7 @@ export default function DashboardPage() {
   const [previousSummary, setPreviousSummary] = useState<Summary | null>(null);
   const [topHosts, setTopHosts] = useState<TopHost[]>([]);
   const [topUsers, setTopUsers] = useState<TopUser[]>([]);
-  const [sources, setSources] = useState<SourceBreakdown[]>([]);
+  // const [sources, setSources] = useState<SourceBreakdown[]>([]);
   const [timeline, setTimeline] = useState<TimelineData[]>([]);
   const [mitreData, setMitreData] = useState<MitreData[]>([]);
   const [integrations, setIntegrations] = useState<IntegrationData[]>([]);
@@ -215,12 +214,11 @@ export default function DashboardPage() {
         prevDateParams += `&sources=${selectedProvider}`;
       }
 
-      const [summaryRes, prevSummaryRes, hostsRes, usersRes, sourcesRes, timelineRes, mitreRes, intRes, sitesRes, recentRes] = await Promise.all([
+      const [summaryRes, prevSummaryRes, hostsRes, usersRes, timelineRes, mitreRes, intRes, sitesRes, recentRes] = await Promise.all([
         api.get(`/dashboard/summary?${dateParams}`),
         api.get(`/dashboard/summary?${prevDateParams}`),
         api.get(`/dashboard/top-hosts?${dateParams}&limit=20`),
         api.get(`/dashboard/top-users?${dateParams}&limit=20`),
-        api.get(`/dashboard/sources?${dateParams}`),
         api.get(`/dashboard/timeline?${dateParams}&interval=day`),
         api.get(`/dashboard/mitre-heatmap?${dateParams}`),
         api.get(`/dashboard/integrations?${dateParams}`),
@@ -253,7 +251,6 @@ export default function DashboardPage() {
       setTopHosts(hostsData.slice(0, 5));
       setTopUsers(usersData.slice(0, 5));
       
-      setSources(sourcesRes.data);
       setTimeline(timelineRes.data);
       setMitreData(mitreRes.data);
       

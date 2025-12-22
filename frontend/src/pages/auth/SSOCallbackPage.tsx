@@ -1,6 +1,5 @@
 import { useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useAuth } from '../../shared/store/useAuth';
 
 export const SSOCallbackPage = () => {
     const [searchParams] = useSearchParams();

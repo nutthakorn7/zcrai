@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Card, CardBody, Chip } from '@heroui/react';
+import { Card, CardBody } from '@heroui/react';
 import { format } from 'date-fns';
 
 interface TimelineEvent {
@@ -32,7 +32,7 @@ export function InvestigationTimeline({ events, onEventClick }: InvestigationTim
                     {/* Horizontal Line */ }
                     <div className="absolute left-0 right-0 top-1/2 h-0.5 bg-gray-700 -z-0"></div>
 
-                    {sortedEvents.map((ev, index) => {
+                    {sortedEvents.map((ev) => {
                         const isAlert = ev.type === 'ALERT';
                         const color = isAlert ? 'bg-red-500' : ev.type === 'ACTION' ? 'bg-blue-500' : 'bg-gray-500';
                         

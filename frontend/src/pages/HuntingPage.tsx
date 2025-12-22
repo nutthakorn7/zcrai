@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Card, CardBody, Button, Textarea, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Tabs, Tab, Chip, Spinner } from "@heroui/react";
 import { Search, Play, FileCode, ShieldAlert } from 'lucide-react';
-import { api } from '../../lib/api';
+import { api } from '../shared/api/api';
 
 export default function HuntingPage() {
     const [activeTab, setActiveTab] = useState("sql");

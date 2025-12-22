@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Card, CardBody, Button, Chip, Spinner } from "@heroui/react";
 import { FileText, Download, ShieldCheck, Lock } from 'lucide-react';
-import { api } from '../../lib/api';
+import { api } from '../../shared/api/api';
 
 export default function ReportsPage() {
     const [generating, setGenerating] = useState<string | null>(null);

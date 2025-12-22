@@ -143,6 +143,11 @@ npm run dev
 - **[Deployment Guide](docs/DEPLOYMENT.md)** - Production deployment steps
 - **[Walkthrough](walkthrough.md)** - Implementation notes
 
+### 🛠️ System Monitoring Endpoints
+- **Health Check**: `GET /monitoring/health` (Liveness)
+- **Ready Check**: `GET /monitoring/ready` (Readiness)
+- **Metrics**: `GET /monitoring/metrics` (Prometheus)
+
 ---
 
 ## 🧪 Testing
