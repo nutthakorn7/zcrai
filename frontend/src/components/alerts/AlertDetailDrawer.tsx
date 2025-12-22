@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import ReactMarkdown from 'react-markdown';
 import {
   Button,
   Card,
@@ -9,6 +10,7 @@ import {
 } from '@heroui/react';
 import { Alert, AlertCorrelation, AlertsAPI } from '../../shared/api/alerts';
 import { CorrelationCard } from './CorrelationCard';
+import { AlertTriangle, CheckCircle, Activity, ShieldCheck } from 'lucide-react';
 import { Icon } from '../../shared/ui';
 
 interface AlertDetailDrawerProps {
@@ -165,18 +167,105 @@ export function AlertDetailDrawer({ alert, isOpen, onClose, onPromote, onDismiss
                         </p>
                     </div>
 
+                    {/* AI Triage Card (Phase 1) */}
+                    {alert.aiAnalysis && (alert.aiAnalysis.classification || alert.aiAnalysis.reasoning) && (
+                        <div>
+                             <h3 className="text-sm font-semibold mb-2 flex items-center gap-2">
+                                <Icon.Cpu className="w-4 h-4 text-purple-400" /> 
+                                <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent font-bold">
+                                    AI Analyst Verdict
+                                </span>
+                            </h3>
+                            <Card className="bg-[#18181b] border border-white/10 shadow-lg">
+                                <CardBody className="p-4 space-y-4">
+                                    {/* Verdict Header */}
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <Chip 
+                                                color={alert.aiAnalysis.classification === 'TRUE_POSITIVE' ? 'danger' : 'success'} 
+                                                variant="flat"
+                                                className="uppercase font-bold tracking-wider"
+                                                startContent={
+                                                    alert.aiAnalysis.classification === 'TRUE_POSITIVE' 
+                                                    ? <AlertTriangle className="w-4 h-4" /> 
+                                                    : <CheckCircle className="w-4 h-4" />
+                                                }
+                                            >
+                                                {alert.aiAnalysis.classification?.replace('_', ' ') || 'ANALYZED'}
+                                            </Chip>
+                                            <div className="flex flex-col">
+                                                <span className="text-[10px] uppercase text-foreground/40 font-bold tracking-wider">Confidence</span>
+                                                <span className={`text-sm font-bold ${Number(alert.aiAnalysis.confidence) > 80 ? 'text-green-400' : 'text-warning'}`}>
+                                                    {alert.aiAnalysis.confidence}%
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Reasoning */}
+                                    <div className="bg-white/5 p-3 rounded-lg border border-white/5">
+                                        <p className="text-sm text-foreground/90 leading-relaxed font-sans">
+                                            {alert.aiAnalysis.reasoning}
+                                        </p>
+                                    </div>
+
+                                    {/* Suggested Action */}
+                                    {alert.aiAnalysis.suggested_action && (
+                                        <div className="flex items-center gap-2 text-xs text-foreground/60 bg-white/5 p-2 rounded border border-white/5 border-dashed">
+                                            <Activity className="w-3 h-3 text-primary" />
+                                            <span className="uppercase font-bold tracking-wider text-foreground/40">Suggestion:</span>
+                                            <span className="text-foreground/80 font-medium">{alert.aiAnalysis.suggested_action}</span>
+                                        </div>
+                                    )}
+
+                                    {/* Phase 2: Autonomous Response Status */}
+                                    {alert.aiAnalysis.actionTaken && (
+                                        <div className="bg-green-500/10 border border-green-500/20 rounded p-3 mt-4">
+                                            <div className="flex items-center justify-between mb-2">
+                                                <div className="flex items-center gap-2 text-green-400 font-bold uppercase text-xs tracking-wider">
+                                                    <ShieldCheck className="w-4 h-4" />
+                                                    Autonomous Response Executed
+                                                </div>
+                                                <span className="text-[10px] text-green-400/60 font-mono">
+                                                    {new Date(alert.aiAnalysis.actionTaken.timestamp).toLocaleTimeString()}
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center gap-2 text-sm text-foreground/90">
+                                                <span className="font-mono bg-black/40 px-2 py-0.5 rounded text-green-300">
+                                                    {alert.aiAnalysis.actionTaken.type}
+                                                </span>
+                                                <span className="text-foreground/60">
+                                                    {alert.aiAnalysis.actionTaken.target}
+                                                </span>
+                                            </div>
+                                            <div className="text-xs text-foreground/40 mt-1 pl-1 border-l-2 border-green-500/20">
+                                                {alert.aiAnalysis.actionTaken.details}
+                                            </div>
+                                        </div>
+                                    )}
+                                </CardBody>
+                            </Card>
+                        </div>
+                    )}
+
                     {/* AI Investigation */}
                      {alert.aiAnalysis?.investigationReport && (
                         <div>
                             <h3 className="text-sm font-semibold mb-2 flex items-center gap-2 text-purple-400">
-                                <Icon.Cpu className="w-4 h-4" /> AI Analysis
+                                <Icon.Cpu className="w-4 h-4" /> 
+                                <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent font-bold">
+                                    AI Investigation Report
+                                </span>
                             </h3>
                             <Card className="bg-purple-900/10 border border-purple-500/20">
                                 <CardBody className="p-4">
-                                     <div className="prose prose-sm prose-invert max-w-none">
-                                        <pre className="whitespace-pre-wrap font-sans text-sm text-foreground/90">
-                                            {alert.aiAnalysis.investigationReport}
-                                        </pre>
+                                     <div className="prose prose-sm prose-invert max-w-none
+                                         prose-headings:text-purple-300 prose-headings:font-bold
+                                         prose-p:text-foreground/90 prose-p:leading-relaxed
+                                         prose-strong:text-purple-200
+                                         prose-ul:text-foreground/80
+                                         prose-code:bg-black/40 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-purple-300">
+                                        <ReactMarkdown>{alert.aiAnalysis.investigationReport}</ReactMarkdown>
                                      </div>
                                 </CardBody>
                             </Card>

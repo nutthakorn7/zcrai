@@ -4,69 +4,49 @@ description: Troubleshooting Log Ingestion (CrowdStrike/SentinelOne -> Vector ->
 
 # Troubleshooting Log Ingestion
 
-This guide helps diagnose and fix issues where logs from integrations (SentinelOne, CrowdStrike) are not appearing in the Dashboard/Alerts page.
+หากหน้า Detections ไม่แสดงข้อมูลใหม่ หรือ Last Sync Stale ให้ตรวจสอบตาม Flow นี้:
 
-## 1. Check Ingestion Status in ClickHouse
+## 1. Check Backend Integration Sync Status
+ดูว่า sync ล่าสุดสำเร็จหรือไม่:
 
-Run this command on the server to see real-time event counts:
-
-```bash
-# SSH into server
-ssh zcrAI
-
-# Query ClickHouse event counts by source
-curl -s 'http://default:clickhouse@localhost:8123/?database=zcrai' --data "SELECT count() as total, max(timestamp) as latest, source FROM security_events GROUP BY source ORDER BY total DESC"
+```sql
+docker exec zcrai_postgres psql -U postgres -d zcrai -c "SELECT provider, last_sync_at, last_sync_status FROM api_keys;"
 ```
 
-**Expected Output:**
-You should see rows for `sentinelone` and `crowdstrike` with increasing counts and recent timestamps.
-
-## 2. Debugging CrowdStrike Ingestion
-
-If CrowdStrike events are 0 or not increasing:
-
-### A. Check API Scopes
-Ensure the API Client in CrowdStrike Falcon Console has the following scopes:
-- **Detections**: Read
-- **Alerts**: Read
-- **Incidents**: Read
-- **Hosts**: Read
-
-### B. Check Collector Logs
-View the collector logs to see API errors or fetch status:
+## 2. Check Collector Logs
+ดูว่า Collector ดึงข้อมูลมาจริงหรือไม่ (หาคำว่า "Fetched" หรือ "Published"):
 
 ```bash
-docker logs zcrai_collector 2>&1 | grep -iE 'crowdstrike|alert|fetch' | tail -20
+docker logs zcrai_collector --tail 50 2>&1 | grep -E "Fetched|Published|Error"
 ```
 
-### C. Force Full Sync (Reset State)
-If you need to re-fetch historical data (e.g., missed alerts due to scope issues):
+Error ที่พบบ่อย:
+- `401 Unauthorized`: API Key ไม่ตรง (แก้ใน ecosystem.config.cjs)
+- `Published 0 events`: ไม่มีข้อมูลใหม่จาก Source
 
-1. **Reset Checkpoint in Database:**
-   ```bash
-   psql postgres://postgres:postgres@localhost:5432/zcrai -c "UPDATE collector_states SET checkpoint = NULL, full_sync_complete = false WHERE provider = 'crowdstrike';"
-   ```
+## 3. Check Vector Logs
+Vector รับข้อมูลจาก Collector แล้วส่งเข้า ClickHouse:
 
-2. **Trigger Sync via API:**
-   ```bash
-   # Replace with your actual Collector API Key
-   curl -s -X POST -H 'x-collector-key: zcrAI_super_secure_collector_key_2024' 'http://localhost:8001/sync/crowdstrike?force=true'
-   ```
+```bash
+docker logs zcrai_vector --tail 20 2>&1
+```
 
-3. **(Optional) Force Historical Lookback:**
-   If the config is set to 7 days but you need 365 days, update the `FetchSettings` in the configuration JSON (via UI or DB) or verify `lookbackDays` in `vector.toml` / env vars.
+## 4. Check ClickHouse Data
+ตรวจสอบว่าข้อมูลเข้า Database จริงหรือไม่:
 
-## 3. Debugging Vector & Schema Issues
+```bash
+# ดูจำนวน Logs ของวันนี้ แยกตาม Source
+docker exec zcrai_clickhouse clickhouse-client --password clickhouse --database zcrai --query "SELECT source, count(*), max(timestamp) FROM security_events WHERE timestamp >= today() GROUP BY source"
+```
 
-If the collector is fetching events (logs show `Published events to Vector`) but they aren't in ClickHouse:
+## Schema Reference `security_events`
+- `source`: crowdstrike, sentinelone
+- `event_type`: process_create, network_connection, etc.
+- `severity`: critical, high, medium, low
+- `timestamp`: เวลาที่เกิด Event
 
-1. **Check Vector Status:**
-   ```bash
-   docker logs zcrai_vector
-   ```
-   Look for `400 Bad Request` or `parsing error`.
-
-2. **Common Causes:**
-   - **Timestamp Mismatch:** ClickHouse `DateTime` doesn't support milliseconds. Ensure formatting is `%Y-%m-%d %H:%M:%S`.
-   - **UUID Mismatch:** ClickHouse `UUID` columns must receive valid UUID strings. If the source sends an integer/string ID, exclude it in Vector transform and let ClickHouse auto-generate, or parse it correctly.
-   - **Extra Fields:** Ensure `skip_unknown_fields = true` is set in Vector sink config, or map fields explicitly.
+## Force Trigger Sync
+ถ้าต้องการ sync ทันที:
+```bash
+curl -X POST http://localhost:8001/collect/all
+```

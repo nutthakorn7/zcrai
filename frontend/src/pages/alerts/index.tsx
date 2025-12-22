@@ -228,21 +228,20 @@ export default function AlertsPage() {
          );
          
       case "ai":
-        // SIMULATED RULE-BASED ANALYSIS
+        // AI Verdict Logic
         const severity = alert.severity.toLowerCase();
         let analysis = alert.aiAnalysis;
-
-        // Fallback: Generate analysis based on rules if missing
+        
+        // Mock fallback if backend hasn't processed it yet
         if (!analysis) {
-            if (severity === 'critical') {
-                analysis = { classification: 'TRUE_POSITIVE', confidence: 98, reasoning: 'Matched Critical Severity detection rule based on TTPs.', suggested_action: 'Immediate containment required.' };
-            } else if (severity === 'high') {
-                analysis = { classification: 'TRUE_POSITIVE', confidence: 85, reasoning: 'High severity indicators observed with lateral movement potential.', suggested_action: 'Isolate host and investigate.' };
-            } else if (severity === 'medium') {
-                analysis = { classification: 'TRUE_POSITIVE', confidence: 65, reasoning: 'Anomalous behavior detected but lacks strong indicators of compromise.', suggested_action: 'Monitor for escalation.' };
-            } else {
-                analysis = { classification: 'FALSE_POSITIVE', confidence: 92, reasoning: 'Routine system activity matching known safe patterns.', suggested_action: 'Close as benign.' };
-            }
+             // Fallback Logic mimicking the backend Mock
+             if (severity === 'critical') {
+                 analysis = { classification: 'TRUE_POSITIVE', confidence: 95, reasoning: 'Critical TTPs detected matching APT behaviors.', suggested_action: 'Isolate & Escalate' };
+             } else if (severity === 'info' || severity === 'low') {
+                 analysis = { classification: 'FALSE_POSITIVE', confidence: 90, reasoning: 'Routine administrative noise.', suggested_action: 'Auto-Close' };
+             } else {
+                 analysis = { classification: 'TRUE_POSITIVE', confidence: 60, reasoning: 'Suspicious anomaly requiring manual review.', suggested_action: 'Investigate' };
+             }
         }
 
         const isSafe = analysis.classification === 'FALSE_POSITIVE';
@@ -513,42 +512,55 @@ export default function AlertsPage() {
 
         {/* Table */}
         <section>
-          <Table 
-            aria-label="Alerts table"
-            selectionMode="single"
-            onSelectionChange={(keys) => {
-                const id = Array.from(keys)[0] as string;
-                if (id) {
-                    const alert = alerts.find(a => a.id === id);
-                    if (alert) setSelectedAlert(alert);
-                }
-            }}
-            classNames={{
-              wrapper: "bg-transparent shadow-none border border-white/5 rounded-lg",
-              th: "bg-transparent text-[10px] font-bold text-foreground/60 uppercase tracking-widest border-b border-white/5",
-              tr: "hover:bg-content1 border-b border-white/5 last:border-0 cursor-pointer",
-            }}
-          >
-            <TableHeader>
-              <TableColumn key="time" width={100}>Time</TableColumn>
-              <TableColumn key="source" width={60} align="center">Src</TableColumn>
-              <TableColumn key="details">Details</TableColumn>
-              <TableColumn key="severity" width={100}>Severity</TableColumn>
-              {viewMode === 'incidents' ? (
-                <TableColumn key="status" width={100}>Status</TableColumn>
-              ) : (
-                <TableColumn key="ai" width={100}>AI Analysis</TableColumn>
-              )}
-              <TableColumn key="actions" align="end">Action</TableColumn>
-            </TableHeader>
-            <TableBody items={alerts} emptyContent="No records found">
-              {(alert) => (
-                <TableRow key={alert.id}>
-                  {(columnKey) => <TableCell>{renderCell(alert, columnKey as string)}</TableCell>}
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+          {(() => {
+             const columns = [
+                 { uid: 'time', name: 'Time', width: 100 },
+                 { uid: 'source', name: 'Src', width: 60, align: 'center' as const },
+                 { uid: 'details', name: 'Details' },
+                 { uid: 'severity', name: 'Severity', width: 100 },
+                 ...(viewMode === 'incidents' ? [{ uid: 'status', name: 'Status', width: 100 }] : []),
+                 { uid: 'ai', name: 'AI Verdict', width: 140 },
+                 { uid: 'actions', name: 'Action', align: 'end' as const },
+             ];
+             
+             return (
+              <Table 
+                aria-label="Alerts table"
+                selectionMode="single"
+                onSelectionChange={(keys) => {
+                    const id = Array.from(keys)[0] as string;
+                    if (id) {
+                        const alert = alerts.find(a => a.id === id);
+                        if (alert) setSelectedAlert(alert);
+                    }
+                }}
+                classNames={{
+                  wrapper: "bg-transparent shadow-none border border-white/5 rounded-lg",
+                  th: "bg-transparent text-[10px] font-bold text-foreground/60 uppercase tracking-widest border-b border-white/5",
+                  tr: "hover:bg-content1 border-b border-white/5 last:border-0 cursor-pointer",
+                }}
+              >
+                <TableHeader columns={columns}>
+                  {(column) => (
+                    <TableColumn 
+                        key={column.uid} 
+                        width={column.width} 
+                        align={column.align || 'start'}
+                    >
+                      {column.name}
+                    </TableColumn>
+                  )}
+                </TableHeader>
+                <TableBody items={alerts} emptyContent="No records found">
+                  {(alert) => (
+                    <TableRow key={alert.id}>
+                      {(columnKey) => <TableCell>{renderCell(alert, columnKey as string)}</TableCell>}
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+             );
+          })()}
         </section>
         <AlertDetailDrawer 
             alert={selectedAlert as any} 

@@ -178,6 +178,26 @@ const app = new Elysia()
   .use(billingController) // Billing & Subscription
   .use(detectionRuleController) // Detection Rules
   .get('/health', () => ({ status: 'ok', timestamp: new Date().toISOString() }))
+  // Temporary Simulation Endpoint for AI SOC verification
+  .get('/api/test-ai-alert', async () => {
+    const { AlertService } = await import('./core/services/alert.service');
+    // Use the System Tenant ID (or a known one)
+    const tenantId = '75a8f9a4-a1df-45a8-84c3-b2fa2721934b'; 
+    const alert = await AlertService.create({
+      tenantId,
+      title: 'Simulated C2 Traffic to Known Malicious IP',
+      description: 'Outbound connection detected to external IP 185.73.125.122. This IP is associated with Cobalt Strike C2 servers.',
+      severity: 'critical',
+      source: 'simulation',
+      rawData: {
+         event_type: 'network_connection',
+         dest_ip: '185.73.125.122', 
+         process: 'powershell.exe',
+         user_name: 'simulated_user'
+      }
+    });
+    return { success: true, alertId: alert.id, message: 'Alert created. AI Analysis triggered.' };
+  })
 
 if (import.meta.main) {
   seedSuperAdmin()

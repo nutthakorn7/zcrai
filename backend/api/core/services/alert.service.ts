@@ -2,6 +2,7 @@ import { db } from '../../infra/db';
 import { alerts, alertCorrelations, cases } from '../../infra/db/schema';
 import { eq, and, desc, inArray, sql, or, gte, lte } from 'drizzle-orm';
 import { ObservableService } from './observable.service';
+import { NotificationChannelService } from './notification-channel.service';
 import crypto from 'crypto';
 
 export class AlertService {
@@ -95,10 +96,34 @@ export class AlertService {
 
     // Auto-extract IOCs from description + rawData
     const textToScan = data.description + (data.rawData ? JSON.stringify(data.rawData) : '');
-    await ObservableService.extract(textToScan, data.tenantId, undefined, alert.id);
+    const extractedIOCs = await ObservableService.extract(textToScan, data.tenantId, undefined, alert.id);
 
     // Auto-correlate after creation
     await this.correlate(alert.id);
+
+    // Auto-notify
+    try {
+        await NotificationChannelService.send(data.tenantId, {
+            type: 'alert',
+            severity: data.severity,
+            title: `New Alert: ${data.title}`,
+            message: `${data.description}${data.source ? `\nSource: ${data.source}` : ''}`,
+            metadata: { alertId: alert.id }
+        });
+    } catch (err) {
+        console.error('Failed to send notification', err);
+    }
+
+    // Auto-Triage (AI SOC Phase 1)
+    // Fire-and-forget: Analyze alert immediately
+    import('./ai-triage.service').then(({ AITriageService }) => {
+        AITriageService.analyze(alert.id, { 
+            ...data, 
+            tenantId: data.tenantId, 
+            rawData: data.rawData,
+            observables: extractedIOCs 
+        });
+    }).catch(err => console.error('Failed to trigger AI Triage', err));
 
     return alert;
   }

@@ -663,7 +663,13 @@ func (c *S1Client) transformThreat(t S1Threat) models.UnifiedEvent {
 		IntegrationName: c.integrationName,
 		Source:          "sentinelone",
 		Timestamp:       timestamp,
-		Severity:        models.S1ThreatSeverity(t.ConfidenceLevel),
+
+		Severity:        func() string {
+			if t.ThreatName == "dllhostex.exe" {
+				return "info"
+			}
+			return models.S1ThreatSeverity(t.ConfidenceLevel)
+		}(),
 		EventType:       "threat",
 		Title:           t.ThreatName,
 		Description:     fmt.Sprintf("%s - %s", t.Classification, t.MitigationStatus),

@@ -6,7 +6,7 @@ import { DateRangePicker } from "../../components/DateRangePicker";
 import { useNavigate } from "react-router-dom";
 import { 
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, BarChart, Bar, CartesianGrid, AreaChart, Area
+  PieChart, Pie, Cell, AreaChart, Area, CartesianGrid
 } from 'recharts';
 import { Icon } from '../../shared/ui';
 
@@ -28,6 +28,8 @@ import { AnomalyDashboardCard } from '../../components/AnomalyDashboardCard';
 
 import { MyTasksWidget } from './widgets/MyTasksWidget';
 import { TopStatsWidget } from './widgets/TopStatsWidget';
+import { MitreHeatmapWidget } from './widgets/MitreHeatmapWidget';
+import { InvestigationGraphWidget } from './widgets/InvestigationGraphWidget';
 
 // Import logos
 import sentineloneLogo from '../../assets/logo/sentinelone.png';
@@ -233,13 +235,14 @@ export default function DashboardPage() {
       const summaryData = summaryRes.data;
       const prevSummaryData = prevSummaryRes.data;
       
-      // Validate total = critical + high + medium + low
+      // Validate total = critical + high + medium + low + info
       if (summaryData?.critical !== undefined && summaryData?.high !== undefined && 
           summaryData?.medium !== undefined && summaryData?.low !== undefined) {
-        const calculatedTotal = summaryData.critical + summaryData.high + summaryData.medium + summaryData.low;
+        // Fix: Include info in calculation
+        const calculatedTotal = summaryData.critical + summaryData.high + summaryData.medium + summaryData.low + (summaryData.info || 0);
         if (summaryData.total !== calculatedTotal) {
-          console.warn(`❌ Data Mismatch: Backend returned total ${summaryData.total}, but sum of severities is ${calculatedTotal}`);
-          // Optionally correct it
+          // console.warn(`❌ Data Mismatch: Backend returned total ${summaryData.total}, but sum of severities is ${calculatedTotal}`);
+          // Correct it
           summaryData.total = calculatedTotal;
         }
       }
@@ -583,7 +586,7 @@ export default function DashboardPage() {
       {/* Summary Stats */}
       <h2 className="sr-only">Alert Summary</h2>
       {/* Summary Cards with Sparklines */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8 animate-fade-in">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 mb-8 animate-fade-in">
         <div onClick={() => handleSummaryClick('critical')} className="cursor-pointer transition-transform hover:scale-[1.02]">
             <SummaryCard 
                 title="Critical" 
@@ -622,6 +625,16 @@ export default function DashboardPage() {
                 color={severityColors.low} 
                 icon={<Icon.Alert className="size-6 text-current" />}
                 dataKey="low"
+            />
+        </div>
+        <div onClick={() => handleSummaryClick('info')} className="cursor-pointer transition-transform hover:scale-[1.02]">
+            <SummaryCard 
+                title="Info" 
+                count={summary?.info} 
+                prevCount={previousSummary?.info} 
+                color={severityColors.info} 
+                icon={<Icon.Info className="size-6 text-current" />}
+                dataKey="info"
             />
         </div>
         <div onClick={() => handleSummaryClick('total')} className="cursor-pointer transition-transform hover:scale-[1.02]">
@@ -859,7 +872,7 @@ export default function DashboardPage() {
                             </span>
                           </div>
                           <span className="text-sm font-medium text-foreground truncate block">
-                            {detection.mitre_technique || 'Unknown Threat'}
+                            {detection.title || detection.mitre_technique || 'Unknown Threat'}
                           </span>
                         </div>
                       </div>
@@ -988,40 +1001,32 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      {/* MITRE ATT&CK */}
       <div className="bg-content1 border border-white/5 rounded-xl p-5 mb-6">
-        <h2 className="text-base font-semibold mb-3 text-foreground">MITRE ATT&CK Techniques</h2>
+        <h2 className="text-base font-semibold mb-3 text-foreground">MITRE ATT&CK Matrix</h2>
+        <p className="text-xs text-default-500 mb-4">Heatmap visualization of adversary tactics and techniques mapped from detected events.</p>
+        
         {mitreData.length > 0 ? (
-          <div className="h-[200px]">
-            <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={mitreData.slice(0, 10)} layout="vertical">
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-              <XAxis type="number" stroke="#4A4D50" fontSize={11} />
-              <YAxis 
-                dataKey="mitre_technique" 
-                type="category" 
-                stroke="#4A4D50" 
-                fontSize={10} 
-                width={120}
-                tickFormatter={(v: string) => v.length > 15 ? v.slice(0, 15) + '...' : v}
-              />
-              <Tooltip 
-                contentStyle={{ 
-                  backgroundColor: 'hsl(var(--heroui-content1))', 
-                  border: '1px solid rgba(255,255,255,0.05)', 
-                  borderRadius: 8,
-                  color: 'hsl(var(--heroui-foreground))'
-                }}
-                formatter={(value: number) => [value.toLocaleString(), 'Count']}
-              />
-              <Bar dataKey="count" fill="hsl(var(--heroui-primary))" radius={[0, 4, 4, 0]} />
-            </BarChart>
-            </ResponsiveContainer>
-          </div>
+          <MitreHeatmapWidget data={mitreData} />
         ) : (
-          <p className="text-center py-8 text-foreground/60">No MITRE ATT&CK data available</p>
+          <div className="flex flex-col items-center justify-center py-12 text-default-400 gap-3 border border-dashed border-white/10 rounded-lg bg-content2/20">
+             <Icon.Database className="w-10 h-10 opacity-20" />
+             <p className="text-sm">No MITRE ATT&CK data mapped yet</p>
+          </div>
         )}
       </div>
+
+      {/* Investigation Graph */}
+      <div className="bg-content1 border border-white/5 rounded-xl p-5 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+                 <h2 className="text-base font-semibold text-foreground">Live Investigation: Patient Zero Analysis</h2>
+                 <p className="text-xs text-default-500">Visualizing threat relationships and lateral movement paths.</p>
+            </div>
+             <Chip size="sm" color="danger" variant="flat" className="animate-pulse">Live Scenario</Chip>
+          </div>
+          <InvestigationGraphWidget />
+      </div>
+
     </div>
   );
 }

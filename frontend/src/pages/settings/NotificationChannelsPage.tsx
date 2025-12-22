@@ -30,7 +30,7 @@ export default function NotificationChannelsPage() {
   const [selectedChannel, setSelectedChannel] = useState<NotificationChannel | null>(null);
   
   const [name, setName] = useState('');
-  const [type, setType] = useState<'slack' | 'teams'>('slack');
+  const [type, setType] = useState<'slack' | 'teams' | 'line'>('slack');
   const [webhookUrl, setWebhookUrl] = useState('');
   const [minSeverity, setMinSeverity] = useState<string>('medium');
   const [eventTypes, setEventTypes] = useState<string[]>(['alert', 'case_assigned']);
@@ -160,6 +160,11 @@ export default function NotificationChannelsPage() {
          <path d="M.682 3.349h6.822c.377 0 .682.305.682.682v6.822a.68.68 0 0 1-.682.682H.682A.68.68 0 0 1 0 10.853V4.03c0-.377.305-.682.682-.682Zm5.206 2.596v-.72h-3.59v.72h1.357V9.66h.87V5.945z" fill="#5059c9"/>
        </svg>
     );
+    if (t === 'line') return (
+        <svg viewBox="0 0 24 24" className="w-full h-full" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+            <path d="M24 10.304c0-5.369-5.383-9.738-12-9.738-6.616 0-12 4.369-12 9.738 0 4.814 4.269 8.846 10.036 9.608.391.084.922.258 1.057.592.121.303.079.778.039 1.085l-.171 1.027c-.053.303-.242 1.186 1.039.647 1.281-.54 6.911-4.069 9.428-6.967 1.739-1.907 2.572-3.843 2.572-5.992z" fill="#06C755"/>
+        </svg>
+    );
     return null;
   };
 
@@ -249,7 +254,7 @@ export default function NotificationChannelsPage() {
                     variant="bordered"
                 />
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                      <div 
                         className={`cursor-pointer p-4 rounded-xl border-2 transition-all flex items-center gap-3 ${type === 'slack' ? 'border-primary bg-primary/10' : 'border-default-200 hover:border-default-400'}`}
                         onClick={() => setType('slack')}
@@ -268,17 +273,30 @@ export default function NotificationChannelsPage() {
                         </div>
                         <span className="font-semibold">Teams</span>
                      </div>
+                     <div 
+                        className={`cursor-pointer p-4 rounded-xl border-2 transition-all flex items-center gap-3 ${type === 'line' ? 'border-primary bg-primary/10' : 'border-default-200 hover:border-default-400'}`}
+                        onClick={() => setType('line')}
+                     >
+                        <div className="w-8 h-8 text-primary">
+                             {getLogo('line')}
+                        </div>
+                        <span className="font-semibold">Line</span>
+                     </div>
                 </div>
 
                 <div className="gap-2">
                     <Input
-                        label="Webhook URL"
-                        placeholder="https://hooks.slack.com/services/..."
+                        label={type === 'line' ? "Access Token" : "Webhook URL"}
+                        placeholder={type === 'line' ? "Paste token from notify-bot.line.me" : "https://hooks.slack.com/services/..."}
                         value={webhookUrl}
                         onValueChange={setWebhookUrl}
                         variant="bordered"
                         type="password"
-                        description="Paste the Incoming Webhook URL from your provider"
+                        description={
+                            type === 'line' 
+                            ? <span>Get token from <a href="https://notify-bot.line.me/my/" target="_blank" className="text-primary underline">notify-bot.line.me/my/</a></span>
+                            : "Paste the Incoming Webhook URL from your provider"
+                        }
                     />
                     <div className="flex justify-end mt-2">
                         <Button 

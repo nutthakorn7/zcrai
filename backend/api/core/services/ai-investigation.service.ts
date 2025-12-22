@@ -1,112 +1,151 @@
-import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai';
+
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { db } from '../../infra/db';
-import { cases } from '../../infra/db/schema';
+import { alerts } from '../../infra/db/schema';
 import { eq } from 'drizzle-orm';
-import { LogsService } from './logs.service';
-// CasesAPI usage removed as it's frontend-only.
 
+const apiKey = process.env.GEMINI_API_KEY;
+const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
-const model = genAI.getGenerativeModel({
-    model: "gemini-1.5-flash",
-    systemInstruction: `You are an Autonomous AI Investigator.
-    Your goal is to analyze security logs and summarize findings to confirm or dismiss a threat.
-    
-    Input:
-    - Alert Details
-    - Related Logs (JSON)
-    
-    Output:
-    - A concise investigation report in Markdown format.
-    - Highlight key findings (e.g., "Found 50 failed logins from IP X").
-    - Conclusion: Confirmed Threat / False Positive / Suspicious.
-    `
-});
+// --- Mock Tools ---
+const mockVirusTotal = async (ip: string) => {
+    // Simulate API call
+    await new Promise(r => setTimeout(r, 800));
+    return {
+        source: 'VirusTotal',
+        entity: ip,
+        reputation: 'Malicious',
+        score: '85/100',
+        tags: ['botnet', 'c2-server', 'brute-force']
+    };
+};
+
+const mockLogQuery = async (query: string) => {
+    await new Promise(r => setTimeout(r, 1200));
+    return {
+        source: 'SIEM Logs',
+        query: query,
+        hits: 52,
+        samples: [
+            { timestamp: '2023-10-27T10:00:01Z', event: 'Failed Login', user: 'admin' },
+            { timestamp: '2023-10-27T10:00:05Z', event: 'Failed Login', user: 'admin' }
+        ],
+        summary: 'High volume of failed login attempts detected in short window.'
+    };
+};
+
+const mockUserLookup = async (username: string) => {
+    await new Promise(r => setTimeout(r, 600));
+    return {
+        source: 'Active Directory',
+        username: username,
+        department: 'IT Operations',
+        adminPrivileges: true,
+        lastPasswordReset: '90 days ago'
+    };
+};
 
 export class AIInvestigationService {
 
-    /**
-     * Autonomously investigate an alert
-     */
     static async investigate(alert: any) {
-        console.log(`[AI-Investigator] Starting investigation for alert: ${alert.id}`);
-        
+        console.log(`[AIInvestigationService] 🕵️ Starting Investigation for ${alert.id}`);
+
         try {
-            // 1. Plan: Determine what to search for
-            // For now, we use a simple heuristic: Search for same IP or User in last 24h
-            const tenantId = alert.tenantId;
-            const targetIP = alert.rawData?.host_ip;
-            const targetUser = alert.rawData?.user_name || alert.header?.user_name; // Adjust based on actual data shape
+            // 1. Identify Entities & Run Tools (Parallel)
+            // In a real agent, the AI would ask for these. Here we heuristically determine what to run.
+            const toolPromises = [];
+            const collectedEvidence: any[] = [];
+
+            // Check for IP
+            const targetIP = alert.observables?.find((o: any) => o.type === 'ip')?.value || 
+                             alert.rawData?.source_ip || 
+                             alert.rawData?.host_ip;
             
-            if (!targetIP && !targetUser) {
-                console.log('[AI-Investigator] No pivot points (IP/User) found. Skipping.');
+            if (targetIP) {
+                console.log(`[AIInvestigationService] Checking Reputation for ${targetIP}...`);
+                toolPromises.push(mockVirusTotal(targetIP).then(res => collectedEvidence.push(res)));
+                console.log(`[AIInvestigationService] Querying Logs for ${targetIP}...`);
+                toolPromises.push(mockLogQuery(`source_ip=${targetIP}`).then(res => collectedEvidence.push(res)));
+            }
+
+            // Check for User
+            const targetUser = alert.rawData?.user_name || alert.rawData?.user;
+            if (targetUser) {
+                console.log(`[AIInvestigationService] Looking up User ${targetUser}...`);
+                toolPromises.push(mockUserLookup(targetUser).then(res => collectedEvidence.push(res)));
+            }
+
+            // Wait for all tools
+            await Promise.all(toolPromises);
+
+            // 2. Generate Investigation Report with AI
+            if (!genAI) {
+                console.warn('[AIInvestigationService] Gemini Not Configured - Investigation Skipped');
                 return;
             }
 
-            // 2. Execute: Gather Evidence (Logs)
-            // Search last 24 hours
-            const endDate = new Date();
-            const startDate = new Date();
-            startDate.setHours(startDate.getHours() - 24);
+            const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-            const filters: any = {
-                startDate: startDate.toISOString(),
-                endDate: endDate.toISOString(),
-            };
-            
-            if (targetIP) filters.search = targetIP; // Simple text search for IP for now, or use specific filter if available
-            // LogsService.list signature: (tenantId, filters, pagination)
-            // We need to check exact filter keys.
-            
-            const logsResult = await LogsService.list(tenantId, filters, { page: 1, limit: 50, sortBy: 'timestamp', sortOrder: 'desc' });
-            const logs = logsResult.data;
+            const toolOutputText = collectedEvidence.map(e => `
+            --- Tool Evidence: ${e.source} ---
+            Entity: ${e.entity || e.username || e.query}
+            Data: ${JSON.stringify(e, null, 2)}
+            `).join('\n');
 
-            if (logs.length === 0) {
-                 console.log('[AI-Investigator] No related logs found.');
-                 return;
-            }
-
-            // 3. Analyze: Ask AI to summarize
             const prompt = `
-            Alert: ${alert.title} (${alert.severity})
-            Description: ${alert.description}
-            
-            Evidence (Recent Logs):
-            ${JSON.stringify(logs.map((l: any) => ({
-                time: l.timestamp,
-                event: l.event_type,
-                title: l.title,
-                user: l.user_name,
-                ip: l.host_ip
-            })), null, 2)}
-            
-            Task:
-            Summarize the evidence. Is there a pattern of attack?
-            Generate a short "Investigation Report".
+            You are an Autonomous AI Investigator.
+            Your goal is to write a comprehensive Investigation Report for this Security Alert.
+
+            **Alert Details**:
+            - Title: ${alert.title}
+            - Severity: ${alert.severity}
+            - Description: ${alert.description}
+
+            **Evidence Gathered by Tools**:
+            ${toolOutputText || "No additional evidence found by automated tools."}
+
+            **Instructions**:
+            Write a professional Markdown report.
+            Structure it as follows:
+            1. **Executive Summary**: 1-2 sentences on what happened.
+            2. **Key Findings**: Bullet points of the evidence (mention the VirusTotal score, Log patterns, etc.).
+            3. **Timeline**: Reconstruct a brief timeline if possible.
+            4. **Root Cause Analysis (Hypothesis)**: What is the likely attack vector?
+            5. **Recommended Next Steps**: What should the human analyst do?
+
+            Do not include JSON blocks, just readable Markdown text.
             `;
 
+            console.log('[AIInvestigationService] Generating Report...');
             const result = await model.generateContent(prompt);
             const report = result.response.text();
 
-            // 4. Report: Save finding
-            // If the alert is already linked to a case, add a comment.
-            // If not, we might update the alert description or rawData.
-            // For Phase 3, let's assume if it's High Severity TRue Positive, we might want to attach it to the alert metadata.
-            // Schema has 'aiAnalysis'. We can append to it or use a new field.
-            // Let's store it in 'aiAnalysis.investigationReport'.
-            
-            // Re-read alert to get current analysis
-            const aiAnalysis = alert.aiAnalysis || {};
-            aiAnalysis.investigationReport = report;
+            // 3. Save Report
+            // We merge this into the existing aiAnalysis object
+            const currentAnalysis = alert.aiAnalysis || {};
+            await db.update(alerts)
+                .set({
+                    aiAnalysis: {
+                        ...currentAnalysis,
+                        investigationReport: report,
+                        investigationStatus: 'completed',
+                        investigatedAt: new Date().toISOString()
+                    }
+                })
+                .where(eq(alerts.id, alert.id));
 
-            await db.update(require('../../infra/db/schema').alerts)
-                .set({ aiAnalysis })
-                .where(eq(require('../../infra/db/schema').alerts.id, alert.id));
-                
-            console.log(`[AI-Investigator] Investigation complete for ${alert.id}`);
+            console.log(`[AIInvestigationService] ✅ Report Generated for ${alert.id}`);
 
-        } catch (e) {
-            console.error('[AI-Investigator] Error:', e);
+        } catch (error) {
+            console.error('[AIInvestigationService] Investigation Failed:', error);
+             await db.update(alerts)
+                .set({
+                    aiAnalysis: {
+                        ...alert.aiAnalysis,
+                        investigationStatus: 'failed'
+                    }
+                })
+                .where(eq(alerts.id, alert.id));
         }
     }
 }

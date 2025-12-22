@@ -66,6 +66,7 @@ export interface SiteData {
 export interface RecentDetection {
   id: string;
   severity: string;
+  title?: string;
   mitre_tactic: string;
   mitre_technique: string;
   timestamp: string;

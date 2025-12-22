@@ -28,6 +28,13 @@ export interface Alert {
     reasoning: string;
     suggested_action: string;
     investigationReport?: string; // Phase 3: Investigation Summary
+    actionTaken?: {
+      type: string;
+      target: string;
+      status: string;
+      details: string;
+      timestamp: string;
+    };
   };
   aiTriageStatus?: 'pending' | 'processed' | 'failed';
 }
