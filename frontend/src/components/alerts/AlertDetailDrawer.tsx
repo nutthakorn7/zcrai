@@ -10,7 +10,7 @@ import {
 } from '@heroui/react';
 import { Alert, AlertCorrelation, AlertsAPI } from '../../shared/api/alerts';
 import { CorrelationCard } from './CorrelationCard';
-import { AlertTriangle, CheckCircle, Activity, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Activity, ShieldCheck, BookOpen } from 'lucide-react';
 import { Icon } from '../../shared/ui';
 
 interface AlertDetailDrawerProps {
@@ -44,11 +44,15 @@ const getStatusColor = (status: string) => {
 export function AlertDetailDrawer({ alert, isOpen, onClose, onPromote, onDismiss }: AlertDetailDrawerProps) {
   const [correlations, setCorrelations] = useState<AlertCorrelation[]>([]);
   const [isLoadingCorrelations, setIsLoadingCorrelations] = useState(false);
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
 
   useEffect(() => {
     if (alert && isOpen) {
         setCorrelations([]); // Reset previous
+        setSuggestions([]); 
         loadCorrelations();
+        loadSuggestions();
     }
   }, [alert, isOpen]);
 
@@ -63,6 +67,23 @@ export function AlertDetailDrawer({ alert, isOpen, onClose, onPromote, onDismiss
       console.error('Failed to load correlations:', error);
     } finally {
       setIsLoadingCorrelations(false);
+    }
+  };
+
+  const loadSuggestions = async () => {
+    if (!alert) return;
+    try {
+        setIsLoadingSuggestions(true);
+        // Assuming AlertsAPI has been updated or we call api directly
+        const { api } = await import('../../shared/api/api');
+        const res = await api.get(`/playbooks/suggestions?alertId=${alert.id}`);
+        if(res.data.success) {
+            setSuggestions(res.data.data.suggestions);
+        }
+    } catch (error) {
+        console.warn('Failed to load playbook suggestions', error);
+    } finally {
+        setIsLoadingSuggestions(false);
     }
   };
 
@@ -245,6 +266,53 @@ export function AlertDetailDrawer({ alert, isOpen, onClose, onPromote, onDismiss
                                     )}
                                 </CardBody>
                             </Card>
+                        </div>
+                    )}
+
+                    {/* AI Playbook Suggestions */}
+                    {(suggestions.length > 0 || isLoadingSuggestions) && (
+                        <div>
+                             <h3 className="text-sm font-semibold mb-2 flex items-center gap-2 text-blue-400">
+                                <BookOpen className="w-4 h-4" /> 
+                                <span className="bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent font-bold">
+                                    Recommended Playbooks
+                                </span>
+                            </h3>
+                            {isLoadingSuggestions ? (
+                                <div className="p-4 border border-blue-500/20 rounded bg-blue-500/5 animate-pulse">
+                                    <div className="h-4 w-1/3 bg-blue-500/20 rounded mb-2"></div>
+                                    <div className="h-3 w-1/2 bg-blue-500/10 rounded"></div>
+                                </div>
+                            ) : (
+                                <div className="space-y-3">
+                                    {suggestions.map((param: any, idx: number) => (
+                                        <Card key={idx} className="bg-blue-900/10 border border-blue-500/20 hover:border-blue-500/40 transition-colors">
+                                            <CardBody className="p-3">
+                                                <div className="flex justify-between items-start mb-2">
+                                                    <div>
+                                                        <div className="flex items-center gap-2">
+                                                            <h4 className="font-bold text-blue-100">{param.title}</h4>
+                                                            <Chip size="sm" variant="flat" color="primary" className="h-5 text-[10px]">
+                                                                {param.matchScore}% MATCH
+                                                            </Chip>
+                                                        </div>
+                                                        <p className="text-xs text-blue-200/70 mt-1">{param.reasoning}</p>
+                                                    </div>
+                                                    <Button 
+                                                        size="sm" 
+                                                        color="primary" 
+                                                        variant="shadow"
+                                                        className="font-medium"
+                                                        onPress={() => window.open(`/playbooks/${param.playbookId}`, '_blank')}
+                                                    >
+                                                        Run
+                                                    </Button>
+                                                </div>
+                                            </CardBody>
+                                        </Card>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     )}
 
