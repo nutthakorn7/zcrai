@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Card, CardBody, Button, Input, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure, Chip, Select, SelectItem, Switch, Divider } from "@heroui/react";
 import { api } from "../../shared/api/api";
 import { usePageContext } from "../../contexts/PageContext";
@@ -33,16 +33,18 @@ const PROVIDER_LOGOS: Record<string, string> = {
 
 // ⭐ Provider Config
 // ⭐ Provider Config
-const PROVIDER_CONFIG: Record<string, { 
-  name: string; 
+interface ProviderConfigItem {
+  name: string;
   color: "primary" | "secondary" | "success" | "warning" | "danger" | "default";
-  gradient: string; 
+  gradient: string;
   border: string;
   iconBg: string;
   iconColor: string;
-  description: string; 
-  category?: string 
-}> = {
+  description: string;
+  category?: string;
+}
+
+const PROVIDER_CONFIG: Record<string, ProviderConfigItem> = {
   sentinelone: { 
     name: 'SentinelOne', 
     color: 'primary',
@@ -204,6 +206,18 @@ const DAY_OPTIONS = [
   { value: 365, label: '365 days (Full Year)' },
 ];
 
+interface CloudConfig {
+    region?: string;
+    tenantId?: string;
+}
+
+interface CloudCredentials {
+    accessKeyId?: string;
+    secretAccessKey?: string;
+    clientId?: string;
+    clientSecret?: string;
+}
+
 interface Integration {
   id: string;
   provider: string;
@@ -216,6 +230,8 @@ interface Integration {
   fetchSettings?: S1FetchSettings | CSFetchSettings | null;  // ⭐ เพิ่ม
   maskedUrl?: string | null;  // ⭐ เพิ่ม
   keyId?: string | null;      // ⭐ CrowdStrike Client ID
+  config?: CloudConfig;
+  credentials?: CloudCredentials;
 }
 
 export default function IntegrationPage() {
@@ -290,28 +306,7 @@ export default function IntegrationPage() {
   const [testingId, setTestingId] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<Record<string, 'success' | 'error' | null>>({});
 
-  // ⭐ Test Connection Handler
-  const handleTestConnection = async (integrationId: string) => {
-    setTestingId(integrationId);
-    setTestResult(prev => ({ ...prev, [integrationId]: null }));
-    
-    try {
-      await api.post(`/integrations/${integrationId}/test`);
-      setTestResult(prev => ({ ...prev, [integrationId]: 'success' }));
-      // Auto-clear success after 3 seconds
-      setTimeout(() => {
-        setTestResult(prev => ({ ...prev, [integrationId]: null }));
-      }, 3000);
-    } catch (error: any) {
-      setTestResult(prev => ({ ...prev, [integrationId]: 'error' }));
-      alert(`Test Failed: ${error.response?.data?.error || error.message}`);
-    } finally {
-      setTestingId(null);
-      fetchIntegrations(); // Refresh to get updated sync status
-    }
-  };
-
-  const fetchIntegrations = async () => {
+  const fetchIntegrations = useCallback(async () => {
     try {
       const [legacyRes, cloudRes] = await Promise.all([
          api.get('/integrations'),
@@ -319,13 +314,13 @@ export default function IntegrationPage() {
       ]);
 
       const legacyData = legacyRes.data;
-      const cloudData = cloudRes.data.map((i: any) => ({
+      const cloudData = cloudRes.data.map((i: { id: string; provider: string; name: string; createdAt: string; status: string; lastError: string; lastSyncAt: string; config: CloudConfig; credentials: CloudCredentials }) => ({
           id: i.id,
           provider: i.provider, // 'aws' or 'm365'
           label: i.name, // Cloud service returns 'name'
           createdAt: i.createdAt,
           hasApiKey: true,
-          lastSyncStatus: i.status === 'error' ? 'error' : 'success', // Simple mapping
+          lastSyncStatus: (i.status === 'error' ? 'error' : 'success') as 'error' | 'success', // Simple mapping
           lastSyncError: i.lastError,
           lastSyncAt: i.lastSyncAt,
           // Cloud specific config stashed in separate object if needed, or mapped to state in edit
@@ -360,11 +355,33 @@ export default function IntegrationPage() {
     } catch (error) {
       console.error('Failed to fetch integrations', error);
     }
+  }, [setPageContext]);
+
+  // ⭐ Test Connection Handler
+  const handleTestConnection = async (integrationId: string) => {
+    setTestingId(integrationId);
+    setTestResult(prev => ({ ...prev, [integrationId]: null }));
+    
+    try {
+      await api.post(`/integrations/${integrationId}/test`);
+      setTestResult(prev => ({ ...prev, [integrationId]: 'success' }));
+      // Auto-clear success after 3 seconds
+      setTimeout(() => {
+        setTestResult(prev => ({ ...prev, [integrationId]: null }));
+      }, 3000);
+    } catch (error) {
+      const err = error as { response?: { data?: { error?: string } }; message?: string };
+      setTestResult(prev => ({ ...prev, [integrationId]: 'error' }));
+      alert(`Test Failed: ${err.response?.data?.error || err.message}`);
+    } finally {
+      setTestingId(null);
+      fetchIntegrations(); // Refresh to get updated sync status
+    }
   };
 
   useEffect(() => {
     fetchIntegrations();
-  }, []);
+  }, [fetchIntegrations]);
 
   // ⭐ handleOpenAdd รับ aiProviderOverride สำหรับ AI cards และ enrichmentProvider สำหรับ Enrichment
   const handleOpenAdd = (type: 's1' | 'cs' | 'ai' | 'enrichment' | 'aws' | 'm365', providerOverride?: string) => {
@@ -424,7 +441,7 @@ export default function IntegrationPage() {
     try {
       // IF cloud provider, use data already in int (mapped from fetch)
       if (int.provider === 'aws' || int.provider === 'm365') {
-          const cloudInt = int as any; // Cast to access custom props added in fetch
+          const cloudInt = int as Integration & { config: CloudConfig, credentials: CloudCredentials }; 
           if (int.provider === 'aws') {
               setAwsRegion(cloudInt.config?.region || 'us-east-1');
               setAwsAccessKey(cloudInt.credentials?.accessKeyId || '');
@@ -589,8 +606,9 @@ export default function IntegrationPage() {
       // Optional: a delayed fetch to catch status updates
       setTimeout(() => fetchIntegrations(), 5000);
 
-    } catch (error: any) {
-      alert(error.response?.data?.error || 'Operation failed');
+    } catch (error) {
+      const err = error as { response?: { data?: { error?: string } }; message?: string };
+      alert(err.response?.data?.error || 'Operation failed');
     } finally {
       setIsLoading(false);
     }
@@ -670,9 +688,9 @@ export default function IntegrationPage() {
             const int = integrations.find(i => i.provider === provider);
             const isConfigured = !!int;
             // Fallback config if provider not found (shouldn't happen)
-            const config = PROVIDER_CONFIG[provider] || { 
+            const config: ProviderConfigItem = PROVIDER_CONFIG[provider] || { 
                name: provider, color: 'default', gradient: '', border: '', iconBg: '', iconColor: '', description: '' 
-            } as any;
+            };
 
             return isConfigured ? (
               // ⭐ Active Card
@@ -847,9 +865,9 @@ export default function IntegrationPage() {
             const isConfigured = !!int;
             
             // Get Config from PROVIDER_CONFIG directly
-            const config = PROVIDER_CONFIG[provider] || { 
+            const config: ProviderConfigItem = PROVIDER_CONFIG[provider] || { 
                name: provider, color: 'default', gradient: '', border: '', iconBg: '', iconColor: '', description: '' 
-            } as any;
+            };
 
             return isConfigured ? (
               // ⭐ Active Card
@@ -965,9 +983,9 @@ export default function IntegrationPage() {
                (provider === 'alienvault' && i.provider === 'alienvault-otx')
              );
              const isConfigured = !!int;
-             const config = PROVIDER_CONFIG[provider] || { 
+             const config: ProviderConfigItem = PROVIDER_CONFIG[provider] || { 
                 name: provider, color: 'default', gradient: '', border: '', iconBg: '', iconColor: '', description: '' 
-             } as any;
+             };
              
              return isConfigured ? (
                <Card 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardBody, Button, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Chip, Input, Pagination, Spinner, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure } from "@heroui/react";
 import { api } from "../../shared/api/api";
 
@@ -27,7 +27,7 @@ export default function AuditLogsPage() {
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
 
-  const fetchLogs = async () => {
+  const fetchLogs = useCallback(async () => {
     setIsLoading(true);
     try {
       const response = await api.get('/audit-logs', {
@@ -44,11 +44,11 @@ export default function AuditLogsPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [page, actionFilter]);
 
   useEffect(() => {
     fetchLogs();
-  }, [page]); // Reload on page change
+  }, [fetchLogs]); // Reload on page change
 
   const handleSearch = () => {
     setPage(1);

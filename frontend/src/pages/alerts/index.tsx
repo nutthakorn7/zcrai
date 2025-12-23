@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Button, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Chip, Tooltip, Card, CardBody, Tabs, Tab } from "@heroui/react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../../shared/api/api";
@@ -114,11 +114,7 @@ export default function AlertsPage() {
   // Drawer State
   const [selectedAlert, setSelectedAlert] = useState<PageAlert | null>(null);
 
-  useEffect(() => {
-    loadData();
-  }, [startDate, endDate, selectedProvider, viewMode, queueFilter, aiStatus]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     const start = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, '0')}-${String(startDate.getDate()).padStart(2, '0')}`;
     const end = `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, '0')}-${String(endDate.getDate()).padStart(2, '0')}`;
@@ -163,7 +159,11 @@ export default function AlertsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [startDate, endDate, selectedProvider, aiStatus, viewMode, queueFilter]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const handlePromote = async (alert: PageAlert) => {
     if (promotingId) return;

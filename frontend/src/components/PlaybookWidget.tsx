@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Card, CardBody, CardHeader, Button, Checkbox, Select, SelectItem, Progress, Chip } from "@heroui/react";
 import { PlaybooksAPI, Playbook, PlaybookExecution } from '../shared/api/playbooks';
 import { Icon } from '../shared/ui';
@@ -9,11 +9,7 @@ export function PlaybookWidget({ caseId }: { caseId: string }) {
   const [selectedPlaybookId, setSelectedPlaybookId] = useState<string>('');
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    loadData();
-  }, [caseId]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       const [playbooks, executions] = await Promise.all([
         PlaybooksAPI.list(),
@@ -24,7 +20,11 @@ export function PlaybookWidget({ caseId }: { caseId: string }) {
     } catch (e) {
       console.error(e);
     }
-  };
+  }, [caseId]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const handleRun = async () => {
     if (!selectedPlaybookId) return;

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Card, CardBody, Button, Input, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure, Chip, Select, SelectItem, Divider } from "@heroui/react";
 import { api } from "../../shared/api/api";
 import { usePageContext } from "../../contexts/PageContext";
@@ -11,7 +11,7 @@ import { Plus, Check, Zap } from 'lucide-react';
 interface NotificationChannel {
   id: string;
   name: string;
-  type: 'slack' | 'teams' | 'webhook';
+  type: 'slack' | 'teams' | 'line' | 'webhook';
   webhookUrl: string;
   enabled: boolean;
   minSeverity?: string;
@@ -38,7 +38,7 @@ export default function NotificationChannelsPage() {
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
 
-  const fetchChannels = async () => {
+  const fetchChannels = useCallback(async () => {
     try {
       setLoading(true);
       const { data } = await api.get('/notification-channels');
@@ -49,7 +49,7 @@ export default function NotificationChannelsPage() {
         pageDescription: 'Manage external notification webhooks (Slack, Teams)',
         data: {
           totalChannels: data.data.length,
-          activeChannels: data.data.filter((c: any) => c.enabled).length
+          activeChannels: data.data.filter((c: NotificationChannel) => c.enabled).length
         }
       });
     } catch (e) {
@@ -57,11 +57,11 @@ export default function NotificationChannelsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [setPageContext]);
 
   useEffect(() => {
     fetchChannels();
-  }, []);
+  }, [fetchChannels]);
 
   const handleOpenAdd = () => {
     setMode('add');
@@ -102,8 +102,8 @@ export default function NotificationChannelsPage() {
         type
       });
       setTestResult({ success: data.success, message: data.message });
-    } catch (e: any) {
-      setTestResult({ success: false, message: e.response?.data?.message || 'Webhook unreachable' });
+    } catch (e) {
+      setTestResult({ success: false, message: (e as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Webhook unreachable' });
     } finally {
       setTesting(false);
     }
@@ -124,7 +124,7 @@ export default function NotificationChannelsPage() {
         await api.post('/notification-channels', payload);
       } else if (selectedChannel) {
         // Prepare update payload - if webhookUrl is masked or empty, don't send it to keep existing
-        const updatePayload: any = { ...payload };
+        const updatePayload: Partial<NotificationChannel> & { webhookUrl?: string } = { ...payload };
         if (!webhookUrl || webhookUrl.includes('***')) {
             delete updatePayload.webhookUrl;
         }
@@ -294,7 +294,7 @@ export default function NotificationChannelsPage() {
                         type="password"
                         description={
                             type === 'line' 
-                            ? <span>Get token from <a href="https://notify-bot.line.me/my/" target="_blank" className="text-primary underline">notify-bot.line.me/my/</a></span>
+                            ? <span>Get token from <a href="https://notify-bot.line.me/my/" target="_blank" rel="noreferrer" className="text-primary underline">notify-bot.line.me/my/</a></span>
                             : "Paste the Incoming Webhook URL from your provider"
                         }
                     />

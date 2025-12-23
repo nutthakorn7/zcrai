@@ -58,29 +58,28 @@ export default function AdminDashboard() {
   const { isOpen, onOpen, onOpenChange } = useDisclosure()
 
   useEffect(() => {
-    loadData()
-  }, [])
-
-  const loadData = async () => {
-    setLoading(true)
-    try {
-      const [tenantsRes, summaryRes, healthRes] = await Promise.all([
-        api.get('/admin/tenants'),
-        api.get('/admin/summary'),
-        api.get('/admin/health')
-      ])
-      setTenants(tenantsRes.data)
-      setSummary(summaryRes.data)
-      setHealth(healthRes.data)
-    } catch (e: any) {
-      if (e.response?.status === 403) {
-        navigate('/dashboard')
+    const loadData = async () => {
+      setLoading(true)
+      try {
+        const [tenantsRes, summaryRes, healthRes] = await Promise.all([
+          api.get('/admin/tenants'),
+          api.get('/admin/summary'),
+          api.get('/admin/health')
+        ])
+        setTenants(tenantsRes.data)
+        setSummary(summaryRes.data)
+        setHealth(healthRes.data)
+      } catch (e: any) {
+        if (e.response?.status === 403) {
+          navigate('/dashboard')
+        }
+        console.error('Failed to load admin data:', e)
+      } finally {
+        setLoading(false)
       }
-      console.error('Failed to load admin data:', e)
-    } finally {
-      setLoading(false)
     }
-  }
+    loadData()
+  }, [navigate])
 
   const handleViewTenant = async (tenant: Tenant) => {
     try {

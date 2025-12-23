@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import {
   Modal,
   ModalContent,
@@ -56,13 +56,7 @@ export function AlertDetailModal({ alert, isOpen, onClose }: AlertDetailModalPro
   const [correlations, setCorrelations] = useState<AlertCorrelation[]>([]);
   const [isLoadingCorrelations, setIsLoadingCorrelations] = useState(false);
 
-  useEffect(() => {
-    if (alert && isOpen) {
-      loadCorrelations();
-    }
-  }, [alert, isOpen]);
-
-  const loadCorrelations = async () => {
+  const loadCorrelations = useCallback(async () => {
     if (!alert) return;
     
     try {
@@ -74,7 +68,13 @@ export function AlertDetailModal({ alert, isOpen, onClose }: AlertDetailModalPro
     } finally {
       setIsLoadingCorrelations(false);
     }
-  };
+  }, [alert]);
+
+  useEffect(() => {
+    if (alert && isOpen) {
+      loadCorrelations();
+    }
+  }, [alert, isOpen, loadCorrelations]);
 
   const handleViewRelatedAlert = (alertId: string) => {
     // Navigate to the related alert (you can enhance this later)

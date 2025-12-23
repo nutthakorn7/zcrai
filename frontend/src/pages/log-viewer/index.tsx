@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { 
   Button, Input, Spinner,
   Table, TableHeader, TableColumn, TableBody, TableRow, TableCell,
@@ -23,7 +23,14 @@ import {
   BarChart, Bar, XAxis, Tooltip as RechartTooltip, ResponsiveContainer, Cell
 } from 'recharts';
 
-const Histogram = ({ data, onBarClick }: { data: any[], onBarClick: (data: any) => void }) => {
+
+interface HistogramDataPoint {
+  time: string;
+  count: number;
+  severity: string;
+}
+
+const Histogram = ({ data, onBarClick }: { data: HistogramDataPoint[], onBarClick: (data: any) => void }) => {
     if (!data || data.length === 0) return <div className="h-24 flex items-center justify-center text-xs text-foreground/30">No activity to display</div>;
     
     return (
@@ -114,53 +121,7 @@ export default function LogViewerPage() {
   // Detail Modal
   const [selectedLog, setSelectedLog] = useState<LogEntry | null>(null);
 
-  useEffect(() => {
-    loadLogs();
-  }, [pagination.page, selectedProvider]);
-  
-  // Live Tail Polling
-  useEffect(() => {
-      if (!isLive) return;
-      const interval = setInterval(() => {
-          if (pagination.page !== 1) setPagination(prev => ({ ...prev, page: 1 }));
-          loadLogs();
-      }, 5000);
-      return () => clearInterval(interval);
-  }, [isLive, pagination.page]);
-
-  // Histogram Data Aggregation
-  const histogramData = logs.reduce((acc: any[], log) => {
-      const date = new Date(log.timestamp);
-      const key = `${date.getHours()}:${date.getMinutes() < 10 ? '0' : ''}${date.getMinutes()}`;
-      const existing = acc.find(item => item.time === key);
-      if (existing) {
-          existing.count++;
-          if (log.severity === 'critical') existing.severity = 'critical';
-      } else {
-          acc.push({ time: key, count: 1, severity: log.severity });
-      }
-      return acc;
-  }, []).sort((a,b) => a.time.localeCompare(b.time));
-  
-  const parseKQL = (query: string) => {
-      const filters: any = { search: '', severity: null, source: null };
-      const terms = query.split(' ');
-      const textTerms = [];
-      for (const term of terms) {
-          if (term.includes(':')) {
-              const [key, value] = term.split(':');
-              if (key === 'severity') filters.severity = value;
-              if (key === 'source') filters.source = value;
-          } else {
-              textTerms.push(term);
-          }
-      }
-      filters.search = textTerms.join(' ');
-      return filters;
-  };
-
-
-  const loadLogs = async () => {
+  const loadLogs = useCallback(async () => {
     setLoading(true);
     try {
       // Fetch active integrations to determine available providers
@@ -168,7 +129,7 @@ export default function LogViewerPage() {
       const activeIntegrations = activeIntRes.data || [];
       
       const activeProviders = activeIntegrations
-        .map((i: any) => i.provider.toLowerCase())
+        .map((i: { provider: string }) => i.provider.toLowerCase())
         .filter((p: string) => ['sentinelone', 'crowdstrike'].includes(p));
         
       const uniqueActiveProviders = Array.from(new Set(activeProviders)) as string[];
@@ -283,7 +244,61 @@ export default function LogViewerPage() {
     } finally {
       setLoading(false);
     }
+  }, [pagination.page, pagination.limit, selectedProvider, search, severity, integrationId, accountName, siteName, setPageContext]);
+
+  useEffect(() => {
+    loadLogs();
+  }, [pagination.page, selectedProvider, loadLogs]);
+  
+  // Live Tail Polling
+  useEffect(() => {
+      if (!isLive) return;
+      const interval = setInterval(() => {
+          if (pagination.page !== 1) setPagination(prev => ({ ...prev, page: 1 }));
+          loadLogs();
+      }, 5000);
+      return () => clearInterval(interval);
+  }, [isLive, pagination.page, loadLogs]);
+
+  // Histogram Data Aggregation
+  const histogramData: HistogramDataPoint[] = logs.reduce((acc: HistogramDataPoint[], log) => {
+      const date = new Date(log.timestamp);
+      const key = `${date.getHours()}:${date.getMinutes() < 10 ? '0' : ''}${date.getMinutes()}`;
+      const existing = acc.find(item => item.time === key);
+      if (existing) {
+          existing.count++;
+          if (log.severity === 'critical') existing.severity = 'critical';
+      } else {
+          acc.push({ time: key, count: 1, severity: log.severity });
+      }
+      return acc;
+  }, []).sort((a,b) => a.time.localeCompare(b.time));
+  
+  interface KQLFilters {
+    search: string;
+    severity: string | null;
+    source: string | null;
+  }
+
+  const parseKQL = (query: string): KQLFilters => {
+      const filters: KQLFilters = { search: '', severity: null, source: null };
+      const terms = query.split(' ');
+      const textTerms = [];
+      for (const term of terms) {
+          if (term.includes(':')) {
+              const [key, value] = term.split(':');
+              if (key === 'severity') filters.severity = value;
+              if (key === 'source') filters.source = value;
+          } else {
+              textTerms.push(term);
+          }
+      }
+      filters.search = textTerms.join(' ');
+      return filters;
   };
+
+
+
 
   const handleSearch = () => {
     setPagination(prev => ({ ...prev, page: 1 }));
@@ -455,7 +470,7 @@ export default function LogViewerPage() {
       const activeIntegrations = activeIntRes.data || [];
       
       const activeProviders = activeIntegrations
-        .map((i: any) => i.provider.toLowerCase())
+        .map((i: { provider: string }) => i.provider.toLowerCase())
         .filter((p: string) => ['sentinelone', 'crowdstrike'].includes(p));
         
       const uniqueActiveProviders = Array.from(new Set(activeProviders)) as string[];

@@ -16,27 +16,27 @@ export function MyTasksWidget() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        // Fail safely if APIs fail
+        const [alertsData, casesData] = await Promise.allSettled([
+          AlertsAPI.list({ status: ['new'], limit: 10 }),
+          user?.id ? CasesAPI.list({ assigneeId: user.id, status: 'open,investigating' }) : Promise.resolve([])
+        ]);
+
+        if (alertsData.status === 'fulfilled') setAlerts(alertsData.value);
+        if (casesData.status === 'fulfilled') setCases(casesData.value);
+        
+      } catch (error) {
+        console.error('Failed to load tasks:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
     loadData();
   }, [user]);
-
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      // Fail safely if APIs fail
-      const [alertsData, casesData] = await Promise.allSettled([
-        AlertsAPI.list({ status: ['new'], limit: 10 }),
-        user?.id ? CasesAPI.list({ assigneeId: user.id, status: 'open,investigating' }) : Promise.resolve([])
-      ]);
-
-      if (alertsData.status === 'fulfilled') setAlerts(alertsData.value);
-      if (casesData.status === 'fulfilled') setCases(casesData.value);
-      
-    } catch (error) {
-      console.error('Failed to load tasks:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const getSeverityColor = (severity: string) => {
     switch (severity.toLowerCase()) {

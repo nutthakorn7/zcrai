@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { Button, Chip, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Input, Card, CardBody, Progress } from "@heroui/react";
 import { Icon } from '../../shared/ui';
 import { ObservablesAPI, Observable } from '../../shared/api/observables';
@@ -46,7 +46,7 @@ export default function ObservablesPage() {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
-  const fetchObservables = async () => {
+  const fetchObservables = useCallback(async () => {
     try {
       const data = await ObservablesAPI.list({
         type: typeFilter.length > 0 ? typeFilter : undefined,
@@ -57,15 +57,11 @@ export default function ObservablesPage() {
     } catch (e) {
       console.error(e);
     }
-  };
-
-  useEffect(() => {
-    fetchObservables();
-  }, []);
-
-  useEffect(() => {
-    fetchObservables();
   }, [typeFilter, statusFilter, searchQuery]);
+
+  useEffect(() => {
+    fetchObservables();
+  }, [fetchObservables]);
 
   const filteredObservables = useMemo(() => {
     return observables;
