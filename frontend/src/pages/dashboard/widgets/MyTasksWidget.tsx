@@ -113,9 +113,9 @@ export function MyTasksWidget() {
                                     {new Date(task.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                                 </span>
                             </div>
-                            <h4 className="font-medium text-foreground group-hover:text-primary transition-colors line-clamp-1 mb-1">
+                            <h3 className="font-medium text-foreground group-hover:text-primary transition-colors line-clamp-1 mb-1">
                                 {task.title}
-                            </h4>
+                            </h3>
                             <div className="flex items-center justify-between text-xs text-foreground/50">
                                 <span>{task.source}</span>
                                 <Icon.ChevronRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -137,9 +137,9 @@ export function MyTasksWidget() {
                                     {new Date(c.updatedAt).toLocaleDateString()}
                                 </span>
                             </div>
-                            <h4 className="font-medium text-foreground group-hover:text-warning transition-colors line-clamp-1 mb-1">
+                            <h3 className="font-medium text-foreground group-hover:text-warning transition-colors line-clamp-1 mb-1">
                                 {c.title}
-                            </h4>
+                            </h3>
                              <div className="flex items-center justify-between text-xs text-foreground/50">
                                 <span className="capitalize">{c.status}</span>
                                 <Icon.ChevronRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />

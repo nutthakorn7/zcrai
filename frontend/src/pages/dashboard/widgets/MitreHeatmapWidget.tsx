@@ -96,9 +96,9 @@ export function MitreHeatmapWidget({ data }: MitreHeatmapProps) {
                             <div key={tactic} className="w-full flex flex-col items-center min-h-[350px]">
                                 {/* Header */}
                                 <div className={`w-full py-2 px-1 text-center border-b border-white/5 ${hasCurrentThreats ? 'bg-white/5' : ''}`}>
-                                    <h4 className={`text-[9px] font-bold uppercase tracking-tight leading-tight mb-1 break-words h-8 flex items-center justify-center ${hasCurrentThreats ? 'text-foreground' : 'text-default-400'}`}>
+                                    <h3 className={`text-[9px] font-bold uppercase tracking-tight leading-tight mb-1 break-words h-8 flex items-center justify-center ${hasCurrentThreats ? 'text-foreground' : 'text-default-400'}`}>
                                         {tactic}
-                                    </h4>
+                                    </h3>
                                     <div className={`text-[9px] font-mono ${hasCurrentThreats ? 'text-primary' : 'text-default-500'}`}>
                                         {totalCount}
                                     </div>
