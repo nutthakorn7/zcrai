@@ -40,6 +40,7 @@ export function Sidebar() {
       icon: Icon.Shield,
       label: 'Operations',
       children: [
+        { label: '🚀 AI Command Center', path: '/ai-command' },
         { label: 'AI Autopilot', path: '/autopilot' },
         { label: 'Dashboard', path: '/dashboard' },
         { label: 'Detection Engine', path: '/rules' }, // Merged: Rules + Detections

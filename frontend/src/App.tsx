@@ -14,6 +14,7 @@ const ForgotPasswordPage = lazy(() => import("./pages/auth/ForgotPasswordPage"))
 const ResetPasswordPage = lazy(() => import("./pages/auth/ResetPasswordPage"));
 const SSOCallbackPage = lazy(() => import("./pages/auth/SSOCallbackPage"));
 const DashboardPage = lazy(() => import("./pages/dashboard"));
+const AICommandCenter = lazy(() => import("./pages/AICommandCenter"));
 const DashboardBuilder = lazy(() => import("./components/dashboard/DashboardBuilder"));
 const LogViewerPage = lazy(() => import("./pages/log-viewer"));
 const AlertsPage = lazy(() => import("./pages/alerts"));
@@ -168,6 +169,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <DashboardPage />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/ai-command" 
+              element={
+                <ProtectedRoute>
+                  <AICommandCenter />
                 </ProtectedRoute>
               } 
             />
