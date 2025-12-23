@@ -10,15 +10,13 @@ import {
 } from '@heroui/react';
 import { Alert, AlertCorrelation, AlertsAPI } from '../../shared/api/alerts';
 import { CorrelationCard } from './CorrelationCard';
-import { AlertTriangle, CheckCircle, Activity, ShieldCheck, BookOpen, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Activity, ShieldCheck, BookOpen } from 'lucide-react';
 import { Icon } from '../../shared/ui';
 
 interface AlertDetailDrawerProps {
   alert: Alert | null;
   isOpen: boolean;
   onClose: () => void;
-  onPromote?: (alert: Alert) => void;
-  onDismiss?: (alert: Alert) => void;
 }
 
 const getSeverityColor = (severity: string) => {
@@ -41,7 +39,7 @@ const getStatusColor = (status: string) => {
   }
 };
 
-export function AlertDetailDrawer({ alert, isOpen, onClose, onPromote, onDismiss }: AlertDetailDrawerProps) {
+export function AlertDetailDrawer({ alert, isOpen, onClose }: AlertDetailDrawerProps) {
   const [correlations, setCorrelations] = useState<AlertCorrelation[]>([]);
   const [isLoadingCorrelations, setIsLoadingCorrelations] = useState(false);
   const [suggestions, setSuggestions] = useState<any[]>([]);
@@ -56,8 +54,6 @@ export function AlertDetailDrawer({ alert, isOpen, onClose, onPromote, onDismiss
     }
   }, [alert, isOpen]);
 
-  const [feedbackStatus, setFeedbackStatus] = useState<'none' | 'sent'>('none');
-
   const loadCorrelations = async () => {
     if (!alert) return;
     
@@ -70,17 +66,6 @@ export function AlertDetailDrawer({ alert, isOpen, onClose, onPromote, onDismiss
     } finally {
       setIsLoadingCorrelations(false);
     }
-  };
-
-  const handleFeedback = async (rating: number) => {
-      if (!alert) return;
-      try {
-          const { api } = await import('../../shared/api/api');
-          await api.post(`/feedback/${alert.id}`, { rating });
-          setFeedbackStatus('sent');
-      } catch (error) {
-          console.error('Feedback failed:', error);
-      }
   };
 
   const loadSuggestions = async () => {
@@ -141,30 +126,8 @@ export function AlertDetailDrawer({ alert, isOpen, onClose, onPromote, onDismiss
                 {/* Body (Scrollable) */}
                 <ScrollShadow className="flex-1 overflow-y-auto p-6 space-y-6">
                     
-                    {/* Action Bar */}
-                    <div className="flex gap-3 mb-2">
-                        {onPromote && (
-                            <Button 
-                                color="primary" 
-                                className="flex-1 font-medium shadow-lg shadow-primary/20" 
-                                onPress={() => onPromote(alert)}
-                                startContent={<Icon.ShieldAlert className="w-4 h-4" />}
-                            >
-                                Promote to Case
-                            </Button>
-                        )}
-                        {onDismiss && (
-                             <Button 
-                                color="danger" 
-                                variant="flat" 
-                                className="flex-1 font-medium" 
-                                onPress={() => onDismiss(alert)}
-                                startContent={<Icon.Close className="w-4 h-4" />}
-                            >
-                                Dismiss
-                            </Button>
-                        )}
-                    </div>
+
+                    {/* AI handles all actions automatically - no manual buttons needed */}
 
                     {/* Metadata Grid */}
                     <div className="grid grid-cols-2 gap-4 text-sm bg-content2/30 p-4 rounded-xl border border-white/5">
@@ -234,22 +197,6 @@ export function AlertDetailDrawer({ alert, isOpen, onClose, onPromote, onDismiss
                                                 </span>
                                             </div>
                                         </div>
-                                        
-                                        {/* Feedback Buttons */}
-                                        <div className="flex items-center gap-1">
-                                            {feedbackStatus === 'sent' ? (
-                                                <span className="text-[10px] text-green-400 font-medium animate-pulse">Thanks for feedback!</span>
-                                            ) : (
-                                                <>
-                                                    <Button isIconOnly size="sm" variant="light" className="text-foreground/30 hover:text-green-400" onPress={() => handleFeedback(1)}>
-                                                        <ThumbsUp className="w-4 h-4" />
-                                                    </Button>
-                                                    <Button isIconOnly size="sm" variant="light" className="text-foreground/30 hover:text-red-400" onPress={() => handleFeedback(-1)}>
-                                                        <ThumbsDown className="w-4 h-4" />
-                                                    </Button>
-                                                </>
-                                            )}
-                                        </div>
                                     </div>
 
                                     {/* Reasoning */}
@@ -317,25 +264,14 @@ export function AlertDetailDrawer({ alert, isOpen, onClose, onPromote, onDismiss
                                     {suggestions.map((param: any, idx: number) => (
                                         <Card key={idx} className="bg-blue-900/10 border border-blue-500/20 hover:border-blue-500/40 transition-colors">
                                             <CardBody className="p-3">
-                                                <div className="flex justify-between items-start mb-2">
-                                                    <div>
-                                                        <div className="flex items-center gap-2">
-                                                            <h3 className="font-bold text-blue-100">{param.title}</h3>
-                                                            <Chip size="sm" variant="flat" color="primary" className="h-5 text-[10px]">
-                                                                {param.matchScore}% MATCH
-                                                            </Chip>
-                                                        </div>
-                                                        <p className="text-xs text-blue-200/70 mt-1">{param.reasoning}</p>
+                                                <div>
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <h3 className="font-bold text-blue-100">{param.title}</h3>
+                                                        <Chip size="sm" variant="flat" color="success" className="h-5 text-[10px]">
+                                                            🤖 Auto-Executed
+                                                        </Chip>
                                                     </div>
-                                                    <Button 
-                                                        size="sm" 
-                                                        color="primary" 
-                                                        variant="shadow"
-                                                        className="font-medium"
-                                                        onPress={() => window.open(`/playbooks/${param.playbookId}`, '_blank')}
-                                                    >
-                                                        Run
-                                                    </Button>
+                                                    <p className="text-xs text-blue-200/70">{param.reasoning}</p>
                                                 </div>
                                             </CardBody>
                                         </Card>

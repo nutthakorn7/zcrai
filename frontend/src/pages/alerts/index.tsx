@@ -1,14 +1,12 @@
 import { useEffect, useState, useCallback } from "react";
 import { Button, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Chip, Tooltip, Card, CardBody, Tabs, Tab } from "@heroui/react";
-import { useNavigate } from "react-router-dom";
 import { api } from "../../shared/api/api";
-import { CasesAPI } from "../../shared/api/cases";
 import { DateRangePicker } from "../../components/DateRangePicker";
 import { AlertDetailDrawer } from '../../components/alerts/AlertDetailDrawer';
 import { Icon } from '../../shared/ui';
 import sentineloneLogo from '../../assets/logo/sentinelone.png';
 import crowdstrikeLogo from '../../assets/logo/crowdstrike.png';
-import { Copy, AlertTriangle, FileText, XCircle } from 'lucide-react';
+import { Copy, AlertTriangle, FileText } from 'lucide-react';
 
 // Severity color mapping
 const severityColors = {
@@ -85,7 +83,6 @@ interface Summary {
 }
 
 export default function AlertsPage() {
-  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'incidents' | 'logs'>('incidents');
   const [alerts, setAlerts] = useState<PageAlert[]>([]);
@@ -106,10 +103,6 @@ export default function AlertsPage() {
   const [availableProviders, setAvailableProviders] = useState<string[]>([]);
   const [queueFilter, setQueueFilter] = useState<'all' | 'unassigned' | 'my_queue'>('unassigned'); 
   const [aiStatus, setAiStatus] = useState<string>('all'); // 'all' | 'verified' | 'blocked' | 'pending'
-
-  
-  // Promotion State
-  const [promotingId, setPromotingId] = useState<string | null>(null);
 
   // Drawer State
   const [selectedAlert, setSelectedAlert] = useState<PageAlert | null>(null);
@@ -165,35 +158,7 @@ export default function AlertsPage() {
     loadData();
   }, [loadData]);
 
-  const handlePromote = async (alert: PageAlert) => {
-    if (promotingId) return;
-    setPromotingId(alert.id);
-    try {
-      // 1. Create Case
-      const newCase = await CasesAPI.create({
-        title: `[Incident] ${alert.title}`,
-        description: `Source: ${alert.source}\nSeverity: ${alert.severity}\nTime: ${alert.createdAt || alert.timestamp}\nOrigin Alert ID: ${alert.id}\n\n${alert.description || ''}`,
-        severity: ['critical', 'high', 'medium', 'low'].includes(alert.severity.toLowerCase()) ? alert.severity.toLowerCase() : 'medium',
-        tags: ['promoted-from-alert', alert.source]
-      });
 
-      // 2. Update Alert Status locally (optimistic update)
-      setAlerts(prev => prev.map(a => a.id === alert.id ? { ...a, status: 'promoted' } : a));
-      
-      // 3. User Feedback
-      const confirmView = window.confirm('Case created successfully! View it now?');
-      if (confirmView) {
-        navigate(`/cases/${newCase.id}`);
-      }
-    } catch (e: any) {
-      console.error('Failed to promote alert:', e);
-      // More specific error message if available
-      const errMsg = e.response?.data?.error || 'Failed to create case. Please try again.';
-      window.alert(errMsg);
-    } finally {
-      setPromotingId(null);
-    }
-  };
 
   const renderCell = (alert: PageAlert, columnKey: string) => {
     switch (columnKey) {
@@ -318,25 +283,33 @@ export default function AlertsPage() {
         );
 
       case "actions":
+        // AI handles all actions - show status instead of buttons
+        const isAutoHandled = alert.status === 'dismissed' || alert.status === 'promoted';
+        
+        if (isAutoHandled) {
+          return (
+            <Chip 
+              size="sm" 
+              variant="flat" 
+              color={alert.status === 'promoted' ? 'secondary' : 'default'}
+              className="text-[10px]"
+              startContent={<span>🤖</span>}
+            >
+              {alert.status === 'promoted' ? 'Auto-Promoted' : 'Auto-Closed'}
+            </Chip>
+          );
+        }
+        
         return (
-            <div className="flex justify-end gap-2">
-                {viewMode === 'incidents' && alert.status === 'new' && (
-                  <Button size="sm" color="default" variant="light" isIconOnly onPress={() => { /* dismiss logic */ }}>
-                    <XCircle className="w-4 h-4" />
-                  </Button>
-                )}
-                <Button 
-                    size="sm" 
-                    color="primary" 
-                    variant={alert.status === 'promoted' ? "flat" : "ghost"}
-                    isDisabled={alert.status === 'promoted' || (promotingId === alert.id && promotingId !== null)}
-                    isLoading={promotingId === alert.id}
-                    startContent={promotingId !== alert.id && <Icon.Shield className="w-3 h-3" />}
-                    onPress={() => handlePromote(alert)}
-                >
-                    {alert.status === 'promoted' ? 'Promoted' : 'Promote'}
-                </Button>
-            </div>
+          <Chip 
+            size="sm" 
+            variant="flat" 
+            color="warning"
+            className="text-[10px]"
+            startContent={<span>⏳</span>}
+          >
+            AI Processing
+          </Chip>
         );
       
       default: return null;
@@ -560,7 +533,7 @@ export default function AlertsPage() {
                  { uid: 'severity', name: 'Severity', width: 100 },
                  ...(viewMode === 'incidents' ? [{ uid: 'status', name: 'Status', width: 100 }] : []),
                  { uid: 'ai', name: 'AI Verdict', width: 140 },
-                 { uid: 'actions', name: 'Action', align: 'end' as const },
+                 { uid: 'actions', name: 'AI Status', width: 120, align: 'end' as const },
              ];
              
              return (
@@ -570,7 +543,7 @@ export default function AlertsPage() {
                 onSelectionChange={(keys) => {
                     const id = Array.from(keys)[0] as string;
                     if (id) {
-                        const alert = alerts.find(a => a.id === id);
+                        const alert = alerts.find((a: PageAlert) => a.id === id);
                         if (alert) setSelectedAlert(alert);
                     }
                 }}
@@ -592,7 +565,7 @@ export default function AlertsPage() {
                   )}
                 </TableHeader>
                 <TableBody items={alerts} emptyContent="No records found">
-                  {(alert) => (
+                  {(alert: PageAlert) => (
                     <TableRow key={alert.id}>
                       {(columnKey) => <TableCell>{renderCell(alert, columnKey as string)}</TableCell>}
                     </TableRow>
@@ -606,11 +579,6 @@ export default function AlertsPage() {
             alert={selectedAlert as any} 
             isOpen={!!selectedAlert} 
             onClose={() => setSelectedAlert(null)} 
-            onPromote={(alert) => handlePromote(alert as any)}
-            onDismiss={(alert) => {
-                console.log("Dismiss", alert.id);
-                // Todo: Implement API call
-            }}
         />
       </div>
     </div>
