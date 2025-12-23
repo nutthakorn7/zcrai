@@ -41,13 +41,10 @@ export function Sidebar() {
       label: 'Operations',
       children: [
         { label: 'AI Autopilot', path: '/autopilot' },
-        { label: 'Monitor (Dashboard)', path: '/dashboard' },
-        { label: 'Builder', path: '/dashboard/builder' },
-        { label: 'Rules', path: '/rules' },
-        { label: 'Detections', path: '/detections' },
-        { label: 'Investigate (Cases)', path: '/cases' },
-        { label: 'Respond (Playbooks)', path: '/playbooks' },
-        { label: 'Reports', path: '/reports' },
+        { label: 'Dashboard', path: '/dashboard' },
+        { label: 'Detection Engine', path: '/rules' }, // Merged: Rules + Detections
+        { label: 'Cases', path: '/cases' },
+        { label: 'Playbooks', path: '/playbooks' },
       ],
     },
 
@@ -69,17 +66,12 @@ export function Sidebar() {
       label: 'Settings',
       children: [
         { label: 'Integrations', path: '/settings/integrations' },
-        { label: 'EDR Actions', path: '/settings/edr-actions' }, // [NEW]
-        { label: 'Notifications', path: '/settings/notifications' },
-        { label: 'Access (Users)', path: '/settings/users' },
-        { label: 'Tenants', path: '/settings/tenants' },         // [NEW]
-        { label: 'Billing', path: '/settings/subscription' },
-        { label: 'SSO / MFA', path: '/settings/sso' },          // [NEW]
-        { label: 'Audit Logs', path: '/settings/audit-logs' },   // [NEW]
-        { label: 'System', path: '/settings/system' }, 
-        { label: 'Retention', path: '/settings/retention' },     // [NEW]
-        { label: 'Parsers', path: '/settings/parsers' },         // [NEW]
-        { label: 'Profile', path: '/settings/profile' },         // [NEW]
+        { label: 'EDR Actions', path: '/settings/edr-actions' },
+        { label: 'Users & Access', path: '/settings/users' },
+        { label: 'Tenant & Billing', path: '/settings/tenants' },
+        { label: 'Security (SSO/MFA)', path: '/settings/sso' },
+        { label: 'Audit & Retention', path: '/settings/audit-logs' },
+        { label: 'System', path: '/settings/system' },
       ],
     },
 
