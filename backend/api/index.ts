@@ -7,6 +7,7 @@ import { helmet } from 'elysia-helmet'
 import { auditLogger } from './middleware/audit'
 import { tenantGuard } from './middlewares/auth.middleware'
 import { errorHandler } from './middleware/error'
+import { timingMiddleware } from './middleware/timing'
 import { authController } from './controllers/auth.controller'
 import { monitoringController } from './controllers/monitoring.controller'
 import { ssoController } from './controllers/sso.controller'
@@ -147,6 +148,7 @@ const app = new Elysia()
   }))
   .use(helmet())
   .use(errorHandler)  // Global error handler
+  .use(timingMiddleware) // Request timing logs
   .use(rateLimit({
      duration: 60000, // 1 minute
      max: 100 // 100 requests per minute

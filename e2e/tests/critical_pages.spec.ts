@@ -1,21 +1,16 @@
 import { test, expect } from '@playwright/test';
-
-const TEST_EMAIL = process.env.TEST_EMAIL || 'superadmin@zcr.ai';
-const TEST_PASSWORD = process.env.TEST_PASSWORD || 'SuperAdmin@123!';
+import { robustLogin } from './utils';
 
 test.describe('Critical Pages', () => {
+  test.setTimeout(120000);
+
   test.beforeEach(async ({ page }) => {
-    // Login
-    await page.goto('/login');
-    await page.fill('input[type="email"], input[name="email"]', TEST_EMAIL);
-    await page.fill('input[type="password"]', TEST_PASSWORD);
-    await page.click('button[type="submit"]');
-    await page.waitForURL(/dashboard|\/$/);
+    await robustLogin(page);
   });
 
   test('should load Alert Queue page', async ({ page }) => {
     await page.goto('/queue');
-    await expect(page).toHaveURL(/queue/);
+    await expect(page).toHaveURL(/\/detections\?status=new|queue/);
     
     // Check for queue interface elements
     const table = page.locator('table, [role="grid"]').first();

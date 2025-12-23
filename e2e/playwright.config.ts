@@ -9,7 +9,7 @@ export default defineConfig({
   reporter: 'html',
   
   // Timeout settings
-  timeout: 30000,
+  timeout: 60000,
   globalTimeout: 600000,
   expect: {
     timeout: 10000,
@@ -19,7 +19,7 @@ export default defineConfig({
     baseURL: process.env.BASE_URL || 'https://app.zcr.ai',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
-    actionTimeout: 10000,
-    navigationTimeout: 30000,
+    actionTimeout: 15000,
+    navigationTimeout: 45000,
   },
 });

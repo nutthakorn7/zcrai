@@ -7,16 +7,19 @@
 const BCRYPT_COST = 10;
 
 /**
- * Hash a password using bcrypt with consistent settings.
+ * Hash a password using Argon2id with optimized settings.
  * @param password - Plain text password
  * @returns Hashed password
  */
 export async function hashPassword(password: string): Promise<string> {
-  return Bun.password.hash(password, { 
+  const start = Date.now();
+  const hash = await Bun.password.hash(password, { 
     algorithm: 'argon2id', 
     memoryCost: 4096,
     timeCost: 3
   });
+  console.log(`[Password] Hash took ${Date.now() - start}ms`);
+  return hash;
 }
 
 /**
@@ -26,22 +29,27 @@ export async function hashPassword(password: string): Promise<string> {
  * @returns true if password matches, false otherwise
  */
 export async function verifyPassword(password: string, hash: string): Promise<boolean> {
+  const start = Date.now();
   try {
     // Debug logging for test environment issues
     if (process.env.NODE_ENV === 'test') {
        // Check if hash is a valid string
        if (!hash || typeof hash !== 'string') {
           console.error('[Password] Hash is invalid/empty:', hash)
-       } else {
-          // Log algorithm prefix if present
-          const prefix = hash.substring(0, 10);
-          // console.log(`[Password] Verifying against hash prefix: ${prefix}...`)
        }
     }
-    return await Bun.password.verify(password, hash);
+    const result = await Bun.password.verify(password, hash);
+    const duration = Date.now() - start;
+    if (duration > 200) {
+      console.warn(`[Password] Verify took ${duration}ms (slow)`);
+    } else {
+      console.log(`[Password] Verify took ${duration}ms`);
+    }
+    return result;
   } catch (error) {
     console.error('[Password] Verification error:', error);
     console.error('[Password] Problematic Hash:', hash);
     return false;
   }
 }
+

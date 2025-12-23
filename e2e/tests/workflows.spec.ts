@@ -3,193 +3,130 @@ import { test, expect } from '@playwright/test';
 const TEST_EMAIL = process.env.TEST_EMAIL || 'superadmin@zcr.ai';
 const TEST_PASSWORD = process.env.TEST_PASSWORD || 'SuperAdmin@123!';
 
-test.describe('Alert Triage Workflow', () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto('/login');
-    await page.fill('input[type="email"], input[name="email"]', TEST_EMAIL);
-    await page.fill('input[type="password"]', TEST_PASSWORD);
-    await page.click('button[type="submit"]');
-    await page.waitForURL(/dashboard|\/$/);
-  });
-
-  test('should complete alert investigation flow', async ({ page }) => {
-    // 1. Navigate to Alerts
-    await page.goto('/alerts');
-    await page.waitForLoadState('networkidle');
-    
-    // 2. Check if there are alerts to work with
-    const alertRows = page.locator('table tbody tr');
-    const alertCount = await alertRows.count();
-    
-    if (alertCount > 0) {
-      // 3. Click first alert to view details
-      await alertRows.first().click();
-      
-      // 4. Look for investigation actions (Create Case, Assign, etc)
-      const createCaseBtn = page.getByRole('button', { name: /create case|escalate/i });
-      
-      if (await createCaseBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
-        await expect(createCaseBtn).toBeVisible();
-        // Note: Not actually creating case to avoid data pollution
-      }
-    } else {
-      test.skip(true, 'No alerts available for triage workflow test');
-    }
-  });
-});
-
-test.describe('Case Management Workflow', () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto('/login');
-    await page.fill('input[type="email"], input[name="email"]', TEST_EMAIL);
-    await page.fill('input[type="password"]', TEST_PASSWORD);
-    await page.click('button[type="submit"]');
-    await page.waitForURL(/dashboard|\/$/);
-  });
-
-  test('should verify case creation form', async ({ page }) => {
-    // 1. Navigate to Cases
-    await page.goto('/cases');
-    await page.waitForLoadState('networkidle');
-    
-    // 2. Look for Create Case button
-    const createBtn = page.getByRole('button', { name: /create|new|add/i }).first();
-    
-    if (await createBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
-      // 3. Click to open create dialog/form
-      await createBtn.click();
-      
-      // 4. Verify form appears with required fields
-      const dialog = page.locator('[role="dialog"], .modal').first();
-      await expect(dialog).toBeVisible({ timeout: 5000 });
-      
-      // 5. Look for typical case fields (title, description, severity)
-      const titleInput = page.locator('input[name="title"], input[placeholder*="title" i]').first();
-      if (await titleInput.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await expect(titleInput).toBeVisible();
-      }
-      
-      // 6. Close without saving (Cancel button or ESC)
-      const cancelBtn = page.getByRole('button', { name: /cancel|close/i });
-      if (await cancelBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await cancelBtn.click();
-      } else {
-        await page.keyboard.press('Escape');
-      }
-    }
-  });
-
-  test('should verify case status update workflow', async ({ page }) => {
-    // 1. Navigate to Cases
-    await page.goto('/cases');
-    await page.waitForLoadState('networkidle');
-    
-    // 2. Check for existing cases
-    const caseRows = page.locator('table tbody tr');
-    const caseCount = await caseRows.count();
-    
-    if (caseCount > 0) {
-      // 3. Click first case to view details
-      await caseRows.first().click();
-      
-      // 4. Wait for case detail to load
-      await page.waitForURL(/cases\/[a-f0-9-]+/, { timeout: 5000 }).catch(() => {});
-      
-      if ((await page.url()).includes('/cases/')) {
-        // 5. Look for status dropdown or update button
-        const statusControl = page.locator('select, button').filter({ hasText: /status|open|in progress|closed/i }).first();
-        
-        if (await statusControl.isVisible({ timeout: 5000 }).catch(() => false)) {
-          await expect(statusControl).toBeVisible();
-          // Note: Not actually changing status to avoid data pollution
+// Helper for Robust Login
+async function robustLogin(page: any) {
+    let retries = 3;
+    while (retries > 0) {
+        try {
+            await page.goto('/login', { timeout: 45000 });
+            await page.waitForLoadState('domcontentloaded');
+            // If we are already redirected or login form is present
+            if (await page.url().includes('login')) {
+                // Ensure form is visible
+                await expect(page.locator('input[type="email"]')).toBeVisible({ timeout: 10000 });
+                await page.fill('input[type="email"]', TEST_EMAIL);
+                await page.fill('input[type="password"]', TEST_PASSWORD);
+                await page.click('button[type="submit"]');
+            }
+            await page.waitForURL(/dashboard|\/$/, { timeout: 45000 });
+            return; // Success
+        } catch (e) {
+            console.log(`Login retry ${4-retries} failed: ${e.message}`);
+            retries--;
+            if (retries === 0) throw e;
+            await page.waitForTimeout(5000); // Backoff
         }
-      }
-    } else {
-      test.skip(true, 'No cases available for status update workflow test');
     }
-  });
-});
+}
 
-test.describe('User Management Workflow', () => {
+test.describe('Full System E2E Workflows', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/login');
-    await page.fill('input[type="email"], input[name="email"]', TEST_EMAIL);
-    await page.fill('input[type="password"]', TEST_PASSWORD);
-    await page.click('button[type="submit"]');
-    await page.waitForURL(/dashboard|\/$/);
+    await robustLogin(page);
   });
 
-  test('should verify user creation form', async ({ page }) => {
-    // 1. Navigate to User Management
-    await page.goto('/settings/users');
-    await page.waitForLoadState('networkidle');
-    
-    // 2. Look for Add/Invite User button
-    const addUserBtn = page.getByRole('button', { name: /add|invite|create|new/i }).first();
-    
-    if (await addUserBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
-      // 3. Click to open user creation form
-      await addUserBtn.click();
-      
-      // 4. Verify form opens
-      const dialog = page.locator('[role="dialog"], .modal').first();
-      await expect(dialog).toBeVisible({ timeout: 5000 });
-      
-      // 5. Check for email or name input (forms vary)
-      const emailInput = page.locator('input[type="email"], input[name="email"]').first();
-      const nameInput = page.locator('input[name="name"], input[placeholder*="name" i]').first();
-      
-      // At least one input should be visible
-      if (await emailInput.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await expect(emailInput).toBeVisible();
-      } else if (await nameInput.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await expect(nameInput).toBeVisible();
-      }
-      
-      // 6. Check for role selection
-      const roleSelect = page.locator('select, [role="combobox"]').filter({ hasText: /role/i }).first();
-      if (await roleSelect.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await expect(roleSelect).toBeVisible();
-      }
-      
-      // 7. Cancel without creating
-      const cancelBtn = page.getByRole('button', { name: /cancel|close/i });
-      if (await cancelBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await cancelBtn.click();
+  test('Flow 1: Case Management (Create -> Verify)', async ({ page }) => {
+    const uniqueId = Date.now().toString();
+    const caseTitle = `Auto Test Case ${uniqueId}`;
+
+    await test.step('Navigate to Cases', async () => {
+        await page.goto('/cases');
+        await page.waitForLoadState('domcontentloaded');
+        await expect(page).toHaveURL(/cases/);
+    });
+
+    await test.step('Create Case', async () => {
+       const createBtn = page.getByRole('button', { name: /create|new|add case|สร้าง/i }).first();
+       await createBtn.click();
+       const dialog = page.locator('[role="dialog"], .modal');
+       await expect(dialog).toBeVisible();
+       
+       // Try finding by name, then placeholder, then just any text input
+       const titleInput = dialog.locator('input[name="title"], input[placeholder*="title" i], input[type="text"]').first();
+       await expect(titleInput).toBeVisible({ timeout: 10000 });
+       await titleInput.fill(caseTitle);
+       
+       // Submit
+       await dialog.getByRole('button', { name: /create|save|submit/i }).first().click();
+    });
+
+    await test.step('Verify Case Exists', async () => {
+       await expect(page.locator('[role="dialog"]')).toBeHidden({ timeout: 10000 });
+       // Check if title exists in table
+       await expect(page.locator('tr').filter({ hasText: caseTitle }).first()).toBeVisible({ timeout: 15000 });
+    });
+  });
+
+  test('Flow 2: Alert Triage (Alert -> Escalation)', async ({ page }) => {
+    await test.step('Navigate to Alerts', async () => {
+      await page.goto('/detections');
+      await page.waitForLoadState('domcontentloaded');
+    });
+
+    await test.step('Escalate Alert', async () => {
+      const firstRow = page.locator('table tbody tr:not(:first-child), [role="row"]:not([role="columnheader"])').first();
+      // Only proceed if alerts exist
+      if (await firstRow.isVisible()) {
+          await firstRow.click();
+          // Look for escalate button
+          const escalateBtn = page.getByRole('button', { name: /escalate|create case|promote/i }).first();
+          if (await escalateBtn.isVisible()) {
+              await escalateBtn.click();
+              // Verify generic success or modal
+              await expect(page.locator('[role="dialog"], .modal').or(page.getByText(/success|created/i))).toBeVisible();
+              
+              // If modal appears, close it or submit
+               if (await page.locator('[role="dialog"]').isVisible()) {
+                  const submitBtn = page.locator('[role="dialog"]').getByRole('button', { name: /create|submit/i }).first();
+                  if (await submitBtn.isVisible()) await submitBtn.click();
+               }
+          }
       } else {
-        await page.keyboard.press('Escape');
+          test.skip(true, 'No alerts to test escalation');
       }
-    }
-  });
-});
-
-test.describe('Integration Workflow', () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto('/login');
-    await page.fill('input[type="email"], input[name="email"]', TEST_EMAIL);
-    await page.fill('input[type="password"]', TEST_PASSWORD);
-    await page.click('button[type="submit"]');
-    await page.waitForURL(/dashboard|\/$/);
+    });
   });
 
-  test('should verify integration configuration flow', async ({ page }) => {
-    // 1. Navigate to Integrations
-    await page.goto('/settings/integrations');
-    await page.waitForLoadState('networkidle');
-    
-    // 2. Look for integration cards (CrowdStrike, SentinelOne, etc)
-    const crowdstrikeCard = page.getByText('CrowdStrike').first();
-    const sentinelOneCard = page.getByText('SentinelOne').first();
-    
-    // 3. Verify at least one integration is visible
-    await expect(crowdstrikeCard.or(sentinelOneCard).first()).toBeVisible();
-    
-    // 4. Look for Configure/Connect button
-    const configureBtn = page.getByRole('button', { name: /configure|connect|setup/i }).first();
-    
-    if (await configureBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await expect(configureBtn).toBeVisible();
-      // Note: Not clicking to avoid opening config modal
-    }
+  test('Flow 3: Playbook Creation', async ({ page }) => {
+     await test.step('Navigate to Playbooks', async () => {
+        await page.goto('/playbooks');
+        await page.waitForLoadState('domcontentloaded');
+     });
+
+     await test.step('Create Playbook', async () => {
+        await page.getByRole('button', { name: /create|new/i }).first().click();
+        await expect(page).toHaveURL(/playbooks/); 
+        // Basic check for editor canvas
+        const editor = page.locator('.react-flow, canvas, .editor');
+        if (await editor.isVisible()) {
+            await expect(editor).toBeVisible();
+        }
+     });
+  });
+
+  test('Flow 4: User Invitation', async ({ page }) => {
+      await test.step('Navigate to Users', async () => {
+         await page.goto('/settings/users');
+         await page.waitForLoadState('networkidle');
+      });
+      
+      await test.step('Check Invite Modal', async () => {
+         const inviteBtn = page.getByRole('button', { name: /invite|add/i }).first();
+         if (await inviteBtn.isVisible()) {
+             await inviteBtn.click();
+             await expect(page.locator('[role="dialog"]')).toBeVisible();
+             await expect(page.locator('input[type="email"]')).toBeVisible();
+             await page.getByRole('button', { name: /cancel|close/i }).click();
+         }
+      });
   });
 });

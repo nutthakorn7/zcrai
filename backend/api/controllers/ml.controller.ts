@@ -29,9 +29,13 @@ export const mlController = new Elysia({ prefix: '/ml' })
    * @returns {Object} Current anomalies with severity, confidence scores, and time series data
    * @description Monitors: Alert Volume, Login Failures, Network Traffic, API Errors, Memory Usage
    */
-  .get('/anomalies', async (context) => {
+  .get('/anomalies', async ({ user }: any) => {
     try {
-      const user = (context as any).user;
+      if (!user?.tenantId) {
+        console.error('[ML] User or TenantID missing:', user);
+        throw new Error('Tenant ID not found in user context');
+      }
+      
       const loginStats = await MLAnalyticsService.getLoginFailureStats(user.tenantId);
       const alertStats = await MLAnalyticsService.getAlertVolumeStats(user.tenantId);
 
@@ -203,7 +207,6 @@ export const mlController = new Elysia({ prefix: '/ml' })
   }, {
     body: t.Object({
       timeSeries: t.Array(t.Number()),
-      windowSize: t.Optional(t.Number()),
       windowSize: t.Optional(t.Number()),
       threshold: t.Optional(t.Number()),
     }),

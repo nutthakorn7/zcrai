@@ -31,8 +31,14 @@ docker-compose.override.yml
 # Drizzle
 drizzle/meta/
 
+
 # Test
 coverage/
+test-results/
+playwright-report/
+e2e/test-results/
+e2e/playwright-report/
+blob-report/
 
 # Temp
 tmp/

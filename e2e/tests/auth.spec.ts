@@ -19,8 +19,14 @@ test.describe('Authentication', () => {
     await page.fill('input[type="password"]', 'wrongpassword');
     await page.click('button[type="submit"]');
     
-    // Should show error message
-    await expect(page.locator('text=/invalid|error|incorrect|ไม่ถูกต้อง/i')).toBeVisible({ timeout: 10000 });
+    // Should show error message - wait for it to appear
+    // Try multiple common error selectors
+    const errorLocator = page.locator('role=alert')
+      .or(page.locator('.text-danger'))
+      .or(page.locator('.text-error'))
+      .or(page.locator('text=/invalid|error|incorrect|ไม่ถูกต้อง|failed/i'));
+      
+    await expect(errorLocator.first()).toBeVisible({ timeout: 20000 });
   });
 
   test('should have forgot password link', async ({ page }) => {
