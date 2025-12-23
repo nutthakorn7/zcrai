@@ -45,7 +45,7 @@ const providerLogos: { [key: string]: string } = {
 
 // Severity color mapping (Can also be moved to a constants file if used elsewhere)
 const severityColors = {
-  critical: '#FF0202',
+  critical: '#FF1A1A',
   high: '#FFA735',
   medium: '#FFEE00',
   low: '#BBF0FF',
