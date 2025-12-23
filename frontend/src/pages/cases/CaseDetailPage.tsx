@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, Button, Chip, Select, SelectItem, Textarea, Spinner, Modal, ModalContent, ModalHeader, ModalBody, useDisclosure, Avatar, AvatarGroup, Tooltip, Tabs, Tab, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell } from "@heroui/react";
 import { Icon } from '../../shared/ui';
@@ -19,17 +19,23 @@ export default function CaseDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [caseItem, setCaseItem] = useState<any>(null); // Use any for now because fetch returns & { comments: ... }
+  
+  // ⚠️ useCaseSocket MUST be called unconditionally before any early return
+  const { activeUsers, typingUsers, emitTyping } = useCaseSocket(id || '');
+  
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [caseItem, setCaseItem] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [newComment, setNewComment] = useState('');
 
   // AI State
   const [aiResult, setAiResult] = useState<{ summary: string, verdict: string, confidence: number, evidence_analysis: string } | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [aiSuggestion, setAiSuggestion] = useState<any>(null);
   const [aiLoading, setAiLoading] = useState(false);
 
-  const fetchCase = async () => {
+  const fetchCase = useCallback(async () => {
     if (!id) return;
     try {
       setLoading(true);
@@ -37,11 +43,10 @@ export default function CaseDetailPage() {
       setCaseItem(data);
     } catch (e) {
       console.error(e);
-      // navigate('/cases');
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
   const handleGenerateAI = async () => {
     if (!caseItem) return;
@@ -64,7 +69,6 @@ export default function CaseDetailPage() {
       if (!caseItem) return;
       try {
           await PlaybooksAPI.run(caseItem.id, playbookId);
-          // Refresh? Or show success toast?
           fetchCase(); 
       } catch (e) {
           console.error("Run Playbook Failed", e);
@@ -73,7 +77,7 @@ export default function CaseDetailPage() {
 
   useEffect(() => {
     fetchCase();
-  }, [id]);
+  }, [fetchCase]);
 
   const handleStatusChange = async (newStatus: string) => {
     if (!caseItem) return;
@@ -160,7 +164,7 @@ export default function CaseDetailPage() {
       return `${h}h ${m}m`;
   };
 
-  const { activeUsers, typingUsers, emitTyping } = useCaseSocket(id || '');
+  // useCaseSocket was moved to the top of the component (line 24) to fix React hooks rules
 
   return (
     <div className="p-6 h-full flex flex-col gap-6 w-full">

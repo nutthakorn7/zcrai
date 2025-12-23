@@ -1,6 +1,5 @@
-// @ts-nocheck
-import { useState, useEffect } from 'react';
-import { Card, CardBody, CardHeader, Chip, Tooltip, Progress } from '@heroui/react';
+import { useState, useEffect, useCallback } from 'react';
+import { Card, CardBody, CardHeader, Chip, Tooltip } from '@heroui/react';
 import { DashboardAPI, MitreData } from '../shared/api/dashboard';
 import { Icon } from '../shared/ui';
 
@@ -66,35 +65,7 @@ export function MitreHeatmap({ mode = 'detection', dateRange }: MitreHeatmapProp
     return 'bg-danger/80';
   };
 
-  useEffect(() => {
-    fetchData();
-  }, [mode, dateRange]);
-
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      const start = dateRange?.startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-      const end = dateRange?.endDate || new Date().toISOString();
-
-      const response = await DashboardAPI.getMitreHeatmap({
-          startDate: start,
-          endDate: end,
-          mode
-      });
-      
-      // Backend returns {success, data: []} format, not just []
-      const mitreData = Array.isArray(response.data) ? response.data : (response.data?.data || []);
-      processData(mitreData);
-    } catch (e) {
-      console.error("Failed to load MITRE data", e);
-      // Fallback empty data if fail
-      processData([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const processData = (rawData: MitreData[]) => {
+  const processData = useCallback((rawData: MitreData[]) => {
       // 1. Initialize empty map
       const tacticMap = new Map<string, TacticCoverage>();
       TACTICS_MASTER.forEach(t => {
@@ -142,7 +113,37 @@ export function MitreHeatmap({ mode = 'detection', dateRange }: MitreHeatmapProp
           coveragePercent: Math.round((activeTactics.length / tactics.length) * 100),
           topTactics: activeTactics.sort((a, b) => b.count - a.count).slice(0, 5)
       });
-  };
+  }, []);
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const start = dateRange?.startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+      const end = dateRange?.endDate || new Date().toISOString();
+
+      const response = await DashboardAPI.getMitreHeatmap({
+          startDate: start,
+          endDate: end,
+          mode
+      });
+      
+      // Backend returns {success, data: []} format, not just []
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const responseData = response.data as any;
+      const mitreData = Array.isArray(responseData) ? responseData : (responseData?.data || []);
+      processData(mitreData);
+    } catch (e) {
+      console.error("Failed to load MITRE data", e);
+      // Fallback empty data if fail
+      processData([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [mode, dateRange, processData]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   if (loading) {
     return (
@@ -163,7 +164,7 @@ export function MitreHeatmap({ mode = 'detection', dateRange }: MitreHeatmapProp
       <Card className="border border-white/5">
         <CardBody className="flex items-center justify-center h-96">
           <div className="text-center space-y-2">
-            <Icon.Layers className="w-16 h-16 mx-auto text-default-300" />
+            <Icon.Dashboard className="w-16 h-16 mx-auto text-default-300" />
             <p className="text-default-500">No {mode === 'coverage' ? 'coverage' : 'detection'} data available</p>
             <p className="text-xs text-default-400">
               {mode === 'coverage' 
