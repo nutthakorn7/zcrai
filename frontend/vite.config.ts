@@ -18,10 +18,18 @@ export default defineConfig({
     css: true,
   },
   build: {
-    // Let Vite handle chunking automatically to avoid React initialization issues
     chunkSizeWarningLimit: 1000,
-    minify: false,
-    sourcemap: true,
+    minify: 'esbuild',
+    sourcemap: false,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+             return 'vendor';
+          }
+        }
+      }
+    }
   },
   server: {
     port: 5173,
