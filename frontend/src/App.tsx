@@ -15,7 +15,7 @@ const ResetPasswordPage = lazy(() => import("./pages/auth/ResetPasswordPage"));
 const SSOCallbackPage = lazy(() => import("./pages/auth/SSOCallbackPage"));
 const DashboardPage = lazy(() => import("./pages/dashboard"));
 const AICommandCenter = lazy(() => import("./pages/AICommandCenter"));
-const DashboardBuilder = lazy(() => import("./components/dashboard/DashboardBuilder"));
+
 const LogViewerPage = lazy(() => import("./pages/log-viewer"));
 const AlertsPage = lazy(() => import("./pages/alerts"));
 const AutopilotPage = lazy(() => import("./pages/autopilot"));
@@ -188,16 +188,7 @@ function App() {
                 </ProtectedRoute>
               } 
             />
-            <Route 
-              path="/dashboard/builder" 
-              element={
-                <ProtectedRoute>
-                  <div className="p-6">
-                    <DashboardBuilder />
-                  </div>
-                </ProtectedRoute>
-              } 
-            />
+
             <Route 
               path="/logs" 
               element={
