@@ -133,6 +133,7 @@ export default function RegisterPage() {
                 type="button" 
                 onClick={() => setIsVisible(!isVisible)} 
                 className="focus:outline-none text-foreground/60 hover:text-foreground/80"
+                aria-label={isVisible ? "Hide password" : "Show password"}
               >
                 {isVisible ? <Icon.EyeSlash className="w-5 h-5" /> : <Icon.Eye className="w-5 h-5" />}
               </button>
