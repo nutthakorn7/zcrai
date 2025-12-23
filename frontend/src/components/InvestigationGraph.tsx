@@ -79,19 +79,14 @@ interface InvestigationGraphProps {
   className?: string;
 }
 
-// Define type for graph ref to avoid 'any'
-interface ForceGraphRef {
-  centerAt: (x: number, y: number, duration: number) => void;
-  zoom: (scale: number, duration: number) => void;
-  zoomToFit: (duration: number) => void;
-}
-
 export function InvestigationGraph({ caseId, alertId, className }: InvestigationGraphProps) {
   const [graphData, setGraphData] = useState<InvestigationGraphData | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
   const [showMitre, setShowMitre] = useState(false); // Toggle for overlays
-  const graphRef = useRef<ForceGraphRef | null>(null);
+  // Using 'any' for ref as react-force-graph-2d has complex internal types
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const graphRef = useRef<any>(null);
 
   // Wrap fetchGraphData in useCallback to satisfy exhaustive-deps
   const fetchGraphData = useCallback(async () => {
@@ -183,7 +178,7 @@ export function InvestigationGraph({ caseId, alertId, className }: Investigation
       <CardHeader className="flex items-center justify-between px-6 pt-6">
         <div className="flex items-center gap-3">
           <div className="p-2 rounded-lg bg-secondary/20">
-            <Icon.Network className="w-5 h-5 text-secondary" />
+            <Icon.Global className="w-5 h-5 text-secondary" />
           </div>
           <div>
             <h3 className="text-lg font-semibold">Investigation Graph</h3>
@@ -200,7 +195,7 @@ export function InvestigationGraph({ caseId, alertId, className }: Investigation
             </div>
 
           <Button size="sm" variant="flat" onPress={handleReset}>
-            <Icon.Maximize className="w-4 h-4 mr-1" /> Reset View
+            <Icon.ArrowUpRight className="w-4 h-4 mr-1" /> Reset View
           </Button>
         </div>
       </CardHeader>
@@ -284,7 +279,7 @@ export function InvestigationGraph({ caseId, alertId, className }: Investigation
                   {selectedNode.type}
                 </Chip>
                 <Button isIconOnly size="sm" variant="light" onPress={() => setSelectedNode(null)}>
-                  <Icon.X className="w-4 h-4" />
+                  <Icon.Close className="w-4 h-4" />
                 </Button>
               </div>
               <h4 className="font-medium mb-2">{selectedNode.label}</h4>
