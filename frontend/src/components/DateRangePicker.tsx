@@ -198,6 +198,7 @@ export function DateRangePicker({ startDate, endDate, onChange }: DateRangePicke
           variant="flat"
           className="bg-content1 border border-white/5 hover:border-white/10 text-foreground"
           startContent={<Icon.Calendar className="w-4 h-4 text-primary" />}
+          aria-label={`Select date range from ${formatDate(startDate)} to ${formatDate(tempEnd)}`}
         >
           {formatDate(startDate)} - {formatDate(tempEnd)}
         </Button>
