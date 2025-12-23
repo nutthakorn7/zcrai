@@ -59,9 +59,9 @@ jobs:
       - name: Deploy with Docker Compose
         run: |
           ssh root@45.118.132.160 "cd /root/zcrAI && \
-          docker-compose -f docker-compose.prod.yml pull && \
-          docker-compose -f docker-compose.prod.yml up -d --no-recreate postgres clickhouse redis vector && \
-          docker-compose -f docker-compose.prod.yml up -d --force-recreate backend frontend collector"
+          docker compose -f docker-compose.prod.yml pull && \
+          docker compose -f docker-compose.prod.yml up -d --no-recreate postgres clickhouse redis vector && \
+          docker compose -f docker-compose.prod.yml up -d --force-recreate backend frontend collector"
 
       - name: Health Check
         run: |
