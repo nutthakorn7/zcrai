@@ -246,8 +246,13 @@ export default function AlertsPage() {
         const isSafe = analysis.classification === 'FALSE_POSITIVE';
         const isCritical = analysis.classification === 'TRUE_POSITIVE' && analysis.confidence > 80;
         
-        const badgeColor = isSafe ? "default" : (isCritical ? "danger" : "warning");
+        // Use custom colors for WCAG compliance instead of HeroUI color prop
         const badgeText = isSafe ? "Noise" : (isCritical ? "Threat" : "Suspicious");
+        const badgeStyle = isSafe 
+          ? "bg-default/40 text-default-700" 
+          : (isCritical 
+            ? "text-inherit font-medium" 
+            : "bg-warning/10 text-warning");
 
         return (
           <Tooltip content={
@@ -264,9 +269,9 @@ export default function AlertsPage() {
           }>
             <Chip 
               size="sm" 
-              color={badgeColor} 
-              variant="flat" 
-              className="cursor-help min-w-[80px]"
+              variant="flat"
+              className={`cursor-help min-w-[80px] ${badgeStyle}`}
+              style={isCritical ? { backgroundColor: `${severityColors.critical}15`, color: severityColors.critical } : undefined}
               startContent={!isSafe && <AlertTriangle className="w-3 h-3" />}
             >
                {badgeText} ({analysis.confidence}%)
