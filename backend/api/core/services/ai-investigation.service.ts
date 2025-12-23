@@ -14,6 +14,25 @@ const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
 // --- Constants ---
 const MAX_STEPS = 5;
 
+// --- PIRA Phases ---
+type PIRAPhase = 'plan' | 'investigate' | 'respond' | 'adapt';
+
+interface InvestigationPlan {
+    questions: string[];          // Questions to answer
+    plannedSteps: string[];       // Tools/actions to take
+    hypothesis: string;           // Initial hypothesis
+    priority: 'critical' | 'high' | 'medium' | 'low';
+}
+
+interface InvestigationStep {
+    id: number;
+    tool: string;
+    status: 'pending' | 'running' | 'completed' | 'failed';
+    result?: any;
+    startedAt?: string;
+    completedAt?: string;
+}
+
 // --- Real Tool Providers ---
 const virusTotalProvider = new VirusTotalProvider();
 const abuseIPDBProvider = new AbuseIPDBProvider();
@@ -190,75 +209,108 @@ const TOOL_REGISTRY: Record<string, { description: string; params: string[]; fn:
 export class AIInvestigationService {
 
     /**
-     * Multi-Step Investigation with AI Agent Loop
+     * PIRA-Enhanced Multi-Step Investigation
+     * Phase 1: PLAN - Generate investigation plan
+     * Phase 2: INVESTIGATE - Execute tools
+     * Phase 3: RESPOND - Generate report and actions
+     * Phase 4: ADAPT - (Future) Learn from feedback
      */
     static async investigate(alert: any) {
-        console.log(`\n[AIAgent] 🕵️ Starting Multi-Step Investigation for ${alert.id}`);
-        console.log(`[AIAgent] ────────────────────────────────────────────────`);
+        console.log(`\n[AIAgent] 🕵️ Starting PIRA Investigation for ${alert.id}`);
+        console.log(`[AIAgent] ════════════════════════════════════════════════`);
 
         const evidence: any[] = [];
-        const steps: { step: number; tool: string; result: any }[] = [];
+        const investigationSteps: InvestigationStep[] = [];
+        let investigationPlan: InvestigationPlan | null = null;
 
         try {
-            if (!process.env.GEMINI_API_KEY) {
-                console.warn('[AIAgent] Gemini Not Configured - Using Single-Pass Mode');
-                // Fallback: Run threat intel if IP exists
-                const ip = alert.observables?.find((o: any) => o.type === 'ip')?.value || 
-                           alert.rawData?.dest_ip || alert.rawData?.source_ip;
-                if (ip) {
-                    const result = await checkThreatIntel(ip);
-                    evidence.push(result);
-                }
-                await this.generateReport(alert, evidence, steps);
-                return;
-            }
-
-            // Apply Rate Limiting for Gemini (Free tier ~15 RPM)
-            const { RateLimitService } = await import('./rate-limit.service');
-            await RateLimitService.consume('gemini', 1);
-
-            const model = genAI!.getGenerativeModel({ 
-                model: "gemini-1.5-flash"
-            });
-
             // Extract available entities from alert
             const entities = this.extractEntities(alert);
-            
-            // --- Agent Loop ---
-            for (let step = 1; step <= MAX_STEPS; step++) {
-                console.log(`\n[AIAgent] Step ${step}/${MAX_STEPS}`);
-                
-                const toolSelection = await this.selectTool(model, alert, entities, evidence, step);
-                console.log(`[AIAgent] Decision: ${toolSelection.tool} - ${toolSelection.reasoning}`);
-                
-                if (toolSelection.tool === 'conclude') {
-                    console.log(`[AIAgent] ✓ Investigation concluded at step ${step}`);
-                    break;
-                }
 
-                const toolDef = TOOL_REGISTRY[toolSelection.tool];
+            // ═══════════════════════════════════════════════════════════
+            // PHASE 1: PLAN - Generate Investigation Plan
+            // ═══════════════════════════════════════════════════════════
+            console.log(`\n[AIAgent] 📋 PHASE 1: PLAN`);
+            
+            investigationPlan = await this.generatePlan(alert, entities);
+            console.log(`[AIAgent] Plan Generated:`);
+            console.log(`  ├─ Hypothesis: ${investigationPlan.hypothesis}`);
+            console.log(`  ├─ Questions: ${investigationPlan.questions.length}`);
+            console.log(`  └─ Planned Steps: ${investigationPlan.plannedSteps.join(' → ')}`);
+
+            // Initialize steps from plan
+            investigationPlan.plannedSteps.forEach((tool, idx) => {
+                investigationSteps.push({
+                    id: idx + 1,
+                    tool,
+                    status: 'pending'
+                });
+            });
+
+            // Save initial plan to alert
+            await this.saveProgress(alert.id, {
+                investigationPlan,
+                investigationSteps,
+                phase: 'plan',
+                startedAt: new Date().toISOString()
+            });
+
+            // ═══════════════════════════════════════════════════════════
+            // PHASE 2: INVESTIGATE - Execute Tools
+            // ═══════════════════════════════════════════════════════════
+            console.log(`\n[AIAgent] 🔍 PHASE 2: INVESTIGATE`);
+
+            for (let i = 0; i < investigationSteps.length && i < MAX_STEPS; i++) {
+                const step = investigationSteps[i];
+                console.log(`\n[AIAgent] Step ${step.id}/${investigationSteps.length}: ${step.tool}`);
+                
+                // Update status to running
+                step.status = 'running';
+                step.startedAt = new Date().toISOString();
+                await this.saveProgress(alert.id, { investigationSteps, phase: 'investigate' });
+
+                const toolDef = TOOL_REGISTRY[step.tool];
                 if (!toolDef || !toolDef.fn) {
-                    console.warn(`[AIAgent] Unknown tool: ${toolSelection.tool}`);
+                    console.warn(`[AIAgent] Unknown tool: ${step.tool}`);
+                    step.status = 'failed';
+                    step.completedAt = new Date().toISOString();
                     continue;
                 }
 
-                // Execute tool
-                const params = toolSelection.params || {};
-                const result = await toolDef.fn(
-                    params.ip || params.username || params.hash || entities.ip || entities.username,
-                    params.hours || 24
-                );
-                
-                evidence.push(result);
-                steps.push({ step, tool: toolSelection.tool, result });
-                
-                console.log(`[AIAgent] Result: ${result.summary || JSON.stringify(result).slice(0, 100)}`);
+                try {
+                    // Execute tool with appropriate params
+                    const result = await toolDef.fn(
+                        entities.ip || entities.username || entities.hash,
+                        24 // default hours for log queries
+                    );
+                    
+                    step.status = 'completed';
+                    step.result = result;
+                    step.completedAt = new Date().toISOString();
+                    evidence.push(result);
+                    
+                    console.log(`[AIAgent] ✓ ${result.summary || 'Completed'}`);
+                } catch (error: any) {
+                    console.error(`[AIAgent] ✗ Tool failed: ${error.message}`);
+                    step.status = 'failed';
+                    step.completedAt = new Date().toISOString();
+                }
+
+                // Save progress after each step
+                await this.saveProgress(alert.id, { investigationSteps, phase: 'investigate' });
             }
 
-            console.log(`\n[AIAgent] ────────────────────────────────────────────────`);
-            console.log(`[AIAgent] Generating final report with ${evidence.length} evidence items...`);
+            // ═══════════════════════════════════════════════════════════
+            // PHASE 3: RESPOND - Generate Report
+            // ═══════════════════════════════════════════════════════════
+            console.log(`\n[AIAgent] 📝 PHASE 3: RESPOND`);
+            console.log(`[AIAgent] Generating report with ${evidence.length} evidence items...`);
             
-            await this.generateReport(alert, evidence, steps);
+            await this.generateReport(alert, evidence, investigationSteps.map(s => ({ 
+                step: s.id, 
+                tool: s.tool, 
+                result: s.result 
+            })), investigationPlan);
             
         } catch (error: any) {
             console.error('[AIAgent] Investigation Failed:', error.message);
@@ -348,9 +400,77 @@ Return JSON: { "tool": "tool_name", "params": { "ip": "..." }, "reasoning": "...
     }
 
     /**
-     * Generate final investigation report
+     * PHASE 1: Generate Investigation Plan (PIRA - Plan)
+     * AI determines what questions to answer and which tools to use
      */
-    private static async generateReport(alert: any, evidence: any[], steps: any[]) {
+    private static async generatePlan(alert: any, entities: any): Promise<InvestigationPlan> {
+        // Smart defaults based on alert type and available entities
+        const plannedSteps: string[] = [];
+        const questions: string[] = [];
+
+        // Build plan based on what entities are available
+        if (entities.ip) {
+            plannedSteps.push('threat_intel');
+            plannedSteps.push('query_logs');
+            questions.push(`Is IP ${entities.ip} malicious?`);
+            questions.push(`What activity has this IP performed?`);
+        }
+        
+        if (entities.username) {
+            plannedSteps.push('user_lookup');
+            questions.push(`Is user ${entities.username} behaving normally?`);
+        }
+        
+        if (entities.hash) {
+            plannedSteps.push('hash_lookup');
+            questions.push(`Is file hash ${entities.hash.slice(0,12)}... malicious?`);
+        }
+
+        // If nothing found, at least check threat intel if we have any IP
+        if (plannedSteps.length === 0 && entities.ip) {
+            plannedSteps.push('threat_intel');
+        }
+
+        // Determine priority based on severity
+        const priority = alert.severity === 'critical' ? 'critical' 
+            : alert.severity === 'high' ? 'high'
+            : alert.severity === 'medium' ? 'medium' 
+            : 'low';
+
+        return {
+            questions: questions.length > 0 ? questions : ['What is the nature of this threat?'],
+            plannedSteps: plannedSteps.length > 0 ? plannedSteps : ['threat_intel'],
+            hypothesis: `Alert "${alert.title}" requires investigation to determine if it is a true positive`,
+            priority
+        };
+    }
+
+    /**
+     * Save investigation progress to database (for real-time UI updates)
+     */
+    private static async saveProgress(alertId: string, data: any) {
+        try {
+            const [currentAlert] = await db.select().from(alerts).where(eq(alerts.id, alertId));
+            const currentAnalysis = currentAlert?.aiAnalysis || {};
+            
+            await db.update(alerts)
+                .set({
+                    aiAnalysis: {
+                        ...currentAnalysis,
+                        ...data,
+                        lastUpdatedAt: new Date().toISOString()
+                    }
+                })
+                .where(eq(alerts.id, alertId));
+        } catch (error: any) {
+            console.warn(`[AIAgent] Failed to save progress: ${error.message}`);
+        }
+    }
+
+    /**
+     * PHASE 3: Generate final investigation report (PIRA - Respond)
+     */
+    private static async generateReport(alert: any, evidence: any[], steps: any[], plan?: InvestigationPlan | null) {
         if (!genAI) {
             const mockReport = `## Investigation Report\n\n**Alert:** ${alert.title}\n\n**Findings:**\n${evidence.map(e => `- ${e.summary}`).join('\n') || 'No findings'}\n\n*Note: AI not configured, limited analysis performed.*`;
             await this.saveReport(alert, mockReport, evidence, steps);
