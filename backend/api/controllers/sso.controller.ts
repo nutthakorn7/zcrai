@@ -62,4 +62,28 @@ export const ssoController = new Elysia({ prefix: '/auth/sso' })
              set.status = 400;
              return { error: error.message };
         }
-    });
+    })
+    
+    // 3. Config Management (Protected)
+    .group('/config', app => app
+        .get('/', async ({ jwt, cookie: { access_token }, set }) => {
+            const token = access_token.value as string;
+            if (!token) { set.status = 401; return { error: 'Unauthorized' }; }
+            
+            const payload = await jwt.verify(token);
+            if (!payload) { set.status = 401; return { error: 'Unauthorized' }; }
+            
+            return await SSOService.getConfig((payload as any).tenantId);
+        })
+        .put('/', async ({ jwt, cookie: { access_token }, body, set }) => {
+            const token = access_token.value as string;
+            if (!token) { set.status = 401; return { error: 'Unauthorized' }; }
+            
+            const payload = await jwt.verify(token);
+            if (!payload) { set.status = 401; return { error: 'Unauthorized' }; }
+            
+            // TODO: Enforce admin role check here
+            
+            return await SSOService.saveConfig((payload as any).tenantId, body);
+        })
+    );

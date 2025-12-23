@@ -5,7 +5,7 @@
 
 import { Elysia } from 'elysia';
 import { tenantGuard } from '../middlewares/auth.middleware';
-import { RiskScoreService } from '../core/services/risk-score.service';
+import { RiskScoreService, RiskScore, TrendPrediction } from '../core/services/risk-score.service';
 
 export const riskController = new Elysia({ prefix: '/risk' })
   .use(tenantGuard)

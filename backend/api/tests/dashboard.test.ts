@@ -6,7 +6,7 @@ const isCI = process.env.CI || process.env.GITHUB_ACTIONS
 
 // Mock Data
 const mockSummary = { critical: 5, high: 10, medium: 15, low: 20, info: 25, total: 75 }
-const mockTimeline = [{ time: new Date('2023-01-01'), source: 'test', count: '10', critical: '1', high: '2', medium: '3', low: '4' }]
+const mockTimeline = [{ time: '2023-01-01T00:00:00.000Z', source: 'test', count: '10', critical: '1', high: '2', medium: '3', low: '4' }]
 const mockTopHosts = [{ host_name: 'server-1', count: '100', critical: '5', high: '10' }]
 
 // Save originals
@@ -64,7 +64,7 @@ describe('Dashboard Controller', () => {
         
         const { data, response } = await api.dashboard.timeline.get({ headers })
         expect(response.status).toBe(200)
-        expect(data).toEqual(mockTimeline)
+        expect(JSON.stringify(data)).toEqual(JSON.stringify(mockTimeline))
     })
 
     it('should get top hosts', async () => {

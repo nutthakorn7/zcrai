@@ -36,6 +36,25 @@ export class ReportService {
         return Buffer.from(pdfBuffer);
     }
 
+    static async generateISO27001ReportPDF(tenantId: string): Promise<Buffer> {
+        return this.generateReport(tenantId, 'ISO27001');
+    }
+
+    static async generateNISTReportPDF(tenantId: string): Promise<Buffer> {
+        // TODO: Implement specific NIST template
+        return this.generateReport(tenantId, 'SOC2'); 
+    }
+
+    static async generateThaiPDPAReportPDF(tenantId: string): Promise<Buffer> {
+        // TODO: Implement specific PDPA template
+        return this.generateReport(tenantId, 'ISO27001'); 
+    }
+
+    static async generateDashboardPDF(tenantId: string, options?: any): Promise<Buffer> {
+        // TODO: Implement Dashboard snapshot with options
+        return this.generateReport(tenantId, 'SOC2'); 
+    }
+
     private static getTemplate(type: string, data: any): string {
         const date = new Date().toLocaleDateString();
         

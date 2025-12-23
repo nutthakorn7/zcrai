@@ -34,7 +34,7 @@ export const huntingController = new Elysia({ prefix: '/hunting' })
 
       const { sql, rule } = await ThreatHuntService.parseSigma(user.tenantId, body.yaml)
       
-      let results = []
+      let results: any[] = []
       if (body.execute) {
           results = await ThreatHuntService.runQuery(user.tenantId, sql)
       }

@@ -12,7 +12,7 @@ import {
 import type {
   RegistrationResponseJSON,
   AuthenticationResponseJSON,
-} from '@simplewebauthn/server/script/deps'
+} from '@simplewebauthn/server'
 import { db } from '../infra/db'
 import { userPasskeys, users } from '../infra/db/schema'
 import { eq } from 'drizzle-orm'

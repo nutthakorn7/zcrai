@@ -4,6 +4,7 @@ import { clickhouse } from './infra/clickhouse/client';
 import { db } from './infra/db';
 import { detectionRules } from './infra/db/schema';
 import { eq } from 'drizzle-orm';
+// @ts-ignore
 import { v4 as uuidv4 } from 'uuid';
 
 async function run() {

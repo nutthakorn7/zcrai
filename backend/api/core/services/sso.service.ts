@@ -21,6 +21,29 @@ export class SSOService {
     return issuer;
   }
 
+  static async getConfig(tenantId: string) {
+      return await db.query.ssoConfigs.findFirst({
+        where: eq(ssoConfigs.tenantId, tenantId)
+      });
+  }
+
+  static async saveConfig(tenantId: string, data: any) {
+      const existing = await this.getConfig(tenantId);
+      if (existing) {
+          const [updated] = await db.update(ssoConfigs)
+            .set(data)
+            .where(eq(ssoConfigs.id, existing.id))
+            .returning();
+          return updated;
+      } else {
+          const [created] = await db.insert(ssoConfigs).values({
+              ...data,
+              tenantId
+          }).returning();
+          return created;
+      }
+  }
+
   /**
    * Calculate Authorization URL
    */

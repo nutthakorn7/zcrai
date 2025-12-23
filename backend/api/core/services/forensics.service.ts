@@ -3,7 +3,7 @@
  * Memory analysis, artifact extraction, and forensic investigation
  */
 
-interface ProcessArtifact {
+export interface ProcessArtifact {
   pid: number;
   name: string;
   path: string;
@@ -13,7 +13,7 @@ interface ProcessArtifact {
   suspiciousReasons?: string[];
 }
 
-interface NetworkConnection {
+export interface NetworkConnection {
   pid: number;
   processName: string;
   localAddr: string;
@@ -23,14 +23,14 @@ interface NetworkConnection {
   suspiciousReasons?: string[];
 }
 
-interface FileHandle {
+export interface FileHandle {
   pid: number;
   path: string;
   type: 'file' | 'registry' | 'pipe';
   suspicious: boolean;
 }
 
-interface MemoryArtifacts {
+export interface MemoryArtifacts {
   processes: ProcessArtifact[];
   networkConnections: NetworkConnection[];
   openFiles: FileHandle[];
@@ -39,7 +39,7 @@ interface MemoryArtifacts {
   commandHistory: Array<{ command: string; timestamp: Date }>;
 }
 
-interface ForensicAnalysis {
+export interface ForensicAnalysis {
   dumpId: string;
   caseId: string;
   analyzedAt: Date;

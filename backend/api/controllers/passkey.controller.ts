@@ -18,7 +18,7 @@ export const passkeyController = new Elysia({ prefix: '/passkey' })
    */
   .post('/register-options', async ({ body, jwt, cookie: { access_token } }) => {
     // Verify JWT manually for this endpoint
-    const token = access_token.value
+    const token = access_token.value as string
     if (!token) {
       throw new Error('Unauthorized')
     }
@@ -45,7 +45,7 @@ export const passkeyController = new Elysia({ prefix: '/passkey' })
    * POST /auth/passkey/register-verify
    */
   .post('/register-verify', async ({ body, jwt, cookie: { access_token } }) => {
-    const token = access_token.value
+    const token = access_token.value as string
     if (!token) {
       throw new Error('Unauthorized')
     }
@@ -150,7 +150,7 @@ export const passkeyController = new Elysia({ prefix: '/passkey' })
    * GET /auth/passkey/list
    */
   .get('/list', async ({ jwt, cookie: { access_token } }) => {
-    const token = access_token.value
+    const token = access_token.value as string
     if (!token) {
       throw new Error('Unauthorized')
     }
@@ -169,7 +169,7 @@ export const passkeyController = new Elysia({ prefix: '/passkey' })
    * DELETE /auth/passkey/:id
    */
   .delete('/:id', async ({ params, jwt, cookie: { access_token }, set }) => {
-    const token = access_token.value
+    const token = access_token.value as string
     if (!token) {
       set.status = 401
       return { success: false, message: 'Unauthorized' }

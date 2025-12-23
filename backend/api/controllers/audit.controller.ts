@@ -1,5 +1,5 @@
 import { Elysia, t } from 'elysia';
-import { AuditLogService } from '../core/services/audit.service';
+import { AuditService } from '../core/services/audit.service';
 import { tenantGuard } from '../middlewares/auth.middleware';
 
 export const auditController = new Elysia({ prefix: '/audit-logs' })
@@ -31,7 +31,7 @@ export const auditController = new Elysia({ prefix: '/audit-logs' })
           offset: query.offset ? parseInt(query.offset) : 0
       };
 
-      return await AuditLogService.list(user.tenantId, filters);
+      return await AuditService.list(user.tenantId, filters);
   }, {
       query: t.Object({
           userId: t.Optional(t.String()),

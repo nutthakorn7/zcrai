@@ -4,6 +4,9 @@ import { nanoid } from 'nanoid'
 import { db } from '../../infra/db'
 import { users } from '../../infra/db/schema'
 import { eq } from 'drizzle-orm'
+import { redis } from '../../infra/cache/redis'
+
+const mfaSetupKey = (userId: string) => `mfa:setup:${userId}`
 
 const APP_NAME = 'zcrAI'
 const BACKUP_CODES_COUNT = 10
@@ -26,6 +29,33 @@ export const MFAService = {
     const backupCodes = Array.from({ length: BACKUP_CODES_COUNT }, () => nanoid(8).toUpperCase())
 
     return { secret, qrCode, backupCodes, otpauthUrl }
+  },
+
+  async enable(userId: string) {
+     const [user] = await db.select().from(users).where(eq(users.id, userId))
+     if (!user) throw new Error('User not found')
+
+     const { secret, qrCode, otpauthUrl, backupCodes } = await this.setup(userId, user.email)
+     
+     // Store pending secret for verification (10 mins)
+     await redis.setex(mfaSetupKey(userId), 600, JSON.stringify({ secret, backupCodes }))
+     
+     return { secret, qrCode, otpauthUrl } 
+  },
+
+  async verifySetup(userId: string, code: string) {
+     const cached = await redis.get(mfaSetupKey(userId))
+     if (!cached) throw new Error('MFA setup expired or not initiated')
+     
+     const { secret, backupCodes } = JSON.parse(cached)
+     
+     // Verify
+     await this.verifyAndEnable(userId, secret, code, backupCodes)
+     
+     // Cleanup
+     await redis.del(mfaSetupKey(userId))
+     
+     return { backupCodes }
   },
 
   // Verify และ Enable MFA

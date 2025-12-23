@@ -203,6 +203,22 @@ export const AuthService = {
     return { message: 'Password reset successful' }
   },
 
+  async changePassword(userId: string, current: string, newPass: string) {
+    const [user] = await db.select().from(users).where(eq(users.id, userId))
+    if (!user) throw new Error('User not found')
+
+    const isValid = await verifyPassword(current, user.passwordHash)
+    if (!isValid) throw new Error('Invalid current password')
+
+    const newHash = await hashPassword(newPass)
+    await db.update(users).set({ passwordHash: newHash }).where(eq(users.id, userId))
+    
+    // Optional: Revoke other sessions
+    // await this.revokeAllUserSessions(userId)
+    
+    return true
+  },
+
   // ==================== GET USER ====================
   async getUserById(id: string) {
     const [user] = await db.select().from(users).where(eq(users.id, id))

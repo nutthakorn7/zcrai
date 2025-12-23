@@ -32,6 +32,14 @@ export class ActionRegistry {
         return this.actions.get(id);
     }
 
+    static list() {
+        return Array.from(this.actions.values()).map(a => ({
+            id: a.id,
+            name: a.name,
+            description: a.description
+        }));
+    }
+
     static async execute(id: string, context: ActionContext): Promise<ActionResult> {
         const action = this.get(id);
         if (!action) {

@@ -22,7 +22,7 @@ describe('Playbook Controller', () => {
                 title: 'Test Case for Playbook',
                 description: 'This case is used to test playbook execution',
                 severity: 'medium',
-                status: 'new'
+                // status: 'new' // Status defaults to new and might not be allowed in create
             }, { headers: headers! })
 
             // @ts-ignore - response format is { success: true, data: { id, ... } }
@@ -42,7 +42,7 @@ describe('Playbook Controller', () => {
             return
         }
         
-        const { data, response } = await api.playbooks.index.post({
+        const { data, response } = await api.playbooks.post({
             title: 'Test Playbook',
             description: 'Automated response playbook',
             triggerType: 'manual',
@@ -56,7 +56,7 @@ describe('Playbook Controller', () => {
         expect(data?.success).toBe(true)
         expect(data?.data?.id).toBeDefined()
         expect(data?.data?.steps.length).toBe(2)
-        createdPlaybookId = data?.data?.id
+        createdPlaybookId = data?.data?.id || ''
     })
 
     it('should list playbooks', async () => {
@@ -65,7 +65,7 @@ describe('Playbook Controller', () => {
             return
         }
         
-        const { data, response } = await api.playbooks.index.get({ headers })
+        const { data, response } = await api.playbooks.get({ headers })
         expect(response.status).toBe(200)
         expect(data?.success).toBe(true)
         expect(Array.isArray(data?.data)).toBe(true)

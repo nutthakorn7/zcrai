@@ -11,7 +11,7 @@ describe('Tenant Controller', () => {
 
     it('should create a new tenant', async () => {
         const tenantName = `Test Tenant ${Date.now()}`
-        const { data, response } = await api.tenants.index.post({
+        const { data, response } = await api.tenants.post({
             name: tenantName
         }, { headers })
 
@@ -25,7 +25,7 @@ describe('Tenant Controller', () => {
     })
 
     it('should list tenants', async () => {
-        const { data, response } = await api.tenants.index.get({ headers })
+        const { data, response } = await api.tenants.get({ headers })
         expect(response.status).toBe(200)
         expect(Array.isArray(data?.data)).toBe(true)
         expect(data?.data?.length).toBeGreaterThan(0)

@@ -15,7 +15,7 @@ const mockData = [
         id: '123',
         title: 'Test Alert', 
         severity: 'HIGH', 
-        status: 'OPEN', 
+        // status: 'OPEN', // Duplicate key with line 11 
         source: 'EDR',
         createdAt: new Date(),
         aiAnalysis: { classification: 'True Positive' }

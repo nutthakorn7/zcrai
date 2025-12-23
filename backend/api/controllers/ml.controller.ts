@@ -8,7 +8,7 @@ import { tenantGuard } from '../middlewares/auth.middleware';
 import { AnomalyDetectionService } from '../core/services/anomaly.service';
 import { MLAnalyticsService } from '../core/services/ml-analytics.service';
 
-interface AnomalyMetric {
+export interface AnomalyMetric {
   metric: string;
   isAnomaly: boolean;
   severity: 'low' | 'medium' | 'high' | 'critical';

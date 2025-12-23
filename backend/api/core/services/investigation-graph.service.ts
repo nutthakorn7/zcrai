@@ -7,7 +7,7 @@ import { db } from '../../infra/db';
 import { cases, alerts, users } from '../../infra/db/schema';
 import { eq, and, sql, inArray } from 'drizzle-orm';
 
-interface GraphNode {
+export interface GraphNode {
   id: string;
   type: 'case' | 'alert' | 'user' | 'ip' | 'host' | 'domain' | 'file' | 'hash';
   label: string;
@@ -15,7 +15,7 @@ interface GraphNode {
   severity?: 'low' | 'medium' | 'high' | 'critical';
 }
 
-interface GraphEdge {
+export interface GraphEdge {
   id: string;
   source: string;
   target: string;
@@ -23,7 +23,7 @@ interface GraphEdge {
   label: string;
 }
 
-interface InvestigationGraph {
+export interface InvestigationGraph {
   nodes: GraphNode[];
   edges: GraphEdge[];
   summary: {

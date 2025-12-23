@@ -7,14 +7,14 @@ import { db } from '../../infra/db';
 import { playbookExecutionSteps } from '../../infra/db/schema';
 import { eq } from 'drizzle-orm';
 
-interface EDRActionResult {
+export interface EDRActionResult {
   success: boolean;
   message: string;
   data?: any;
   error?: string;
 }
 
-interface EDRActionRequest {
+export interface EDRActionRequest {
   provider: 'crowdstrike' | 'sentinelone';
   action: string;
   parameters: Record<string, any>;

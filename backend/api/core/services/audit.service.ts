@@ -1,5 +1,6 @@
 import { db } from '../../infra/db';
 import { auditLogs } from '../../infra/db/schema';
+import { eq, desc } from 'drizzle-orm';
 
 export interface AuditEvent {
     tenantId?: string;
@@ -36,5 +37,16 @@ export class AuditService {
             // Non-blocking, don't throw to avoid disrupting main flow, 
             // but in strict compliance mode, this might need to alert admins.
         }
+    }
+
+    /**
+     * List audit logs
+     */
+    static async list(tenantId: string, filters: any = {}) {
+        return await db.select()
+            .from(auditLogs)
+            .where(eq(auditLogs.tenantId, tenantId))
+            .orderBy(desc(auditLogs.createdAt))
+            .limit(100);
     }
 }
