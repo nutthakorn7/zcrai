@@ -14,6 +14,7 @@ import { AlertTriangle, CheckCircle, Activity, ShieldCheck, BookOpen, ThumbsUp, 
 import { Icon } from '../../shared/ui';
 import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Textarea, useDisclosure, RadioGroup, Radio } from "@heroui/react";
 import { InvestigationGraphWidget } from '../../pages/dashboard/widgets/InvestigationGraphWidget';
+import { AlertTimelineWidget } from '../../pages/dashboard/widgets/AlertTimelineWidget';
 
 interface AlertDetailDrawerProps {
   alert: Alert | null;
@@ -496,6 +497,17 @@ export function AlertDetailDrawer({ alert, isOpen, onClose }: AlertDetailDrawerP
                             </span>
                         </h3>
                         <InvestigationGraphWidget alertId={alert.id} className="h-[400px]" />
+                    </div>
+
+                    {/* Attack Timeline */}
+                    <div className="mb-6">
+                        <h3 className="text-sm font-semibold mb-3 flex items-center gap-2 text-cyan-400">
+                            <Icon.Clock className="w-4 h-4" /> 
+                            <span className="bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent font-bold">
+                                Attack Timeline
+                            </span>
+                        </h3>
+                        <AlertTimelineWidget alertId={alert.id} />
                     </div>
 
                     <div className="h-12" /> {/* Bottom Spacer */}

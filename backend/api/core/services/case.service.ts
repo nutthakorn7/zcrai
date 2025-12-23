@@ -219,5 +219,27 @@ export const CaseService = {
       action,
       details
     })
+  },
+
+  // Sync to Ticketing System (Jira/ServiceNow)
+  async syncToTicketing(tenantId: string, caseId: string, userId: string, system: 'jira' | 'servicenow', config: any) {
+      const caseData = await this.getById(tenantId, caseId);
+      const { TicketingService } = await import('./ticketing.service');
+      
+      let result;
+      if (system === 'jira') {
+          result = await TicketingService.createJiraTicket(tenantId, caseData, config);
+      } else {
+          result = await TicketingService.createServiceNowTicket(tenantId, caseData, config);
+      }
+
+      // Log success
+      await this.logHistory(caseId, userId, 'ticket_created', { 
+          system, 
+          ticketId: result.ticketId, 
+          ticketUrl: result.ticketUrl 
+      });
+
+      return result;
   }
 }

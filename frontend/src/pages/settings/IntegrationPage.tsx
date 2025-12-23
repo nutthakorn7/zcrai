@@ -175,6 +175,26 @@ const PROVIDER_CONFIG: Record<string, ProviderConfigItem> = {
     description: 'Exchange, SharePoint, Teams Audit Logs',
     category: 'SaaS'
   },
+  jira: { 
+    name: 'Jira Software', 
+    color: 'primary',
+    gradient: 'from-blue-500/10 via-blue-500/5 to-transparent',
+    border: 'border-blue-500/20 group-hover:border-blue-500/50',
+    iconBg: 'bg-blue-500/10',
+    iconColor: 'text-blue-400',
+    description: 'Issue & Project Tracking',
+    category: 'Ticketing'
+  },
+  servicenow: { 
+    name: 'ServiceNow', 
+    color: 'success',
+    gradient: 'from-emerald-500/10 via-teal-500/5 to-transparent',
+    border: 'border-emerald-500/20 group-hover:border-emerald-500/50',
+    iconBg: 'bg-emerald-500/10',
+    iconColor: 'text-emerald-400',
+    description: 'IT Service Management (ITSM)',
+    category: 'Ticketing'
+  },
 };
 
 // ⭐ Type สำหรับ Fetch Settings
@@ -683,7 +703,7 @@ export default function IntegrationPage() {
         </h2>
         
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {['crowdstrike', 'sentinelone', 'aws', 'm365', 'azure', 'gcp'].map(provider => {
+          {['crowdstrike', 'sentinelone', 'aws', 'm365', 'azure', 'gcp', 'jira', 'servicenow'].map(provider => {
             // Find active integration for this provider
             const int = integrations.find(i => i.provider === provider);
             const isConfigured = !!int;
