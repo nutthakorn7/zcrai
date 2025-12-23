@@ -226,10 +226,12 @@ export function Sidebar() {
                 <div
                   className={`
                     overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]
-                    ${isOpen && isExpanded ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}
+                    ${isOpen && isExpanded 
+                      ? 'max-h-96 opacity-100 pointer-events-auto' 
+                      : 'max-h-0 opacity-0 pointer-events-none'}
                   `}
                 >
-                  <div className="ml-4 pl-4 border-l border-white/10 mt-1 space-y-1">
+                  <div className="ml-4 pl-4 border-l border-white/10 mt-1 space-y-1 relative z-10">
                     {entry.children.map((child) => {
                       const active = isActive(child.path);
                       return (
@@ -238,6 +240,7 @@ export function Sidebar() {
                           onClick={() => navigate(child.path)}
                           className={`
                             w-full p-2 rounded-lg text-left text-sm transition-all duration-200
+                            relative z-10
                             ${active
                               ? 'bg-content2 text-foreground font-medium'
                               : 'text-foreground/60 hover:text-foreground hover:bg-content2/50'
