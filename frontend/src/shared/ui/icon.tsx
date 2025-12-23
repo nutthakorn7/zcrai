@@ -84,7 +84,8 @@ import {
   WrenchIcon,
   BriefcaseIcon,
   CloudIcon,
-  CreditCardIcon
+  CreditCardIcon,
+  BoltIcon
 } from '@heroicons/react/24/outline';
 
 import {
@@ -188,7 +189,12 @@ export const Icon = {
   DeviceComputer: ComputerDesktopIcon,
   Map: MapPinIcon,
   Cloud: CloudIcon,
-  CreditCard: CreditCardIcon
+  CreditCard: CreditCardIcon,
+
+  // Swarm & Missing
+  Zap: BoltIcon,
+  Globe: GlobeAltIcon,
+  FileCode: DocumentTextIcon, // Fallback
 } as const;
 
 /**

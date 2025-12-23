@@ -129,44 +129,9 @@ export function AlertDetailDrawer({ alert, isOpen, onClose }: AlertDetailDrawerP
 
                     {/* AI handles all actions automatically - no manual buttons needed */}
 
-                    {/* Metadata Grid */}
-                    <div className="grid grid-cols-2 gap-4 text-sm bg-content2/30 p-4 rounded-xl border border-white/5">
-                        <div>
-                            <span className="text-foreground/50 block text-xs uppercase tracking-wider mb-1">Source</span>
-                            <div className="flex items-center gap-2 font-medium">
-                                <Icon.Database className="w-4 h-4 text-primary" />
-                                {alert.source}
-                            </div>
-                        </div>
-                        <div>
-                            <span className="text-foreground/50 block text-xs uppercase tracking-wider mb-1">Detected At</span>
-                            <div className="font-medium">
-                                {new Date(alert.createdAt).toLocaleString()}
-                            </div>
-                        </div>
-                         {alert.lastSeenAt && (
-                            <div className="col-span-2">
-                                <span className="text-foreground/50 block text-xs uppercase tracking-wider mb-1">Last Seen</span>
-                                <div className="font-medium">
-                                    {new Date(alert.lastSeenAt).toLocaleString()}
-                                </div>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Description */}
-                    <div>
-                        <h3 className="text-sm font-semibold mb-2 flex items-center gap-2">
-                            <Icon.FileText className="w-4 h-4 text-foreground/50" /> Description
-                        </h3>
-                        <p className="text-sm text-foreground/80 leading-relaxed bg-content2/20 p-4 rounded-lg border border-white/5">
-                            {alert.description}
-                        </p>
-                    </div>
-
-                    {/* AI Triage Card (Phase 1) */}
+                     {/* AI Analyst Verdict (Top Priority) */}
                     {alert.aiAnalysis && (alert.aiAnalysis.classification || alert.aiAnalysis.reasoning) && (
-                        <div>
+                        <div className="mb-6">
                              <h3 className="text-sm font-semibold mb-2 flex items-center gap-2">
                                 <Icon.Cpu className="w-4 h-4 text-purple-400" /> 
                                 <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent font-bold">
@@ -268,45 +233,9 @@ export function AlertDetailDrawer({ alert, isOpen, onClose }: AlertDetailDrawerP
                         </div>
                     )}
 
-                    {/* AI Playbook Suggestions */}
-                    {(suggestions.length > 0 || isLoadingSuggestions) && (
-                        <div>
-                             <h3 className="text-sm font-semibold mb-2 flex items-center gap-2 text-blue-400">
-                                <BookOpen className="w-4 h-4" /> 
-                                <span className="bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent font-bold">
-                                    Recommended Playbooks
-                                </span>
-                            </h3>
-                            {isLoadingSuggestions ? (
-                                <div className="p-4 border border-blue-500/20 rounded bg-blue-500/5 animate-pulse">
-                                    <div className="h-4 w-1/3 bg-blue-500/20 rounded mb-2"></div>
-                                    <div className="h-3 w-1/2 bg-blue-500/10 rounded"></div>
-                                </div>
-                            ) : (
-                                <div className="space-y-3">
-                                    {suggestions.map((param: any, idx: number) => (
-                                        <Card key={idx} className="bg-blue-900/10 border border-blue-500/20 hover:border-blue-500/40 transition-colors">
-                                            <CardBody className="p-3">
-                                                <div>
-                                                    <div className="flex items-center gap-2 mb-1">
-                                                        <h3 className="font-bold text-blue-100">{param.title}</h3>
-                                                        <Chip size="sm" variant="flat" color="success" className="h-5 text-[10px]">
-                                                            🤖 Auto-Executed
-                                                        </Chip>
-                                                    </div>
-                                                    <p className="text-xs text-blue-200/70">{param.reasoning}</p>
-                                                </div>
-                                            </CardBody>
-                                        </Card>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    {/* AI Swarm Activity (Option B) */}
+                    {/* AI Swarm Activity (Option B) - Moved Up */}
                     {alert.aiAnalysis?.swarmFindings && alert.aiAnalysis.swarmFindings.length > 0 && (
-                        <div>
+                        <div className="mb-6">
                              <h3 className="text-sm font-semibold mb-2 flex items-center gap-2 text-cyan-400">
                                 <Icon.Zap className="w-4 h-4" /> 
                                 <span className="bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent font-bold">
@@ -347,6 +276,77 @@ export function AlertDetailDrawer({ alert, isOpen, onClose }: AlertDetailDrawerP
                             </div>
                         </div>
                     )}
+
+                    {/* Metadata Grid (Demoted) */}
+                    <div className="grid grid-cols-2 gap-4 text-sm bg-content2/30 p-4 rounded-xl border border-white/5 mb-6 opacity-80 hover:opacity-100 transition-opacity">
+                        <div>
+                            <span className="text-foreground/50 block text-xs uppercase tracking-wider mb-1">Source</span>
+                            <div className="flex items-center gap-2 font-medium">
+                                <Icon.Database className="w-4 h-4 text-primary" />
+                                {alert.source}
+                            </div>
+                        </div>
+                        <div>
+                            <span className="text-foreground/50 block text-xs uppercase tracking-wider mb-1">Detected At</span>
+                            <div className="font-medium">
+                                {new Date(alert.createdAt).toLocaleString()}
+                            </div>
+                        </div>
+                         {alert.lastSeenAt && (
+                            <div className="col-span-2">
+                                <span className="text-foreground/50 block text-xs uppercase tracking-wider mb-1">Last Seen</span>
+                                <div className="font-medium">
+                                    {new Date(alert.lastSeenAt).toLocaleString()}
+                                </div>
+                            </div>
+                        )}
+                         <div className="col-span-2 pt-2 border-t border-white/5 mt-2">
+                             <span className="text-foreground/50 block text-xs uppercase tracking-wider mb-1">Original Description</span>
+                             <p className="text-xs text-foreground/70 leading-relaxed">
+                                {alert.description}
+                             </p>
+                         </div>
+                    </div>
+
+                    {/* AI Verdict - Moved to Top */}
+
+                    {/* AI Playbook Suggestions */}
+                    {(suggestions.length > 0 || isLoadingSuggestions) && (
+                        <div>
+                             <h3 className="text-sm font-semibold mb-2 flex items-center gap-2 text-blue-400">
+                                <BookOpen className="w-4 h-4" /> 
+                                <span className="bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent font-bold">
+                                    Recommended Playbooks
+                                </span>
+                            </h3>
+                            {isLoadingSuggestions ? (
+                                <div className="p-4 border border-blue-500/20 rounded bg-blue-500/5 animate-pulse">
+                                    <div className="h-4 w-1/3 bg-blue-500/20 rounded mb-2"></div>
+                                    <div className="h-3 w-1/2 bg-blue-500/10 rounded"></div>
+                                </div>
+                            ) : (
+                                <div className="space-y-3">
+                                    {suggestions.map((param: any, idx: number) => (
+                                        <Card key={idx} className="bg-blue-900/10 border border-blue-500/20 hover:border-blue-500/40 transition-colors">
+                                            <CardBody className="p-3">
+                                                <div>
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <h3 className="font-bold text-blue-100">{param.title}</h3>
+                                                        <Chip size="sm" variant="flat" color="success" className="h-5 text-[10px]">
+                                                            🤖 Auto-Executed
+                                                        </Chip>
+                                                    </div>
+                                                    <p className="text-xs text-blue-200/70">{param.reasoning}</p>
+                                                </div>
+                                            </CardBody>
+                                        </Card>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* AI Swarm Activity - Moved to Top */}
 
                     {/* AI Investigation */}
                      {alert.aiAnalysis?.investigationReport && (

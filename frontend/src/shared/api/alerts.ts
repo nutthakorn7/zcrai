@@ -42,6 +42,12 @@ export interface Alert {
         timestamp: string;
       }>;
     };
+    swarmFindings?: Array<{
+      agent: string;
+      status: string;
+      summary: string;
+      data?: any;
+    }>;
   };
   aiTriageStatus?: 'pending' | 'processed' | 'failed';
 }

@@ -65,6 +65,13 @@ interface PageAlert {
     confidence: number;
     reasoning: string;
     suggested_action: string;
+    actionTaken?: {
+      type: string;
+      status: string;
+      target: string;
+      timestamp: string;
+      details?: string;
+    };
   };
 }
 
@@ -324,7 +331,7 @@ export default function AlertsPage() {
             className="text-[10px] bg-warning/10 text-warning"
             startContent={<span>⏳</span>}
           >
-            AI Processing
+            Swarm Analyzing
           </Chip>
         );
       
@@ -497,46 +504,57 @@ export default function AlertsPage() {
 
       <div className="p-6 w-full animate-fade-in">
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-8">
-          {viewMode === 'incidents' ? (
-             // Incident Stats
-             [
-               { label: 'Total Incidents', value: summary?.total || 0, color: 'var(--color-primary)' },
-               { label: 'New', value: summary?.new || 0, color: '#3B82F6' },
-               { label: 'Investigating', value: summary?.reviewing || 0, color: '#F59E0B' },
-               { label: 'Promoted', value: summary?.promoted || 0, color: '#8B5CF6' },
-               { label: 'Dismissed', value: summary?.dismissed || 0, color: '#71717A' },
-               // Placeholder for alignment or maybe "High Priority" subset? For now leaving empty or repeating logic? 
-               // Actually, Incidents only has 5 metrics usually. We can make the grid dynamic or span.
-               // Let's keep Incidents as is (maybe span 2 for Total?) or just add a filler.
-               // Let's stick to 5 columns for Incidents logic IF possible, OR distinct grids.
-               // EASIER: Check viewMode for className grid-cols.
-             ].map((item) => (
-                <Card key={item.label} className="border border-white/5 bg-content1/50 last:md:col-span-1"> 
-                  <CardBody className="p-4">
-                    <p className="text-sm text-foreground/60 mb-2">{item.label}</p>
-                    <p className="text-2xl font-bold" style={{ color: item.color }}>{item.value}</p>
-                  </CardBody>
-                </Card>
-             ))
-          ) : (
-             // Log Stats
-             [
-               { label: 'Total Logs', value: summary?.total || 0, color: 'var(--color-primary)' },
-               { label: 'Critical Events', value: summary?.critical || 0, color: severityColors.critical },
-               { label: 'High Events', value: summary?.high || 0, color: severityColors.high },
-               { label: 'Medium Events', value: summary?.medium || 0, color: severityColors.medium },
-               { label: 'Low Events', value: summary?.low || 0, color: severityColors.low },
-               { label: 'Info Events', value: summary?.info || 0, color: severityColors.info },
-             ].map((item) => (
-                <Card key={item.label} className="border border-white/5 bg-content1/50">
-                  <CardBody className="p-4">
-                    <p className="text-sm text-foreground/60 mb-2">{item.label}</p>
-                    <p className="text-2xl font-bold" style={{ color: item.color }}>{item.value.toLocaleString()}</p>
-                  </CardBody>
-                </Card>
-             ))
-          )}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+           {/* Card 1: Active Threats (What needs attention) */}
+           <Card className="border border-white/5 bg-red-500/10">
+              <CardBody className="p-4 flex flex-row items-center justify-between">
+                <div>
+                   <p className="text-sm text-red-300 mb-1 font-medium">Active Threats</p>
+                   <div className="flex items-baseline gap-2">
+                      <p className="text-3xl font-bold text-red-500">{summary?.reviewing || 0}</p>
+                      <span className="text-xs text-red-400/60">require review</span>
+                   </div>
+                </div>
+                <div className="w-12 h-12 rounded-full bg-red-500/20 flex items-center justify-center">
+                   <AlertTriangle className="w-6 h-6 text-red-500" />
+                </div>
+              </CardBody>
+           </Card>
+
+           {/* Card 2: AI Efficiency (What AI did) */}
+           <Card className="border border-white/5 bg-green-500/10">
+              <CardBody className="p-4 flex flex-row items-center justify-between">
+                <div>
+                   <p className="text-sm text-green-300 mb-1 font-medium">AI Auto-Handled</p>
+                   <div className="flex items-baseline gap-2">
+                      <p className="text-3xl font-bold text-green-500">{(summary?.dismissed || 0) + (summary?.promoted || 0)}</p>
+                      <span className="text-xs text-green-400/60">incidents resolved</span>
+                   </div>
+                </div>
+                 <div className="w-12 h-12 rounded-full bg-green-500/20 flex items-center justify-center">
+                   <Icon.Cpu className="w-6 h-6 text-green-500" />
+                </div>
+              </CardBody>
+           </Card>
+
+           {/* Card 3: Total Coverage (Context) */}
+           <Card className="border border-white/5 bg-blue-500/10">
+              <CardBody className="p-4 flex flex-row items-center justify-between">
+                <div>
+                   <p className="text-sm text-blue-300 mb-1 font-medium">Total Analyzed</p>
+                   <div className="flex items-baseline gap-2">
+                      <p className="text-3xl font-bold text-blue-500">{summary?.total || 0}</p>
+                      <span className="text-xs text-blue-400/60">events processed</span>
+                   </div>
+                </div>
+                <div className="w-12 h-12 rounded-full bg-blue-500/20 flex items-center justify-center">
+                   <div className="relative">
+                     <span className="absolute inset-0 animate-ping inline-flex h-full w-full rounded-full bg-blue-400 opacity-20"></span>
+                     <Icon.Shield className="relative w-6 h-6 text-blue-500" />
+                   </div>
+                </div>
+              </CardBody>
+           </Card>
         </div>
 
         {/* Table */}
