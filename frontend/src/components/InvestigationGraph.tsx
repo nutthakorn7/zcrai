@@ -1,4 +1,4 @@
-// @ts-nocheck
+// Note: Some react-force-graph-2d types use 'any' - consider adding proper types
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Card, CardBody, CardHeader, Chip, Button, Spinner, Switch } from '@heroui/react';
 import ForceGraph2D from 'react-force-graph-2d';
@@ -9,7 +9,7 @@ interface GraphNode {
   id: string;
   type: 'case' | 'alert' | 'user' | 'ip' | 'host' | 'domain' | 'file' | 'hash' | 'process';
   label: string;
-  properties: Record<string, any>;
+  properties: Record<string, unknown>;
   severity?: 'low' | 'medium' | 'high' | 'critical';
   mitreTactic?: string; // [NEW] MITRE Context
 }
@@ -79,18 +79,22 @@ interface InvestigationGraphProps {
   className?: string;
 }
 
+// Define type for graph ref to avoid 'any'
+interface ForceGraphRef {
+  centerAt: (x: number, y: number, duration: number) => void;
+  zoom: (scale: number, duration: number) => void;
+  zoomToFit: (duration: number) => void;
+}
+
 export function InvestigationGraph({ caseId, alertId, className }: InvestigationGraphProps) {
   const [graphData, setGraphData] = useState<InvestigationGraphData | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
   const [showMitre, setShowMitre] = useState(false); // Toggle for overlays
-  const graphRef = useRef<any>();
+  const graphRef = useRef<ForceGraphRef | null>(null);
 
-  useEffect(() => {
-    fetchGraphData();
-  }, [caseId, alertId]);
-
-  const fetchGraphData = async () => {
+  // Wrap fetchGraphData in useCallback to satisfy exhaustive-deps
+  const fetchGraphData = useCallback(async () => {
     setLoading(true);
     try {
       let response;
@@ -111,7 +115,11 @@ export function InvestigationGraph({ caseId, alertId, className }: Investigation
     } finally {
       setLoading(false);
     }
-  };
+  }, [caseId, alertId]);
+
+  useEffect(() => {
+    fetchGraphData();
+  }, [fetchGraphData]);
 
   const handleNodeClick = useCallback((node: any) => {
     setSelectedNode(node);

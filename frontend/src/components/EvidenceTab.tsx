@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardBody, Button, Chip, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure, Input, Select, SelectItem, Divider } from '@heroui/react';
 import { api } from '../shared/api/api';
 import { Icon } from '../shared/ui';
@@ -131,11 +131,8 @@ export function EvidenceTab({ caseId }: EvidenceTabProps) {
     notes: '',
   });
 
-  useEffect(() => {
-    fetchEvidence();
-  }, [caseId]);
-
-  const fetchEvidence = async () => {
+  // Wrap fetchEvidence in useCallback to satisfy exhaustive-deps
+  const fetchEvidence = useCallback(async () => {
     try {
       // Try to fetch from API, fallback to mock
       const response = await api.get(`/evidence/case/${caseId}`);
@@ -146,7 +143,11 @@ export function EvidenceTab({ caseId }: EvidenceTabProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [caseId]);
+
+  useEffect(() => {
+    fetchEvidence();
+  }, [fetchEvidence]);
 
   const handleViewDetails = (item: EvidenceItem) => {
     setSelectedEvidence(item);

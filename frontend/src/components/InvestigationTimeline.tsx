@@ -17,11 +17,13 @@ interface InvestigationTimelineProps {
 }
 
 export function InvestigationTimeline({ events, onEventClick }: InvestigationTimelineProps) {
-    if (!events || events.length === 0) return null;
-
+    // useMemo MUST be called before any early return (React Rules of Hooks)
     const sortedEvents = useMemo(() => {
+        if (!events || events.length === 0) return [];
         return [...events].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
     }, [events]);
+
+    if (sortedEvents.length === 0) return null;
 
     return (
         <Card className="bg-content1/50 border border-white/5 w-full">

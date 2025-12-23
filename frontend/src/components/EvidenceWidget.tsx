@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { 
   Card, Button, Chip, 
   Input, Select, SelectItem,
@@ -24,7 +24,8 @@ export const EvidenceWidget = ({ caseId }: EvidenceWidgetProps) => {
   const [newItemValue, setNewItemValue] = useState("");
   const [adding, setAdding] = useState(false);
 
-  const fetchObservables = async () => {
+  // Wrap fetchObservables in useCallback to satisfy exhaustive-deps
+  const fetchObservables = useCallback(async () => {
     try {
       setLoading(true);
       const data = await ObservablesAPI.list({ caseId });
@@ -34,11 +35,11 @@ export const EvidenceWidget = ({ caseId }: EvidenceWidgetProps) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [caseId]);
 
   useEffect(() => {
     if (caseId) fetchObservables();
-  }, [caseId]);
+  }, [caseId, fetchObservables]);
 
   const handleAdd = async () => {
     if (!newItemValue) return;

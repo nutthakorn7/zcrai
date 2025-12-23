@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardBody, Button, Chip, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure, Divider, Progress, Tabs, Tab, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell } from '@heroui/react';
 import { api } from '../shared/api/api';
 import { Icon } from '../shared/ui';
@@ -198,11 +198,8 @@ export function ForensicsTab({ caseId }: ForensicsTabProps) {
   const [selectedFinding, setSelectedFinding] = useState<Finding | null>(null);
   const { isOpen, onOpen, onClose } = useDisclosure();
 
-  useEffect(() => {
-    fetchAnalysis();
-  }, [caseId]);
-
-  const fetchAnalysis = async () => {
+  // Wrap fetchAnalysis in useCallback to satisfy exhaustive-deps
+  const fetchAnalysis = useCallback(async () => {
     try {
       const response = await api.get(`/forensics/case/${caseId}`);
       setAnalysis(response.data?.data || MOCK_ANALYSIS);
@@ -211,7 +208,11 @@ export function ForensicsTab({ caseId }: ForensicsTabProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [caseId]);
+
+  useEffect(() => {
+    fetchAnalysis();
+  }, [fetchAnalysis]);
 
   const handleNewAnalysis = async () => {
     setAnalyzing(true);
