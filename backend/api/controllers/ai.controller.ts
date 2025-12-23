@@ -50,7 +50,7 @@ export const aiController = new Elysia({ prefix: '/ai' })
 
     console.log(`[AI Chat] Request from Tenant: ${tenantId} (User: ${user.role})`)
 
-    // Use synchronous summarize (TODO: Implement proper streaming)
+    // Use synchronous summarize (Note: Streaming available via GET /chat-stream)
     const lastMessage = messages[messages.length - 1]?.content || ''
     const response = await AIService.summarizeCase({
       title: 'Chat Query',

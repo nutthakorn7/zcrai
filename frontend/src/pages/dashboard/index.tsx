@@ -33,6 +33,7 @@ import { MitreHeatmapWidget } from './widgets/MitreHeatmapWidget';
 import { InvestigationGraphWidget } from './widgets/InvestigationGraphWidget';
 import { AIMetricsWidget } from './widgets/AIMetricsWidget';
 import { AccuracyWidget } from './widgets/AccuracyWidget';
+import { PerformanceMetricsWidget } from './widgets/PerformanceMetricsWidget';
 
 // Import logos
 import sentineloneLogo from '../../assets/logo/sentinelone.png';
@@ -778,8 +779,14 @@ export default function DashboardPage() {
         <AnomalyDashboardCard />
       </div>
 
-      {/* AI SOC Performance Metrics */}
       {/* AI SOC Performance Metrics & Accuracy */}
+      <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
+         <Icon.Chart className="w-5 h-5 text-primary" />
+         Performance & Efficacy
+      </h2>
+      <div className="mb-4">
+          <PerformanceMetricsWidget />
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-8 animate-fade-in">
         <div className="md:col-span-2">
             <AIMetricsWidget />

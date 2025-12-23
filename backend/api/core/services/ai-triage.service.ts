@@ -27,6 +27,27 @@ export class AITriageService {
    */
   static async analyze(alertId: string, alertData: any) {
     try {
+        // --- PHASE 4.2: Check Learned Patterns (Auto-Dismiss) ---
+        try {
+            const { PatternLearningService } = await import('./pattern-learning.service');
+            const activePatterns = await PatternLearningService.getActivePatterns(alertData.tenantId);
+            
+            // Simple exact match on title for MVP
+            const matchedPattern = activePatterns.find(p => p.pattern === alertData.title); // Could be Regex later
+            
+            if (matchedPattern) {
+                console.log(`[AITriage] Matches Safe Pattern: ${matchedPattern.pattern}`);
+                return {
+                    classification: 'FALSE_POSITIVE',
+                    confidence: matchedPattern.confidence || 99,
+                    reasoning: `[Auto-Dismiss] Matches known safe pattern: "${matchedPattern.pattern}" (Source: ${matchedPattern.source})`,
+                    suggested_action: 'dismiss'
+                };
+            }
+        } catch (e) {
+            console.warn("[AITriage] Pattern Learning Check Failed:", e);
+        }
+
         // 1. Prepare Prompt
         const observablesContext = alertData.observables?.map((o: any) => 
             `- ${o.type}: ${o.value} (Malicious: ${o.isMalicious}, Tags: ${o.tags?.join(',') || 'None'})`

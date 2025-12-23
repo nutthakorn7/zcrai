@@ -543,6 +543,24 @@ export const dashboardController = new Elysia({ prefix: '/dashboard' })
   })
 
   /**
+   * Get Performance Metrics (MTTI, MTTR, Escalation Rate)
+   * @route GET /dashboard/performance
+   * @access Protected
+   */
+  .get('/performance', async ({ jwt, cookie: { access_token, selected_tenant }, set }) => {
+      try {
+          const payload = await jwt.verify(access_token.value as string)
+          if (!payload) throw new Error('Unauthorized')
+
+          const tenantId = getEffectiveTenantId(payload, selected_tenant)
+          return await DashboardService.getPerformanceMetrics(tenantId)
+      } catch (e: any) {
+          set.status = 400
+          return { error: e.message }
+      }
+  })
+
+  /**
    * Get SLA Metrics (MTTA/MTTR) for the dashboard
    * @route GET /dashboard/sla
    */

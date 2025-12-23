@@ -31,7 +31,7 @@ export const reportController = new Elysia({ prefix: '/reports' })
     }
   }, {
     body: t.Object({
-        type: t.Union([t.Literal('SOC2'), t.Literal('ISO27001'), t.Literal('NIST'), t.Literal('PDPA')])
+        type: t.Union([t.Literal('SOC2'), t.Literal('ISO27001'), t.Literal('NIST'), t.Literal('PDPA'), t.Literal('AI_ACCURACY')])
     })
   })
 

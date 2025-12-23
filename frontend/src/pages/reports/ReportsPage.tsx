@@ -6,7 +6,7 @@ import { api } from '../../shared/api/api';
 export default function ReportsPage() {
     const [generating, setGenerating] = useState<string | null>(null);
 
-    const handleDownload = async (type: 'SOC2' | 'ISO27001') => {
+    const handleDownload = async (type: 'SOC2' | 'ISO27001' | 'AI_ACCURACY') => {
         setGenerating(type);
         try {
             const response = await api.post('/reports/generate', { type }, {
@@ -96,6 +96,35 @@ export default function ReportsPage() {
                                 isDisabled={!!generating}
                             >
                                 {generating === 'ISO27001' ? 'Generating PDF...' : 'Download ISO Report'}
+                            </Button>
+                        </div>
+                    </CardBody>
+                </Card>
+                {/* AI Accuracy Card (New) */}
+                <Card className="bg-[#1E1B4B]/30 border border-white/10 hover:border-purple-500/50 transition-colors">
+                    <CardBody className="p-6 space-y-4">
+                        <div className="flex items-start justify-between">
+                            <div className="p-3 bg-purple-500/20 rounded-lg text-purple-400">
+                                <ShieldCheck size={32} />
+                            </div>
+                            <Chip size="sm" variant="flat" color="secondary">New</Chip>
+                        </div>
+                        <div>
+                            <h3 className="text-xl font-bold">AI Accuracy & ROI Report</h3>
+                            <p className="text-gray-400 text-sm mt-1">
+                                Performance analysis of AI Triage. Includes Agreement Rate, Verdict breakdown, and estimated cost savings.
+                            </p>
+                        </div>
+                        <div className="pt-4">
+                            <Button 
+                                color="secondary"
+                                variant="flat" 
+                                className="w-full"
+                                endContent={generating === 'AI_ACCURACY' ? <Spinner size="sm" color="current"/> : <Download size={18}/>}
+                                onPress={() => handleDownload('AI_ACCURACY')}
+                                isDisabled={!!generating}
+                            >
+                                {generating === 'AI_ACCURACY' ? 'Generating PDF...' : 'Download ROI Report'}
                             </Button>
                         </div>
                     </CardBody>

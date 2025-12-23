@@ -5,7 +5,7 @@ import { eq, desc } from 'drizzle-orm';
 
 export class ReportService {
 
-    static async generateReport(tenantId: string, type: 'SOC2' | 'ISO27001' | 'NIST' | 'PDPA'): Promise<Buffer> {
+    static async generateReport(tenantId: string, type: 'SOC2' | 'ISO27001' | 'NIST' | 'PDPA' | 'AI_ACCURACY'): Promise<Buffer> {
         // 1. Fetch Data
         const tenantUsers = await db.select().from(users).where(eq(users.tenantId, tenantId));
         const recentAlerts = await db.select().from(alerts)
@@ -13,8 +13,14 @@ export class ReportService {
             .orderBy(desc(alerts.createdAt))
             .limit(20);
 
+        let extraData = {};
+        if (type === 'AI_ACCURACY') {
+             const { AIFeedbackService } = await import('./ai-feedback.service');
+             extraData = await AIFeedbackService.getROIStats(tenantId);
+        }
+
         // 2. Generate HTML Template
-        const html = this.getTemplate(type, { users: tenantUsers, alerts: recentAlerts });
+        const html = this.getTemplate(type, { users: tenantUsers, alerts: recentAlerts, ...extraData });
 
         // 3. Render PDF with Puppeteer
         const browser = await puppeteer.launch({
@@ -48,6 +54,10 @@ export class ReportService {
         return this.generateReport(tenantId, 'PDPA'); 
     }
 
+    static async generateAIAccuracyReportPDF(tenantId: string): Promise<Buffer> {
+        return this.generateReport(tenantId, 'AI_ACCURACY'); 
+    }
+
     static async generateDashboardPDF(tenantId: string, options?: any): Promise<Buffer> {
         return this.generateReport(tenantId, 'SOC2'); 
     }
@@ -76,11 +86,65 @@ export class ReportService {
                 .nist-category { font-weight: bold; color: #4F46E5; }
                 .pdpa-check { color: #059669; font-weight: bold; }
                 .footer { margin-top: 50px; font-size: 10px; text-align: center; color: #9ca3af; border-top: 1px solid #e5e7eb; padding-top: 20px; }
+                .metric-box { display: inline-block; width: 45%; background: #f3f4f6; padding: 15px; margin: 10px 2%; border-radius: 8px; text-align: center; }
+                .metric-val { font-size: 24px; font-weight: bold; color: #4F46E5; }
+                .metric-label { font-size: 12px; color: #6b7280; text-transform: uppercase; }
             </style>
         `;
 
         let content = '';
-        if (type === 'SOC2') {
+        if (type === 'AI_ACCURACY') {
+             content = `
+                <div class="header">
+                    <div class="logo">zcrAI Analytics</div>
+                    <h1>AI SOC Performance & Accuracy Report</h1>
+                    <p>Analysis Period: Last 30 Days</p>
+                    <p>Generated on: ${date}</p>
+                </div>
+                
+                <h2>1. Executive Summary</h2>
+                <div style="text-align:center">
+                    <div class="metric-box">
+                        <div class="metric-val">${data.accuracyRate}%</div>
+                        <div class="metric-label">Analyst Agreement Rate</div>
+                    </div>
+                    <div class="metric-box">
+                        <div class="metric-val">$${data.costSavings}</div>
+                        <div class="metric-label">Estimated Cost Savings</div>
+                    </div>
+                    <div class="metric-box">
+                        <div class="metric-val">${data.totalHoursSaved} hrs</div>
+                        <div class="metric-label">Time Saved (Triage + Response)</div>
+                    </div>
+                    <div class="metric-box">
+                        <div class="metric-val">${data.totalAutoBlocks}</div>
+                        <div class="metric-label">Autonomous Blocks Executed</div>
+                    </div>
+                </div>
+
+                <h2>2. AI Triage Details</h2>
+                <p>Total Alerts Processed by AI: <strong>${data.totalTriageCount}</strong></p>
+                <p>Feedback received from analysts: <strong>${data.feedbackCount}</strong> cases</p>
+
+                <h2>3. Recent AI Decisions</h2>
+                <table>
+                    <thead><tr><th>Time</th><th>Alert</th><th>AI Verdict</th><th>Analyst Feedback</th></tr></thead>
+                    <tbody>
+                        ${data.alerts.map((a: any) => `
+                            <tr>
+                                <td>${new Date(a.createdAt).toLocaleString()}</td>
+                                <td>${a.title}</td>
+                                <td>${a.aiAnalysis?.classification || 'Pending'} (${a.aiAnalysis?.confidence || 0}%)</td>
+                                <td>${
+                                    // Normally we'd join feedback here, but for simple report just show N/A if not fetched
+                                    'See Dashboard' 
+                                }</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        } else if (type === 'SOC2') {
             content = `
                 <div class="header">
                     <div class="logo">zcrAI Compliance</div>

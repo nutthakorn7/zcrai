@@ -35,6 +35,9 @@ export class EmbeddingService {
             tenantId,
             content,
             vector
+        }).onConflictDoUpdate({
+            target: alertEmbeddings.alertId,
+            set: { content, vector }
         });
     }
 

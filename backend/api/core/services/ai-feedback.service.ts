@@ -25,6 +25,28 @@ export class AIFeedbackService {
             comment: feedback.comment
         }).returning();
 
+        // 🔥 Continuous Learning: Re-embed with Corrected Verdict
+        try {
+            // Determine "New Truth"
+            const aiVerdict = (alert.aiAnalysis as any)?.classification || 'UNKNOWN';
+            let correctedVerdict = aiVerdict;
+            
+            // Rating 0 = Incorrect. If AI said True Positive, it's False Positive.
+            if (feedback.rating === 0) {
+                correctedVerdict = aiVerdict === 'TRUE_POSITIVE' ? 'FALSE_POSITIVE' : 'TRUE_POSITIVE'; // Flip it
+            }
+
+            // Append specific analyst guidance
+            const contentToIndex = `Title: ${alert.title}. Description: ${alert.description}. Source: ${alert.source}. Verdict: ${correctedVerdict}. Reasoning: [Analyst Correction] ${feedback.comment || 'Marked as incorrect by analyst'}. (Originally predicted: ${aiVerdict})`;
+
+            const { EmbeddingService } = await import('./embedding.service');
+            await EmbeddingService.store(alertId, tenantId, contentToIndex);
+            console.log(`[Continuous Learning] Re-embedded alert ${alertId} with corrected verdict: ${correctedVerdict}`);
+
+        } catch (e) {
+            console.warn(`[Continuous Learning] Failed to re-embed alert ${alertId}:`, e);
+        }
+
         return entry;
     }
 

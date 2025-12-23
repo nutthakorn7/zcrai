@@ -1,6 +1,6 @@
 import { db } from '../../infra/db'
 import { cases, caseComments, caseAttachments, caseHistory, users } from '../../infra/db/schema'
-import { eq, and, desc, sql } from 'drizzle-orm'
+import { eq, and, desc, sql, or } from 'drizzle-orm'
 import { NotificationService } from './notification.service'
 import { ObservableService } from './observable.service'
 
@@ -33,8 +33,40 @@ export const CaseService = {
     if (data.description) {
       await ObservableService.extract(data.description, tenantId, newCase.id);
     }
+    
+    // 🔥 Trigger Auto-Sync
+    this.triggerAutoSync(tenantId, newCase.id, userId);
 
     return newCase
+  },
+  
+  // Hook for Auto-Ticketing
+  // Called internally or via event bus
+  async triggerAutoSync(tenantId: string, caseId: string, userId: string) {
+      try {
+          const { apiKeys } = await import('../../infra/db/schema');
+          const { Encryption } = await import('../../utils/encryption');
+          
+          const ticketingIntegrations = await db.select().from(apiKeys)
+            .where(and(
+                eq(apiKeys.tenantId, tenantId), 
+                or(eq(apiKeys.provider, 'jira'), eq(apiKeys.provider, 'servicenow'))
+            ));
+
+          for (const int of ticketingIntegrations) {
+              try {
+                  const config = JSON.parse(Encryption.decrypt(int.encryptedKey));
+                  if (config.autoSync) {
+                      console.log(`[CaseService] Auto-syncing case ${caseId} to ${int.provider}`);
+                      await this.syncToTicketing(tenantId, caseId, userId, int.provider as any, config);
+                  }
+              } catch (e) {
+                  console.warn(`[CaseService] Failed to parse config for ${int.provider}`, e);
+              }
+          }
+      } catch (e) {
+          console.error('[CaseService] Auto-sync failed', e);
+      }
   },
 
   // List Cases

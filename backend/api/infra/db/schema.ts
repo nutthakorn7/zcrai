@@ -14,6 +14,19 @@ export const tenants = pgTable('tenants', {
   autopilotThreshold: integer('autopilot_threshold').default(90).notNull(), // Confidence threshold
 })
 
+// Learned Patterns (Auto-Dismiss)
+export const learnedPatterns = pgTable('learned_patterns', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  tenantId: uuid('tenant_id').references(() => tenants.id).notNull(),
+  pattern: text('pattern').notNull(), // Regex or Exact String, e.g. "Backup Service .*"
+  patternType: text('pattern_type').default('title').notNull(), // 'title', 'source', 'ip'
+  confidence: integer('confidence').default(100),
+  status: text('status').default('pending').notNull(), // 'active', 'pending', 'rejected'
+  source: text('source').default('auto_learning'), // 'auto_learning', 'manual'
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+})
+
 // Users
 export const users = pgTable('users', {
   id: uuid('id').defaultRandom().primaryKey(),

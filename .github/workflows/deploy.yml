@@ -53,6 +53,10 @@ jobs:
           SUPERADMIN_EMAIL=superadmin@zcr.ai
           SUPERADMIN_PASSWORD=${{ secrets.SUPERADMIN_PASSWORD }}
           GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
+          SSO_ISSUER=${{ secrets.SSO_ISSUER }}
+          SSO_CLIENT_ID=${{ secrets.SSO_CLIENT_ID }}
+          SSO_CLIENT_SECRET=${{ secrets.SSO_CLIENT_SECRET }}
+          SSO_REDIRECT_URI=${{ secrets.SSO_REDIRECT_URI }}
           BYPASS_AUTH=false
           EOF"
 
@@ -61,7 +65,7 @@ jobs:
           ssh root@45.118.132.160 "cd /root/zcrAI && \
           docker compose -f docker-compose.prod.yml pull && \
           docker compose -f docker-compose.prod.yml up -d --no-recreate postgres clickhouse redis vector && \
-          docker compose -f docker-compose.prod.yml up -d --force-recreate backend frontend collector"
+          docker compose -f docker-compose.prod.yml up -d --build --force-recreate backend frontend collector"
 
       - name: Health Check
         run: |

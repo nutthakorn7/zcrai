@@ -332,6 +332,23 @@ export const integrationController = new Elysia({ prefix: '/integrations' })
       return { error: e.message }
     }
   })
+  
+  /**
+   * Add ticketing integration (Jira/ServiceNow)
+   * @route POST /integrations/ticketing/:provider
+   */
+  .post('/ticketing/:provider', async ({ user, params, body, set }: any) => {
+      try {
+          if (!user?.tenantId) throw new Error('Unauthorized');
+          const provider = params.provider.toLowerCase();
+          if (!['jira', 'servicenow'].includes(provider)) throw new Error('Invalid provider');
+          
+          return await IntegrationService.addTicketing(user.tenantId, provider, body);
+      } catch (e: any) {
+          set.status = 400;
+          return { error: e.message };
+      }
+  })
 
   /**
    * Get integration configuration (for editing)

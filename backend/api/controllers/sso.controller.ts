@@ -82,7 +82,12 @@ export const ssoController = new Elysia({ prefix: '/auth/sso' })
             const payload = await jwt.verify(token);
             if (!payload) { set.status = 401; return { error: 'Unauthorized' }; }
             
-            // TODO: Enforce admin role check here
+            // Enforce admin role check
+            const role = (payload as any).role;
+            if (role !== 'admin' && role !== 'superadmin') {
+                 set.status = 403;
+                 return { error: 'Forbidden: Admin access required' };
+            }
             
             return await SSOService.saveConfig((payload as any).tenantId, body);
         })

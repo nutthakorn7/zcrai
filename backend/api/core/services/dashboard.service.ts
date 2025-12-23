@@ -567,4 +567,50 @@ export const DashboardService = {
       { ttl: 60 }
     )
   },
+
+  async getPerformanceMetrics(tenantId: string) {
+      return cached(
+          'dashboard:performance',
+          tenantId,
+          async () => {
+             // Calculate MTTI (Created -> Acknowledged) and MTTR (Created -> Resolved)
+             // For the last 30 days
+             const { cases } = await import('../../infra/db/schema');
+             
+             const metrics = await db.select({
+                 avg_mtti_seconds: sql<number>`AVG(EXTRACT(EPOCH FROM (${cases.acknowledgedAt} - ${cases.createdAt})))`,
+                 avg_mttr_seconds: sql<number>`AVG(EXTRACT(EPOCH FROM (${cases.resolvedAt} - ${cases.createdAt})))`,
+                 total_cases: sql<number>`COUNT(*)::int`,
+                 escalated_count: sql<number>`COUNT(*) FILTER (WHERE ${cases.createdAt} >= NOW() - INTERVAL '30 days')::int` 
+                 // Note: 'escalated' here implies created cases. We might compare vs total alerts for rate.
+             })
+             .from(cases)
+             .where(
+                 and(
+                     eq(cases.tenantId, tenantId),
+                     sql`${cases.createdAt} >= NOW() - INTERVAL '30 days'`
+                 )
+             );
+
+             const mtti = Math.round((metrics[0]?.avg_mtti_seconds || 0) / 60); // Minutes
+             const mttr = Math.round((metrics[0]?.avg_mttr_seconds || 0) / 60); // Minutes
+             
+             // Get Total Alerts for Escalation Rate
+             const alertCounts = await db.select({ count: sql<number>`count(*)::int` })
+                .from(alerts)
+                .where(and(eq(alerts.tenantId, tenantId), sql`${alerts.createdAt} >= NOW() - INTERVAL '30 days'`));
+             
+             const totalAlerts = alertCounts[0]?.count || 1; // Avoid div 0
+             const escalationRate = Math.round((metrics[0].escalated_count / totalAlerts) * 100);
+
+             return {
+                 mtti, // Minutes
+                 mttr, // Minutes
+                 escalationRate, // Percentage
+                 totalCases: metrics[0].total_cases
+             };
+          },
+          { ttl: 300 }
+      );
+  }
 }

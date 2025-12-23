@@ -266,7 +266,7 @@ export default function IntegrationPage() {
   // Mode: 'add' | 'edit'
   const [mode, setMode] = useState<'add' | 'edit'>('add');
   // Selected Provider for Add
-  const [modalType, setModalType] = useState<'s1' | 'cs' | 'ai' | 'enrichment' | 'aws' | 'm365'>('s1');
+  const [modalType, setModalType] = useState<'s1' | 'cs' | 'ai' | 'enrichment' | 'aws' | 'm365' | 'ticketing'>('s1');
   // Selected Integration for Edit
   const [selectedIntegration, setSelectedIntegration] = useState<Integration | null>(null);
 
@@ -299,6 +299,14 @@ export default function IntegrationPage() {
   const [awsBucket, setAwsBucket] = useState('');
   const [awsRoleArn, setAwsRoleArn] = useState('');
   
+  // ⭐ Ticketing State
+  const [ticketingProvider, setTicketingProvider] = useState<'jira' | 'servicenow'>('jira');
+  const [ticketingUrl, setTicketingUrl] = useState(''); // Domain or Instance URL
+  const [ticketingUser, setTicketingUser] = useState(''); // Email or Username
+  const [ticketingToken, setTicketingToken] = useState(''); // API Token or Password
+  const [ticketingProjectKey, setTicketingProjectKey] = useState(''); // Jira Project Key
+  const [autoSync, setAutoSync] = useState(false);
+
   // Credential tracking states
   const [hasExistingToken, setHasExistingToken] = useState(false);
   const [hasExistingSecret, setHasExistingSecret] = useState(false);
@@ -403,22 +411,30 @@ export default function IntegrationPage() {
     fetchIntegrations();
   }, [fetchIntegrations]);
 
-  // ⭐ handleOpenAdd รับ aiProviderOverride สำหรับ AI cards และ enrichmentProvider สำหรับ Enrichment
-  const handleOpenAdd = (type: 's1' | 'cs' | 'ai' | 'enrichment' | 'aws' | 'm365', providerOverride?: string) => {
+  // ⭐ handleOpenAdd
+  const handleOpenAdd = (type: 's1' | 'cs' | 'ai' | 'enrichment' | 'aws' | 'm365' | 'ticketing', providerOverride?: string) => {
     setMode('add');
     setModalType(type);
     resetForm();
-    // ถ้ามี providerOverride ให้ set
+    
+    // Reset Ticketing Defaults
+    setAutoSync(false);
+    setTicketingUrl('');
+    setTicketingUser('');
+    setTicketingToken('');
+    setTicketingProjectKey('');
+
     if (type === 'ai' && providerOverride) {
       setAiProvider(providerOverride);
     } else if (type === 'enrichment' && providerOverride) {
-      // For enrichment providers, set label from provider name
       setLabel(
         providerOverride === 'virustotal' ? 'VirusTotal' : 
         providerOverride === 'alienvault' ? 'AlienVault OTX' : 'AbuseIPDB'
       );
-      // Store provider in a state (reuse aiProvider for simplicity)
       setAiProvider(providerOverride);
+    } else if (type === 'ticketing' && providerOverride) {
+        setTicketingProvider(providerOverride as 'jira' | 'servicenow');
+        setLabel(providerOverride === 'jira' ? 'Jira Software' : 'ServiceNow');
     }
     onOpen();
   };
@@ -451,6 +467,10 @@ export default function IntegrationPage() {
     } else if (int.provider === 'm365') {
        setModalType('m365');
        setM365ClientSecret('');
+    } else if (int.provider === 'jira' || int.provider === 'servicenow') {
+        setModalType('ticketing');
+        setTicketingProvider(int.provider as 'jira' | 'servicenow');
+        setTicketingToken('');
     } else {
       setModalType('ai');
       setAiProvider(int.provider);
@@ -461,6 +481,7 @@ export default function IntegrationPage() {
     try {
       // IF cloud provider, use data already in int (mapped from fetch)
       if (int.provider === 'aws' || int.provider === 'm365') {
+          // ... (existing cloud logic)
           const cloudInt = int as Integration & { config: CloudConfig, credentials: CloudCredentials }; 
           if (int.provider === 'aws') {
               setAwsRegion(cloudInt.config?.region || 'us-east-1');
@@ -489,6 +510,12 @@ export default function IntegrationPage() {
               setCsFetchSettings(data.fetchSettings);
               setShowAdvanced(true);
             }
+          } else if (int.provider === 'jira' || int.provider === 'servicenow') {
+              setTicketingUrl(data.url || '');
+              setTicketingUser(data.user || '');
+              setTicketingProjectKey(data.projectKey || '');
+              setAutoSync(data.autoSync || false);
+              setHasExistingToken(data.hasToken || false);
           } else if (int.provider === 'virustotal' || int.provider === 'abuseipdb' || int.provider === 'alienvault' || int.provider === 'alienvault-otx') {
             setHasExistingKey(data.hasKey || false);
           } else {
@@ -565,6 +592,15 @@ export default function IntegrationPage() {
                     clientId: m365ClientId,
                     clientSecret: m365ClientSecret
                 }
+            });
+        } else if (modalType === 'ticketing') {
+            await api.post(`/integrations/ticketing/${ticketingProvider}`, {
+                label: label || (ticketingProvider === 'jira' ? 'Jira' : 'ServiceNow'),
+                url: ticketingUrl,
+                user: ticketingUser,
+                token: ticketingToken,
+                projectKey: ticketingProvider === 'jira' ? ticketingProjectKey : undefined,
+                autoSync: autoSync
             });
         }
       } else {
@@ -835,7 +871,8 @@ export default function IntegrationPage() {
                     provider === 'crowdstrike' ? 'cs' : 
                     provider === 'sentinelone' ? 's1' : 
                     provider === 'aws' ? 'aws' :
-                    provider === 'm365' ? 'm365' : 'aws' 
+                    provider === 'm365' ? 'm365' : 
+                    (provider === 'jira' || provider === 'servicenow') ? 'ticketing' : 'aws' 
                 , provider)}
                 className={`group relative overflow-hidden rounded-xl 
                            border ${config.border}
@@ -1502,6 +1539,56 @@ export default function IntegrationPage() {
                          <p className="text-xs text-default-400 mt-2">
                              Requires App Registration with <code>AuditLog.Read.All</code> and <code>SecurityEvents.Read.All</code> permissions.
                          </p>
+                    </>
+                )}
+
+                {/* ⭐ Ticketing Form - Add & Edit */}
+                {modalType === 'ticketing' && (
+                    <>
+                        <Input
+                             label={ticketingProvider === 'jira' ? 'Jira Domain' : 'Instance URL'}
+                             placeholder={ticketingProvider === 'jira' ? 'your-domain.atlassian.net' : 'https://dev12345.service-now.com'}
+                             value={ticketingUrl}
+                             onValueChange={setTicketingUrl}
+                             description="Base URL for API access"
+                        />
+                        <Input
+                             label={ticketingProvider === 'jira' ? 'Email Address' : 'Username'}
+                             placeholder={ticketingProvider === 'jira' ? 'user@example.com' : 'admin'}
+                             value={ticketingUser}
+                             onValueChange={setTicketingUser}
+                        />
+                         <Input
+                              label={ticketingProvider === 'jira' ? 'API Token' : 'Password/Token'}
+                              placeholder={mode === 'edit' && hasExistingToken ? '••••••• (Leave empty to keep existing)' : 'Enter Secret'}
+                              description={mode === 'edit' && hasExistingToken ? '✓ Secret exists - leave empty to keep, or enter new to replace' : undefined}
+                              value={ticketingToken}
+                              onValueChange={setTicketingToken}
+                              type="password"
+                         />
+                         
+                         {ticketingProvider === 'jira' && (
+                             <Input
+                                  label="Project Key"
+                                  placeholder="SEC, ITSM, SOC"
+                                  value={ticketingProjectKey}
+                                  onValueChange={setTicketingProjectKey}
+                                  description="Key of the project where issues will be created"
+                             />
+                         )}
+
+                         <div className="flex items-center gap-3 p-3 bg-default-100 rounded-lg">
+                            <Switch 
+                                isSelected={autoSync}
+                                onValueChange={setAutoSync}
+                            />
+                            <div>
+                                <p className="text-sm font-medium">Auto-Create Tickets</p>
+                                <p className="text-xs text-default-500">
+                                    Automatically create a ticket when a Case is created in zcrAI
+                                </p>
+                            </div>
+                         </div>
                     </>
                 )}
 

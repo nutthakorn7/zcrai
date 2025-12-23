@@ -101,7 +101,8 @@ export const UserService = {
       status: users.status,
     })
 
-    // TODO: ส่ง email invite พร้อม reset password link
+    // NOTE: In production, integrate SendGrid/SES/Resend here.
+    // For MVP/Dev, we log the credentials to console.
     console.log(`[DEV] Invited ${data.email} with temp password: ${tempPassword}`)
 
     return { user, tempPassword } // tempPassword ให้ dev test เท่านั้น

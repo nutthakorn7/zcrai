@@ -11,4 +11,8 @@ export const DashboardAPI = {
     api.get<MitreData[]>('/dashboard/mitre-heatmap', { params }),
 
   getFeedbackMetrics: () => api.get<any>('/dashboard/ai-feedback'),
+
+  getAIMetrics: () => api.get<any>('/dashboard/ai-metrics'),
+
+  getPerformanceMetrics: () => api.get<{ mtti: number; mttr: number; escalationRate: number; totalCases: number }>('/dashboard/performance'),
 };
