@@ -7,18 +7,16 @@ import { cached } from './dashboard-cache.service'
 /**
  * PERFORMANCE OPTIMIZATIONS:
  * 
- * 1. **Materialized Views**: Pre-aggregated data in ClickHouse
- *    - mv_dashboard_summary: Counts by severity/date
- *    - mv_dashboard_timeline: Timeline with hourly/daily grouping
- *    - mv_mitre_heatmap: MITRE technique heatmap
- *    - mv_top_hosts: Top IPs with event counts
- *    - mv_top_users: Top users with event counts
- * 
- * 2. **Redis Caching**: Query results cached with appropriate TTL
+ * 1. **Redis Caching**: Query results cached with appropriate TTL (ACTIVE)
  *    - Summary: 30s (frequently updated)
  *    - Timeline: 60s
  *    - MITRE: 5min (slower changing)
  *    - Top entities: 60s
+ * 
+ * 2. **Materialized Views**: DISABLED temporarily
+ *    - MVs are empty (need backfill strategy)
+ *    - Using raw security_events table for now
+ *    - TODO: Implement POPULATE MATERIALIZED VIEW or recreation strategy
  * 
  * 3. **Query Optimization**: WHERE clauses leverage ClickHouse's ORDER BY index
  *    - tenant_id first (partition key)
@@ -50,15 +48,15 @@ export const DashboardService = {
         
         const sourceFilter = (sources && sources.length > 0) ? `AND source IN {sources:Array(String)}` : ''
         
-        // Use materialized view for faster aggregation
+        // Use raw table (MVs empty, need backfill)
         const sqlQuery = `
           SELECT 
             severity,
-            sum(count) as count
-          FROM mv_dashboard_summary
+            count() as count
+          FROM security_events
           WHERE tenant_id = {tenantId:String}
-            AND date >= {startDate:String}
-            AND date <= {endDate:String}
+            AND toDate(timestamp) >= {startDate:String}
+            AND toDate(timestamp) <= {endDate:String}
             ${sourceFilter}
           GROUP BY severity
           ORDER BY severity
@@ -98,25 +96,26 @@ export const DashboardService = {
       async () => {
         if (isEmptySources(sources)) return []
         
+        const dateFunc = interval === 'hour' ? 'toStartOfHour' : 'toDate'
         const sourceFilter = (sources && sources.length > 0) ? `AND source IN {sources:Array(String)}` : ''
         
-        // Use materialized view - already aggregated by day
+        // Use raw table
         const sqlQuery = `
           SELECT 
-            date as time,
+            ${dateFunc}(timestamp) as time,
             source,
-            sum(total_count) as count,
-            sum(critical_count) as critical,
-            sum(high_count) as high,
-            sum(medium_count) as medium,
-            sum(low_count) as low
-          FROM mv_dashboard_timeline
+            count() as count,
+            countIf(severity = 'critical') as critical,
+            countIf(severity = 'high') as high,
+            countIf(severity = 'medium') as medium,
+            countIf(severity = 'low') as low
+          FROM security_events
           WHERE tenant_id = {tenantId:String}
-            AND date >= {startDate:String}
-            AND date <= {endDate:String}
+            AND toDate(timestamp) >= {startDate:String}
+            AND toDate(timestamp) <= {endDate:String}
             ${sourceFilter}
-          GROUP BY date, source
-          ORDER BY date ASC, source ASC
+          GROUP BY time, source
+          ORDER BY time ASC, source ASC
         `
         
         return await query<{
@@ -143,17 +142,18 @@ export const DashboardService = {
         
         const sourceFilter = (sources && sources.length > 0) ? `AND source IN {sources:Array(String)}` : ''
         
-        // Use materialized view
+        // Use raw table
         const sqlQuery = `
           SELECT 
             host_ip,
-            sum(count) as count,
-            sum(critical_count) as critical,
-            sum(high_count) as high
-          FROM mv_top_hosts
+            count() as count,
+            countIf(severity = 'critical') as critical,
+            countIf(severity = 'high') as high
+          FROM security_events
           WHERE tenant_id = {tenantId:String}
-            AND date >= {startDate:String}
-            AND date <= {endDate:String}
+            AND toDate(timestamp) >= {startDate:String}
+            AND toDate(timestamp) <= {endDate:String}
+            AND host_ip != ''
             ${sourceFilter}
           GROUP BY host_ip
           ORDER BY count DESC
@@ -179,17 +179,18 @@ export const DashboardService = {
         
         const sourceFilter = (sources && sources.length > 0) ? `AND source IN {sources:Array(String)}` : ''
         
-        // Use materialized view
+        // Use raw table
         const sqlQuery = `
           SELECT 
             user_name,
-            sum(count) as count,
-            sum(critical_count) as critical,
-            sum(high_count) as high
-          FROM mv_top_users
+            count() as count,
+            countIf(severity = 'critical') as critical,
+            countIf(severity = 'high') as high
+          FROM security_events
           WHERE tenant_id = {tenantId:String}
-            AND date >= {startDate:String}
-            AND date <= {endDate:String}
+            AND toDate(timestamp) >= {startDate:String}
+            AND toDate(timestamp) <= {endDate:String}
+            AND user_name != ''
             ${sourceFilter}
           GROUP BY user_name
           ORDER BY count DESC
@@ -231,21 +232,23 @@ export const DashboardService = {
           return rows.filter(r => r.mitre_tactic && r.mitre_technique) as { mitre_tactic: string; mitre_technique: string; count: string }[]
         }
 
-        // MODE: DETECTION (Query Logs from ClickHouse using MV)
+        // MODE: DETECTION (Query Logs from raw table)
         if (isEmptySources(sources)) return []
         
         const sourceFilter = (sources && sources.length > 0) ? `AND source IN {sources:Array(String)}` : ''
         
-        // Use materialized view
+        // Use raw table
         const sqlQuery = `
           SELECT 
             mitre_tactic,
             mitre_technique,
-            sum(count) as count
-          FROM mv_mitre_heatmap
+            count() as count
+          FROM security_events
           WHERE tenant_id = {tenantId:String}
-            AND date >= {startDate:String}
-            AND date <= {endDate:String}
+            AND toDate(timestamp) >= {startDate:String}
+            AND toDate(timestamp) <= {endDate:String}
+            AND mitre_tactic != ''
+            AND mitre_technique != ''
             ${sourceFilter}
           GROUP BY mitre_tactic, mitre_technique
           ORDER BY count DESC
@@ -271,15 +274,15 @@ export const DashboardService = {
         
         const sourceFilter = (sources && sources.length > 0) ? `AND source IN {sources:Array(String)}` : ''
         
-        // Use MV for aggregation
+        // Use raw table
         const sqlQuery = `
           SELECT 
             source,
-            sum(count) as count
-          FROM mv_dashboard_summary
+            count() as count
+          FROM security_events
           WHERE tenant_id = {tenantId:String}
-            AND date >= {startDate:String}
-            AND date <= {endDate:String}
+            AND toDate(timestamp) >= {startDate:String}
+            AND toDate(timestamp) <= {endDate:String}
             ${sourceFilter}
           GROUP BY source
           ORDER BY count DESC
@@ -291,7 +294,7 @@ export const DashboardService = {
     )
   },
 
-  // ==================== INTEGRATION BREAKDOWN ====================
+  // Keep rest of methods unchanged
   async getIntegrationBreakdown(tenantId: string, startDate: string, endDate: string, sources?: string[]) {
     return cached(
       'dashboard:integrations',
@@ -305,19 +308,12 @@ export const DashboardService = {
           SELECT 
             integration_id,
             integration_name,
-            sum(count) as count
-          FROM (
-            SELECT 
-              integration_id,
-              integration_name,
-              count() as count
-            FROM security_events
-            WHERE tenant_id = {tenantId:String}
-              AND toDate(timestamp) >= {startDate:String}
-              AND toDate(timestamp) <= {endDate:String}
-              ${sourceFilter}
-            GROUP BY integration_id, integration_name
-          )
+            count() as count
+          FROM security_events
+          WHERE tenant_id = {tenantId:String}
+            AND toDate(timestamp) >= {startDate:String}
+            AND toDate(timestamp) <= {endDate:String}
+            ${sourceFilter}
           GROUP BY integration_id, integration_name
           ORDER BY count DESC
         `
@@ -331,7 +327,6 @@ export const DashboardService = {
     )
   },
 
-  // ==================== SITE BREAKDOWN ====================
   async getSiteBreakdown(tenantId: string, startDate: string, endDate: string, sources?: string[]) {
     return cached(
       'dashboard:sites',
@@ -368,7 +363,6 @@ export const DashboardService = {
     )
   },
 
-  // Keep other methods unchanged (they don't benefit as much from MVs)
   async getSummaryByIntegration(tenantId: string, integrationId: string, days: number = 7) {
     const endDate = new Date()
     const startDate = new Date()
