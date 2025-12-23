@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Card, Button, Chip, Select, SelectItem, Textarea, Spinner, Modal, ModalContent, ModalHeader, ModalBody, useDisclosure, Avatar, AvatarGroup, Tooltip, Tabs, Tab, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell } from "@heroui/react";
+import { Card, Button, Chip, Select, SelectItem, Textarea, Spinner, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure, Avatar, AvatarGroup, Tooltip, Tabs, Tab, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell } from "@heroui/react";
 import { Icon } from '../../shared/ui';
 import { CasesAPI } from '../../shared/api/cases';
 import { PlaybooksAPI } from '../../shared/api/playbooks';
@@ -137,6 +137,25 @@ export default function CaseDetailPage() {
   };
 
   const { isOpen: isGraphOpen, onOpen: onGraphOpen, onClose: onGraphClose } = useDisclosure();
+  const { isOpen: isSyncOpen, onOpen: onSyncOpen, onClose: onSyncClose } = useDisclosure();
+  const [syncSystem, setSyncSystem] = useState<'jira'|'servicenow'>('jira');
+  const [syncing, setSyncing] = useState(false);
+
+  const handleSyncTicket = async () => {
+      if (!caseItem) return;
+      try {
+          setSyncing(true);
+          await CasesAPI.syncToTicket(caseItem.id, syncSystem, {});
+          onSyncClose();
+          alert(`${syncSystem === 'jira' ? 'Jira' : 'ServiceNow'} ticket created successfully!`);
+          fetchCase();
+      } catch (e) {
+          console.error(e);
+          alert('Failed to create ticket');
+      } finally {
+          setSyncing(false);
+      }
+  };
   
   if (loading) return <div className="flex justify-center p-10"><Spinner /></div>;
   if (!caseItem) return <div className="p-10 text-center">Case not found</div>;
@@ -210,6 +229,9 @@ export default function CaseDetailPage() {
              <Button color="secondary" variant="flat" startContent={<Icon.Global className="w-4 h-4" />} onPress={onGraphOpen}>
                 Graph View
              </Button>
+             <Button variant="bordered" startContent={<Icon.Refresh className="w-4 h-4" />} onPress={onSyncOpen}>
+                Sync
+             </Button>
              <Button 
                 variant="flat" 
                 startContent={!exporting && <Icon.Document className="w-4 h-4" />} 
@@ -251,6 +273,33 @@ export default function CaseDetailPage() {
             <ModalBody className="h-full w-full">
                 {isGraphOpen && <InvestigationGraph caseId={caseItem.id} className="h-full" />}
             </ModalBody>
+        </ModalContent>
+      </Modal>
+
+      {/* Sync Ticket Modal */}
+      <Modal 
+        isOpen={isSyncOpen} 
+        onClose={onSyncClose}
+      >
+        <ModalContent>
+          <ModalHeader>Sync to Ticket System</ModalHeader>
+          <ModalBody className="gap-4">
+             <Select label="System" selectedKeys={[syncSystem]} onChange={(e) => setSyncSystem(e.target.value as 'jira'|'servicenow')}>
+                 <SelectItem key="jira">Jira Software</SelectItem>
+                 <SelectItem key="servicenow">ServiceNow</SelectItem>
+             </Select>
+             
+             {/* Note: Configuration should be loaded from settings, skipping manual config here for better UX */}
+             <div className="p-3 bg-default-100/50 rounded-lg text-sm text-default-500">
+                 Will create a new ticket in the default configured project for this tenant.
+             </div>
+          </ModalBody>
+          <ModalFooter>
+             <Button variant="light" onPress={onSyncClose}>Cancel</Button>
+             <Button color="primary" onPress={handleSyncTicket} isLoading={syncing}>
+                 Create Ticket
+             </Button>
+          </ModalFooter>
         </ModalContent>
       </Modal>
 

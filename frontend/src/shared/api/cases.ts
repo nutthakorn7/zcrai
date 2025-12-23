@@ -75,5 +75,10 @@ export const CasesAPI = {
   deleteComment: async (caseId: string, commentId: string) => {
     const res = await api.delete(`/cases/${caseId}/comments/${commentId}`);
     return res.data;
+  },
+
+  syncToTicket: async (id: string, system: 'jira' | 'servicenow', config: any) => {
+    const res = await api.post(`/cases/${id}/sync`, { system, config });
+    return res.data;
   }
 };
