@@ -324,7 +324,7 @@ export default function EDRActionsPage() {
                   )}
                   <span>{result.message}</span>
                 </div>
-                {result.data && (
+                {!!result.data && (
                   <pre className="bg-content2 p-4 rounded-lg text-sm overflow-auto max-h-64">
                     {JSON.stringify(result.data, null, 2)}
                   </pre>

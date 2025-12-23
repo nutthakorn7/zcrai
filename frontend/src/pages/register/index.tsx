@@ -30,7 +30,8 @@ export default function RegisterPage() {
       await register({ email, password, tenantName });
       alert('Registration successful! Please login.');
       navigate('/login');
-    } catch (err: any) {
+    } catch (error) {
+       const err = error as { response?: { data?: { error?: string } } };
       setError(err.response?.data?.error || 'Registration failed');
     } finally {
       setIsLoading(false);

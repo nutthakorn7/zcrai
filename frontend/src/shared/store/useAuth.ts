@@ -22,8 +22,8 @@ interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (data: any) => Promise<LoginResponse>;
-  register: (data: any) => Promise<void>;
+  login: (data: { email: string; password?: string; mfaCode?: string }) => Promise<LoginResponse>;
+  register: (data: { email: string; password?: string; tenantName: string }) => Promise<void>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
 }

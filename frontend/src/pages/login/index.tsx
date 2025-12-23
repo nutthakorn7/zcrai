@@ -34,7 +34,8 @@ export default function LoginPage() {
       }
       
       navigate('/');
-    } catch (err: any) {
+    } catch (error) {
+       const err = error as { response?: { data?: { error?: string } } };
       setError(err.response?.data?.error || 'Login failed');
     } finally {
       setIsLoading(false);
@@ -64,9 +65,10 @@ export default function LoginPage() {
       } else {
         setError(verifyRes.data.message || 'Passkey authentication failed');
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error('Passkey error:', err);
-      setError(err.message || 'Passkey authentication failed');
+      const e = err as { message?: string }; 
+      setError(e.message || 'Passkey authentication failed');
     } finally {
       setIsLoading(false);
     }
@@ -343,7 +345,7 @@ export default function LoginPage() {
         {/* Footer */}
         {!requireMFA && !isSSO && (
           <div className="mt-8 text-center text-sm text-foreground/60">
-            Don't have an account?{" "}
+            Don&apos;t have an account?{" "}
             <a href="/register" className="text-primary font-bold hover:underline transition-all">
               Create Tenant
             </a>

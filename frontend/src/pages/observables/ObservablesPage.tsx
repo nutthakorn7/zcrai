@@ -15,6 +15,7 @@ const IOC_TYPE_COLORS: Record<string, string> = {
   file: 'default',
 };
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const IOC_TYPE_ICONS: Record<string, any> = {
   ip: Icon.Global,
   domain: Icon.Global,
@@ -143,7 +144,7 @@ export default function ObservablesPage() {
         return (
           <div className="flex items-center gap-2">
             <TypeIcon className="w-4 h-4" />
-            <Chip size="sm" color={IOC_TYPE_COLORS[observable.type] as any} variant="flat" className="capitalize">
+            <Chip size="sm" color={IOC_TYPE_COLORS[observable.type] as "primary" | "secondary" | "success" | "warning" | "danger" | "default"} variant="flat" className="capitalize">
               {observable.type}
             </Chip>
           </div>
@@ -357,17 +358,17 @@ export default function ObservablesPage() {
                         </div>
                         <div className="flex-1">
                              <h3 className="text-sm font-medium text-foreground/70 mb-2">Type Distribution</h3>
-                             <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-                                 {typeDistribution.slice(0, 4).map(t => (
-                                     <div key={t.name} className="flex items-center justify-between text-xs">
-                                         <div className="flex items-center gap-1.5">
-                                             <div className={`w-2 h-2 rounded-full bg-${IOC_TYPE_COLORS[t.name] || 'default'}-500`} />
-                                             <span className="capitalize opacity-70">{t.name}</span>
-                                         </div>
-                                         <span className="font-mono">{t.value}</span>
-                                     </div>
-                                 ))}
-                             </div>
+                              <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                                  {typeDistribution.slice(0, 4).map(t => (
+                                      <div key={t.name} className="flex items-center justify-between text-xs">
+                                          <div className="flex items-center gap-1.5">
+                                              <div className={`w-2 h-2 rounded-full bg-${IOC_TYPE_COLORS[t.name] || 'default'}-500`} />
+                                              <span className="capitalize opacity-70">{t.name}</span>
+                                          </div>
+                                          <span className="font-mono">{t.value}</span>
+                                      </div>
+                                  ))}
+                              </div>
                         </div>
                     </CardBody>
                 </Card>

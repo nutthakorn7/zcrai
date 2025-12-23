@@ -7,7 +7,7 @@ import {
 } from "@heroui/react";
 import { Icon } from '../../shared/ui';
 import { Playbook, PlaybookStep, PlaybooksAPI, Action, PlaybookExecution } from '../../shared/api/playbooks';
-import { CasesAPI } from '../../shared/api/cases';
+import { CasesAPI, Case } from '../../shared/api/cases';
 
 interface PlaybookEditorProps {
     playbook: Playbook;
@@ -24,7 +24,7 @@ export default function PlaybookEditor({ playbook, onClose, onUpdate, onDelete }
     
     // Test Run State
     const [isTestRunOpen, setIsTestRunOpen] = useState(false);
-    const [testCases, setTestCases] = useState<any[]>([]);
+    const [testCases, setTestCases] = useState<Case[]>([]);
     const [selectedCaseId, setSelectedCaseId] = useState('');
     const [isRunning, setIsRunning] = useState(false);
 
@@ -155,6 +155,7 @@ export default function PlaybookEditor({ playbook, onClose, onUpdate, onDelete }
         if (activeTab === 'runs') {
             loadHistory();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeTab]);
 
     return (
@@ -275,7 +276,7 @@ export default function PlaybookEditor({ playbook, onClose, onUpdate, onDelete }
                                                 size="sm" 
                                                 className="w-40"
                                                 selectedKeys={[newStepType]}
-                                                onChange={(e) => setNewStepType(e.target.value as any)}
+                                                onChange={(e) => setNewStepType(e.target.value as 'manual' | 'automation')}
                                             >
                                                 <SelectItem key="manual">Manual</SelectItem>
                                                 <SelectItem key="automation">Automation</SelectItem>
