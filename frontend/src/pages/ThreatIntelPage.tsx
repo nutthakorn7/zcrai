@@ -261,7 +261,7 @@ export default function ThreatIntelPage() {
 
             {/* Sources */}
             <div>
-              <h4 className="font-semibold mb-3">Source Results</h4>
+              <h3 className="font-semibold mb-3">Source Results</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {result.sources.map((source) => (
                   <Card key={source.name} className="bg-content2">
@@ -307,7 +307,7 @@ export default function ThreatIntelPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {result.tags.length > 0 && (
                     <div>
-                      <h4 className="font-semibold mb-3">Tags</h4>
+                      <h3 className="font-semibold mb-3">Tags</h3>
                       <div className="flex flex-wrap gap-2">
                         {result.tags.map((tag) => (
                           <Chip key={tag} size="sm" variant="flat">{tag}</Chip>
@@ -317,7 +317,7 @@ export default function ThreatIntelPage() {
                   )}
                   {result.malwareFamilies.length > 0 && (
                     <div>
-                      <h4 className="font-semibold mb-3">Malware Families</h4>
+                      <h3 className="font-semibold mb-3">Malware Families</h3>
                       <div className="flex flex-wrap gap-2">
                         {result.malwareFamilies.map((family) => (
                           <Chip key={family} size="sm" color="danger" variant="flat">{family}</Chip>

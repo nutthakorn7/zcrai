@@ -320,7 +320,7 @@ export function AlertDetailDrawer({ alert, isOpen, onClose, onPromote, onDismiss
                                                 <div className="flex justify-between items-start mb-2">
                                                     <div>
                                                         <div className="flex items-center gap-2">
-                                                            <h4 className="font-bold text-blue-100">{param.title}</h4>
+                                                            <h3 className="font-bold text-blue-100">{param.title}</h3>
                                                             <Chip size="sm" variant="flat" color="primary" className="h-5 text-[10px]">
                                                                 {param.matchScore}% MATCH
                                                             </Chip>

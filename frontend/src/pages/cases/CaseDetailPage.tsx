@@ -401,14 +401,14 @@ export default function CaseDetailPage() {
 
                         {/* Summary */}
                         <div className="prose prose-invert prose-sm max-w-none max-h-60 overflow-y-auto">
-                             <h4 className="text-sm font-semibold text-gray-300 m-0 mb-2">Executive Summary</h4>
+                             <h3 className="text-sm font-semibold text-gray-300 m-0 mb-2">Executive Summary</h3>
                              <Markdown remarkPlugins={[remarkGfm]}>{aiResult.summary}</Markdown>
                         </div>
 
                          {/* Evidence Analysis */}
                         {aiResult.evidence_analysis && (
                             <div className="prose prose-invert prose-sm max-w-none max-h-60 overflow-y-auto border-t border-white/10 pt-2">
-                                <h4 className="text-sm font-semibold text-gray-300 m-0 mb-2">Evidence Analysis</h4>
+                                <h3 className="text-sm font-semibold text-gray-300 m-0 mb-2">Evidence Analysis</h3>
                                 <Markdown remarkPlugins={[remarkGfm]}>{aiResult.evidence_analysis}</Markdown>
                             </div>
                         )}
@@ -422,7 +422,7 @@ export default function CaseDetailPage() {
                 {aiSuggestion && (
                     <div className="mt-4 border-t border-white/10 pt-4">
                         <div className="flex items-center gap-2 mb-2">
-                             <h4 className="text-sm font-semibold text-gray-300">Recommended Action</h4>
+                             <h3 className="text-sm font-semibold text-gray-300">Recommended Action</h3>
                              <Chip size="sm" color="warning" variant="flat">{aiSuggestion.confidence}% Confidence</Chip>
                         </div>
                         <div className="bg-white/5 p-3 rounded-lg border border-white/10">

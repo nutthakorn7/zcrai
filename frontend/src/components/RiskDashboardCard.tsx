@@ -178,7 +178,7 @@ export function RiskDashboardCard() {
         {/* Trend Prediction Chart */}
         <div>
           <div className="flex justify-between items-center mb-2">
-            <h4 className="text-sm font-medium">7-Day Prediction</h4>
+            <h3 className="text-sm font-medium">7-Day Prediction</h3>
             <Chip size="sm" color={prediction.predictedChange > 0 ? 'danger' : 'success'} variant="flat">
               {prediction.predictedChange > 0 ? '+' : ''}{prediction.predictedChange}%
             </Chip>

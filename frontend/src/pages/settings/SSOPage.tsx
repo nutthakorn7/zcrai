@@ -137,7 +137,7 @@ export default function SSOPage() {
                 
                 {provider === 'generic-oidc' && (
                     <div className="space-y-4 p-4 bg-default-50 rounded-lg border border-default-200">
-                         <h4 className="text-sm font-semibold text-default-600">Advanced Endpoint Configuration</h4>
+                         <h3 className="text-sm font-semibold text-default-600">Advanced Endpoint Configuration</h3>
                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <Input label="Authorization Endpoint" value={authEndpoint} onValueChange={setAuthEndpoint} size="sm" />
                             <Input label="Token Endpoint" value={tokenEndpoint} onValueChange={setTokenEndpoint} size="sm" />
@@ -165,7 +165,7 @@ export default function SSOPage() {
           <CardBody className="p-4 flex gap-4">
               <Icon.Info className="w-6 h-6 text-default-400 mt-1" />
               <div className="text-sm text-default-500">
-                  <h4 className="font-semibold text-default-700 mb-1">Callback URL</h4>
+                  <h3 className="font-semibold text-default-700 mb-1">Callback URL</h3>
                   <p className="mb-2">Add this URL to your Identity Provider&apos;s allowed redirect URIs:</p>
                   <code className="px-2 py-1 bg-default-200 rounded text-default-800 font-mono">
                       https://app.zcr.ai/api/auth/sso/callback

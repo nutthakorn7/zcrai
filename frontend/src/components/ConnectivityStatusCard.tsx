@@ -70,7 +70,7 @@ export function ConnectivityStatusCard({ integrations }: ConnectivityStatusCardP
                         <img src={getLogo(item.provider)} alt={item.provider} className="w-6 h-6 object-contain" />
                     </div>
                     <div className="flex-1">
-                        <h4 className="font-semibold text-sm capitalize">{item.provider === 'aws-cloudtrail' ? 'AWS CloudTrail' : item.provider}</h4>
+                        <h3 className="font-semibold text-sm capitalize">{item.provider === 'aws-cloudtrail' ? 'AWS CloudTrail' : item.provider}</h3>
                         <div className="flex items-center gap-2 mt-1">
                             <div className={`w-2 h-2 rounded-full ${item.status === 'active' ? 'bg-success animate-pulse' : 'bg-default-400'}`} />
                             <span className="text-xs opacity-90 capitalize">{item.status}</span>

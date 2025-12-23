@@ -247,7 +247,7 @@ export default function PlaybooksPage() {
                 />
                 
                 <div className="border border-white/10 rounded-lg p-4 mt-2">
-                  <h4 className="border-b border-white/10 pb-2 mb-3 text-sm font-semibold">Steps Definition</h4>
+                  <h3 className="border-b border-white/10 pb-2 mb-3 text-sm font-semibold">Steps Definition</h3>
                   
                   {/* Step List */}
                   <div className="flex flex-col gap-2 mb-4">

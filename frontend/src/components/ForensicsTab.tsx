@@ -331,7 +331,7 @@ export function ForensicsTab({ caseId }: ForensicsTabProps) {
       {/* Findings */}
       <Card className="bg-content1/50 border border-white/5">
         <CardBody className="p-6">
-          <h4 className="font-semibold mb-4">Security Findings</h4>
+          <h3 className="font-semibold mb-4">Security Findings</h3>
           <div className="space-y-3">
             {analysis.findings.map((finding, idx) => (
               <div 

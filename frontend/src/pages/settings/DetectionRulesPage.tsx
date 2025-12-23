@@ -233,9 +233,9 @@ export default function DetectionRulesPage() {
                   </div>
 
                   <div className="p-4 bg-default-100 rounded-lg space-y-4">
-                      <h4 className="text-sm font-bold flex items-center gap-2">
+                      <h3 className="text-sm font-bold flex items-center gap-2">
                           <Icon.Cpu className="w-4 h-4 text-warning"/> Automation Actions
-                      </h4>
+                      </h3>
                       
                       {/* Auto Case Toggle */}
                       <div className="flex items-center justify-between">

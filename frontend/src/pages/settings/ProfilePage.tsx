@@ -242,7 +242,7 @@ export default function ProfilePage() {
                       <Divider className="bg-white/10" />
 
                       <div className="space-y-4">
-                          <h4 className="text-sm font-semibold">Change Password</h4>
+                          <h3 className="text-sm font-semibold">Change Password</h3>
                           <div className="grid grid-cols-2 gap-4">
                               <Input label="Current Password" type="password" value={currentPassword} onValueChange={setCurrentPassword} variant="bordered" />
                               <div className="col-span-1"></div> {/* Spacer */}

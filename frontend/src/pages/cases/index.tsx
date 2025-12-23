@@ -506,9 +506,9 @@ export default function CaseBoardPage() {
                                 )}
                               </div>
                               
-                              <h4 className="font-semibold text-sm leading-tight text-foreground/90 group-hover:text-primary transition-colors line-clamp-2">
+                              <h3 className="font-semibold text-sm leading-tight text-foreground/90 group-hover:text-primary transition-colors line-clamp-2">
                                 {c.title}
-                              </h4>
+                              </h3>
                               
                               <div className="flex justify-between items-center pt-3 mt-1 border-t border-white/5">
                                 <div className="flex items-center gap-2">

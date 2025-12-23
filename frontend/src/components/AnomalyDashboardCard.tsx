@@ -257,7 +257,7 @@ export function AnomalyDashboardCard() {
         {/* Anomaly List */}
         <div className="space-y-3">
           <div className="flex justify-between items-center">
-            <h4 className="font-medium text-sm">Monitored Metrics</h4>
+            <h3 className="font-medium text-sm">Monitored Metrics</h3>
             {anomalies.length > 4 && (
               <Button 
                 size="sm" 

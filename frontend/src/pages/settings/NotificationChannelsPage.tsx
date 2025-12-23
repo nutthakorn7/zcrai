@@ -319,7 +319,7 @@ export default function NotificationChannelsPage() {
                 <Divider />
                 
                 <div className="space-y-4">
-                    <h4 className="text-sm font-semibold">Notification Rules</h4>
+                    <h3 className="text-sm font-semibold">Notification Rules</h3>
                     <Select 
                         label="Minimum Severity" 
                         selectedKeys={[minSeverity]} 

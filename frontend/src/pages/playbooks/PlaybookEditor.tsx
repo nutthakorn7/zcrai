@@ -261,7 +261,7 @@ export default function PlaybookEditor({ playbook, onClose, onUpdate, onDelete }
                             {/* Add Button */}
                             <div className="flex justify-center flex-col items-center gap-4">
                                 <Card className="w-full max-w-lg border border-white/10 bg-content1/50 p-4">
-                                    <h4 className="text-sm font-semibold mb-3">Add Step</h4>
+                                    <h3 className="text-sm font-semibold mb-3">Add Step</h3>
                                     <div className="flex flex-col gap-3">
                                         <div className="flex gap-2">
                                             <Input 

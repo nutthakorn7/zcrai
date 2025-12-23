@@ -234,7 +234,7 @@ export default function DashboardBuilder({ onClose, onSave }: DashboardBuilderPr
                           <Icon.Chart className="w-5 h-5 text-primary" />
                         </div>
                         <div>
-                          <h4 className="font-semibold text-sm">{widget.name}</h4>
+                          <h3 className="font-semibold text-sm">{widget.name}</h3>
                           <p className="text-xs text-default-400">{widget.defaultW}x{widget.defaultH}</p>
                         </div>
                       </div>

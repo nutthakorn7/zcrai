@@ -116,7 +116,7 @@ export function FPTuningCard() {
         {/* Recommendations */}
         {recommendations.length > 0 && (
           <div className="space-y-2">
-            <h4 className="text-sm font-medium">AI Recommendations</h4>
+            <h3 className="text-sm font-medium">AI Recommendations</h3>
             {recommendations.map((rec, i) => (
               <div key={i} className="flex gap-2 p-2 rounded-lg bg-warning/10 border border-warning/20">
                 <Icon.Lightbulb className="w-4 h-4 text-warning shrink-0 mt-0.5" />
@@ -129,7 +129,7 @@ export function FPTuningCard() {
         {/* Top FP Patterns */}
         {topFPPatterns.length > 0 && (
           <div className="space-y-2">
-            <h4 className="text-sm font-medium">High FP Rate Rules</h4>
+            <h3 className="text-sm font-medium">High FP Rate Rules</h3>
             {topFPPatterns.slice(0, 3).map((pattern, i) => (
               <div key={i} className="flex items-center justify-between p-2 rounded-lg bg-content2/50">
                 <div className="flex items-center gap-2">

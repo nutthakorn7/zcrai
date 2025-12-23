@@ -122,7 +122,7 @@ export function AlertDetailModal({ alert, isOpen, onClose }: AlertDetailModalPro
               {/* Alert Details */}
               <Card className="bg-content2/50 border border-white/5 mb-4">
                 <CardBody className="p-4">
-                  <h4 className="text-sm font-semibold mb-2">Description</h4>
+                  <h3 className="text-sm font-semibold mb-2">Description</h3>
                   <p className="text-sm text-foreground/80">{alert.description}</p>
                   
                   <Divider className="my-3" />
@@ -160,7 +160,7 @@ export function AlertDetailModal({ alert, isOpen, onClose }: AlertDetailModalPro
                 <Card className="bg-content2/50 border border-white/5 mb-4">
                   <CardHeader className="border-b border-white/5 px-4 py-3 flex gap-2">
                     <Icon.Search className="w-5 h-5 text-primary" />
-                    <h4 className="text-sm font-semibold">Automated Investigation Report</h4>
+                    <h3 className="text-sm font-semibold">Automated Investigation Report</h3>
                     <Chip size="sm" variant="flat" color="primary">AI Findings</Chip>
                   </CardHeader>
                   <CardBody className="p-4">
@@ -179,7 +179,7 @@ export function AlertDetailModal({ alert, isOpen, onClose }: AlertDetailModalPro
                   <div className="flex items-center justify-between w-full">
                     <div className="flex items-center gap-2">
                       <Icon.Signal className="w-5 h-5 text-warning" />
-                      <h4 className="text-sm font-semibold">Related Alerts</h4>
+                      <h3 className="text-sm font-semibold">Related Alerts</h3>
                       {correlations.length > 0 && (
                         <Chip size="sm" variant="flat" color="warning">
                           {correlations.reduce((acc, c) => acc + (c.relatedAlerts?.length || 0), 0)} correlated

@@ -282,7 +282,7 @@ export function InvestigationGraph({ caseId, alertId, className }: Investigation
                   <Icon.Close className="w-4 h-4" />
                 </Button>
               </div>
-              <h4 className="font-medium mb-2">{selectedNode.label}</h4>
+              <h3 className="font-medium mb-2">{selectedNode.label}</h3>
               {showMitre && selectedNode.mitreTactic && (
                   <div className="mb-2">
                       <Chip size="sm" color="danger" variant="flat" className="text-[10px] w-full">{selectedNode.mitreTactic}</Chip>
