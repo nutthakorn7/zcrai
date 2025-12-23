@@ -27,10 +27,12 @@ export default function UserPage() {
 
   const fetchUsers = async () => {
     try {
-      const { data } = await api.get('/users');
-      setUsers(data.data);
+      const response = await api.get('/users');
+      // API returns: { success, data: { data: [...users], pagination: {...} } }
+      const users = response.data?.data?.data || response.data?.data || [];
+      setUsers(Array.isArray(users) ? users : []);
     } catch (error) {
-      console.error('Failed to fetch users');
+      console.error('Failed to fetch users', error);
     }
   };
 
