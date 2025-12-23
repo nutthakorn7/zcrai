@@ -38,8 +38,9 @@ export default function TenantPage() {
       fetchTenants();
       onClose();
       setName('');
-    } catch (error: any) {
-      alert(error.response?.data?.error || 'Failed to create tenant');
+    } catch (error) {
+       const err = error as { response?: { data?: { error?: string } } };
+      alert(err.response?.data?.error || 'Failed to create tenant');
     } finally {
       setIsLoading(false);
     }

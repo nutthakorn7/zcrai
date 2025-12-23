@@ -143,7 +143,7 @@ export default function RetentionSettingsPage() {
               <h4 className="font-semibold text-warning-700">Warning: Permanent Deletion</h4>
               <p className="text-sm text-default-600 mt-1">
                 Data removed by the cleanup job cannot be recovered. 
-                Ensure your retention periods comply with your organization's legal requirements (e.g., ISO 27001 requires audit logs &gt; 90 days).
+                Ensure your retention periods comply with your organization&apos;s legal requirements (e.g., ISO 27001 requires audit logs &gt; 90 days).
               </p>
             </div>
           </div>

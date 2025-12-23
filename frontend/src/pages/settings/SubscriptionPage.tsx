@@ -3,8 +3,25 @@ import { Card, CardBody, CardHeader, Button, Progress, Chip } from "@heroui/reac
 import { Icon } from '../../shared/ui';
 import { BillingAPI } from '../../shared/api/billing';
 
+interface SubscriptionData {
+  subscription: {
+    tier: 'free' | 'pro' | 'enterprise';
+    status: 'active' | 'inactive' | 'cancelled';
+    currentPeriodEnd?: string;
+    limits: {
+      maxUsers: number | null;
+      maxDataVolumeGB: number | null;
+      maxRetentionDays: number;
+    };
+  };
+  usage: {
+    users: number;
+    dataVolumeGB: number;
+  };
+}
+
 export default function SubscriptionPage() {
-    const [data, setData] = useState<any>(null);
+    const [data, setData] = useState<SubscriptionData | null>(null);
     const [loading, setLoading] = useState(true);
 
     const fetchData = async () => {
@@ -42,8 +59,8 @@ export default function SubscriptionPage() {
     const { subscription, usage } = data;
     const limits = subscription.limits;
 
-    const userPercent = (usage.users / limits.maxUsers) * 100;
-    const dataPercent = (usage.dataVolumeGB / limits.maxDataVolumeGB) * 100;
+    const userPercent = limits.maxUsers ? (usage.users / limits.maxUsers) * 100 : 0;
+    const dataPercent = limits.maxDataVolumeGB ? (usage.dataVolumeGB / limits.maxDataVolumeGB) * 100 : 0;
 
     return (
         <div className="p-6 h-screen overflow-y-auto animate-fade-in">
@@ -149,7 +166,16 @@ export default function SubscriptionPage() {
     );
 }
 
-const PlanCard = ({ title, price, features, featured, current, onSelect }: any) => (
+interface PlanCardProps {
+    title: string;
+    price: string;
+    features: string[];
+    featured?: boolean;
+    current?: boolean;
+    onSelect: () => void;
+}
+
+const PlanCard = ({ title, price, features, featured, current, onSelect }: PlanCardProps) => (
     <Card className={`border ${featured ? 'border-primary' : 'border-white/10'} bg-white/5`}>
         <CardHeader className="pb-0 pt-6 px-6 flex-col items-start gap-2">
              <h4 className="font-bold text-2xl">{title}</h4>

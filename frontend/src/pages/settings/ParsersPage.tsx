@@ -10,10 +10,16 @@ interface Parser {
   description?: string;
   type: 'regex' | 'grok' | 'json_path';
   pattern: string;
-  fieldMappings?: any;
+  fieldMappings?: Record<string, string>;
   testInput?: string;
   isActive: boolean;
   createdAt: string;
+}
+
+interface ParserTestResult {
+  success: boolean;
+  data?: any;
+  error?: string;
 }
 
 export default function ParsersPage() {
@@ -22,7 +28,7 @@ export default function ParsersPage() {
   const { isOpen, onOpen, onClose } = useDisclosure();
   const { isOpen: isTestOpen, onOpen: onTestOpen, onClose: onTestClose } = useDisclosure();
   const [editingParser, setEditingParser] = useState<Parser | null>(null);
-  const [testResult, setTestResult] = useState<any>(null);
+  const [testResult, setTestResult] = useState<ParserTestResult | null>(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -60,8 +66,9 @@ export default function ParsersPage() {
       onClose();
       fetchParsers();
       resetForm();
-    } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Operation failed');
+    } catch (error) {
+      const err = error as { response?: { data?: { error?: string } } };
+      toast.error(err.response?.data?.error || 'Operation failed');
     }
   };
 
@@ -200,7 +207,7 @@ export default function ParsersPage() {
               <Select
                 label="Parser Type"
                 selectedKeys={[formData.type]}
-                onSelectionChange={(keys) => setFormData({ ...formData, type: Array.from(keys)[0] as any })}
+                onSelectionChange={(keys) => setFormData({ ...formData, type: Array.from(keys)[0] as 'regex' | 'grok' | 'json_path' })}
               >
                 <SelectItem key="regex">Regex</SelectItem>
                 <SelectItem key="json_path">JSON Path</SelectItem>

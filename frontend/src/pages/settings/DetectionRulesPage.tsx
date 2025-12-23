@@ -7,7 +7,7 @@ import { MitreHeatmap } from '../../components/MitreHeatmap';
 export default function DetectionRulesPage() {
   const [rules, setRules] = useState<DetectionRule[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<any>("manage");
+  const [activeTab, setActiveTab] = useState<string>("manage");
   
   // Edit State
   const [selectedRule, setSelectedRule] = useState<DetectionRule | null>(null);
@@ -16,7 +16,13 @@ export default function DetectionRulesPage() {
   
   // Test State
   const [isTesting, setIsTesting] = useState(false);
-  const [testResults, setTestResults] = useState<any>(null);
+  interface TestResult {
+    success: boolean;
+    count: number;
+    error?: string;
+    events?: any[];
+  }
+  const [testResults, setTestResults] = useState<TestResult | null>(null);
   
   // AI Generation State
   const [isAiGenerating, setIsAiGenerating] = useState(false);
@@ -51,7 +57,7 @@ export default function DetectionRulesPage() {
           setTestResults(res);
       } catch (e) {
           console.error(e);
-          setTestResults({ success: false, error: 'Failed to execute test query' });
+          setTestResults({ success: false, count: 0, error: 'Failed to execute test query' });
       } finally {
           setIsTesting(false);
       }
@@ -136,7 +142,7 @@ export default function DetectionRulesPage() {
           <p className="text-foreground/60">Manage SIGMA-based detection logic and automation</p>
         </div>
         <div className="flex gap-4 items-center">
-             <Tabs aria-label="View Mode" selectedKey={activeTab} onSelectionChange={setActiveTab}>
+             <Tabs aria-label="View Mode" selectedKey={activeTab} onSelectionChange={(k) => setActiveTab(String(k))}>
                 <Tab key="manage" title="Manage Rules" />
                 <Tab key="coverage" title="Coverage Analysis" />
             </Tabs>
@@ -217,7 +223,7 @@ export default function DetectionRulesPage() {
                   <Textarea label="Description" value={editForm.description} onValueChange={v => setEditForm({...editForm, description: v})} />
                   
                   <div className="grid grid-cols-2 gap-4">
-                      <Select label="Severity" selectedKeys={editForm.severity ? [editForm.severity] : []} onChange={e => setEditForm({...editForm, severity: e.target.value as any})}>
+                      <Select label="Severity" selectedKeys={editForm.severity ? [editForm.severity] : []} onChange={e => setEditForm({...editForm, severity: e.target.value as DetectionRule['severity']})}>
                           <SelectItem key="critical">Critical</SelectItem>
                           <SelectItem key="high">High</SelectItem>
                           <SelectItem key="medium">Medium</SelectItem>
@@ -327,7 +333,7 @@ export default function DetectionRulesPage() {
                           {!testResults.success ? (
                               <div className="text-danger font-mono p-2 bg-danger/10 rounded">{testResults.error}</div>
                           ) : (
-                              testResults.events?.length > 0 && (
+                              testResults.events && testResults.events.length > 0 && (
                                   <div className="overflow-x-auto">
                                       <table className="w-full text-left border-collapse">
                                           <thead>

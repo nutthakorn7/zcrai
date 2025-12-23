@@ -35,7 +35,13 @@ interface ActionLog {
   target: string;
   status: 'success' | 'failed' | 'pending';
   executedBy: string;
-  result?: any;
+  result?: EDRActionResult;
+}
+
+interface EDRActionResult {
+  success: boolean;
+  message: string;
+  data?: unknown;
 }
 
 export default function EDRActionsPage() {
@@ -49,7 +55,7 @@ export default function EDRActionsPage() {
   const [hash, setHash] = useState('');
   const [reason, setReason] = useState('');
   const [executing, setExecuting] = useState(false);
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<EDRActionResult | null>(null);
   const [actionLogs, setActionLogs] = useState<ActionLog[]>([]);
 
   const selectedAction = PROVIDER_ACTIONS[provider]?.find(a => a.key === action);
@@ -120,8 +126,9 @@ export default function EDRActionsPage() {
       }
       
       onOpen(); // Show result modal
-    } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Failed to execute action');
+    } catch (error) {
+       const err = error as { response?: { data?: { error?: string } } };
+      toast.error(err.response?.data?.error || 'Failed to execute action');
     } finally {
       setExecuting(false);
     }

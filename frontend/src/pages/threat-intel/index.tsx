@@ -7,6 +7,30 @@ import {
 import { Icon } from '../../shared/ui';
 import { ThreatIntelAPI } from '../../shared/api/threat-intel';
 
+interface ReputationResult {
+  verdict: 'malicious' | 'suspicious' | 'benign';
+  confidenceScore: number;
+  malwareFamilies: string[];
+  sources: { name: string; found: boolean; risk: string }[];
+}
+
+interface RetroScanResult {
+  found: boolean;
+  count: number;
+  matches: {
+      timestamp: string;
+      host_name: string;
+      host_ip: string;
+      source: string;
+      file_hash?: string;
+      process_sha256?: string;
+      host_domain?: string;
+      user_domain?: string;
+      network_src_ip?: string;
+      network_dst_ip?: string;
+  }[];
+}
+
 export default function ThreatIntelPage() {
   const [activeTab, setActiveTab] = useState('reputation'); // 'reputation' | 'retro'
   
@@ -16,11 +40,11 @@ export default function ThreatIntelPage() {
   
   // Retro Scan State
   const [days, setDays] = useState('90');
-  const [retroResult, setRetroResult] = useState<any>(null);
+  const [retroResult, setRetroResult] = useState<RetroScanResult | null>(null);
   const [isScanning, setIsScanning] = useState(false);
   
   // Reputation State
-  const [repResult, setRepResult] = useState<any>(null);
+  const [repResult, setRepResult] = useState<ReputationResult | null>(null);
   const [isLookup, setIsLookup] = useState(false);
 
   const handleScan = async () => {
@@ -68,7 +92,7 @@ export default function ThreatIntelPage() {
 
             <Card className="bg-white/5 border border-white/5">
                 <CardBody className="flex flex-row gap-4 items-end p-6">
-                    <Select label="IOC Type" className="w-40" selectedKeys={[type]} onChange={(e) => setType(e.target.value as any)}>
+                    <Select label="IOC Type" className="w-40" selectedKeys={[type]} onChange={(e) => setType(e.target.value as 'ip' | 'hash' | 'domain')}>
                         <SelectItem key="ip">IP Address</SelectItem>
                         <SelectItem key="hash">File Hash</SelectItem>
                         <SelectItem key="domain">Domain</SelectItem>
@@ -147,7 +171,7 @@ export default function ThreatIntelPage() {
                                     <TableColumn>RISK</TableColumn>
                                 </TableHeader>
                                 <TableBody>
-                                    {repResult.sources.map((s: any, i: number) => (
+                                    {repResult.sources.map((s, i) => (
                                         <TableRow key={i}>
                                             <TableCell>{s.name}</TableCell>
                                             <TableCell>
@@ -198,7 +222,7 @@ export default function ThreatIntelPage() {
                                         <TableColumn>DETAILS</TableColumn>
                                     </TableHeader>
                                     <TableBody>
-                                        {retroResult.matches.map((match: any, i: number) => (
+                                        {retroResult.matches.map((match, i) => (
                                             <TableRow key={i}>
                                                 <TableCell>{new Date(match.timestamp).toLocaleString()}</TableCell>
                                                 <TableCell>{match.host_name} ({match.host_ip})</TableCell>

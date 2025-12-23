@@ -98,8 +98,7 @@ export function CustomReportTab() {
             }
         });
 
-        // @ts-ignore
-        autoTable(doc, {
+        autoTable(doc as any, {
             startY: 45,
             head: [columns],
             body: rows,

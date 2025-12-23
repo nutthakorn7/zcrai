@@ -166,7 +166,7 @@ export default function SSOPage() {
               <Icon.Info className="w-6 h-6 text-default-400 mt-1" />
               <div className="text-sm text-default-500">
                   <h4 className="font-semibold text-default-700 mb-1">Callback URL</h4>
-                  <p className="mb-2">Add this URL to your Identity Provider's allowed redirect URIs:</p>
+                  <p className="mb-2">Add this URL to your Identity Provider&apos;s allowed redirect URIs:</p>
                   <code className="px-2 py-1 bg-default-200 rounded text-default-800 font-mono">
                       https://app.zcr.ai/api/auth/sso/callback
                   </code>

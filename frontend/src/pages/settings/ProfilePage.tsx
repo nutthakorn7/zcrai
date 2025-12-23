@@ -12,9 +12,23 @@ interface Session {
   device: string; // The backend returns userAgent, we might need to parse or just show it
   ipAddress: string | null;
   userAgent: string | null;
-  createdAt: string;
   lastActive: string;
   isCurrent: boolean;
+}
+
+interface UserProfile {
+  name: string | null;
+  email: string;
+  jobTitle?: string;
+  phoneNumber?: string;
+  bio?: string;
+  emailAlertsEnabled?: boolean;
+  marketingOptIn?: boolean;
+  mfaEnabled: boolean;
+  tenant?: {
+    apiUsage: number;
+    apiLimit: number;
+  };
 }
 
 export default function ProfilePage() {
@@ -47,7 +61,7 @@ export default function ProfilePage() {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const { data } = await api.get('/profile');
+        const { data } = await api.get<UserProfile>('/profile');
         if (data) {
            setName(data.name || data.email.split('@')[0]);
            setEmail(data.email);
@@ -92,8 +106,9 @@ export default function ProfilePage() {
         bio
       });
       alert('Profile updated successfully');
-    } catch (error: any) {
-      alert(error.response?.data?.error || 'Failed to update profile');
+    } catch (error) {
+       const err = error as { response?: { data?: { error?: string } } };
+      alert(err.response?.data?.error || 'Failed to update profile');
     } finally {
       setIsLoading(false);
     }
@@ -125,8 +140,9 @@ export default function ProfilePage() {
       await api.put('/profile/password', { currentPassword, newPassword });
       alert('Password changed successfully. Please login again.');
       await logout();
-    } catch (error: any) {
-      alert(error.response?.data?.error || 'Failed to change password');
+    } catch (error) {
+       const err = error as { response?: { data?: { error?: string } } };
+      alert(err.response?.data?.error || 'Failed to change password');
     } finally {
       setIsLoading(false);
     }

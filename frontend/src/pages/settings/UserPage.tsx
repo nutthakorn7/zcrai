@@ -47,8 +47,9 @@ export default function UserPage() {
       fetchUsers();
       onClose();
       setEmail('');
-    } catch (error: any) {
-      alert(error.response?.data?.error || 'Failed to invite user');
+    } catch (error) {
+       const err = error as { response?: { data?: { error?: string } } };
+      alert(err.response?.data?.error || 'Failed to invite user');
     } finally {
       setIsLoading(false);
     }
