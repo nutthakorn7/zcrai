@@ -304,6 +304,50 @@ export function AlertDetailDrawer({ alert, isOpen, onClose }: AlertDetailDrawerP
                         </div>
                     )}
 
+                    {/* AI Swarm Activity (Option B) */}
+                    {alert.aiAnalysis?.swarmFindings && alert.aiAnalysis.swarmFindings.length > 0 && (
+                        <div>
+                             <h3 className="text-sm font-semibold mb-2 flex items-center gap-2 text-cyan-400">
+                                <Icon.Zap className="w-4 h-4" /> 
+                                <span className="bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent font-bold">
+                                    Agent Swarm Activity
+                                </span>
+                            </h3>
+                            <div className="grid gap-3 mb-6">
+                                {alert.aiAnalysis.swarmFindings.map((finding: any, idx: number) => (
+                                    <div key={idx} className="bg-cyan-950/10 border border-cyan-500/20 rounded-lg p-3 flex items-start gap-3">
+                                        <div className="mt-0.5 p-1.5 bg-cyan-500/10 rounded-full">
+                                            {finding.agent === 'Network' && <Icon.Globe className="w-4 h-4 text-cyan-400" />}
+                                            {finding.agent === 'File' && <Icon.FileCode className="w-4 h-4 text-purple-400" />}
+                                            {finding.agent === 'User' && <Icon.User className="w-4 h-4 text-orange-400" />}
+                                            {finding.agent === 'Manager' && <Icon.Cpu className="w-4 h-4 text-primary" />}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center justify-between mb-1">
+                                                <span className="text-[10px] font-bold text-cyan-200 uppercase tracking-wider">
+                                                    {finding.agent} Agent
+                                                </span>
+                                                {finding.status === 'success' ? (
+                                                    <Icon.CheckCircle className="w-3 h-3 text-green-500" />
+                                                ) : (
+                                                    <Icon.AlertTriangle className="w-3 h-3 text-red-500" />
+                                                )}
+                                            </div>
+                                            <p className="text-sm text-foreground/90 leading-relaxed font-medium">
+                                                {finding.summary}
+                                            </p>
+                                            {finding.data && (
+                                                <div className="mt-2 text-xs text-foreground/50 font-mono bg-black/20 p-2 rounded border border-white/5 overflow-x-auto">
+                                                    {JSON.stringify(finding.data, null, 2)}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                     {/* AI Investigation */}
                      {alert.aiAnalysis?.investigationReport && (
                         <div>
