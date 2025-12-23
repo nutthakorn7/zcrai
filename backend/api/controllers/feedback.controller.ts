@@ -1,6 +1,6 @@
 import { Elysia, t } from 'elysia'
 import { withAuth } from '../middleware/auth'
-import { AIFeedbackService } from '../core/services/ai-feedback.service'
+import { FeedbackService } from '../core/services/feedback.service'
 
 export const feedbackController = new Elysia({ prefix: '/feedback' })
   .use(withAuth)
@@ -10,25 +10,28 @@ export const feedbackController = new Elysia({ prefix: '/feedback' })
    * @route POST /feedback/:alertId
    */
   .post('/:alertId', async ({ user, params: { alertId }, body }: any) => {
-    const feedback = await AIFeedbackService.submitFeedback(
-      user.tenantId, 
-      alertId, 
-      user.id, 
-      body
-    )
+    const feedback = await FeedbackService.submitFeedback({
+      alertId,
+      userId: user.id,
+      feedback: body.feedback,
+      reason: body.reason,
+      shouldReopen: body.shouldReopen
+    })
     return { success: true, data: feedback }
   }, {
     body: t.Object({
-      rating: t.Integer(), // 1, 0, -1
-      comment: t.Optional(t.String())
+      feedback: t.Union([t.Literal('correct'), t.Literal('incorrect')]),
+      reason: t.Optional(t.String()),
+      shouldReopen: t.Optional(t.Boolean())
     })
   })
 
   /**
    * Get ROI Stats
    * @route GET /feedback/stats
+   * @deprecated Use Dashboard API
    */
   .get('/stats', async ({ user }: any) => {
-    const stats = await AIFeedbackService.getROIStats(user.tenantId)
-    return { success: true, data: stats }
+    // Deprecated for now, moving metrics to dashboard
+    return { success: true, data: {} }
   })

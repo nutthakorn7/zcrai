@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState } from 'react';
 import ForceGraph2D from 'react-force-graph-2d';
-import { Card, CardBody, Button } from "@heroui/react";
+import { Card, CardBody, Button, Spinner } from "@heroui/react";
 import { Icon } from '../../../shared/ui';
 import ReactMarkdown from 'react-markdown';
 
@@ -26,10 +26,17 @@ const MOCK_DATA = {
   ]
 };
 
-export function InvestigationGraphWidget() {
+interface InvestigationGraphWidgetProps {
+  alertId?: string;
+  className?: string;
+}
+
+export function InvestigationGraphWidget({ alertId, className }: InvestigationGraphWidgetProps) {
   const fgRef = useRef<any>();
   const [dimensions, setDimensions] = useState({ w: 800, h: 400 });
   const containerRef = useRef<HTMLDivElement>(null);
+  const [graphData, setGraphData] = useState<any>(MOCK_DATA);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     // Responsive Resize
@@ -47,6 +54,72 @@ export function InvestigationGraphWidget() {
 
     return () => window.removeEventListener('resize', updateSize);
   }, []);
+
+  // Fetch Real Graph Data if alertId is present
+  useEffect(() => {
+    if (alertId) {
+        loadGraphData();
+    }
+  }, [alertId]);
+
+  const loadGraphData = async () => {
+    if (!alertId) return;
+    try {
+        setLoading(true);
+        // Dynamic import to avoid circular dep issues if any, or just standard import
+        const { api } = await import('../../../shared/api/api');
+        const res = await api.get(`/graph/alert/${alertId}`);
+        if(res.data.success) {
+            // Transform backend data to react-force-graph format if needed
+            // Currently backend returns { nodes: [], edges: [] }
+            // ForceGraph expects { nodes, links }
+            const { nodes, edges } = res.data.data;
+            const formattedData = {
+                nodes: nodes.map((n: any) => ({
+                    ...n,
+                    val: n.type === 'alert' ? 20 : 10,
+                    color: getEntityColor(n.type),
+                    icon: getEntityIcon(n.type)
+                })),
+                links: edges.map((e: any) => ({
+                    source: e.source,
+                    target: e.target,
+                    label: e.label,
+                    value: 2
+                }))
+            };
+            setGraphData(formattedData);
+        }
+    } catch (error) {
+        console.error('Failed to load graph:', error);
+    } finally {
+        setLoading(false);
+    }
+  };
+  
+  const getEntityColor = (type: string) => {
+      switch(type) {
+          case 'alert': return '#ef4444'; // Red
+          case 'ip': return '#f97316'; // Orange
+          case 'host': return '#3b82f6'; // Blue
+          case 'user': return '#22c55e'; // Green
+          case 'file': return '#a855f7'; // Purple
+          case 'hash': return '#a855f7';
+          default: return '#71717a'; // Gray
+      }
+  };
+
+  const getEntityIcon = (type: string) => {
+      switch(type) {
+          case 'alert': return 'AlertTriangle';
+          case 'ip': return 'Globe';
+          case 'host': return 'Monitor';
+          case 'user': return 'User';
+          case 'file': return 'File';
+          case 'hash': return 'FileCode';
+          default: return 'Circle';
+      }
+  };
 
   /* AI Analysis State */
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -77,7 +150,7 @@ export function InvestigationGraphWidget() {
   };
 
   return (
-    <Card className="bg-content1/50 border border-white/5 w-full h-[450px]">
+    <Card className={`bg-content1/50 border border-white/5 w-full h-[450px] ${className || ''}`}>
         <div className="absolute top-4 right-4 z-10 flex gap-2">
             <Button 
                 size="sm" 
@@ -97,6 +170,13 @@ export function InvestigationGraphWidget() {
                 <Icon.Refresh className="w-4 h-4" />
             </Button>
         </div>
+
+        {/* Loading State */}
+        {loading && (
+            <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+                <Spinner color="primary" label="Building Investigation Graph..." />
+            </div>
+        )}
 
         {/* AI Result Overlay */}
         {analysisResult && (
@@ -120,7 +200,7 @@ export function InvestigationGraphWidget() {
                 ref={fgRef}
                 width={dimensions.w}
                 height={dimensions.h}
-                graphData={MOCK_DATA}
+                graphData={graphData}
                 backgroundColor="rgba(0,0,0,0)" // Transparent
                 nodeLabel="label"
                 nodeColor={node => (node as any).color}

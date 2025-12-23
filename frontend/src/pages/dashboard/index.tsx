@@ -32,6 +32,7 @@ import { TopStatsWidget } from './widgets/TopStatsWidget';
 import { MitreHeatmapWidget } from './widgets/MitreHeatmapWidget';
 import { InvestigationGraphWidget } from './widgets/InvestigationGraphWidget';
 import { AIMetricsWidget } from './widgets/AIMetricsWidget';
+import { AccuracyWidget } from './widgets/AccuracyWidget';
 
 // Import logos
 import sentineloneLogo from '../../assets/logo/sentinelone.png';
@@ -778,8 +779,14 @@ export default function DashboardPage() {
       </div>
 
       {/* AI SOC Performance Metrics */}
-      <div className="mb-8 animate-fade-in">
-        <AIMetricsWidget />
+      {/* AI SOC Performance Metrics & Accuracy */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-8 animate-fade-in">
+        <div className="md:col-span-2">
+            <AIMetricsWidget />
+        </div>
+        <div>
+            <AccuracyWidget />
+        </div>
       </div>
 
       {/* Main Grid: Recent Detections, Hosts, Users */}

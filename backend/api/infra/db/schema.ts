@@ -323,6 +323,12 @@ export const alerts = pgTable('alerts', {
   aiAnalysis: jsonb('ai_analysis'), // { score: number, classification: string, reasoning: string }
   aiTriageStatus: text('ai_triage_status').default('pending'), // 'pending', 'processed', 'failed'
   
+  // Phase 4: Analyst Feedback Loop
+  userFeedback: text('user_feedback'), // 'correct', 'incorrect'
+  feedbackReason: text('feedback_reason'), // Reason for 'incorrect' verdict
+  feedbackBy: uuid('feedback_by').references(() => users.id), // User who provided feedback
+  feedbackAt: timestamp('feedback_at'),
+  
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => {

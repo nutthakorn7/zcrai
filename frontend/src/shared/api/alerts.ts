@@ -50,6 +50,11 @@ export interface Alert {
     }>;
   };
   aiTriageStatus?: 'pending' | 'processed' | 'failed';
+  
+  // Phase 4: Analyst Feedback Loop
+  userFeedback?: 'correct' | 'incorrect';
+  feedbackReason?: string;
+  feedbackBy?: string;
 }
 
 export interface AlertCorrelation {
@@ -106,6 +111,12 @@ export const AlertsAPI = {
 
   dismiss: async (id: string, reason: string) => {
     const response = await api.patch(`/alerts/${id}/dismiss`, { reason });
+    return response.data.data as Alert;
+  },
+
+  // Feedback API
+  feedback: async (id: string, data: { feedback: 'correct' | 'incorrect'; reason?: string; shouldReopen?: boolean }) => {
+    const response = await api.post(`/feedback/${id}`, data);
     return response.data.data as Alert;
   },
 

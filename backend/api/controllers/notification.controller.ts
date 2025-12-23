@@ -81,3 +81,56 @@ export const notificationController = new Elysia({ prefix: '/notifications' })
     await NotificationService.updateRule(user.id || '', ctx.params.id, ctx.body)
     return { success: true }
   })
+
+  // --- Channel Management (Slack / Teams) ---
+
+  /**
+   * List notification channels
+   */
+  .get('/channels', async (ctx: any) => {
+      const user = ctx.user as JWTUserPayload;
+      const { NotificationChannelService } = await import('../core/services/notification-channel.service');
+      const channels = await NotificationChannelService.list(user.tenantId);
+      return { success: true, data: channels };
+  })
+
+  /**
+   * Create notification channel
+   */
+  .post('/channels', async (ctx: any) => {
+      const user = ctx.user as JWTUserPayload;
+      const { name, type, webhookUrl, minSeverity, eventTypes } = ctx.body;
+      const { NotificationChannelService } = await import('../core/services/notification-channel.service');
+      const channel = await NotificationChannelService.create(user.tenantId, { name, type, webhookUrl, minSeverity, eventTypes });
+      return { success: true, data: channel };
+  })
+
+  /**
+   * Update notification channel
+   */
+  .put('/channels/:id', async (ctx: any) => {
+      const user = ctx.user as JWTUserPayload;
+      const { NotificationChannelService } = await import('../core/services/notification-channel.service');
+      const updated = await NotificationChannelService.update(ctx.params.id, user.tenantId, ctx.body);
+      return { success: true, data: updated };
+  })
+
+  /**
+   * Delete notification channel
+   */
+  .delete('/channels/:id', async (ctx: any) => {
+      const user = ctx.user as JWTUserPayload;
+      const { NotificationChannelService } = await import('../core/services/notification-channel.service');
+      await NotificationChannelService.delete(ctx.params.id, user.tenantId);
+      return { success: true };
+  })
+
+  /**
+   * Test notification channel
+   */
+  .post('/channels/test', async (ctx: any) => {
+      const { type, webhookUrl } = ctx.body;
+      const { NotificationChannelService } = await import('../core/services/notification-channel.service');
+      const result = await NotificationChannelService.testWebhook(webhookUrl, type);
+      return { success: result };
+  })

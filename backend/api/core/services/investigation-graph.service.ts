@@ -264,21 +264,110 @@ export const InvestigationGraphService = {
     });
     nodeSet.add(alertNodeId);
 
-    // Extract entities
+    // Extract entities from current alert
     const rawData = alert.rawData as Record<string, any> || {};
-    
     const ips = this.extractIPs(rawData);
+    const hosts = this.extractHosts(rawData);
+    const users = this.extractUsers(rawData);
+    const hashes = this.extractHashes(rawData);
+
+    // Add Entity Nodes
     for (const ip of ips) {
-      const ipNodeId = `ip-${ip}`;
-      nodes.push({ id: ipNodeId, type: 'ip', label: ip, properties: { value: ip } });
-      edges.push({ id: `e-${alertNodeId}-${ipNodeId}`, source: alertNodeId, target: ipNodeId, type: 'originated_from', label: 'from' });
+      const id = `ip-${ip}`;
+      if(!nodeSet.has(id)) {
+        nodes.push({ id, type: 'ip', label: ip, properties: { value: ip } });
+        nodeSet.add(id);
+      }
+      edges.push({ id: `e-${alertNodeId}-${id}`, source: alertNodeId, target: id, type: 'originated_from', label: 'from' });
+    }
+    for (const host of hosts) {
+      const id = `host-${host}`;
+      if(!nodeSet.has(id)) {
+        nodes.push({ id, type: 'host', label: host, properties: { value: host } });
+        nodeSet.add(id);
+      }
+      edges.push({ id: `e-${alertNodeId}-${id}`, source: alertNodeId, target: id, type: 'targeted', label: 'targeted' });
+    }
+    for (const user of users) {
+      const id = `user-${user}`;
+      if(!nodeSet.has(id)) {
+        nodes.push({ id, type: 'user', label: user, properties: { value: user } });
+        nodeSet.add(id);
+      }
+      edges.push({ id: `e-${alertNodeId}-${id}`, source: alertNodeId, target: id, type: 'executed_by', label: 'user' });
+    }
+     for (const hash of hashes) {
+      const id = `hash-${hash.substring(0,8)}`;
+      if(!nodeSet.has(id)) {
+        nodes.push({ id, type: 'hash', label: hash.substring(0,8)+'...', properties: { value: hash } });
+        nodeSet.add(id);
+      }
+      edges.push({ id: `e-${alertNodeId}-${id}`, source: alertNodeId, target: id, type: 'related_to', label: 'hash' });
     }
 
-    const hosts = this.extractHosts(rawData);
-    for (const host of hosts) {
-      const hostNodeId = `host-${host}`;
-      nodes.push({ id: hostNodeId, type: 'host', label: host, properties: { value: host } });
-      edges.push({ id: `e-${alertNodeId}-${hostNodeId}`, source: alertNodeId, target: hostNodeId, type: 'targeted', label: 'targeted' });
+    // --- CORRELATION LOGIC ---
+    // Fetch recent alerts to check for overlaps (Limit 100 for performance)
+    const recentAlerts = await db.select().from(alerts)
+        .where(
+            and(
+                eq(alerts.tenantId, tenantId)
+            )
+        )
+        .limit(100); // In prod, use time window & optimized query
+
+    for (const otherAlert of recentAlerts) {
+        if (otherAlert.id === alertId) continue; // Skip self
+
+        const otherRaw = otherAlert.rawData as Record<string, any> || {};
+        const otherIPs = this.extractIPs(otherRaw);
+        const otherHosts = this.extractHosts(otherRaw);
+        const otherUsers = this.extractUsers(otherRaw);
+        const otherHashes = this.extractHashes(otherRaw);
+
+        let linked = false;
+        let linkReason = '';
+
+        // Check overlaps
+        if (ips.some(ip => otherIPs.includes(ip))) { linked = true; linkReason = 'Shared IP'; }
+        else if (hosts.some(h => otherHosts.includes(h))) { linked = true; linkReason = 'Shared Host'; }
+        else if (users.some(u => otherUsers.includes(u))) { linked = true; linkReason = 'Shared User'; }
+        else if (hashes.some(h => otherHashes.includes(h))) { linked = true; linkReason = 'Shared Hash'; }
+
+        if (linked) {
+            const otherNodeId = `alert-${otherAlert.id}`;
+            // Add other alert node if not exists
+            if (!nodeSet.has(otherNodeId)) {
+                nodes.push({
+                    id: otherNodeId,
+                    type: 'alert',
+                    label: otherAlert.title,
+                    properties: {
+                        source: otherAlert.source,
+                        status: otherAlert.status
+                    },
+                    severity: otherAlert.severity as any
+                });
+                nodeSet.add(otherNodeId);
+            }
+
+            // Link them (via the entity usually, but for now direct link or via implicit entity node sharing)
+            // Ideally we link the matched entity to this new alert.
+            // Let's do that: Link the *matching entity* to the *Other Alert*
+            
+            // Re-find the specific matching entities and draw edges
+            if (ips.some(ip => otherIPs.includes(ip))) {
+                 const match = ips.find(ip => otherIPs.includes(ip));
+                 if(match) edges.push({ id: `e-${otherNodeId}-ip-${match}`, source: otherNodeId, target: `ip-${match}`, type: 'related_to', label: 'shared' });
+            }
+            if (hosts.some(h => otherHosts.includes(h))) {
+                 const match = hosts.find(h => otherHosts.includes(h));
+                 if(match) edges.push({ id: `e-${otherNodeId}-host-${match}`, source: otherNodeId, target: `host-${match}`, type: 'related_to', label: 'shared' });
+            }
+            if (users.some(u => otherUsers.includes(u))) {
+                 const match = users.find(u => otherUsers.includes(u));
+                 if(match) edges.push({ id: `e-${otherNodeId}-user-${match}`, source: otherNodeId, target: `user-${match}`, type: 'related_to', label: 'shared' });
+            }
+        }
     }
 
     const nodesByType: Record<string, number> = {};

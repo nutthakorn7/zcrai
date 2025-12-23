@@ -9,4 +9,6 @@ export interface MitreData {
 export const DashboardAPI = {
   getMitreHeatmap: (params: { startDate: string; endDate: string; mode?: 'detection' | 'coverage'; sources?: string[] }) => 
     api.get<MitreData[]>('/dashboard/mitre-heatmap', { params }),
+
+  getFeedbackMetrics: () => api.get<any>('/dashboard/ai-feedback'),
 };

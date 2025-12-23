@@ -399,6 +399,21 @@ export class AITriageService {
             }
         }
 
+        // --- NOTIFICATION FALLBACK ---
+        // If High/Critical True Positive and NO action taken (or just general awareness), send notification
+        if (analysis.classification === 'TRUE_POSITIVE' && 
+            ['high', 'critical'].includes(alertData.severity) &&
+            !actionTaken ) { // Avoid double notifying if we already sent "Auto-Blocked" etc.
+            
+             NotificationChannelService.send(alertData.tenantId, {
+                type: 'alert',
+                severity: alertData.severity,
+                title: `⚠️ New ${alertData.severity.toUpperCase()} Alert: ${alertData.title}`,
+                message: `Analysis: ${analysis.classification} (${analysis.confidence}%)\nReason: ${analysis.reasoning}`,
+                metadata: { alertId }
+            }).catch(e => console.warn('Failed to send fallback notification:', e.message));
+        }
+
         // 3. Update Alert with Result
         await db.update(alerts)
             .set({

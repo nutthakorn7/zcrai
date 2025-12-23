@@ -16,6 +16,7 @@ type CacheKey =
   | 'dashboard:sites'
   | 'dashboard:recent'
   | 'dashboard:ai-metrics'
+  | 'dashboard:feedback-metrics'
 
 interface CacheConfig {
   ttl: number // seconds
@@ -32,6 +33,7 @@ const CACHE_CONFIG: Record<CacheKey, CacheConfig> = {
   'dashboard:sites': { ttl: 120 },         // 2min
   'dashboard:recent': { ttl: 30 },         // 30s - realtime data
   'dashboard:ai-metrics': { ttl: 300 },    // 5min
+  'dashboard:feedback-metrics': { ttl: 60 }, // 1min
 }
 
 /**

@@ -41,7 +41,7 @@ export default function NotificationChannelsPage() {
   const fetchChannels = useCallback(async () => {
     try {
       setLoading(true);
-      const { data } = await api.get('/notification-channels');
+      const { data } = await api.get('/notifications/channels');
       setChannels(data.data);
       
       setPageContext({
@@ -97,7 +97,7 @@ export default function NotificationChannelsPage() {
     setTesting(true);
     setTestResult(null);
     try {
-      const { data } = await api.post('/notification-channels/test', {
+      const { data } = await api.post('/notifications/channels/test', {
         webhookUrl,
         type
       });
@@ -121,14 +121,14 @@ export default function NotificationChannelsPage() {
       };
 
       if (mode === 'add') {
-        await api.post('/notification-channels', payload);
+        await api.post('/notifications/channels', payload);
       } else if (selectedChannel) {
         // Prepare update payload - if webhookUrl is masked or empty, don't send it to keep existing
         const updatePayload: Partial<NotificationChannel> & { webhookUrl?: string } = { ...payload };
         if (!webhookUrl || webhookUrl.includes('***')) {
             delete updatePayload.webhookUrl;
         }
-        await api.put(`/notification-channels/${selectedChannel.id}`, updatePayload);
+        await api.put(`/notifications/channels/${selectedChannel.id}`, updatePayload);
       }
 
       fetchChannels();
@@ -141,7 +141,7 @@ export default function NotificationChannelsPage() {
 
   const handleDelete = async (id: string) => {
     if (!confirm('Delete this channel?')) return;
-    await api.delete(`/notification-channels/${id}`);
+    await api.delete(`/notifications/channels/${id}`);
     fetchChannels();
   };
 

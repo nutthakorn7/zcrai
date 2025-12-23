@@ -1,6 +1,6 @@
 import { query } from '../../infra/clickhouse/client'
 import { db } from '../../infra/db'
-import { detectionRules } from '../../infra/db/schema'
+import { detectionRules, alerts } from '../../infra/db/schema'
 import { eq, and, isNotNull, sql } from 'drizzle-orm'
 import { cached } from './dashboard-cache.service'
 
@@ -528,6 +528,43 @@ export const DashboardService = {
         }
       },
       { ttl: 300 } // 5min cache
+    )
+  },
+
+  async getFeedbackMetrics(tenantId: string) {
+    return cached(
+      'dashboard:feedback-metrics',
+      tenantId,
+      async () => {
+        // Query Postgres for feedback data
+        const feedbackCounts = await db.select({
+            total: sql<number>`count(*)::int`,
+            correct: sql<number>`count(*) filter (where ${alerts.userFeedback} = 'correct')::int`,
+            incorrect: sql<number>`count(*) filter (where ${alerts.userFeedback} = 'incorrect')::int`
+        })
+        .from(alerts)
+        .where(
+            and(
+                eq(alerts.tenantId, tenantId),
+                isNotNull(alerts.userFeedback)
+            )
+        );
+
+        if (feedbackCounts.length === 0) {
+            return { accuracy: 0, total: 0, correct: 0, incorrect: 0 };
+        }
+
+        const stats = feedbackCounts[0];
+        const accuracy = stats.total > 0 ? (stats.correct / stats.total) * 100 : 0;
+
+        return {
+            accuracy: Math.round(accuracy),
+            total: stats.total,
+            correct: stats.correct,
+            incorrect: stats.incorrect
+        };
+      },
+      { ttl: 60 }
     )
   },
 }

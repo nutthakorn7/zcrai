@@ -10,8 +10,10 @@ import {
 } from '@heroui/react';
 import { Alert, AlertCorrelation, AlertsAPI } from '../../shared/api/alerts';
 import { CorrelationCard } from './CorrelationCard';
-import { AlertTriangle, CheckCircle, Activity, ShieldCheck, BookOpen } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Activity, ShieldCheck, BookOpen, ThumbsUp, ThumbsDown, Share2 } from 'lucide-react';
 import { Icon } from '../../shared/ui';
+import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Textarea, useDisclosure, RadioGroup, Radio } from "@heroui/react";
+import { InvestigationGraphWidget } from '../../pages/dashboard/widgets/InvestigationGraphWidget';
 
 interface AlertDetailDrawerProps {
   alert: Alert | null;
@@ -44,6 +46,13 @@ export function AlertDetailDrawer({ alert, isOpen, onClose }: AlertDetailDrawerP
   const [isLoadingCorrelations, setIsLoadingCorrelations] = useState(false);
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  
+  // Feedback State
+  const {isOpen: isFeedbackOpen, onOpen: onFeedbackOpen, onOpenChange: onFeedbackOpenChange, onClose: onFeedbackClose} = useDisclosure();
+  // State removed: feedbackType (unused)
+  const [feedbackReason, setFeedbackReason] = useState('');
+  const [shouldReopen, setShouldReopen] = useState(true);
+  const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
 
   useEffect(() => {
     if (alert && isOpen) {
@@ -87,6 +96,39 @@ export function AlertDetailDrawer({ alert, isOpen, onClose }: AlertDetailDrawerP
 
   const handleViewRelatedAlert = (alertId: string) => {
     window.open(`/detections?id=${alertId}`, '_blank');
+  };
+
+  const onFeedbackClick = (type: 'correct' | 'incorrect') => {
+      // setFeedbackType(type);
+      if (type === 'correct') {
+          // Immediate submit for correct
+          submitFeedback('correct');
+      } else {
+          // Open modal for incorrect
+          setFeedbackReason('');
+          setShouldReopen(true);
+          onFeedbackOpen();
+      }
+  };
+
+  const submitFeedback = async (type: 'correct' | 'incorrect', reason?: string, reopen?: boolean) => {
+      if (!alert) return;
+      try {
+          setIsSubmittingFeedback(true);
+          await AlertsAPI.feedback(alert.id, {
+              feedback: type,
+              reason: reason,
+              shouldReopen: reopen
+          });
+          // Optimistic update or reload? Let's just reload.
+          // In a real app we might update local state.
+          onFeedbackClose();
+          // Ideally fetch alert again to show feedback status, but for now just close.
+      } catch (error) {
+          console.error('Failed to submit feedback:', error);
+      } finally {
+          setIsSubmittingFeedback(false);
+      }
   };
 
   // Drawer Animation Classes
@@ -161,6 +203,37 @@ export function AlertDetailDrawer({ alert, isOpen, onClose }: AlertDetailDrawerP
                                                     {alert.aiAnalysis.confidence}%
                                                 </span>
                                             </div>
+                                        </div>
+                                        
+                                        {/* Feedback Buttons */}
+                                        <div className="flex items-center gap-1">
+                                            {alert.userFeedback ? (
+                                                <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold border ${alert.userFeedback === 'correct' ? 'bg-green-500/10 border-green-500/30 text-green-400' : 'bg-red-500/10 border-red-500/30 text-red-400'}`}>
+                                                    {alert.userFeedback === 'correct' ? <ThumbsUp className="w-3 h-3" /> : <ThumbsDown className="w-3 h-3" />}
+                                                    {alert.userFeedback === 'correct' ? 'Verified Correct' : 'Marked Incorrect'}
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    <Button 
+                                                        size="sm" 
+                                                        isIconOnly 
+                                                        variant="ghost" 
+                                                        className="text-white/40 hover:text-green-400 hover:bg-green-500/10"
+                                                        onPress={() => onFeedbackClick('correct')}
+                                                    >
+                                                        <ThumbsUp className="w-4 h-4" />
+                                                    </Button>
+                                                    <Button 
+                                                        size="sm" 
+                                                        isIconOnly 
+                                                        variant="ghost" 
+                                                        className="text-white/40 hover:text-red-400 hover:bg-red-500/10"
+                                                        onPress={() => onFeedbackClick('incorrect')}
+                                                    >
+                                                        <ThumbsDown className="w-4 h-4" />
+                                                    </Button>
+                                                </>
+                                            )}
                                         </div>
                                     </div>
 
@@ -259,7 +332,7 @@ export function AlertDetailDrawer({ alert, isOpen, onClose }: AlertDetailDrawerP
                                                 {finding.status === 'success' ? (
                                                     <Icon.CheckCircle className="w-3 h-3 text-green-500" />
                                                 ) : (
-                                                    <Icon.AlertTriangle className="w-3 h-3 text-red-500" />
+                                                    <AlertTriangle className="w-3 h-3 text-red-500" />
                                                 )}
                                             </div>
                                             <p className="text-sm text-foreground/90 leading-relaxed font-medium">
@@ -414,11 +487,77 @@ export function AlertDetailDrawer({ alert, isOpen, onClose }: AlertDetailDrawerP
                         )}
                     </div>
 
+                    {/* Investigation Graph */}
+                    <div className="mb-6">
+                        <h3 className="text-sm font-semibold mb-3 flex items-center gap-2 text-indigo-400">
+                            <Share2 className="w-4 h-4" /> 
+                            <span className="bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent font-bold">
+                                Entity Graph
+                            </span>
+                        </h3>
+                        <InvestigationGraphWidget alertId={alert.id} className="h-[400px]" />
+                    </div>
+
                     <div className="h-12" /> {/* Bottom Spacer */}
                 </ScrollShadow>
             </div>
         )}
       </div>
+
+      {/* Feedback Modal */}
+      <Modal isOpen={isFeedbackOpen} onOpenChange={onFeedbackOpenChange} placement="center">
+        <ModalContent className="bg-[#18181b] border border-white/10">
+          {(onClose) => (
+            <>
+              <ModalHeader className="flex flex-col gap-1">
+                <h3 className="text-lg font-bold text-red-400 flex items-center gap-2">
+                    <ThumbsDown className="w-5 h-5" />
+                    Report Incorrect Verdict
+                </h3>
+              </ModalHeader>
+              <ModalBody>
+                <p className="text-sm text-foreground/70 mb-2">
+                    Start training the AI by providing the correct context. Why is this verdict incorrect?
+                </p>
+                <Textarea
+                    placeholder="E.g., This is a known internal tool running nightly backups..."
+                    minRows={3}
+                    value={feedbackReason}
+                    onValueChange={setFeedbackReason}
+                    classNames={{
+                        input: "bg-white/5 border-white/10 group-data-[focus=true]:border-red-500/50"
+                    }}
+                />
+                
+                <div className="mt-2 bg-white/5 p-3 rounded-lg">
+                    <RadioGroup 
+                        label="Action Requirement" 
+                        size="sm"
+                        value={shouldReopen ? 'reopen' : 'info'}
+                        onValueChange={(v) => setShouldReopen(v === 'reopen')}
+                        color="danger"
+                    >
+                        <Radio value="reopen" description="This alert needs further investigation">Reopen Alert</Radio>
+                        <Radio value="info" description="Just logging feedback for training">Log Feedback Only</Radio>
+                    </RadioGroup>
+                </div>
+              </ModalBody>
+              <ModalFooter>
+                <Button color="danger" variant="light" onPress={onClose}>
+                  Cancel
+                </Button>
+                <Button 
+                    color="danger" 
+                    onPress={() => submitFeedback('incorrect', feedbackReason, shouldReopen)}
+                    isLoading={isSubmittingFeedback}
+                >
+                  Submit Correction
+                </Button>
+              </ModalFooter>
+            </>
+          )}
+        </ModalContent>
+      </Modal>
     </>
   );
 }

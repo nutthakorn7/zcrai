@@ -521,6 +521,23 @@ export const dashboardController = new Elysia({ prefix: '/dashboard' })
       return await DashboardService.getAIMetrics(tenantId)
     } catch (e: any) {
       set.status = 400
+    }
+  })
+
+  /**
+   * Get AI Feedback (Accuracy) metrics
+   * @route GET /dashboard/ai-feedback
+   * @access Protected - Requires authentication
+   */
+  .get('/ai-feedback', async ({ jwt, cookie: { access_token, selected_tenant }, set }) => {
+    try {
+      const payload = await jwt.verify(access_token.value as string)
+      if (!payload) throw new Error('Unauthorized')
+
+      const tenantId = getEffectiveTenantId(payload, selected_tenant)
+      return await DashboardService.getFeedbackMetrics(tenantId)
+    } catch (e: any) {
+      set.status = 400
       return { error: e.message }
     }
   })
