@@ -221,23 +221,46 @@ export function AlertDetailDrawer({ alert, isOpen, onClose }: AlertDetailDrawerP
                                             <div className="flex items-center justify-between mb-2">
                                                 <div className="flex items-center gap-2 text-green-400 font-bold uppercase text-xs tracking-wider">
                                                     <ShieldCheck className="w-4 h-4" />
-                                                    Autonomous Response Executed
+                                                    {alert.aiAnalysis.actionTaken.type === 'MULTI_ACTION' ? 'Multiple Actions Executed' : 'Autonomous Response Executed'}
                                                 </div>
                                                 <span className="text-[10px] text-green-400/60 font-mono">
                                                     {new Date(alert.aiAnalysis.actionTaken.timestamp).toLocaleTimeString()}
                                                 </span>
                                             </div>
-                                            <div className="flex items-center gap-2 text-sm text-foreground/90">
-                                                <span className="font-mono bg-black/40 px-2 py-0.5 rounded text-green-300">
-                                                    {alert.aiAnalysis.actionTaken.type}
-                                                </span>
-                                                <span className="text-foreground/60">
-                                                    {alert.aiAnalysis.actionTaken.target}
-                                                </span>
-                                            </div>
-                                            <div className="text-xs text-foreground/50 mt-1 pl-1 border-l-2 border-green-500/20">
-                                                {alert.aiAnalysis.actionTaken.details}
-                                            </div>
+                                            
+                                            {alert.aiAnalysis.actionTaken.type === 'MULTI_ACTION' && alert.aiAnalysis.actionTaken.multipleActions ? (
+                                                <div className="space-y-3">
+                                                    {alert.aiAnalysis.actionTaken.multipleActions.map((action: any, i: number) => (
+                                                        <div key={i} className="border-l-2 border-green-500/20 pl-3">
+                                                            <div className="flex items-center gap-2 text-sm text-foreground/90">
+                                                                <span className="font-mono bg-black/40 px-2 py-0.5 rounded text-green-300 text-xs">
+                                                                    {action.type}
+                                                                </span>
+                                                                <span className="text-foreground/60 text-xs truncate max-w-[200px]">
+                                                                    {action.target}
+                                                                </span>
+                                                            </div>
+                                                            <div className="text-[10px] text-foreground/50 mt-0.5">
+                                                                {action.details}
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    <div className="flex items-center gap-2 text-sm text-foreground/90">
+                                                        <span className="font-mono bg-black/40 px-2 py-0.5 rounded text-green-300">
+                                                            {alert.aiAnalysis.actionTaken.type}
+                                                        </span>
+                                                        <span className="text-foreground/60">
+                                                            {alert.aiAnalysis.actionTaken.target}
+                                                        </span>
+                                                    </div>
+                                                    <div className="text-xs text-foreground/50 mt-1 pl-1 border-l-2 border-green-500/20">
+                                                        {alert.aiAnalysis.actionTaken.details}
+                                                    </div>
+                                                </>
+                                            )}
                                         </div>
                                     )}
                                 </CardBody>

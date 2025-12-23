@@ -204,12 +204,10 @@ export class AITriageService {
             }
         }
 
-        // 2. Auto-Isolate Host (Ransomware/Critical)
-        const isRansomware = alertData.title.toLowerCase().includes('ransomware') || 
-                           alertData.description.toLowerCase().includes('ransomware');
-        
-        if (isRansomware && 
+        // 2. Auto-Isolate Host (Critical Threats)
+        if (autopilotEnabled &&
             analysis.classification === 'TRUE_POSITIVE' && 
+            alertData.severity === 'critical' &&
             Number(analysis.confidence) >= AI_CONFIG.TRIAGE.AUTO_ISOLATE_CONFIDENCE) {
             
             const hostName = alertData.rawData?.host_name;
@@ -225,26 +223,120 @@ export class AITriageService {
                         triggeredBy: 'ai'
                     });
                     
-                    actionTaken = {
-                        ...(actionTaken || {}),
-                        type: actionTaken ? 'MULTI_ACTION' : 'ISOLATE_HOST',
+                    const newAction = {
+                        type: 'ISOLATE_HOST',
                         target: hostName,
                         status: 'SUCCESS',
                         details: isoResult.provider_response || 'Successfully isolated',
-                        timestamp: new Date().toISOString(),
-                        multipleActions: actionTaken ? [actionTaken, { type: 'ISOLATE_HOST', target: hostName }] : undefined
+                        timestamp: new Date().toISOString()
                     };
+
+                    if (!actionTaken) {
+                        actionTaken = newAction;
+                    } else {
+                        actionTaken = {
+                            type: 'MULTI_ACTION',
+                            status: 'SUCCESS',
+                            multipleActions: actionTaken.multipleActions ? [...actionTaken.multipleActions, newAction] : [actionTaken, newAction],
+                            timestamp: new Date().toISOString()
+                        };
+                    }
+
                     analysis.suggested_action = `[AUTO-ISOLATED] ${hostName}. ${analysis.suggested_action || ''}`;
                     
                     NotificationChannelService.send(alertData.tenantId, {
                         type: 'alert',
                         severity: 'critical',
                         title: `🔒 AI Auto-Isolated Host: ${hostName}`,
-                        message: `Threat: Ransomware detected\nAction: Host has been disconnected from the network automatically.`,
+                        message: `Threat Category: ${analysis.classification}\nReason: ${analysis.reasoning}\nAction: Host has been disconnected from the network automatically.`,
                         metadata: { alertId, hostname: hostName, action: 'auto_isolate' }
                     }).catch(e => console.warn('Failed to send auto-isolate notification:', e.message));
                 } catch (actionError: any) {
                     console.error(`[AITriage] Auto-Isolate Failed for ${hostName}:`, actionError.message);
+                }
+            }
+        }
+
+        // 3. Auto-Quarantine File / Auto-Kill Process
+        if (autopilotEnabled &&
+            analysis.classification === 'TRUE_POSITIVE' && 
+            Number(analysis.confidence) >= autopilotThreshold) {
+            
+            const { SoarService } = await import('./soar.service');
+            
+            // Auto-Quarantine File
+            const maliciousFile = alertData.observables?.find((o: any) => o.type === 'file_hash' && o.isMalicious)?.value || 
+                                 alertData.rawData?.file_path || alertData.rawData?.file_hash;
+            
+            if (maliciousFile) {
+                try {
+                    const qResult = await SoarService.execute({
+                        tenantId: alertData.tenantId,
+                        alertId,
+                        actionType: 'QUARANTINE_FILE',
+                        provider: alertData.source,
+                        target: maliciousFile,
+                        triggeredBy: 'ai'
+                    });
+                    
+                    const qAction = {
+                        type: 'QUARANTINE_FILE',
+                        target: maliciousFile,
+                        status: 'SUCCESS',
+                        details: qResult.provider_response,
+                        timestamp: new Date().toISOString()
+                    };
+
+                    if (!actionTaken) {
+                        actionTaken = qAction;
+                    } else {
+                        actionTaken = {
+                            type: 'MULTI_ACTION',
+                            status: 'SUCCESS',
+                            multipleActions: actionTaken.multipleActions ? [...actionTaken.multipleActions, qAction] : [actionTaken, qAction],
+                            timestamp: new Date().toISOString()
+                        };
+                    }
+                    analysis.suggested_action = `[AUTO-QUARANTINED] ${maliciousFile}. ${analysis.suggested_action || ''}`;
+                } catch (e: any) {
+                    console.error(`[AITriage] Auto-Quarantine Failed:`, e.message);
+                }
+            }
+
+            // Auto-Kill Process
+            const maliciousProcess = alertData.rawData?.process_name || alertData.rawData?.process_id;
+            if (maliciousProcess && alertData.title.toLowerCase().includes('process')) {
+                try {
+                    const kResult = await SoarService.execute({
+                        tenantId: alertData.tenantId,
+                        alertId,
+                        actionType: 'KILL_PROCESS',
+                        provider: alertData.source,
+                        target: maliciousProcess.toString(),
+                        triggeredBy: 'ai'
+                    });
+                    
+                    const kAction = {
+                        type: 'KILL_PROCESS',
+                        target: maliciousProcess.toString(),
+                        status: 'SUCCESS',
+                        details: kResult.provider_response,
+                        timestamp: new Date().toISOString()
+                    };
+
+                    if (!actionTaken) {
+                        actionTaken = kAction;
+                    } else {
+                        actionTaken = {
+                            type: 'MULTI_ACTION',
+                            status: 'SUCCESS',
+                            multipleActions: actionTaken.multipleActions ? [...actionTaken.multipleActions, kAction] : [actionTaken, kAction],
+                            timestamp: new Date().toISOString()
+                        };
+                    }
+                    analysis.suggested_action = `[AUTO-KILLED] ${maliciousProcess}. ${analysis.suggested_action || ''}`;
+                } catch (e: any) {
+                    console.error(`[AITriage] Auto-Kill Failed:`, e.message);
                 }
             }
         }

@@ -48,6 +48,12 @@ export class SoarService {
         case 'ISOLATE_HOST':
           result = await this.isolateHost(params);
           break;
+        case 'QUARANTINE_FILE':
+          result = await this.quarantineFile(params);
+          break;
+        case 'KILL_PROCESS':
+          result = await this.killProcess(params);
+          break;
         default:
           throw new Error(`Action type ${params.actionType} not implemented yet`);
       }
@@ -99,6 +105,24 @@ export class SoarService {
       status: 'success',
       provider_response: `Host ${sensorId} network isolated via ${params.provider}`,
       isolation_token: `iso-${Math.random().toString(36).substr(2, 9)}`,
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  private static async quarantineFile(params: SoarActionParams) {
+    // Logic to call EDR file quarantine API
+    return {
+      status: 'success',
+      provider_response: `File ${params.target} quarantined on host via ${params.provider}`,
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  private static async killProcess(params: SoarActionParams) {
+    // Logic to call EDR process termination API
+    return {
+      status: 'success',
+      provider_response: `Process ${params.target} terminated on host via ${params.provider}`,
       timestamp: new Date().toISOString()
     };
   }

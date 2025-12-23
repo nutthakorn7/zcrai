@@ -285,7 +285,23 @@ export default function AlertsPage() {
       case "actions":
         // AI handles all actions - show status instead of buttons
         const isAutoHandled = alert.status === 'dismissed' || alert.status === 'promoted';
+        const actionTaken = alert.aiAnalysis?.actionTaken;
+        const isRemediated = actionTaken && actionTaken.status === 'SUCCESS';
         
+        if (isRemediated) {
+          return (
+            <Chip 
+              size="sm" 
+              variant="flat" 
+              color="success"
+              className="text-[10px] bg-success/10 text-success border-success/20"
+              startContent={<span>🛡️</span>}
+            >
+              Auto-Remediated
+            </Chip>
+          );
+        }
+
         if (isAutoHandled) {
           return (
             <Chip 
@@ -305,7 +321,7 @@ export default function AlertsPage() {
             size="sm" 
             variant="flat" 
             color="warning"
-            className="text-[10px]"
+            className="text-[10px] bg-warning/10 text-warning"
             startContent={<span>⏳</span>}
           >
             AI Processing

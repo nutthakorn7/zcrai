@@ -34,6 +34,13 @@ export interface Alert {
       status: string;
       details: string;
       timestamp: string;
+      multipleActions?: Array<{
+        type: string;
+        target: string;
+        status: string;
+        details: string;
+        timestamp: string;
+      }>;
     };
   };
   aiTriageStatus?: 'pending' | 'processed' | 'failed';
