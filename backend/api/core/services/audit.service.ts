@@ -1,6 +1,6 @@
 import { db } from '../../infra/db';
 import { auditLogs } from '../../infra/db/schema';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, and, gte, lte, sql } from 'drizzle-orm';
 
 export interface AuditEvent {
     tenantId?: string;
@@ -40,13 +40,67 @@ export class AuditService {
     }
 
     /**
-     * List audit logs
+     * List audit logs with advanced filtering and pagination
      */
-    static async list(tenantId: string, filters: any = {}) {
-        return await db.select()
+    static async list(tenantId: string | null | undefined, filters: any = {}) {
+        const { userId, action, resource, startDate, endDate, limit = 50, offset = 0 } = filters;
+
+        const whereClauses = [];
+        if (tenantId) {
+            whereClauses.push(eq(auditLogs.tenantId, tenantId));
+        }
+
+        if (userId) whereClauses.push(eq(auditLogs.userId, userId));
+        if (action) whereClauses.push(eq(auditLogs.action, action.toUpperCase()));
+        if (resource) whereClauses.push(eq(auditLogs.resource, resource.toLowerCase()));
+        
+        if (startDate) {
+            whereClauses.push(gte(auditLogs.createdAt, new Date(startDate)));
+        }
+        if (endDate) {
+            const end = new Date(endDate);
+            end.setHours(23, 59, 59, 999);
+            whereClauses.push(lte(auditLogs.createdAt, end));
+        }
+
+        const data = await db.select()
             .from(auditLogs)
-            .where(eq(auditLogs.tenantId, tenantId))
+            .where(and(...whereClauses))
             .orderBy(desc(auditLogs.createdAt))
-            .limit(100);
+            .limit(limit)
+            .offset(offset);
+
+        return data;
+    }
+
+    /**
+     * Get total count of audit logs for pagination
+     */
+    static async count(tenantId: string | null | undefined, filters: any = {}) {
+        const { userId, action, resource, startDate, endDate } = filters;
+
+        const whereClauses = [];
+        if (tenantId) {
+            whereClauses.push(eq(auditLogs.tenantId, tenantId));
+        }
+
+        if (userId) whereClauses.push(eq(auditLogs.userId, userId));
+        if (action) whereClauses.push(eq(auditLogs.action, action.toUpperCase()));
+        if (resource) whereClauses.push(eq(auditLogs.resource, resource.toLowerCase()));
+        
+        if (startDate) {
+            whereClauses.push(gte(auditLogs.createdAt, new Date(startDate)));
+        }
+        if (endDate) {
+            const end = new Date(endDate);
+            end.setHours(23, 59, 59, 999);
+            whereClauses.push(lte(auditLogs.createdAt, end));
+        }
+
+        const [result] = await db.select({ count: sql<number>`count(*)` })
+            .from(auditLogs)
+            .where(and(...whereClauses));
+
+        return Number(result.count);
     }
 }

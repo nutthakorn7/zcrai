@@ -17,6 +17,7 @@ const DashboardPage = lazy(() => import("./pages/dashboard"));
 const DashboardBuilder = lazy(() => import("./components/dashboard/DashboardBuilder"));
 const LogViewerPage = lazy(() => import("./pages/log-viewer"));
 const AlertsPage = lazy(() => import("./pages/alerts"));
+const AutopilotPage = lazy(() => import("./pages/autopilot"));
 
 const CaseBoardPage = lazy(() => import("./pages/cases"));
 const CaseDetailPage = lazy(() => import("./pages/cases/CaseDetailPage"));
@@ -167,6 +168,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <DashboardPage />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/autopilot" 
+              element={
+                <ProtectedRoute>
+                  <AutopilotPage />
                 </ProtectedRoute>
               } 
             />

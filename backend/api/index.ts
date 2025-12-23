@@ -17,6 +17,8 @@ import { userController } from './controllers/user.controller'
 import { profileController } from './controllers/profile.controller'
 import { integrationController } from './controllers/integration.controller'
 import { dashboardController } from './controllers/dashboard.controller'
+import { msspController } from './controllers/mssp.controller'
+import { automationController } from './controllers/automation.controller'
 
 registerActions()
 
@@ -26,6 +28,7 @@ import { alertController } from './controllers/alert.controller'
 import { observableController } from './controllers/observable.controller'
 import { notificationController } from './controllers/notification.controller'
 import { aiController } from './controllers/ai.controller'
+import { auditController } from './controllers/audit.controller'
 import { adminController } from './controllers/admin.controller'
 import { reportController } from './controllers/report.controller'
 import { notificationChannelController } from './controllers/notification-channel.controller'
@@ -175,6 +178,7 @@ const app = new Elysia()
   .use(notificationController)
   .use(notificationChannelController) // Slack/Teams notifications
   .use(aiController)
+  .use(auditController)
   .use(feedbackController)
   .use(huntingController)
   .use(reportController) // PDF report generation
@@ -192,15 +196,25 @@ const app = new Elysia()
   .use(systemController) // System Management (Backups, License)
   .use(billingController) // Billing & Subscription
   .use(detectionRuleController) // Detection Rules
+  .use(msspController) // MSSP Global Views
+  .use(automationController) // AI Autopilot & Autonomous Actions
   // .get('/health', () => ({ status: 'ok', timestamp: new Date().toISOString() })) // Moved to monitoringController
   // Temporary Simulation Endpoint for AI SOC verification
   .get('/api/test-ai-alert', async () => {
     const { AlertService } = await import('./core/services/alert.service');
     const { clickhouse } = await import('./infra/clickhouse/client');
     // Fetch System Admin Tenant to ensure the alert shows up in the main dashboard
-    const [sysTenant] = await db.select().from(tenants).where(eq(tenants.name, 'System Admin'));
-    const tenantId = sysTenant?.id || '75a8f9a4-a1df-45a8-84c3-b2fa2721934b'; 
-
+    let tenantId = '75a8f9a4-a1df-45a8-84c3-b2fa2721934b'; // Default fallback
+    try {
+      console.log('[Realtime Test] Checking tenants table...');
+      const results = await db.select().from(tenants).where(eq(tenants.name, 'System Admin'));
+      console.log(`[Realtime Test] Found ${results.length} system tenants`);
+      if (results && results.length > 0) {
+        tenantId = results[0].id;
+      }
+    } catch (e: any) {
+      console.warn('[Realtime Test] Tenant lookup failed', e.message);
+    }
     const alertId = crypto.randomUUID();
     const rawData = {
        event_type: 'network_connection',
@@ -209,27 +223,47 @@ const app = new Elysia()
        user_name: 'simulated_user'
     };
 
-    // 1. Insert into ClickHouse (for Dashboard Stats)
-    await clickhouse.command({
-      query: `INSERT INTO security_events (id, tenant_id, timestamp, severity, source, event_type, host_name, user_name, mitre_tactic, mitre_technique, raw_data) VALUES ('${alertId}', '${tenantId}', now(), 'critical', 'simulation', 'network_connection', 'desktop-sim01', 'simulated_user', 'Command and Control', 'T1071', '${JSON.stringify(rawData).replace(/'/g, "\\'")}')`
-    });
+    // 1. Insert into ClickHouse (Optional for pure WS test)
+    try {
+      await clickhouse.command({
+        query: `INSERT INTO security_events (id, tenant_id, timestamp, severity, source, event_type, host_name, user_name, mitre_tactic, mitre_technique, raw_data) VALUES ('${alertId}', '${tenantId}', now(), 'critical', 'simulation', 'network_connection', 'desktop-sim01', 'simulated_user', 'Command and Control', 'T1071', '${JSON.stringify(rawData).replace(/'/g, "\\'")}')`
+      });
+    } catch (e: any) {
+      console.warn('[Realtime Test] ClickHouse insertion skipped (ECONNREFUSED maybe)', e.message);
+    }
 
     // 2. Insert into Postgres (for My Workspace widget & AI Triage)
-    const alert = await AlertService.create({
-      tenantId,
-      title: 'Simulated C2 Traffic to Known Malicious IP',
-      description: 'Outbound connection detected to external IP 185.73.125.122. This IP is associated with Cobalt Strike C2 servers.',
-      severity: 'critical',
-      source: 'simulation',
-      rawData
-    });
-    return { success: true, alertId: alert.id, message: 'Alert created in ClickHouse + Postgres. AI Analysis triggered.' };
+    try {
+        const alert = await AlertService.create({
+            tenantId,
+            title: 'Simulated C2 Traffic to Known Malicious IP',
+            description: 'Outbound connection detected to external IP 185.73.125.122. This IP is associated with Cobalt Strike C2 servers.',
+            severity: 'critical',
+            source: 'simulation',
+            rawData
+        });
+        return { success: true, alertId: alert.id, message: 'Alert created in ClickHouse + Postgres. AI Analysis triggered.' };
+    } catch (e: any) {
+        console.error('[Realtime Test] Alert creation failed (Check DB connectivity)', e.message);
+        return { 
+            success: false, 
+            error: e.message, 
+            code: 'ALERTS_QUERY_FAILED',
+            details: 'The database (localhost:5433) appears to be unreachable. WebSocket broadcast depends on AlertService.create which requires a database connection.'
+        };
+    }
   })
 
 if (import.meta.main) {
   seedSuperAdmin()
-  app.listen(process.env.PORT || 8000)
-  console.log(`🦊 zcrAI Backend running at http://localhost:${app.server?.port}`)
+  const server = app.listen(process.env.PORT || 8000)
+  
+  // Register SocketService
+  import('./core/services/socket.service').then(({ SocketService }) => {
+    SocketService.register(app);
+  });
+
+  console.log(`🦊 zcrAI Backend running at http://localhost:${server?.port}`)
 }
 
 export { app }

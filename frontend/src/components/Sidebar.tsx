@@ -41,6 +41,7 @@ export function Sidebar() {
       label: 'Operations',
       children: [
         { label: 'Monitor (Dashboard)', path: '/dashboard' },
+        { label: 'AI Autopilot', path: '/autopilot' }, // [NEW]
         { label: 'Builder', path: '/dashboard/builder' }, // [NEW]
         { label: 'Rules', path: '/rules' },
         { label: 'Detections', path: '/detections' },

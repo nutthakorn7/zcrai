@@ -1,5 +1,5 @@
 import { relations, sql } from 'drizzle-orm'
-import { pgTable, uuid, text, varchar, timestamp, boolean, jsonb, integer, real, index, vector } from 'drizzle-orm/pg-core'
+import { pgTable, uuid, text, varchar, timestamp, boolean, jsonb, integer, real, index, vector, pgEnum } from 'drizzle-orm/pg-core'
 
 // Tenants
 export const tenants = pgTable('tenants', {
@@ -10,6 +10,8 @@ export const tenants = pgTable('tenants', {
   apiLimit: integer('api_limit').default(10000).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  autopilotMode: boolean('autopilot_mode').default(true).notNull(), // Global ON/OFF
+  autopilotThreshold: integer('autopilot_threshold').default(90).notNull(), // Confidence threshold
 })
 
 // Users
@@ -124,6 +126,10 @@ export const apiKeys = pgTable('api_keys', {
   lastSyncStatus: text('last_sync_status'), // 'success' | 'error' | null
   lastSyncError: text('last_sync_error'),   // Error message ถ้า sync fail
   lastSyncAt: timestamp('last_sync_at'),    // เวลาที่ sync ล่าสุด
+  healthStatus: text('health_status').default('healthy'), // 'healthy', 'degraded', 'down'
+  failureCount: integer('failure_count').default(0),
+  lastHealthyAt: timestamp('last_healthy_at'),
+  isCircuitOpen: boolean('is_circuit_open').default(false),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 })
 
@@ -160,6 +166,7 @@ export const cases = pgTable('cases', {
   tags: jsonb('tags'), // ['ransomware', 'phishing']
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  acknowledgedAt: timestamp('acknowledged_at'),
   resolvedAt: timestamp('resolved_at'),
 })
 
@@ -767,6 +774,9 @@ export const auditLogs = pgTable('audit_logs', {
 }, (table) => {
   return {
     tenantIdx: index('audit_logs_tenant_idx').on(table.tenantId),
+    userIdIdx: index('audit_logs_user_id_idx').on(table.userId),
+    actionIdx: index('audit_logs_action_idx').on(table.action),
+    resourceIdx: index('audit_logs_resource_idx').on(table.resource),
     createdIdx: index('audit_logs_created_idx').on(table.createdAt),
   }
 });
@@ -804,5 +814,43 @@ export const alertEmbeddingsRelations = relations(alertEmbeddings, ({ one }) => 
   alert: one(alerts, {
     fields: [alertEmbeddings.alertId],
     references: [alerts.id],
+  }),
+}))
+
+// ==================== SOAR & AUTOMATION ====================
+
+export const soarActions = pgTable('soar_actions', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  tenantId: uuid('tenant_id').references(() => tenants.id).notNull(),
+  caseId: uuid('case_id').references(() => cases.id, { onDelete: 'cascade' }),
+  alertId: uuid('alert_id').references(() => alerts.id),
+  actionType: text('action_type').notNull(), // 'BLOCK_IP', 'ISOLATE_HOST', 'QUARANTINE_FILE', 'KILL_PROCESS'
+  provider: text('provider').notNull(), // 'sentinelone', 'crowdstrike', 'fortigate'
+  target: text('target').notNull(), // IP, HostID, Hash, etc.
+  status: text('status').default('pending').notNull(), // 'pending', 'in_progress', 'completed', 'failed'
+  result: jsonb('result'), // Raw API response
+  error: text('error'),
+  triggeredBy: text('triggered_by').default('ai').notNull(), // 'ai', 'user', 'playbook'
+  userId: uuid('user_id').references(() => users.id), // If manual
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+})
+
+export const soarActionsRelations = relations(soarActions, ({ one }) => ({
+  tenant: one(tenants, {
+    fields: [soarActions.tenantId],
+    references: [tenants.id],
+  }),
+  case: one(cases, {
+    fields: [soarActions.caseId],
+    references: [cases.id],
+  }),
+  alert: one(alerts, {
+    fields: [soarActions.alertId],
+    references: [alerts.id],
+  }),
+  user: one(users, {
+    fields: [soarActions.userId],
+    references: [users.id],
   }),
 }))

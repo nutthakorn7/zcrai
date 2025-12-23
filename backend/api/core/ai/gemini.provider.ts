@@ -28,6 +28,20 @@ export class GeminiProvider implements AIProvider {
         }
     }
 
+    async streamText(prompt: string, callback: (chunk: string) => void): Promise<void> {
+        if (!this.model) throw new Error("GEMINI_API_KEY is not set");
+        try {
+            const result = await this.model.generateContentStream(prompt);
+            for await (const chunk of result.stream) {
+                const chunkText = chunk.text();
+                callback(chunkText);
+            }
+        } catch (e: any) {
+            console.error("Gemini Streaming Error:", e);
+            throw new Error(`Gemini Streaming Failed: ${e.message}`);
+        }
+    }
+
     async generateJSON(prompt: string, schema?: any): Promise<any> {
         if (!this.client) throw new Error("GEMINI_API_KEY is not set");
         try {

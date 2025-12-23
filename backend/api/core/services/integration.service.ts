@@ -625,12 +625,34 @@ export const IntegrationService = {
       }
 
       // Test สำเร็จ → อัพเดท status เป็น success
-      await this.updateSyncStatus(tenantId, integration.provider, 'success')
-      return result
+      await db.update(apiKeys)
+          .set({
+              lastSyncStatus: 'success',
+              lastSyncError: null,
+              lastSyncAt: new Date(),
+              healthStatus: 'healthy',
+              failureCount: 0,
+              lastHealthyAt: new Date(),
+              isCircuitOpen: false
+          })
+          .where(eq(apiKeys.id, id));
+      return result;
     } catch (error: any) {
       // Test ล้มเหลว → อัพเดท status เป็น error พร้อม error message
-      await this.updateSyncStatus(tenantId, integration.provider, 'error', error.message)
-      throw error
+      const [current] = await db.select({ failureCount: apiKeys.failureCount }).from(apiKeys).where(eq(apiKeys.id, id));
+      const newFailureCount = (current?.failureCount || 0) + 1;
+      
+      await db.update(apiKeys)
+          .set({
+              lastSyncStatus: 'error',
+              lastSyncError: error.message?.slice(0, 500),
+              lastSyncAt: new Date(),
+              healthStatus: newFailureCount >= 5 ? 'down' : 'degraded',
+              failureCount: newFailureCount,
+              isCircuitOpen: newFailureCount >= 5
+          })
+          .where(eq(apiKeys.id, id));
+      throw error;
     }
   },
 
@@ -877,5 +899,87 @@ export const IntegrationService = {
       await this.updateSyncStatus(tenantId, 'aws-cloudtrail', 'error', e.message);
       return { processed: 0, alerts: 0, error: e.message };
     }
+  },
+
+  // ==================== HEALTH & MONITORING ====================
+
+  /**
+   * Check health of all active integrations
+   * Designed to be called by Scheduler every 5-15 mins
+   */
+  async checkAllHealth() {
+    const activeIntegrations = await db.select().from(apiKeys);
+    
+    for (const integration of activeIntegrations) {
+        // Skip if circuit is already open (don't spam failed endpoints)
+        if (integration.isCircuitOpen) {
+            console.log(`[HealthCheck] Skipping ${integration.provider} for tenant ${integration.tenantId} (Circuit Open)`);
+            continue;
+        }
+
+        try {
+            await this.testExisting(integration.id, integration.tenantId);
+            console.log(`[HealthCheck] ${integration.provider} for tenant ${integration.tenantId} is HEALTHY`);
+        } catch (error: any) {
+            console.warn(`[HealthCheck] ${integration.provider} for tenant ${integration.tenantId} FAILED: ${error.message}`);
+            
+            // Trigger Critical Alert if it just went DOWN
+            const [updated] = await db.select().from(apiKeys).where(eq(apiKeys.id, integration.id)).limit(1);
+            if (updated?.healthStatus === 'down') {
+                try {
+                    const { NotificationService } = await import('./notification.service');
+                    await NotificationService.create({
+                        tenantId: integration.tenantId,
+                        userId: 'system', // System-level event 
+                        type: 'system_error',
+                        title: `Integration Down: ${integration.label}`,
+                        message: `The integration with ${integration.provider} is currently unreachable. Error: ${error.message}. Circuit breaker engaged.`,
+                        metadata: { severity: 'critical', integrationId: integration.id }
+                    });
+                } catch (e) {
+                    console.error("Failed to send health notification", e);
+                }
+            }
+        }
+    }
+  },
+
+  /**
+   * Get health summary for all integrations (Dashboard)
+   */
+  async getHealthSummary(tenantId: string) {
+    const results = await db.select({
+        id: apiKeys.id,
+        provider: apiKeys.provider,
+        label: apiKeys.label,
+        healthStatus: apiKeys.healthStatus,
+        lastHealthyAt: apiKeys.lastHealthyAt,
+        isCircuitOpen: apiKeys.isCircuitOpen,
+        failureCount: apiKeys.failureCount,
+        lastSyncError: apiKeys.lastSyncError
+    })
+    .from(apiKeys)
+    .where(eq(apiKeys.tenantId, tenantId));
+
+    return results;
+  },
+
+  /**
+   * Manually reset the circuit breaker
+   */
+  async resetCircuit(integrationId: string, tenantId: string) {
+    const [updated] = await db.update(apiKeys)
+        .set({
+            isCircuitOpen: false,
+            failureCount: 0,
+            healthStatus: 'healthy',
+            lastSyncStatus: 'pending',
+            lastSyncError: null
+        })
+        .where(and(eq(apiKeys.id, integrationId), eq(apiKeys.tenantId, tenantId)))
+        .returning();
+
+    if (!updated) throw new Error("Integration not found or unauthorized");
+    return updated;
   }
 }

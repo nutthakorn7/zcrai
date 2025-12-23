@@ -62,6 +62,8 @@ func (p *Publisher) publishToCH(events []models.UnifiedEvent) error {
 	chEvents := make([]map[string]interface{}, len(events))
 	for i, event := range events {
 		rawJSON, _ := json.Marshal(event.Raw)
+		metadataJSON, _ := json.Marshal(event.Metadata)
+
 		chEvents[i] = map[string]interface{}{
 			"id":              event.ID,
 			"tenant_id":       event.TenantID,
@@ -69,11 +71,64 @@ func (p *Publisher) publishToCH(events []models.UnifiedEvent) error {
 			"severity":        event.Severity,
 			"source":          event.Source,
 			"event_type":      event.EventType,
-			"host_name":       event.Host.Name,
-			"user_name":       event.User.Name,
+			"title":           event.Title,
+			"description":     event.Description,
 			"mitre_tactic":    event.MitreTactic,
 			"mitre_technique": event.MitreTechnique,
-			"raw_data":        string(rawJSON),
+
+			// Host Info
+			"host_name":       event.Host.Name,
+			"host_ip":         event.Host.IP,
+			"host_os":         event.Host.OS,
+			"host_os_version": event.Host.OSVersion,
+			"host_agent_id":   event.Host.AgentID,
+			"host_site_name":  event.Host.SiteName,
+			"host_group_name": event.Host.GroupName,
+
+			// User Info
+			"user_name":   event.User.Name,
+			"user_domain": event.User.Domain,
+			"user_email":  event.User.Email,
+
+			// Process Info
+			"process_name":   event.Process.Name,
+			"process_path":   event.Process.Path,
+			"process_cmd":    event.Process.CommandLine,
+			"process_pid":    event.Process.PID,
+			"process_ppid":   event.Process.ParentPID,
+			"process_sha256": event.Process.SHA256,
+
+			// File Info
+			"file_name":   event.File.Name,
+			"file_path":   event.File.Path,
+			"file_hash":   event.File.Hash,
+			"file_sha256": event.File.SHA256,
+			"file_md5":    event.File.MD5,
+			"file_size":   event.File.Size,
+
+			// Network Info
+			"network_src_ip":     event.Network.SrcIP,
+			"network_dst_ip":     event.Network.DstIP,
+			"network_src_port":   event.Network.SrcPort,
+			"network_dst_port":   event.Network.DstPort,
+			"network_protocol":   event.Network.Protocol,
+			"network_direction":  event.Network.Direction,
+			"network_bytes_sent": event.Network.BytesSent,
+			"network_bytes_recv": event.Network.BytesRecv,
+
+			// Raw & Metadata
+			"raw":      string(rawJSON),
+			"metadata": string(metadataJSON),
+
+			// Integration Info
+			"integration_id":   event.IntegrationID,
+			"integration_name": event.IntegrationName,
+
+			// Extended Host Context
+			"host_account_id":   event.Host.AccountID,
+			"host_account_name": event.Host.AccountName,
+			"host_site_id":      event.Host.SiteID,
+			"host_group_id":     event.Host.GroupID,
 		}
 	}
 

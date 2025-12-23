@@ -125,6 +125,11 @@ export class AlertService {
         });
     }).catch(err => console.error('Failed to trigger AI Triage', err));
 
+    // Emit real-time event
+    import('./socket.service').then(({ SocketService }) => {
+        SocketService.broadcast(data.tenantId, 'new_alert', alert);
+    }).catch(err => console.error('Failed to emit real-time alert', err));
+
     return alert;
   }
 

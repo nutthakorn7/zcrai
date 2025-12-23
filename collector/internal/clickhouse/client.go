@@ -231,8 +231,27 @@ func (c *Client) InsertEvents(events []map[string]interface{}) error {
 	stmt, err := tx.Prepare(`
 		INSERT INTO security_events (
 			id, tenant_id, timestamp, severity, source, event_type,
-			host_name, user_name, mitre_tactic, mitre_technique, raw
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			title, description, mitre_tactic, mitre_technique,
+			host_name, host_ip, host_os, host_os_version, host_agent_id,
+			host_site_name, host_group_name, user_name, user_domain, user_email,
+			process_name, process_path, process_cmd, process_pid, process_ppid, process_sha256,
+			file_name, file_path, file_hash, file_sha256, file_md5, file_size,
+			network_src_ip, network_dst_ip, network_src_port, network_dst_port,
+			network_protocol, network_direction, network_bytes_sent, network_bytes_recv,
+			raw, metadata, integration_id, integration_name,
+			host_account_id, host_account_name, host_site_id, host_group_id
+		) VALUES (
+			?, ?, ?, ?, ?, ?,
+			?, ?, ?, ?,
+			?, ?, ?, ?, ?,
+			?, ?, ?, ?, ?,
+			?, ?, ?, ?, ?, ?,
+			?, ?, ?, ?, ?, ?,
+			?, ?, ?, ?,
+			?, ?, ?, ?,
+			?, ?, ?, ?,
+			?, ?, ?, ?
+		)
 	`)
 	if err != nil {
 		tx.Rollback()
@@ -248,11 +267,48 @@ func (c *Client) InsertEvents(events []map[string]interface{}) error {
 			event["severity"],
 			event["source"],
 			event["event_type"],
-			event["host_name"],
-			event["user_name"],
+			event["title"],
+			event["description"],
 			event["mitre_tactic"],
 			event["mitre_technique"],
-			event["raw_data"],
+			event["host_name"],
+			event["host_ip"],
+			event["host_os"],
+			event["host_os_version"],
+			event["host_agent_id"],
+			event["host_site_name"],
+			event["host_group_name"],
+			event["user_name"],
+			event["user_domain"],
+			event["user_email"],
+			event["process_name"],
+			event["process_path"],
+			event["process_cmd"],
+			event["process_pid"],
+			event["process_ppid"],
+			event["process_sha256"],
+			event["file_name"],
+			event["file_path"],
+			event["file_hash"],
+			event["file_sha256"],
+			event["file_md5"],
+			event["file_size"],
+			event["network_src_ip"],
+			event["network_dst_ip"],
+			event["network_src_port"],
+			event["network_dst_port"],
+			event["network_protocol"],
+			event["network_direction"],
+			event["network_bytes_sent"],
+			event["network_bytes_recv"],
+			event["raw"],
+			event["metadata"],
+			event["integration_id"],
+			event["integration_name"],
+			event["host_account_id"],
+			event["host_account_name"],
+			event["host_site_id"],
+			event["host_group_id"],
 		)
 		if err != nil {
 			c.logger.Warn("Failed to insert event", zap.Any("event_id", event["id"]), zap.Error(err))

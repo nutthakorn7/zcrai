@@ -7,18 +7,12 @@ export class AIService {
 
     static initialize() {
         const geminiKey = process.env.GEMINI_API_KEY;
-        const openaiKey = process.env.OPENAI_API_KEY;
 
         if (geminiKey) {
             console.log("[AIService] Using Google Gemini");
             this.provider = new GeminiProvider(geminiKey);
-        } else if (process.env.NODE_ENV === 'test') {
-             // In test, always mock unless integration test?
-             // Actually, for simplicity, use Mock if no key.
-             console.log("[AIService] Using Mock Provider (Test/No Key)");
-             this.provider = new MockAIProvider();
         } else {
-            console.log("[AIService] No API Key found, using Mock Provider");
+            console.log("[AIService] No Gemini API Key found, using Mock Provider");
             this.provider = new MockAIProvider();
         }
     }
@@ -70,6 +64,31 @@ Return valid JSON only.
         }
     }
 
+    static async streamChat(messages: { role: string, content: string }[], context?: string, callback?: (chunk: string) => void): Promise<void> {
+        if (!this.provider) this.initialize();
+
+        const prompt = `
+You are a designated Tier-3 SOC Analyst AI (zcrAI).
+Answer the user's latest query based on the conversation history and provided context.
+
+**Context**:
+${context || "No context provided."}
+
+**Conversation History**:
+${messages.map(m => `[${m.role.toUpperCase()}]: ${m.content}`).join('\n')}
+
+**Instructions**:
+1. Provide a concise, professional, and actionable response.
+2. Use markdown for formatting.
+3. If context is provided, prioritize it.
+`;
+        if (callback) {
+            await this.provider.streamText(prompt, callback);
+        } else {
+            await this.provider.generateText(prompt);
+        }
+    }
+
     static async suggestPlaybook(caseData: any, playbooks: any[]): Promise<AIPlaybookSuggestion> {
         if (!this.provider) this.initialize();
 
@@ -106,6 +125,7 @@ Return valid JSON only. Format:
             return { playbookId: null, confidence: 0, reasoning: "Failed to parse AI response." };
         }
     }
+
     static async generateQuery(userPrompt: string): Promise<{ sql: string | null, filters: any, explanation: string }> {
         if (!this.provider) this.initialize();
 

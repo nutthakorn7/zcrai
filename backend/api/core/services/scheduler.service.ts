@@ -106,6 +106,24 @@ export const SchedulerService = {
     );
     this.jobs.push(integrationSyncJob);
 
+    // Integration Health Check (Every 5 minutes)
+    const healthCheckJob = new CronJob(
+        '*/5 * * * *', // Every 5 minutes
+        async () => {
+            console.log('💓 Running Integration Health Heartbeat...');
+            try {
+                const { IntegrationService } = await import('./integration.service');
+                await IntegrationService.checkAllHealth();
+            } catch (error) {
+                console.error('❌ Health Check Job Failed:', error);
+            }
+        },
+        null,
+        true,
+        'Asia/Bangkok'
+    );
+    this.jobs.push(healthCheckJob);
+
     console.log(`✅ Scheduler started with ${this.jobs.length} jobs.`);
   },
 

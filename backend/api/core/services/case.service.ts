@@ -113,7 +113,10 @@ export const CaseService = {
       .set({
         ...data,
         updatedAt: new Date(),
-        resolvedAt: data.status === 'resolved' || data.status === 'closed' ? new Date() : undefined
+        acknowledgedAt: (data.assigneeId || (data.status && data.status !== 'open')) && !currentCase.acknowledgedAt 
+            ? new Date() 
+            : currentCase.acknowledgedAt,
+        resolvedAt: data.status === 'resolved' || data.status === 'closed' ? new Date() : currentCase.resolvedAt
       })
       .where(and(eq(cases.id, caseId), eq(cases.tenantId, tenantId)))
       .returning()

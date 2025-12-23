@@ -99,4 +99,33 @@ export const realtimeController = new Elysia({ prefix: '/realtime' })
         
         ws.unsubscribe(caseId);
     }
+  })
+  /**
+   * WebSocket endpoint for global/tenant notifications (alerts, health)
+   * @route WS /realtime/alerts
+   * @query {string} tenantId - Tenant ID for data isolation
+   */
+  .ws('/alerts', {
+    query: t.Object({
+        tenantId: t.String(),
+        token: t.Optional(t.String())
+    }),
+    open(ws) {
+        const { tenantId } = ws.data.query;
+        console.log(`[WS] Tenant ${tenantId} connected to alerts channel`);
+        
+        ws.subscribe(tenantId); // Join tenant-specific room
+        ws.subscribe('global');   // Join global announcements room
+        
+        ws.send(JSON.stringify({
+            type: 'connection_established',
+            message: 'Waiting for real-time events...'
+        }));
+    },
+    close(ws) {
+        const { tenantId } = ws.data.query;
+        console.log(`[WS] Tenant ${tenantId} disconnected from alerts channel`);
+        ws.unsubscribe(tenantId);
+        ws.unsubscribe('global');
+    }
   });

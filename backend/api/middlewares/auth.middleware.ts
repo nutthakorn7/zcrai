@@ -114,10 +114,10 @@ export const tenantGuard = new Elysia({ name: 'tenantGuard' })
     return {
       user,
       checkTenantAccess: (resourceTenantId: string) => {
-        if (user.role === 'superadmin') return true
-        return user.tenantId === resourceTenantId
+        if (user?.role === 'superadmin') return true
+        return user?.tenantId === resourceTenantId
       },
-      tenantId: user.tenantId,
+      tenantId: user?.tenantId,
     }
   })
 

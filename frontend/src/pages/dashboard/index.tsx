@@ -9,6 +9,8 @@ import {
   AreaChart, Area, CartesianGrid
 } from 'recharts';
 import { Icon } from '../../shared/ui';
+import { useAlertSocket } from "../../shared/hooks/useAlertSocket";
+import { toast } from "react-hot-toast";
 
 // Import Types from separate file
 import { 
@@ -61,6 +63,7 @@ const sourceColors: { [key: string]: string } = {
 
 export default function DashboardPage() {
   const { setPageContext } = usePageContext();
+  const { lastAlert } = useAlertSocket();
   
   const [loading, setLoading] = useState(true);
   const [_error, setError] = useState<string | null>(null);
@@ -124,6 +127,26 @@ export default function DashboardPage() {
     
     return () => clearInterval(interval);
   }, [autoRefresh, startDate, endDate, selectedProvider]);
+
+  // Socket effect for real-time alerts
+  useEffect(() => {
+    if (lastAlert) {
+      // 1. Show notification
+      toast.success(`New ${lastAlert.severity} alert: ${lastAlert.title}`, {
+        duration: 5000,
+        icon: '🚨',
+        style: {
+          borderRadius: '10px',
+          background: '#1A1D1F',
+          color: '#fff',
+          border: '1px solid rgba(255,255,255,0.1)'
+        },
+      });
+
+      // 2. Trigger refresh
+      loadDashboard();
+    }
+  }, [lastAlert]);
 
   const handleDateChange = (start: Date, end: Date) => {
     setStartDate(start);

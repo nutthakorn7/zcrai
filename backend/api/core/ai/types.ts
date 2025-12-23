@@ -1,6 +1,7 @@
 export interface AIProvider {
     name: string;
     generateText(prompt: string): Promise<string>;
+    streamText(prompt: string, callback: (chunk: string) => void): Promise<void>;
 }
 
 export interface AISummaizationRequest {

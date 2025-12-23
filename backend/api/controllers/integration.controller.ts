@@ -434,3 +434,32 @@ export const integrationController = new Elysia({ prefix: '/integrations' })
       return { error: e.message, status: 'disconnected' }
     }
   })
+
+  /**
+   * Get health status of all integrations for the tenant
+   * @route GET /integrations/health
+   */
+  .get('/health', async ({ user, set }: any) => {
+    try {
+      if (!user?.tenantId) throw new Error('Unauthorized')
+      return await IntegrationService.getHealthSummary(user.tenantId as string)
+    } catch (e: any) {
+      set.status = 400
+      return { error: e.message }
+    }
+  })
+
+  /**
+   * Manually reset the circuit breaker for an integration
+   * @route POST /integrations/:id/reset-circuit
+   */
+  .post('/:id/reset-circuit', async ({ params, user, set }: any) => {
+    try {
+      if (!user?.tenantId) throw new Error('Unauthorized')
+      await IntegrationService.resetCircuit(params.id, user.tenantId as string)
+      return { success: true, message: 'Circuit breaker reset successfully' }
+    } catch (e: any) {
+      set.status = 400
+      return { error: e.message }
+    }
+  })

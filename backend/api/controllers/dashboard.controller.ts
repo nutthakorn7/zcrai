@@ -4,11 +4,12 @@
  * Includes: Summary stats, timelines, top entities, MITRE ATT&CK heatmaps
  */
 
-import { Elysia } from 'elysia'
+import { Elysia, t } from 'elysia'
 import { jwt } from '@elysiajs/jwt'
 import { DashboardService } from '../core/services/dashboard.service'
 import { DashboardLayoutService } from '../core/services/dashboard-layout.service'
 import { ActivityService } from '../core/services/activity.service'
+import { SLAService } from '../core/services/sla.service'
 import { tenantAdminOnly } from '../middlewares/auth.middleware'
 import { SchedulerService } from '../core/services/scheduler.service'
 
@@ -522,4 +523,30 @@ export const dashboardController = new Elysia({ prefix: '/dashboard' })
       set.status = 400
       return { error: e.message }
     }
+  })
+
+  /**
+   * Get SLA Metrics (MTTA/MTTR) for the dashboard
+   * @route GET /dashboard/sla
+   */
+  .get('/sla', async ({ jwt, cookie: { access_token, selected_tenant }, query, set }) => {
+    try {
+      const payload = await jwt.verify(access_token.value as string)
+      if (!payload) throw new Error('Unauthorized')
+
+      const tenantId = getEffectiveTenantId(payload, selected_tenant)
+      const days = typeof query.days === 'string' ? parseInt(query.days) : 30
+      
+      const stats = await SLAService.getSLUMetrics(tenantId)
+      const trend = await SLAService.getSLATrend(tenantId, days)
+      
+      return { success: true, stats, trend }
+    } catch (e: any) {
+      set.status = 400
+      return { error: e.message }
+    }
+  }, {
+    query: t.Object({
+        days: t.Optional(t.String())
+    })
   })

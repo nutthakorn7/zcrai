@@ -21,17 +21,25 @@ export const auditController = new Elysia({ prefix: '/audit-logs' })
    */
   .get('/', async (ctx: any) => {
       const { user, query } = ctx;
+      const limit = query.limit ? parseInt(query.limit) : 50;
+      const offset = query.offset ? parseInt(query.offset) : 0;
+
       const filters = {
           userId: query.userId,
           action: query.action,
           resource: query.resource,
           startDate: query.startDate,
           endDate: query.endDate,
-          limit: query.limit ? parseInt(query.limit) : 50,
-          offset: query.offset ? parseInt(query.offset) : 0
+          limit,
+          offset
       };
 
-      return await AuditService.list(user.tenantId, filters);
+      const [logs, total] = await Promise.all([
+          AuditService.list(user?.tenantId, filters),
+          AuditService.count(user?.tenantId, filters)
+      ]);
+
+      return { success: true, data: { logs, total, limit, offset } };
   }, {
       query: t.Object({
           userId: t.Optional(t.String()),

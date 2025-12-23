@@ -2,6 +2,7 @@
  * Statistical Anomaly Detection Service
  * Uses Z-score and other statistical methods to detect anomalies
  */
+import { AI_CONFIG } from '../../config/ai-config';
 
 export interface DetectionResult {
   isAnomaly: boolean;
@@ -24,7 +25,7 @@ export class AnomalyDetectionService {
   static detectAnomaly(
     currentValue: number,
     historicalData: number[],
-    threshold: number = 3
+    threshold: number = AI_CONFIG.ANOMALY.Z_SCORE_THRESHOLD
   ): DetectionResult {
     if (historicalData.length < 2) {
       // Not enough data for statistical analysis
@@ -109,7 +110,7 @@ export class AnomalyDetectionService {
   static detectWeightedAnomaly(
     currentValue: number,
     historicalData: number[],
-    threshold: number = 3
+    threshold: number = AI_CONFIG.ANOMALY.Z_SCORE_THRESHOLD
   ): DetectionResult {
     if (historicalData.length < 2) {
       return this.detectAnomaly(currentValue, historicalData, threshold);
