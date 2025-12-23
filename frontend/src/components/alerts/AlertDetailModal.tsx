@@ -206,9 +206,9 @@ export function AlertDetailModal({ alert, isOpen, onClose }: AlertDetailModalPro
                     </div>
                   ) : (
                     <div className="text-center py-8">
-                      <Icon.Info className="w-8 h-8 text-foreground/40 mx-auto mb-2" />
+                      <Icon.Info className="w-8 h-8 text-foreground/50 mx-auto mb-2" />
                       <p className="text-sm text-foreground/60">No related alerts found</p>
-                      <p className="text-xs text-foreground/40 mt-1">
+                      <p className="text-xs text-foreground/50 mt-1">
                         This alert has no correlations within the last hour
                       </p>
                     </div>

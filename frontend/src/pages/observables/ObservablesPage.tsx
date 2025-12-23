@@ -265,7 +265,7 @@ export default function ObservablesPage() {
             </div>
 
             <div className="space-y-4">
-                <h3 className="text-xs font-bold text-foreground/40 uppercase tracking-wider flex justify-between items-center">
+                <h3 className="text-xs font-bold text-foreground/50 uppercase tracking-wider flex justify-between items-center">
                     Type
                     {typeFilter.length > 0 && <span onClick={() => setTypeFilter([])} className="text-[10px] text-primary cursor-pointer hover:underline">Clear</span>}
                 </h3>
@@ -285,7 +285,7 @@ export default function ObservablesPage() {
                                  {/* Icon Mapping */}
                                  <span className="capitalize">{f.name}</span>
                              </div>
-                             <span className={`text-xs px-1.5 rounded-full ${typeFilter.includes(f.name) ? 'bg-primary/20 text-primary' : 'bg-white/5 text-foreground/40'}`}>{f.count}</span>
+                             <span className={`text-xs px-1.5 rounded-full ${typeFilter.includes(f.name) ? 'bg-primary/20 text-primary' : 'bg-white/5 text-foreground/50'}`}>{f.count}</span>
                          </div>
                     ))}
                 </div>
@@ -294,7 +294,7 @@ export default function ObservablesPage() {
             <div className="w-full h-px bg-white/5" />
 
             <div className="space-y-4">
-                <h3 className="text-xs font-bold text-foreground/40 uppercase tracking-wider flex justify-between items-center">
+                <h3 className="text-xs font-bold text-foreground/50 uppercase tracking-wider flex justify-between items-center">
                     Status
                     {statusFilter && <span onClick={() => setStatusFilter('')} className="text-[10px] text-primary cursor-pointer hover:underline">Clear</span>}
                 </h3>
@@ -306,7 +306,7 @@ export default function ObservablesPage() {
                             className={`flex items-center justify-between text-sm group cursor-pointer p-1.5 rounded transition-all ${statusFilter === f.name.toLowerCase() ? 'bg-primary/10 text-primary' : 'hover:bg-white/5 text-foreground/70'}`}
                          >
                              <span>{f.name}</span>
-                             <span className={`text-xs px-1.5 rounded-full ${statusFilter === f.name.toLowerCase() ? 'bg-primary/20 text-primary' : 'bg-white/5 text-foreground/40'}`}>{f.count}</span>
+                             <span className={`text-xs px-1.5 rounded-full ${statusFilter === f.name.toLowerCase() ? 'bg-primary/20 text-primary' : 'bg-white/5 text-foreground/50'}`}>{f.count}</span>
                          </div>
                     ))}
                 </div>
@@ -315,7 +315,7 @@ export default function ObservablesPage() {
             <div className="w-full h-px bg-white/5" />
 
             <div className="space-y-4">
-                <h3 className="text-xs font-bold text-foreground/40 uppercase tracking-wider">Top Tags</h3>
+                <h3 className="text-xs font-bold text-foreground/50 uppercase tracking-wider">Top Tags</h3>
                 <div className="flex flex-wrap gap-2">
                     {facets.tags.map(f => (
                          <Chip 
@@ -324,7 +324,7 @@ export default function ObservablesPage() {
                             variant="flat" 
                             className="cursor-pointer hover:bg-content2 transition-colors bg-white/5 border border-white/5"
                          >
-                             {f.name} <span className="text-foreground/40 ml-1 opacity-70 text-[10px]">{f.count}</span>
+                             {f.name} <span className="text-foreground/50 ml-1 opacity-70 text-[10px]">{f.count}</span>
                          </Chip>
                     ))}
                 </div>
@@ -377,7 +377,7 @@ export default function ObservablesPage() {
                     <CardBody className="p-4 flex flex-col justify-center h-32">
                         <div className="flex justify-between items-end mb-2">
                            <h3 className="text-sm font-medium text-foreground/70">Enrichment Queue</h3>
-                           <span className="text-xs text-foreground/40">{observables.filter(o => o.enrichedAt).length}/{observables.length} processed</span>
+                           <span className="text-xs text-foreground/50">{observables.filter(o => o.enrichedAt).length}/{observables.length} processed</span>
                         </div>
                          <Progress 
                             size="md" 
@@ -406,7 +406,7 @@ export default function ObservablesPage() {
         onSelectionChange={(keys) => setSelectedKeys(keys as Set<string>)}
         classNames={{
           wrapper: "bg-transparent shadow-none border border-white/5 rounded-lg",
-          th: "bg-content1/50 backdrop-blur text-[10px] font-bold text-foreground/40 uppercase tracking-wider border-b border-white/10 h-10",
+          th: "bg-content1/50 backdrop-blur text-[10px] font-bold text-foreground/50 uppercase tracking-wider border-b border-white/10 h-10",
           td: "py-3 text-foreground/90 border-b border-white/5",
           tr: "hover:bg-content1/50 last:border-0 transition-all cursor-pointer group",
         }}
@@ -434,7 +434,7 @@ export default function ObservablesPage() {
                            <span className={`w-2 h-2 rounded-full ${item.isMalicious ? 'bg-danger' : (item.isMalicious === false ? 'bg-success' : 'bg-gray-500')}`} />
                            <span className="text-xs font-medium">{item.isMalicious ? 'Malicious' : (item.isMalicious === false ? 'Safe' : 'Unknown')}</span>
                        </div>
-                       {item.enrichedAt && <span className="text-[10px] text-foreground/40">VT Score: {item.isMalicious ? '24/70' : '0/70'}</span>}
+                       {item.enrichedAt && <span className="text-[10px] text-foreground/50">VT Score: {item.isMalicious ? '24/70' : '0/70'}</span>}
                   </div>
               ) : renderCell(item, columnKey as string)}</TableCell>}
             </TableRow>

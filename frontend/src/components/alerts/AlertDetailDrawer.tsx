@@ -129,7 +129,7 @@ export function AlertDetailDrawer({ alert, isOpen, onClose, onPromote, onDismiss
                              <Chip size="sm" variant="flat" color={getStatusColor(alert.status) as any} className="capitalize">
                                 {alert.status}
                              </Chip>
-                             <span className="text-xs text-foreground/40 font-mono">ID: {alert.id.substring(0, 8)}</span>
+                             <span className="text-xs text-foreground/50 font-mono">ID: {alert.id.substring(0, 8)}</span>
                         </div>
                         <h2 className="text-lg font-bold text-foreground leading-tight px-1">{alert.title}</h2>
                     </div>
@@ -169,21 +169,21 @@ export function AlertDetailDrawer({ alert, isOpen, onClose, onPromote, onDismiss
                     {/* Metadata Grid */}
                     <div className="grid grid-cols-2 gap-4 text-sm bg-content2/30 p-4 rounded-xl border border-white/5">
                         <div>
-                            <span className="text-foreground/40 block text-xs uppercase tracking-wider mb-1">Source</span>
+                            <span className="text-foreground/50 block text-xs uppercase tracking-wider mb-1">Source</span>
                             <div className="flex items-center gap-2 font-medium">
                                 <Icon.Database className="w-4 h-4 text-primary" />
                                 {alert.source}
                             </div>
                         </div>
                         <div>
-                            <span className="text-foreground/40 block text-xs uppercase tracking-wider mb-1">Detected At</span>
+                            <span className="text-foreground/50 block text-xs uppercase tracking-wider mb-1">Detected At</span>
                             <div className="font-medium">
                                 {new Date(alert.createdAt).toLocaleString()}
                             </div>
                         </div>
                          {alert.lastSeenAt && (
                             <div className="col-span-2">
-                                <span className="text-foreground/40 block text-xs uppercase tracking-wider mb-1">Last Seen</span>
+                                <span className="text-foreground/50 block text-xs uppercase tracking-wider mb-1">Last Seen</span>
                                 <div className="font-medium">
                                     {new Date(alert.lastSeenAt).toLocaleString()}
                                 </div>
@@ -228,7 +228,7 @@ export function AlertDetailDrawer({ alert, isOpen, onClose, onPromote, onDismiss
                                                 {alert.aiAnalysis.classification?.replace('_', ' ') || 'ANALYZED'}
                                             </Chip>
                                             <div className="flex flex-col">
-                                                <span className="text-[10px] uppercase text-foreground/40 font-bold tracking-wider">Confidence</span>
+                                                <span className="text-[10px] uppercase text-foreground/50 font-bold tracking-wider">Confidence</span>
                                                 <span className={`text-sm font-bold ${Number(alert.aiAnalysis.confidence) > 80 ? 'text-green-400' : 'text-warning'}`}>
                                                     {alert.aiAnalysis.confidence}%
                                                 </span>
@@ -263,7 +263,7 @@ export function AlertDetailDrawer({ alert, isOpen, onClose, onPromote, onDismiss
                                     {alert.aiAnalysis.suggested_action && (
                                         <div className="flex items-center gap-2 text-xs text-foreground/60 bg-white/5 p-2 rounded border border-white/5 border-dashed">
                                             <Activity className="w-3 h-3 text-primary" />
-                                            <span className="uppercase font-bold tracking-wider text-foreground/40">Suggestion:</span>
+                                            <span className="uppercase font-bold tracking-wider text-foreground/50">Suggestion:</span>
                                             <span className="text-foreground/80 font-medium">{alert.aiAnalysis.suggested_action}</span>
                                         </div>
                                     )}
@@ -288,7 +288,7 @@ export function AlertDetailDrawer({ alert, isOpen, onClose, onPromote, onDismiss
                                                     {alert.aiAnalysis.actionTaken.target}
                                                 </span>
                                             </div>
-                                            <div className="text-xs text-foreground/40 mt-1 pl-1 border-l-2 border-green-500/20">
+                                            <div className="text-xs text-foreground/50 mt-1 pl-1 border-l-2 border-green-500/20">
                                                 {alert.aiAnalysis.actionTaken.details}
                                             </div>
                                         </div>
@@ -406,7 +406,7 @@ export function AlertDetailDrawer({ alert, isOpen, onClose, onPromote, onDismiss
                             </div>
                         ) : (
                              <div className="text-center py-6 bg-content2/20 rounded-lg border border-white/5 border-dashed">
-                                <p className="text-xs text-foreground/40">No correlations found in this time window</p>
+                                <p className="text-xs text-foreground/50">No correlations found in this time window</p>
                             </div>
                         )}
                     </div>

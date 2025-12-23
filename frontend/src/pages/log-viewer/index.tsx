@@ -80,7 +80,7 @@ const VendorLogo = ({ source }: { source: string }) => {
   const letter = source?.[0]?.toUpperCase() || 'X';
   return (
     <div className="w-8 h-8 rounded flex items-center justify-center bg-foreground/5 border border-white/5">
-      <span className="text-[10px] font-bold text-foreground/40">{letter}</span>
+      <span className="text-[10px] font-bold text-foreground/50">{letter}</span>
     </div>
   );
 };
@@ -372,7 +372,7 @@ export default function LogViewerPage() {
         return (
           <div className="flex flex-col">
             <span className="text-xs text-foreground/90">{time}</span>
-            <span className="text-[10px] text-foreground/40">{date}</span>
+            <span className="text-[10px] text-foreground/50">{date}</span>
           </div>
         );
       
@@ -409,7 +409,7 @@ export default function LogViewerPage() {
             <span className="text-sm font-medium text-foreground/90 truncate group-hover:text-primary transition-colors cursor-pointer">
               {log.title}
             </span>
-            <div className="flex items-center gap-2 text-[10px] text-foreground/40 ">
+            <div className="flex items-center gap-2 text-[10px] text-foreground/50 ">
               {log.mitre_tactic && log.mitre_tactic !== '-' && (
                 <span className="bg-white/5 px-1 rounded">#{log.mitre_tactic}</span>
               )}
@@ -719,12 +719,12 @@ export default function LogViewerPage() {
             {/* Histogram Mini (Optional place, but let's keep facets here) */}
             
             <div className="space-y-4">
-                <h3 className="text-xs font-bold text-foreground/40 uppercase tracking-wider">Top Sources</h3>
+                <h3 className="text-xs font-bold text-foreground/50 uppercase tracking-wider">Top Sources</h3>
                 <div className="space-y-1">
                     {facets.sources.map(f => (
                          <div key={f.name} onClick={() => setSearch((prev) => `${prev} source:${f.name}`)} className="flex items-center justify-between text-sm group cursor-pointer hover:bg-white/5 p-1 rounded">
                              <span className="text-foreground/80 group-hover:text-primary truncate">{f.name}</span>
-                             <span className="text-xs text-foreground/40 bg-white/5 px-1.5 rounded-full">{f.count}</span>
+                             <span className="text-xs text-foreground/50 bg-white/5 px-1.5 rounded-full">{f.count}</span>
                          </div>
                     ))}
                     {facets.sources.length === 0 && <span className="text-xs text-foreground/30">No data</span>}
@@ -734,7 +734,7 @@ export default function LogViewerPage() {
             <div className="w-full h-px bg-white/5" />
 
             <div className="space-y-4">
-                <h3 className="text-xs font-bold text-foreground/40 uppercase tracking-wider">Top Hosts</h3>
+                <h3 className="text-xs font-bold text-foreground/50 uppercase tracking-wider">Top Hosts</h3>
                 <div className="space-y-1">
                     {facets.hosts.map(f => (
                          <div key={f.name} onClick={() => setSearch((prev) => `${prev} host:${f.name}`)} className="flex items-center justify-between text-sm group cursor-pointer hover:bg-white/5 p-1 rounded">
@@ -742,7 +742,7 @@ export default function LogViewerPage() {
                                 <Icon.Server className="w-3 h-3 text-foreground/30" />
                                 <span className="text-foreground/80 group-hover:text-primary truncate max-w-[120px]">{f.name}</span>
                              </div>
-                             <span className="text-xs text-foreground/40 bg-white/5 px-1.5 rounded-full">{f.count}</span>
+                             <span className="text-xs text-foreground/50 bg-white/5 px-1.5 rounded-full">{f.count}</span>
                          </div>
                     ))}
                     {facets.hosts.length === 0 && <span className="text-xs text-foreground/30">No data</span>}
@@ -752,7 +752,7 @@ export default function LogViewerPage() {
             <div className="w-full h-px bg-white/5" />
 
             <div className="space-y-4">
-                <h3 className="text-xs font-bold text-foreground/40 uppercase tracking-wider">Top Users</h3>
+                <h3 className="text-xs font-bold text-foreground/50 uppercase tracking-wider">Top Users</h3>
                 <div className="space-y-1">
                     {facets.users.map(f => (
                          <div key={f.name} onClick={() => setSearch((prev) => `${prev} user:${f.name}`)} className="flex items-center justify-between text-sm group cursor-pointer hover:bg-white/5 p-1 rounded">
@@ -760,7 +760,7 @@ export default function LogViewerPage() {
                                 <Icon.User className="w-3 h-3 text-foreground/30" />
                                 <span className="text-foreground/80 group-hover:text-primary truncate max-w-[120px]">{f.name}</span>
                              </div>
-                             <span className="text-xs text-foreground/40 bg-white/5 px-1.5 rounded-full">{f.count}</span>
+                             <span className="text-xs text-foreground/50 bg-white/5 px-1.5 rounded-full">{f.count}</span>
                          </div>
                     ))}
                     {facets.users.length === 0 && <span className="text-xs text-foreground/30">No data</span>}
@@ -788,7 +788,7 @@ export default function LogViewerPage() {
                aria-label="Logs table"
                classNames={{
                  wrapper: "bg-transparent shadow-none border border-white/5 rounded-lg",
-                 th: "bg-transparent text-[10px] font-bold text-foreground/40 uppercase tracking-wider border-b border-white/10",
+                 th: "bg-transparent text-[10px] font-bold text-foreground/50 uppercase tracking-wider border-b border-white/10",
                  td: "py-3 text-foreground/90",
                  tr: "hover:bg-content1 border-b border-white/5 last:border-0 cursor-default transition-all group",
                }}

@@ -204,7 +204,7 @@ export default function AlertsPage() {
         return (
           <div className="flex flex-col">
             <span className="text-sm text-foreground/70">{dateObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })}</span>
-            <span className="text-[10px] text-foreground/40">{dateObj.toLocaleDateString()}</span>
+            <span className="text-[10px] text-foreground/50">{dateObj.toLocaleDateString()}</span>
           </div>
         );
       
@@ -393,21 +393,21 @@ export default function AlertsPage() {
             <div className="flex bg-content1 rounded-lg p-1 border border-white/5 ml-4 h-8 items-center">
                 <button
                     onClick={() => setQueueFilter('unassigned')}
-                    className={`px-3 h-6 flex items-center rounded-md text-[10px] font-bold uppercase tracking-wider transition-all ${queueFilter === 'unassigned' ? 'bg-primary/20 text-primary' : 'text-foreground/40 hover:text-foreground'}`}
+                    className={`px-3 h-6 flex items-center rounded-md text-[10px] font-bold uppercase tracking-wider transition-all ${queueFilter === 'unassigned' ? 'bg-primary/20 text-primary' : 'text-foreground/50 hover:text-foreground'}`}
                 >
                     Queue
                 </button>
                 <div className="w-px h-3 bg-white/10 mx-1" />
                  <button
                     onClick={() => setQueueFilter('my_queue')}
-                     className={`px-3 h-6 flex items-center rounded-md text-[10px] font-bold uppercase tracking-wider transition-all ${queueFilter === 'my_queue' ? 'bg-warning/20 text-warning' : 'text-foreground/40 hover:text-foreground'}`}
+                     className={`px-3 h-6 flex items-center rounded-md text-[10px] font-bold uppercase tracking-wider transition-all ${queueFilter === 'my_queue' ? 'bg-warning/20 text-warning' : 'text-foreground/50 hover:text-foreground'}`}
                 >
                     In Progress
                 </button>
                 <div className="w-px h-3 bg-white/10 mx-1" />
                 <button
                     onClick={() => setQueueFilter('all')}
-                    className={`px-3 h-6 flex items-center rounded-md text-[10px] font-bold uppercase tracking-wider transition-all ${queueFilter === 'all' ? 'bg-content2 text-foreground' : 'text-foreground/40 hover:text-foreground'}`}
+                    className={`px-3 h-6 flex items-center rounded-md text-[10px] font-bold uppercase tracking-wider transition-all ${queueFilter === 'all' ? 'bg-content2 text-foreground' : 'text-foreground/50 hover:text-foreground'}`}
                 >
                     All
                 </button>
@@ -464,7 +464,7 @@ export default function AlertsPage() {
                 <Tooltip content="All AI Status">
                     <button
                         onClick={() => setAiStatus('all')}
-                        className={`px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all ${aiStatus === 'all' ? 'bg-content2 text-foreground shadow-sm' : 'text-foreground/40 hover:text-foreground'}`}
+                        className={`px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all ${aiStatus === 'all' ? 'bg-content2 text-foreground shadow-sm' : 'text-foreground/50 hover:text-foreground'}`}
                     >
                         All
                     </button>
@@ -475,7 +475,7 @@ export default function AlertsPage() {
                 <Tooltip content="AI Verified Threats">
                     <button
                         onClick={() => setAiStatus('verified')}
-                        className={`px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-1 ${aiStatus === 'verified' ? 'bg-danger/20 text-danger border border-danger/20' : 'text-foreground/40 hover:text-danger hover:bg-danger/10'}`}
+                        className={`px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-1 ${aiStatus === 'verified' ? 'bg-danger/20 text-danger border border-danger/20' : 'text-foreground/50 hover:text-danger hover:bg-danger/10'}`}
                     >
                         <Icon.ShieldAlert className="w-3 h-3" />
                         Verified
@@ -487,7 +487,7 @@ export default function AlertsPage() {
                 <Tooltip content="Auto-Blocked IPs">
                     <button
                          onClick={() => setAiStatus('blocked')}
-                         className={`px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-1 ${aiStatus === 'blocked' ? 'bg-purple-500/20 text-purple-400 border border-purple-500/20' : 'text-foreground/40 hover:text-purple-400 hover:bg-purple-500/10'}`}
+                         className={`px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-1 ${aiStatus === 'blocked' ? 'bg-purple-500/20 text-purple-400 border border-purple-500/20' : 'text-foreground/50 hover:text-purple-400 hover:bg-purple-500/10'}`}
                     >
                         <Icon.Shield className="w-3 h-3" />
                         Blocked

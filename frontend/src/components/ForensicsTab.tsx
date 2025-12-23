@@ -351,7 +351,7 @@ export function ForensicsTab({ caseId }: ForensicsTabProps) {
                     </Chip>
                     <span className="font-medium">{finding.title}</span>
                   </div>
-                  <Icon.ChevronRight className="w-4 h-4 text-foreground/40" />
+                  <Icon.ChevronRight className="w-4 h-4 text-foreground/50" />
                 </div>
                 <p className="text-sm text-foreground/60 mt-2 line-clamp-2">{finding.description}</p>
               </div>

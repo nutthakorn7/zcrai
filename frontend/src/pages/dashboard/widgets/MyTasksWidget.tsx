@@ -109,7 +109,7 @@ export function MyTasksWidget() {
                                 <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border ${getSeverityBg(task.severity)} ${getSeverityColor(task.severity)}`}>
                                     {task.severity}
                                 </span>
-                                <span className="text-xs text-foreground/40 font-mono">
+                                <span className="text-xs text-foreground/50 font-mono">
                                     {new Date(task.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                                 </span>
                             </div>
@@ -133,7 +133,7 @@ export function MyTasksWidget() {
                                 <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border ${getSeverityBg(c.priority === 'P1' ? 'critical' : c.priority === 'P2' ? 'high' : 'medium')} ${getSeverityColor(c.priority === 'P1' ? 'critical' : c.priority === 'P2' ? 'high' : 'medium')}`}>
                                     {c.priority}
                                 </span>
-                                <span className="text-xs text-foreground/40 font-mono">
+                                <span className="text-xs text-foreground/50 font-mono">
                                     {new Date(c.updatedAt).toLocaleDateString()}
                                 </span>
                             </div>
@@ -168,7 +168,7 @@ export function MyTasksWidget() {
 
 function EmptyState({ label }: { label: string }) {
     return (
-        <div className="flex flex-col items-center justify-center h-48 text-center p-6 text-foreground/40">
+        <div className="flex flex-col items-center justify-center h-48 text-center p-6 text-foreground/50">
             <Icon.CheckCircle className="w-8 h-8 mb-2 opacity-50" />
             <p>{label}</p>
         </div>
