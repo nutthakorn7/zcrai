@@ -40,16 +40,14 @@ export function Sidebar() {
       icon: Icon.Shield,
       label: 'Operations',
       children: [
+        { label: 'AI Autopilot', path: '/autopilot' },
         { label: 'Monitor (Dashboard)', path: '/dashboard' },
-        { label: 'AI Autopilot', path: '/autopilot' }, // [NEW]
-        { label: 'Builder', path: '/dashboard/builder' }, // [NEW]
+        { label: 'Builder', path: '/dashboard/builder' },
         { label: 'Rules', path: '/rules' },
         { label: 'Detections', path: '/detections' },
-
         { label: 'Investigate (Cases)', path: '/cases' },
         { label: 'Respond (Playbooks)', path: '/playbooks' },
-
-        { label: 'Reports', path: '/reports' },           // [NEW]
+        { label: 'Reports', path: '/reports' },
       ],
     },
 
