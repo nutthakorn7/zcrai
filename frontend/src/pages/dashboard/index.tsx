@@ -568,6 +568,7 @@ export default function DashboardPage() {
               variant={autoRefresh ? 'solid' : 'flat'}
               className={autoRefresh ? '' : 'bg-transparent hover:bg-white/5 text-foreground/60 hover:text-foreground border-0'}
               onPress={() => setAutoRefresh(!autoRefresh)}
+              aria-label={autoRefresh ? 'Disable auto-refresh' : 'Enable auto-refresh'}
             >
               <Icon.Clock className="w-4 h-4" />
             </Button>
@@ -578,6 +579,7 @@ export default function DashboardPage() {
             isIconOnly
             className="bg-transparent hover:bg-white/5 text-foreground/60 hover:text-foreground border-0"
             onPress={loadDashboard}
+            aria-label="Refresh dashboard data"
           >
             <Icon.Refresh className="w-4 h-4" />
           </Button>
