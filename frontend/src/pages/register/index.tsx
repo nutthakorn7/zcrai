@@ -70,7 +70,7 @@ export default function RegisterPage() {
             <h1 className="text-3xl font-bold tracking-tight mt-2 text-foreground">
               Create Account
             </h1>
-            <p className="text-foreground/60 text-sm mt-1">
+            <p className="text-foreground/80 text-sm mt-1">
               Start securing your organization
             </p>
           </div>
@@ -97,11 +97,11 @@ export default function RegisterPage() {
             value={tenantName}
             onValueChange={setTenantName}
             placeholder="Acme Corporation"
-            startContent={<Icon.Building className="w-5 h-5 text-foreground/60" />}
+            startContent={<Icon.Building className="w-5 h-5 text-foreground/80" />}
             classNames={{
-              label: "text-xs font-semibold text-foreground/60 uppercase tracking-wider ",
+              label: "text-xs font-semibold text-foreground/80 uppercase tracking-wider ",
               inputWrapper: "bg-content1 border border-content4 hover:border-primary/50 data-[hover=true]:border-primary/50 group-data-[focus=true]:border-primary h-[56px]",
-              input: " text-base placeholder:text-foreground/60"
+              input: " text-base placeholder:text-foreground/80"
             }}
           />
 
@@ -112,11 +112,11 @@ export default function RegisterPage() {
             value={email}
             onValueChange={setEmail}
             placeholder="admin@company.com"
-            startContent={<Icon.Mail className="w-5 h-5 text-foreground/60" />}
+            startContent={<Icon.Mail className="w-5 h-5 text-foreground/80" />}
             classNames={{
-              label: "text-xs font-semibold text-foreground/60 uppercase tracking-wider ",
+              label: "text-xs font-semibold text-foreground/80 uppercase tracking-wider ",
               inputWrapper: "bg-content1 border border-content4 hover:border-primary/50 data-[hover=true]:border-primary/50 group-data-[focus=true]:border-primary h-[56px]",
-              input: " text-base placeholder:text-foreground/60"
+              input: " text-base placeholder:text-foreground/80"
             }}
           />
 
@@ -127,21 +127,21 @@ export default function RegisterPage() {
             value={password}
             onValueChange={setPassword}
             placeholder="Create a strong password"
-            startContent={<Icon.Lock className="w-5 h-5 text-foreground/60" />}
+            startContent={<Icon.Lock className="w-5 h-5 text-foreground/80" />}
             endContent={
               <button 
                 type="button" 
                 onClick={() => setIsVisible(!isVisible)} 
-                className="focus:outline-none text-foreground/60 hover:text-foreground/80"
+                className="focus:outline-none text-foreground/80 hover:text-foreground/80"
                 aria-label={isVisible ? "Hide password" : "Show password"}
               >
                 {isVisible ? <Icon.EyeSlash className="w-5 h-5" /> : <Icon.Eye className="w-5 h-5" />}
               </button>
             }
             classNames={{
-              label: "text-xs font-semibold text-foreground/60 uppercase tracking-wider ",
+              label: "text-xs font-semibold text-foreground/80 uppercase tracking-wider ",
               inputWrapper: "bg-content1 border border-content4 hover:border-primary/50 data-[hover=true]:border-primary/50 group-data-[focus=true]:border-primary h-[56px]",
-              input: "text-base placeholder:text-foreground/60"
+              input: "text-base placeholder:text-foreground/80"
             }}
           />
 
@@ -151,7 +151,7 @@ export default function RegisterPage() {
             isSelected={agreed}
             onValueChange={setAgreed}
             classNames={{
-              label: "text-xs text-foreground/60 leading-tight"
+              label: "text-xs text-foreground/80 leading-tight"
             }}
           >
             By continuing, you agree to our{' '}
@@ -172,7 +172,7 @@ export default function RegisterPage() {
         </form>
 
         {/* Footer */}
-        <div className="mt-8 text-center text-sm text-foreground/60">
+        <div className="mt-8 text-center text-sm text-foreground/80">
           Already have an account?{" "}
           <a href="/login" className="text-primary font-bold hover:underline transition-all">
             Sign in
