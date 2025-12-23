@@ -20,9 +20,11 @@ import { cached } from './dashboard-cache.service'
  * 3. **Result**: 10x faster dashboard queries (6.1M → thousands of rows)
  */
 
-// Helper: Check if sources is empty
+// Helper: Check if sources explicitly requests "no data" (i.e., 'none')
+// undefined or empty array means "show all sources"
 function isEmptySources(sources?: string[]): boolean {
-  return !sources || sources.length === 0 || (sources.length === 1 && sources[0] === 'none')
+  // Only return true if sources explicitly contains 'none'
+  return sources?.length === 1 && sources[0] === 'none'
 }
 
 // Empty result templates
@@ -42,7 +44,9 @@ export const DashboardService = {
           return { ...emptyCount }
         }
         
-        const sourceFilter = (sources && sources.length > 0) ? `AND source IN {sources:Array(String)}` : ''
+        // Skip source filter if 'all' or undefined/empty
+        const shouldFilterSource = sources && sources.length > 0 && !(sources.length === 1 && sources[0] === 'all');
+        const sourceFilter = shouldFilterSource ? `AND source IN {sources:Array(String)}` : ''
         
         // Use materialized view
         const sqlQuery = `
