@@ -12,7 +12,7 @@ import { cached } from './dashboard-cache.service'
  *    - mv_dashboard_timeline: Timeline aggregations (305 rows)
  *    - mv_mitre_heatmap: MITRE techniques (69 rows)
  *    - mv_top_users: Top users (1,508 rows)
- *    - mv_top_hosts: SKIP (no host_ip data in security_events)
+ *    - mv_top_hosts: Top hosts by name (21,288 rows) ✅
  * 
  * 2. **Redis Caching**: Query results cached with TTL ✅
  *    - Summary: 30s, Timeline: 60s, MITRE: 5min, Users: 60s
@@ -128,7 +128,6 @@ export const DashboardService = {
   },
 
   // ==================== TOP HOSTS ====================
-  // NOTE: host_ip has no data in security_events, use raw query for network_src_ip instead
   async getTopHosts(tenantId: string, startDate: string, endDate: string, limit: number = 10, sources?: string[]) {
     return cached(
       'dashboard:top-hosts',
@@ -138,20 +137,19 @@ export const DashboardService = {
         
         const sourceFilter = (sources && sources.length > 0) ? `AND source IN {sources:Array(String)}` : ''
         
-        // Use raw table (no MV - host_ip is empty)
+        // Use materialized view (host_name, not IP)
         const sqlQuery = `
           SELECT 
-            network_src_ip as host_ip,
-            count() as count,
-            countIf(severity = 'critical') as critical,
-            countIf(severity = 'high') as high
-          FROM security_events
+            host_name as host_ip,
+            sum(count) as count,
+            sum(critical_count) as critical,
+            sum(high_count) as high
+          FROM mv_top_hosts
           WHERE tenant_id = {tenantId:String}
-            AND toDate(timestamp) >= {startDate:String}
-            AND toDate(timestamp) <= {endDate:String}
-            AND network_src_ip != ''
+            AND date >= {startDate:String}
+            AND date <= {endDate:String}
             ${sourceFilter}
-          GROUP BY network_src_ip
+          GROUP BY host_name
           ORDER BY count DESC
           LIMIT {limit:UInt32}
         `
