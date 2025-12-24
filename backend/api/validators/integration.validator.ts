@@ -38,6 +38,8 @@ export const AddCrowdStrikeSchema = t.Object({
 export const AddAISchema = t.Object({
   apiKey: t.String(),
   label: t.Optional(t.String()),
+  model: t.Optional(t.String()),
+  baseUrl: t.Optional(t.String()),
 })
 
 export const AddAWSSchema = t.Object({

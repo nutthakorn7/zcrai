@@ -23,8 +23,9 @@ export const useAlertSocket = () => {
         // Use the same IP/Port as useCaseSocket for consistency in this environment
         // In a real production app, this should be derived from import.meta.env.VITE_WS_URL
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const host = '45.118.132.160:3002'; // Hardcoded as per project pattern in useCaseSocket.ts
-        const wsUrl = `${protocol}//${host}/realtime/alerts?tenantId=${user.tenantId}`;
+    // Use the current host/port and proxy through /realtime/
+    const host = window.location.host; 
+    const wsUrl = `${protocol}//${host}/realtime/alerts?tenantId=${user.tenantId}`;
         
         console.log(`[Socket] Connecting to ${wsUrl}`);
         ws.current = new WebSocket(wsUrl);

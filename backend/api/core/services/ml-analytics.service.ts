@@ -23,9 +23,9 @@ export const MLAnalyticsService = {
         FROM ${auditLogs}
         WHERE ${auditLogs.tenantId} = ${tenantId}
             AND ${auditLogs.action} = 'user.login_failed'
-            AND ${auditLogs.createdAt} >= ${thirtyDaysAgo}
-        GROUP BY day
-        ORDER BY day ASC
+            AND ${auditLogs.createdAt} >= ${thirtyDaysAgo.toISOString()}::timestamp
+        GROUP BY 1
+        ORDER BY 1 ASC
       `);
 
       // Fill in missing days with 0 (simplified for now, just map DB results)
@@ -72,9 +72,9 @@ export const MLAnalyticsService = {
             COUNT(*) as count
         FROM ${alerts}
         WHERE ${alerts.tenantId} = ${tenantId}
-            AND ${alerts.createdAt} >= ${thirtyDaysAgo}
-        GROUP BY day
-        ORDER BY day ASC
+            AND ${alerts.createdAt} >= ${thirtyDaysAgo.toISOString()}::timestamp
+        GROUP BY 1
+        ORDER BY 1 ASC
       `);
 
       const history = dailyCounts.map((r: any) => parseInt(r.count));
@@ -92,7 +92,7 @@ export const MLAnalyticsService = {
           ));
 
       return {
-          current: Number(todayResult.count),
+          current: Number(todayResult?.count || 0),
           history: history,
           average: avg
       };

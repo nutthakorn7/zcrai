@@ -680,6 +680,11 @@ export const IntegrationService = {
         case 'deepseek':
           result = await this.testAIConnection(integration.provider, data.apiKey)
           break
+        case 'virustotal':
+        case 'abuseipdb':
+        case 'alienvault-otx':
+          result = await this.testEnrichmentConnection(integration.provider, data.apiKey)
+          break
         case 'jira':
         case 'servicenow':
           result = await this.testTicketingConnection(integration.provider, data.url, integration.provider === 'jira' ? data.user : data.user, data.token)
@@ -746,6 +751,39 @@ export const IntegrationService = {
       } catch (e: any) {
           throw new Error(`${provider} Connection Failed: ${e.message}`);
       }
+  },
+
+  // ==================== TEST ENRICHMENT CONNECTION ====================
+  async testEnrichmentConnection(provider: string, apiKey: string) {
+    try {
+      let url = ''
+      let headers: Record<string, string> = { 'x-apikey': apiKey }
+
+      switch (provider) {
+        case 'virustotal':
+          url = 'https://www.virustotal.com/api/v3/ip_addresses/8.8.8.8'
+          break
+        case 'abuseipdb':
+          url = 'https://api.abuseipdb.com/api/v2/check?ipAddress=8.8.8.8'
+          headers = { 'Key': apiKey, 'Accept': 'application/json' }
+          break
+        case 'alienvault-otx':
+          url = 'https://otx.alienvault.com/api/v1/indicators/IPv4/8.8.8.8/general'
+          headers = { 'X-OTX-API-KEY': apiKey }
+          break
+        default:
+          throw new Error('Unknown enrichment provider')
+      }
+
+      const response = await fetch(url, { headers })
+      if (!response.ok) {
+        const error = await response.text()
+        throw new Error(`${provider.toUpperCase()} Connection Failed: ${response.status} - ${error.slice(0, 100)}`)
+      }
+      return true
+    } catch (e: any) {
+      throw new Error(e.message)
+    }
   },
 
   // ==================== DELETE INTEGRATION ====================

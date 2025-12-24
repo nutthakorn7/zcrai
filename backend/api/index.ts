@@ -150,6 +150,13 @@ const app = new Elysia()
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   }))
   .use(helmet())
+  .derive(({ cookie, request }) => {
+    const url = new URL(request.url);
+    if (!url.pathname.includes('health') && !url.pathname.includes('/monitoring')) {
+        console.log(`[HTTP] ${request.method} ${url.pathname} | Cookies: ${Object.keys(cookie).join(', ')}`);
+    }
+    return {};
+  })
   .use(errorHandler)  // Global error handler
   .use(timingMiddleware) // Request timing logs
   .use(rateLimit({

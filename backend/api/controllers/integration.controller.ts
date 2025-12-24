@@ -249,7 +249,7 @@ export const integrationController = new Elysia({ prefix: '/integrations' })
       set.status = 400
       return { error: e.message }
     }
-  })
+  }, { body: AddAISchema })
 
   /**
    * Add AWS CloudTrail integration

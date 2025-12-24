@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Card, CardBody, Button, Textarea, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Tabs, Tab, Chip, Spinner } from "@heroui/react";
-import { Search, Play, FileCode, ShieldAlert } from 'lucide-react';
+import { Icon } from '../shared/ui';
 import { api } from '../shared/api/api';
 
 export default function HuntingPage() {
@@ -63,21 +63,21 @@ detection:
     };
 
     return (
-        <div className="p-6 space-y-6">
-            <div className="flex justify-between items-center">
+        <div className="min-h-screen bg-background p-8 max-w-6xl mx-auto space-y-6">
+            <div className="flex justify-between items-center mb-2">
                 <div>
-                    <h1 className="text-2xl font-bold flex items-center gap-2">
-                        <Search className="w-6 h-6 text-primary" />
+                    <h1 className="text-3xl font-bold flex items-center gap-3">
+                        <Icon.Search className="w-8 h-8 text-primary" />
                         Threat Hunting
                     </h1>
-                    <p className="text-gray-400">Proactive threat search using SQL or Sigma Rules</p>
+                    <p className="text-foreground/60 mt-1">Proactive threat search using SQL or Sigma Rules</p>
                 </div>
             </div>
 
-            <Card className="bg-[#1E1B4B]/30 border border-white/10">
-                <CardBody>
+            <Card className="bg-content1 border border-white/5">
+                <CardBody className="p-6">
                     <Tabs aria-label="Hunting Modes" color="primary" variant="underlined" selectedKey={activeTab} onSelectionChange={(k) => setActiveTab(k as string)}>
-                        <Tab key="sql" title={<div className="flex items-center gap-2"><FileCode size={16}/> SQL Logic</div>}>
+                        <Tab key="sql" title={<div className="flex items-center gap-2"><Icon.Terminal className="w-4 h-4"/> SQL Logic</div>}>
                             <div className="mt-4 space-y-4">
                                 <Textarea 
                                     label="SQL Query (ClickHouse)"
@@ -85,16 +85,19 @@ detection:
                                     minRows={5}
                                     value={query}
                                     onValueChange={setQuery}
-                                    classNames={{ input: "font-mono" }}
+                                    classNames={{ 
+                                        input: "font-mono",
+                                        inputWrapper: "bg-content2/50" 
+                                    }}
                                 />
                                 <div className="flex justify-end">
-                                    <Button color="primary" endContent={<Play size={16}/>} onPress={handleRunQuery} isLoading={loading}>
+                                    <Button color="primary" endContent={<Icon.Zap className="w-4 h-4"/>} onPress={handleRunQuery} isLoading={loading}>
                                         Run Query
                                     </Button>
                                 </div>
                             </div>
                         </Tab>
-                        <Tab key="sigma" title={<div className="flex items-center gap-2"><ShieldAlert size={16}/> Sigma Rule</div>}>
+                        <Tab key="sigma" title={<div className="flex items-center gap-2"><Icon.Shield className="w-4 h-4"/> Sigma Rule</div>}>
                             <div className="mt-4 space-y-4">
                                 <Textarea 
                                     label="Sigma YAML"
@@ -102,16 +105,19 @@ detection:
                                     minRows={10}
                                     value={sigmaYaml}
                                     onValueChange={setSigmaYaml}
-                                    classNames={{ input: "font-mono" }}
+                                    classNames={{ 
+                                        input: "font-mono",
+                                        inputWrapper: "bg-content2/50"
+                                    }}
                                 />
                                 {generatedSql && (
-                                    <div className="p-3 bg-black/30 rounded border border-white/10">
-                                        <p className="text-xs text-gray-500 mb-1">Generated SQL:</p>
-                                        <code className="text-xs text-green-400 font-mono block whitespace-pre-wrap">{generatedSql}</code>
+                                    <div className="p-4 bg-black/30 rounded-lg border border-white/5">
+                                        <p className="text-xs text-foreground/40 mb-2 font-semibold uppercase tracking-wider">Generated SQL:</p>
+                                        <code className="text-sm text-success font-mono block whitespace-pre-wrap">{generatedSql}</code>
                                     </div>
                                 )}
                                 <div className="flex justify-end">
-                                    <Button color="secondary" endContent={<Play size={16}/>} onPress={handleRunSigma} isLoading={loading}>
+                                    <Button color="secondary" endContent={<Icon.Zap className="w-4 h-4"/>} onPress={handleRunSigma} isLoading={loading}>
                                         Convert & Run
                                     </Button>
                                 </div>
@@ -120,51 +126,64 @@ detection:
                     </Tabs>
 
                     {error && (
-                        <div className="mt-4 p-3 bg-red-500/10 border border-red-500/30 text-red-400 rounded">
-                            Error: {error}
+                        <div className="mt-4 p-4 bg-danger/10 border border-danger/20 text-danger rounded-lg flex items-center gap-3">
+                            <Icon.AlertCircle className="w-5 h-5 flex-shrink-0" />
+                            <p className="text-sm font-medium">Error: {error}</p>
                         </div>
                     )}
                 </CardBody>
             </Card>
 
             {/* Results Table */}
-            <Card className="bg-[#1E1B4B]/30 border border-white/10 min-h-[400px]">
-                <CardBody>
-                    <div className="flex justify-between items-center mb-4">
-                        <h3 className="font-semibold text-lg">Query Results</h3>
-                        <Chip size="sm" variant="flat">{results.length} rows</Chip>
+            <Card className="bg-content1 border border-white/5 min-h-[400px]">
+                <CardBody className="p-6">
+                    <div className="flex justify-between items-center mb-6">
+                        <h3 className="font-bold text-xl">Query Results</h3>
+                        <Chip size="sm" variant="flat" color="primary">{results.length} rows</Chip>
                     </div>
                     
                     {loading ? (
-                        <div className="flex justify-center items-center h-64">
-                            <Spinner label="Executing Query..." />
+                        <div className="flex flex-col justify-center items-center h-64 gap-4">
+                            <Spinner color="primary" />
+                            <p className="text-sm text-foreground/60 animate-pulse">Executing Query...</p>
                         </div>
                     ) : results.length === 0 ? (
-                        <div className="text-center text-gray-500 py-20">
-                            No results found or query not run yet.
+                        <div className="flex flex-col items-center justify-center h-64 text-foreground/40 gap-3">
+                            <Icon.Search className="w-12 h-12 opacity-20" />
+                            <p className="font-medium">No results found or query not run yet.</p>
                         </div>
                     ) : (
-                        <Table aria-label="Query Results" removeWrapper className="bg-transparent">
-                            <TableHeader>
-                                {columns.map(col => (
-                                    <TableColumn key={col}>{col}</TableColumn>
-                                ))}
-                            </TableHeader>
-                            <TableBody>
-                                {results.map((row, idx) => (
-                                    <TableRow key={idx}>
-                                        {columns.map(col => (
-                                            <TableCell key={`${idx}-${col}`}>
-                                                {typeof row[col] === 'object' ? JSON.stringify(row[col]) : String(row[col])}
-                                            </TableCell>
-                                        ))}
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
+                        <div className="overflow-x-auto scrollbar-thin">
+                            <Table aria-label="Query Results" removeWrapper className="bg-transparent" shadow="none">
+                                <TableHeader>
+                                    {columns.map(col => (
+                                        <TableColumn key={col} className="bg-content2/50 uppercase text-xs font-bold tracking-wider">{col}</TableColumn>
+                                    ))}
+                                </TableHeader>
+                                <TableBody>
+                                    {results.map((row, idx) => (
+                                        <TableRow key={idx} className="border-b border-white/5 last:border-0 hover:bg-white/[0.02] transition-colors">
+                                            {columns.map(col => (
+                                                <TableCell key={`${idx}-${col}`} className="py-4 text-sm font-mono text-foreground/80">
+                                                    {typeof row[col] === 'object' ? JSON.stringify(row[col]) : String(row[col])}
+                                                </TableCell>
+                                            ))}
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </div>
                     )}
                 </CardBody>
             </Card>
+
+            {/* AI Footer */}
+            <div className="flex items-center justify-center gap-2 py-4">
+                <Icon.CheckCircle className="w-4 h-4 text-success" />
+                <span className="text-xs text-foreground/40 font-medium">
+                    AI-Powered Threat Engine Monitoring Active
+                </span>
+            </div>
         </div>
     );
 }

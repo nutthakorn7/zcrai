@@ -23,13 +23,16 @@ interface SubscriptionData {
 export default function SubscriptionPage() {
     const [data, setData] = useState<SubscriptionData | null>(null);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
     const fetchData = async () => {
         try {
+            setError(null);
             const res = await BillingAPI.getSubscription();
             setData(res.data);
-        } catch (e) {
+        } catch (e: any) {
             console.error(e);
+            setError(e.response?.data?.error || e.message || 'Unknown error occurred');
         } finally {
             setLoading(false);
         }
@@ -54,7 +57,18 @@ export default function SubscriptionPage() {
     };
 
     if (loading) return <div className="p-8">Loading subscription info...</div>;
-    if (!data) return <div className="p-8">Error loading data.</div>;
+    if (error) return (
+        <div className="p-8 flex flex-col gap-4">
+            <div className="text-danger font-bold text-xl">Error loading subscription data</div>
+            <div className="p-4 bg-default-100 dark:bg-default-50 rounded-md font-mono text-sm text-danger-500">
+                {error}
+            </div>
+            <Button onPress={fetchData} color="primary" variant="flat" size="sm" className="w-fit">
+                Retry
+            </Button>
+        </div>
+    );
+    if (!data) return <div className="p-8">No data available.</div>;
 
     const { subscription, usage } = data;
     const limits = subscription.limits;

@@ -2,20 +2,20 @@
   "cookies": [
     {
       "name": "refresh_token",
-      "value": "OvpiBV01LkkiyQ6ypv2xVnWjgZMNJ2oIWmkT-EZmU_TOwdXm-dpSuzjirpa4ZGfN",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjFlOWZlNGU5LWVkNWQtNDBhMi1hMDA1LTU3MjI5MmY2NDlhYiIsInR5cGUiOiJyZWZyZXNoIiwiZXhwIjoxNzY5MTQzNTIwLCJpYXQiOjE3NjY1NTE1MjB9.vkli8z-Sy8RpGr5mNtGur8gIjrN1-XxiOz_dRB4eGOw",
       "domain": "app.zcr.ai",
       "path": "/auth/refresh",
-      "expires": 1766457121.900961,
+      "expires": 1801111520.532117,
       "httpOnly": true,
       "secure": true,
       "sameSite": "Lax"
     },
     {
       "name": "access_token",
-      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjUwNDM3NDliLTk3ZTEtNDE5ZS04NmNiLTNiZGM5YmY3MmY0OCIsInVzZXJJZCI6IjUwNDM3NDliLTk3ZTEtNDE5ZS04NmNiLTNiZGM5YmY3MmY0OCIsInJvbGUiOiJ0ZW5hbnRfYWRtaW4iLCJ0ZW5hbnRJZCI6ImZkZDUzNjFiLTM5NWYtNDU2Zi04OWQ1LTY4YjUyYzU4ZWFiNCIsImV4cCI6MTc2NTg1MzIyMiwiaWF0IjoxNzY1ODUyMzIyfQ.Ku5MyHvd3s3zzysjyu003mS9ZZ9Qince4n5UdKWcZYI",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIxZTlmZTRlOS1lZDVkLTQwYTItYTAwNS01NzIyOTJmNjQ5YWIiLCJpZCI6IjFlOWZlNGU5LWVkNWQtNDBhMi1hMDA1LTU3MjI5MmY2NDlhYiIsImVtYWlsIjoic3VwZXJhZG1pbkB6Y3IuYWkiLCJyb2xlIjoic3VwZXJhZG1pbiIsInRlbmFudElkIjoiMDNjNzAzYTItNjczMS00MzA2LTlhMzktZTY4MDcwNDE1MDY5IiwiZXhwIjoxNzY2NjM3OTIwLCJpYXQiOjE3NjY1NTE1MjB9.S7_KgBjyxVEXvHHvvblhvKwZw9iY8aXsLt8madXm9Nw",
       "domain": "app.zcr.ai",
       "path": "/",
-      "expires": 1766457121.900893,
+      "expires": 1801111520.532049,
       "httpOnly": true,
       "secure": true,
       "sameSite": "Lax"

@@ -2,49 +2,47 @@ import { test as setup, expect } from '@playwright/test';
 
 const authFile = 'playwright/.auth/user.json';
 
+// Use existing superadmin account
+const email = process.env.TEST_EMAIL || 'superadmin@zcr.ai';
+const password = process.env.TEST_PASSWORD || 'SuperAdmin@123!';
+
 setup('authenticate', async ({ page }) => {
-  // Generate random credentials to avoid account lockout
-  const timestamp = Date.now();
-  const email = `test.admin-${timestamp}@zcr.ai`;
-  const password = 'SuperAdmin@123!';
-  const tenantName = `Test Tenant ${timestamp}`;
-
-  await page.goto('/register');
+  // Go to login page
+  await page.goto('/login', { waitUntil: 'domcontentloaded' });
   
-  // Fill Registration Form
-  await page.getByPlaceholder('Acme Corporation').fill(tenantName);
-  await page.getByPlaceholder('admin@company.com').fill(email);
-  await page.getByPlaceholder('Create a strong password').fill(password);
+  // Wait for login form to be ready
+  await page.waitForLoadState('networkidle');
   
-  // Agree to terms
-  await page.getByRole('checkbox').check();
+  // Fill login form
+  const emailInput = page.locator('input[type="email"], input[name="email"]').first();
+  await emailInput.waitFor({ state: 'visible', timeout: 30000 });
+  await emailInput.fill(email);
   
-  // Submit
+  const passwordInput = page.locator('input[type="password"]').first();
+  await passwordInput.fill(password);
+  
+  // Submit login
+  const loginResponse = page.waitForResponse(r => r.url().includes('/auth/login') && r.status() === 200);
   await page.locator('button[type="submit"]').click();
+  await loginResponse;
   
-  // Wait for success alert/redirect and then Login
-  // Note: Registration currently redirects to /login with specific behavior
-  await expect(page).toHaveURL(/login/);
+  // Wait for redirect to dashboard
+  await page.waitForURL(/dashboard|\//, { timeout: 60000, waitUntil: 'domcontentloaded' });
+  
+  // Ensure we're logged in and data starts loading
+  await page.waitForLoadState('networkidle');
+  await page.waitForTimeout(2000); // Give it a bit more time
 
-  // Now perform Login with the new account
-  await page.getByPlaceholder('example@company.com').fill(email);
-  await page.getByPlaceholder('Enter your password').fill(password);
-  await page.locator('button[type="submit"]').click();
-
-  // Wait for either dashboard OR error
-  try {
-      await Promise.race([
-          page.waitForURL(/dashboard|\/$/),
-          page.waitForSelector('.text-red-400', { timeout: 10000 }).then(async el => {
-              const err = await el?.textContent();
-              throw new Error(`Login Failed: ${err}`);
-          })
-      ]);
-  } catch (e) {
-      if (e.message.includes('Login Failed')) throw e;
-      throw e;
-  }
-   
+  
+  // Debug: Log cookies before saving
+  const cookies = await page.context().cookies();
+  console.log('🍪 Captured Cookies count:', cookies.length);
+  cookies.forEach(c => {
+    console.log(`- ${c.name} (${c.domain}, secure: ${c.secure}, sameSite: ${c.sameSite})`);
+  });
+  
   // Save storage state to be used in subsequent tests
   await page.context().storageState({ path: authFile });
+  
+  console.log('✅ Auth setup completed successfully');
 });

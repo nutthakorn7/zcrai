@@ -16,30 +16,28 @@ export const aiController = new Elysia({ prefix: '/ai' })
   
   /**
    * Generate ClickHouse query from natural language
-   * @route POST /ai/query
-   * @access Protected - Requires authentication
-   * @body {string} prompt - Natural language query description
-   * @returns {Object} Generated ClickHouse SQL query
-   * @description Converts natural language to ClickHouse query using AI
    */
-  .post('/query', async ({ body }: any) => {
+  .post('/query', async ({ body, user }: any) => {
     const { prompt } = body;
     if (!prompt) throw Errors.BadRequest('Prompt is required');
     
+    // Explicit tenant check
+    const tenantId = user?.tenantId;
+    if (!tenantId) throw Errors.Unauthorized('Missing tenant context');
+
     const result = await AIService.generateQuery(prompt);
     return { success: true, data: result };
   })
 
   /**
    * AI-powered chat assistant for security analysis
-   * @route POST /ai/chat
-   * @access Protected - Requires authentication
-   * @body {array} messages - Chat message history [{role, content}]
-   * @body {string} context - Additional context for AI (optional)
-   * @returns {Object} AI-generated response
-   * @description Security analyst AI assistant for threat analysis and guidance
    */
-  .post('/chat', async ({ body, user, cookie: { selected_tenant } }: any) => {
+  .post('/chat', async ({ body, user, cookie: { selected_tenant }, set }: any) => {
+    if (!user) {
+      set.status = 401
+      return { success: false, message: 'Authentication required' }
+    }
+    
     const { messages, context } = body as ChatBody
 
     // Use selected_tenant for Super Admin impersonation
@@ -48,21 +46,34 @@ export const aiController = new Elysia({ prefix: '/ai' })
       tenantId = selected_tenant.value
     }
 
-    console.log(`[AI Chat] Request from Tenant: ${tenantId} (User: ${user.role})`)
+    if (!tenantId) {
+       console.error('[AI Chat] Error: No TenantId found for user', user.email)
+       return { success: false, message: 'Tenant context required' }
+    }
 
-    // Use synchronous summarize (Note: Streaming available via GET /chat-stream)
-    const lastMessage = messages[messages.length - 1]?.content || ''
-    const response = await AIService.summarizeCase({
-      title: 'Chat Query',
-      description: lastMessage,
-      severity: 'info',
-      alerts: context ? [{ severity: 'info', title: 'Context', description: context }] : []
-    })
+    console.log(`[AI Chat] Request from Tenant: ${tenantId} (User: ${user.email || user.id})`)
 
-    return { 
-      success: true, 
-      response,
-      message: 'AI response generated'
+    try {
+      // Use synchronous summarize
+      const lastMessage = messages[messages.length - 1]?.content || ''
+      const response = await AIService.summarizeCase({
+        title: 'Chat Query',
+        description: lastMessage,
+        severity: 'info',
+        alerts: context ? [{ severity: 'info', title: 'Context', description: context }] : []
+      })
+
+      return { 
+        success: true, 
+        response,
+        message: 'AI response generated'
+      }
+    } catch (e: any) {
+      console.error('[AI Chat] Backend Error:', e.message)
+      return { 
+        success: false, 
+        message: `AI error: ${e.message}` 
+      }
     }
   })
 

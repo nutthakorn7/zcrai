@@ -4,7 +4,7 @@
  */
 
 import { Elysia, t } from 'elysia';
-import { tenantGuard } from '../middlewares/auth.middleware';
+import { withAuth } from '../middleware/auth';
 import { AnomalyDetectionService } from '../core/services/anomaly.service';
 import { MLAnalyticsService } from '../core/services/ml-analytics.service';
 
@@ -20,7 +20,7 @@ export interface AnomalyMetric {
 }
 
 export const mlController = new Elysia({ prefix: '/ml' })
-  .use(tenantGuard)
+  .use(withAuth)
   
   /**
    * Get real-time ano maly detection for all monitored metrics

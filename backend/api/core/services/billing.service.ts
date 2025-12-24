@@ -83,19 +83,22 @@ export const BillingService = {
             startOfMonth.setHours(0,0,0,0)
             const startTimestamp = Math.floor(startOfMonth.getTime() / 1000)
             
+            // Optimization: Use count(*) * estimate instead of full serialization to prevent CPU high load
             const q = `
-                SELECT sum(length(toJSONString(*))) as bytes
+                SELECT count(*) as count
                 FROM security_events
                 WHERE tenant_id = {tenantId:String}
                 AND timestamp >= toDateTime({start:UInt32})
             `
             // query returns T[]
-            const usageResult = await query<{ bytes: string }>(q, {
+            const usageResult = await query<{ count: string }>(q, {
                 tenantId,
                 start: startTimestamp
             })
 
-            const bytes = parseInt(usageResult[0]?.bytes || '0')
+            const count = parseInt(usageResult[0]?.count || '0')
+            // Estimate 1KB per event (conservative estimate)
+            const bytes = count * 1024 
             gbUsed = bytes / (1024 * 1024 * 1024)
         } catch (error) {
             console.error('[BillingService] Failed to get data volume from ClickHouse:', error)

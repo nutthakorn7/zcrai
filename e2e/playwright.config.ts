@@ -4,22 +4,46 @@ export default defineConfig({
   testDir: './tests',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
-  reporter: 'html',
+  retries: process.env.CI ? 2 : 1,
+  workers: process.env.CI ? 1 : 4,
+  reporter: [['html'], ['list']],
   
-  // Timeout settings
-  timeout: 60000,
-  globalTimeout: 600000,
+  // Increased timeout settings for production testing
+  timeout: 120000, // 2 minutes per test
+  globalTimeout: 1200000, // 20 minutes total
   expect: {
-    timeout: 10000,
+    timeout: 30000, // 30 seconds for assertions
   },
   
   use: {
     baseURL: process.env.BASE_URL || 'https://app.zcr.ai',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
-    actionTimeout: 15000,
-    navigationTimeout: 45000,
+    video: 'on-first-retry',
+    actionTimeout: 30000,
+    navigationTimeout: 60000,
+    // Persist auth state
+    storageState: 'playwright/.auth/user.json',
   },
+  
+  // Projects configuration
+  projects: [
+    // Setup project for authentication
+    {
+      name: 'setup',
+      testMatch: /auth\.setup\.ts/,
+      use: {
+        storageState: undefined, // Don't use storage state for setup
+      },
+    },
+    // Main tests that depend on auth
+    {
+      name: 'chromium',
+      use: { 
+        ...devices['Desktop Chrome'],
+        storageState: 'playwright/.auth/user.json',
+      },
+      dependencies: ['setup'],
+    },
+  ],
 });

@@ -27,8 +27,10 @@ export const authGuard = new Elysia({ name: 'authGuard' })
     secret: process.env.JWT_SECRET || 'super_secret_dev_key',
   }))
   .derive(async ({ jwt, cookie: { access_token }, set }: any) => {
-    // Debug: Verify this middleware is being executed
-    console.log('� [authGuard] derive() called, NODE_ENV:', process.env.NODE_ENV);
+    // Debug logging for production
+    console.log('🔐 [authGuard] derive() called');
+    console.log('🔐 [authGuard] NODE_ENV:', process.env.NODE_ENV);
+    console.log('🔐 [authGuard] access_token exists:', !!access_token?.value);
     
     //🔓 BYPASS MODE: Auto-inject mock user (skip all auth)
     // Bypass when NOT production, or when explicit bypass flags are set
@@ -36,7 +38,8 @@ export const authGuard = new Elysia({ name: 'authGuard' })
                     || process.env.DEV_AUTH_BYPASS === 'true'
                     || process.env.BYPASS_AUTH === 'true';
     
-    console.log('🔍 [authGuard] bypassAuth:', bypassAuth);
+    console.log('🔐 [authGuard] bypassAuth:', bypassAuth);
+    
     if (bypassAuth) {
       console.log('🔓 [authGuard] BYPASS MODE enabled');
       // Fetch actual superadmin from database to get valid tenant ID
@@ -71,21 +74,34 @@ export const authGuard = new Elysia({ name: 'authGuard' })
     }
 
     // Production: Normal JWT verification
+    console.log('🔐 [authGuard] Production mode - verifying JWT');
+    
     if (!access_token?.value) {
-      set.status = 401
-      throw new Error('Unauthorized')
+      console.log('🔐 [authGuard] No access_token cookie found!');
+      set.status = 401;
+      throw new Error('Unauthorized - no token');
     }
 
-    const payload = await jwt.verify(access_token.value as string)
-    if (!payload) {
-      set.status = 401
-      throw new Error('Invalid token')
-    }
-    
-    return {
-      user: payload as JWTPayload,
+    console.log('🔐 [authGuard] Token found, verifying...');
+    try {
+      const payload = await jwt.verify(access_token.value as string);
+      if (!payload) {
+        console.log('🔐 [authGuard] JWT verification returned null!');
+        set.status = 401;
+        throw new Error('Invalid token');
+      }
+      
+      console.log('🔐 [authGuard] JWT verified successfully, user:', (payload as any).email);
+      return {
+        user: payload as JWTPayload,
+      };
+    } catch (e: any) {
+      console.error('🔐 [authGuard] JWT verification error:', e.message);
+      set.status = 401;
+      throw new Error('Invalid token');
     }
   })
+
 
 // ==================== ROLE GUARD ====================
 export const requireRole = (...allowedRoles: Role[]) => {

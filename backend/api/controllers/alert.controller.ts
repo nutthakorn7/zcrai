@@ -7,46 +7,58 @@ import { CreateAlertSchema } from '../validators/alert.validator';
 
 export const alertController = new Elysia({ prefix: '/alerts' })
   .use(withAuth)
+
   
   /**
    * List alerts with optional filtering
    * @route GET /alerts
    * @access Protected - Requires authentication
-   * @query {string} status - Filter by status (open, reviewing, dismissed) - comma-separated
-   * @query {string} severity - Filter by severity (critical, high, medium, low) - comma-separated
-   * @query {string} source - Filter by alert source - comma-separated
-   * @query {number} limit - Max results to return (default: 100)
-   * @query {number} offset - Pagination offset (default: 0)
-   * @returns {Object} Filtered list of alerts
    */
-  .get('/', async ({ query, user }: any) => {
-    console.log('[ALERTS] === GET / endpoint called ===');
-    console.log('[ALERTS] User:', user?.email, 'Role:', user?.role, 'TenantId:', user?.tenantId);
-    
-    // Build filters - superadmin can see all tenants, regular users only their tenant
-    const filters: any = {
-      limit: query.limit ? parseInt(query.limit) : 100,
-      offset: query.offset ? parseInt(query.offset) : 0,
-    };
-    
-    // Only filter by tenantId for non-superadmin users
-    if (user.role !== 'superadmin') {
-      filters.tenantId = user.tenantId;
-      console.log('[ALERTS] Filtering by tenantId:', user.tenantId);
-    } else {
-      console.log('[ALERTS] Superadmin - showing all tenants');
-    }
-    
-    if (query.status) filters.status = query.status.split(',');
-    if (query.severity) filters.severity = query.severity.split(',');
-    if (query.source) filters.source = query.source.split(',');
-    if (query.aiStatus) filters.aiStatus = query.aiStatus.split(',');
-    
-    const alerts = await AlertService.list(filters);
+  .get('/', async ({ query, user, set }) => {
+    try {
+      console.log('[ALERTS] === GET / endpoint called ===');
+      if (!user) {
+        console.error('[ALERTS] Error: User context missing');
+        set.status = 401;
+        return { success: false, error: 'Authentication required' };
+      }
+      console.log('[ALERTS] User:', user?.email, 'Role:', user?.role, 'TenantId:', user?.tenantId);
+      
+      // Build filters
+      const filters: any = {
+        limit: query.limit ? parseInt(query.limit) : 100,
+        offset: query.offset ? parseInt(query.offset) : 0,
+      };
+      
+      // Only filter by tenantId for non-superadmin users
+      if (user.role !== 'superadmin') {
+        if (!user.tenantId) {
+            console.error('[ALERTS] Error: TenantId missing for user', user.email);
+            set.status = 403;
+            return { success: false, error: 'Tenant context missing' };
+        }
+        filters.tenantId = user.tenantId;
+        console.log('[ALERTS] Filtering by tenantId:', user.tenantId);
+      } else {
+        console.log('[ALERTS] Superadmin - showing all tenants');
+      }
+      
+      if (query.status) filters.status = query.status.split(',');
+      if (query.severity) filters.severity = query.severity.split(',');
+      if (query.source) filters.source = query.source.split(',');
+      if (query.aiStatus) filters.aiStatus = query.aiStatus.split(',');
+      
+      const alerts = await AlertService.list(filters);
 
-    console.log('[ALERTS] Retrieved alerts count:', alerts.length);
-    return { success: true, data: alerts };
+      console.log('[ALERTS] Retrieved alerts count:', alerts.length);
+      return { success: true, data: alerts };
+    } catch (e: any) {
+      console.error('[ALERTS] GET / failed:', e.message);
+      set.status = 500;
+      return { success: false, error: 'Internal Server Error', message: e.message };
+    }
   })
+
 
   /**
    * Create a new security alert
@@ -210,7 +222,7 @@ export const alertController = new Elysia({ prefix: '/alerts' })
    * @access Protected - Requires authentication
    * @returns {Object} Alert statistics (total, by severity, by status)
    */
-  .get('/stats/summary', async ({ user }: any) => {
+  .get('/stats/summary', async ({ user }) => {
     const stats = await AlertService.getStats(user.tenantId);
     return { success: true, data: stats };
   })
