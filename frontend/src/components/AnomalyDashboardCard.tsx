@@ -304,12 +304,12 @@ export function AnomalyDashboardCard() {
                     Z-Score: <span className={anomaly.isAnomaly ? 'text-danger font-medium' : ''}>{anomaly.zScore}</span>
                   </span>
                   <span className="text-foreground/60">
-                    Confidence: {(anomaly.confidence * 100).toFixed(0)}%
+                    Confidence: {((anomaly.confidence ?? 0) * 100).toFixed(0)}%
                   </span>
                 </div>
-                <div className={`flex items-center gap-1 ${anomaly.change > 50 ? 'text-danger' : anomaly.change > 20 ? 'text-warning' : 'text-success'}`}>
+                <div className={`flex items-center gap-1 ${(anomaly.change ?? 0) > 50 ? 'text-danger' : (anomaly.change ?? 0) > 20 ? 'text-warning' : 'text-success'}`}>
                   <Icon.ArrowUpRight className="w-3 h-3" />
-                  <span>{anomaly.change > 0 ? '+' : ''}{anomaly.change.toFixed(1)}%</span>
+                  <span>{(anomaly.change ?? 0) > 0 ? '+' : ''}{(anomaly.change ?? 0).toFixed(1)}%</span>
                 </div>
               </div>
 

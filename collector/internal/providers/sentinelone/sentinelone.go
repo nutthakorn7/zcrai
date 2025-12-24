@@ -446,7 +446,7 @@ func (c *S1Client) FetchThreats(ctx context.Context, startTime, endTime time.Tim
 
 	totalFetched := 0
 	limit := 1000
-	pageDelay := 50 * time.Millisecond
+	pageDelay := 200 * time.Millisecond // ⭐ Increased from 50ms to reduce CPU pressure
 
 	cursor := ""
 	page := 1
@@ -468,7 +468,7 @@ func (c *S1Client) FetchThreats(ctx context.Context, startTime, endTime time.Tim
 		params := map[string]string{
 			"limit":          fmt.Sprintf("%d", limit),
 			"sortBy":         "createdAt",
-			"sortOrder":      "desc",
+			"sortOrder":      "asc", // ⭐ Changed to ASC for incremental checkpoint support
 			"createdAt__gte": startTime.Format("2006-01-02T15:04:05.000Z"),
 			"createdAt__lte": endTime.Format("2006-01-02T15:04:05.000Z"),
 		}
@@ -556,6 +556,19 @@ func (c *S1Client) FetchThreats(ctx context.Context, startTime, endTime time.Tim
 		if result.Pagination.NextCursor == "" || len(result.Data) == 0 {
 			c.logger.Info("Pagination complete, no more pages")
 			break
+		}
+
+		// ⭐ Save checkpoint every 10 pages (incremental checkpointing)
+		const checkpointInterval = 10
+		if page%checkpointInterval == 0 && len(result.Data) > 0 && onChunkComplete != nil {
+			// With ASC sort, last item in batch has latest timestamp
+			latestEvent := result.Data[len(result.Data)-1]
+			if latestTime, err := time.Parse(time.RFC3339, latestEvent.ThreatInfo.CreatedAt); err == nil {
+				c.logger.Info("Saving incremental checkpoint",
+					zap.Int("page", page),
+					zap.Time("checkpoint", latestTime))
+				onChunkComplete(latestTime)
+			}
 		}
 
 		cursor = result.Pagination.NextCursor
@@ -752,7 +765,7 @@ func (c *S1Client) FetchActivities(ctx context.Context, startTime, endTime time.
 
 	totalFetched := 0
 	limit := 1000
-	pageDelay := 50 * time.Millisecond
+	pageDelay := 200 * time.Millisecond // ⭐ Increased from 50ms to reduce CPU pressure
 
 	cursor := ""
 	page := 1
@@ -774,7 +787,7 @@ func (c *S1Client) FetchActivities(ctx context.Context, startTime, endTime time.
 		params := map[string]string{
 			"limit":          fmt.Sprintf("%d", limit),
 			"sortBy":         "createdAt",
-			"sortOrder":      "desc",
+			"sortOrder":      "asc", // ⭐ Changed to ASC for incremental checkpoint support
 			"createdAt__gte": startTime.Format("2006-01-02T15:04:05.000Z"),
 			"createdAt__lte": endTime.Format("2006-01-02T15:04:05.000Z"),
 		}
@@ -867,6 +880,19 @@ func (c *S1Client) FetchActivities(ctx context.Context, startTime, endTime time.
 		if result.Pagination.NextCursor == "" || len(result.Data) == 0 {
 			c.logger.Info("Activities pagination complete")
 			break
+		}
+
+		// ⭐ Save checkpoint every 10 pages (incremental checkpointing)
+		const checkpointInterval = 10
+		if page%checkpointInterval == 0 && len(result.Data) > 0 && onChunkComplete != nil {
+			// With ASC sort, last item in batch has latest timestamp
+			latestActivity := result.Data[len(result.Data)-1]
+			if latestTime, err := time.Parse(time.RFC3339, latestActivity.CreatedAt); err == nil {
+				c.logger.Info("Saving incremental checkpoint (activities)",
+					zap.Int("page", page),
+					zap.Time("checkpoint", latestTime))
+				onChunkComplete(latestTime)
+			}
 		}
 
 		cursor = result.Pagination.NextCursor

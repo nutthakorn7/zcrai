@@ -88,6 +88,7 @@ services:
       - COLLECTOR_URL=http://zcrai_collector:8001
       - ENCRYPTION_KEY=abcdefghijklmnopqrstuvwxyz123456
       - COLLECTOR_API_KEY=zcrai_collector_api_key_prod_2024
+      - JWT_ACCESS_EXPIRY=2h  # Increased from 15m for better session persistence
     depends_on:
       postgres:
         condition: service_healthy
@@ -120,7 +121,7 @@ services:
       - ELYSIA_URL=http://zcrai_backend:8000
       - VECTOR_URL=http://zcrai_vector:8088
       - POLL_INTERVAL=5m
-      - LOOKBACK_DAYS=7
+      - LOOKBACK_DAYS=1
       - COLLECTOR_API_KEY=zcrai_collector_api_key_prod_2024
       - CLICKHOUSE_HOST=zcrai_clickhouse
       - CLICKHOUSE_PORT=9000

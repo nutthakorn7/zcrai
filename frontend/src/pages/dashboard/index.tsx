@@ -282,18 +282,16 @@ export default function DashboardPage() {
       const hostsData = Array.isArray(hostsRes.data) ? hostsRes.data : [];
       const usersData = Array.isArray(usersRes.data) ? usersRes.data : [];
       
-      setTopHosts(hostsData.slice(0, 5));
-      setTopUsers(usersData.slice(0, 5));
+      setTopHosts(Number.isInteger(hostsData.length) ? hostsData.slice(0, 5) : []);
+      setTopUsers(Number.isInteger(usersData.length) ? usersData.slice(0, 5) : []);
       
-      setTimeline(timelineRes.data);
-      setMitreData(mitreRes.data);
-      
+      setTimeline(Array.isArray(timelineRes.data) ? timelineRes.data : []);
+      setMitreData(Array.isArray(mitreRes.data) ? mitreRes.data : []);
       
       // Show all integration breakdown data (source-based grouping)
-      // No need to filter by activeIntegrationIds since data is now grouped by source
-      setIntegrations(intRes.data || []);
+      setIntegrations(Array.isArray(intRes.data) ? intRes.data : []);
       
-      setSites(sitesRes.data);
+      setSites(Array.isArray(sitesRes.data) ? sitesRes.data : []);
 
       // Recent detections now come pre-sorted from the backend
       const detections = Array.isArray(recentRes.data) ? recentRes.data : [];

@@ -290,10 +290,10 @@ func (s *Scheduler) collectSentinelOne(forceFullSync bool) error {
 			}
 
 			if !foundExisting {
-				// ไม่มี data จาก URL นี้ หรือ data ไม่ครบ → Full sync 365 วัน
-				startTime = endTime.AddDate(0, 0, -365)
+				// ไม่มี data จาก URL นี้ หรือ data ไม่ครบ → Full sync 30 วัน (ลดจาก 365 เพื่อลด CPU)
+				startTime = endTime.AddDate(0, 0, -30)
 				isFullSync = true
-				s.logger.Info("Performing Full Sync (365 days)",
+				s.logger.Info("Performing Full Sync (30 days)",
 					zap.String("tenantId", integration.TenantID),
 					zap.String("urlHash", urlHash),
 					zap.String("reason", integration.LastSyncStatus))
@@ -348,7 +348,7 @@ func (s *Scheduler) collectSentinelOne(forceFullSync bool) error {
 
 		// Callback สำหรับส่ง events ไป Vector ทันทีแต่ละ page (Streaming)
 		onPageEvents := func(events []models.UnifiedEvent) error {
-			return s.publisher.PublishBatch(events, 500)
+			return s.publisher.PublishBatch(events, 5000) // ⭐ Increased from 500 to reduce ClickHouse CPU
 		}
 
 		// ⭐ ดึง FetchSettings จาก config (User สามารถ custom ได้)
@@ -625,7 +625,7 @@ func (s *Scheduler) collectCrowdStrike(forceFullSync bool) error {
 
 		// Callback สำหรับส่ง events ไป Vector ทันทีแต่ละ page (Streaming)
 		onPageEvents := func(events []models.UnifiedEvent) error {
-			return s.publisher.PublishBatch(events, 500)
+			return s.publisher.PublishBatch(events, 5000) // ⭐ Increased from 500 to reduce ClickHouse CPU
 		}
 
 		// ⭐ ดึง FetchSettings จาก config (User สามารถ custom ได้)
