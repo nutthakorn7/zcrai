@@ -51,6 +51,39 @@
 
 ---
 
+## ⚡ Performance Optimizations (Dec 2024)
+
+### CPU Optimization Results
+
+| Component | Before | After | Improvement |
+|-----------|--------|-------|-------------|
+| **Collector CPU** | 168% | 0.02% | ⬇️ 99.99% |
+| **ClickHouse CPU** | 320% | 9.7% | ⬇️ 97% |
+| **URL Query** | 100s | 0.01s | ⬇️ 10,000x faster |
+
+### Key Optimizations
+
+1. **Data Ingestion**
+   - Full Sync: 365 → 30 days (92% less data)
+   - Page Delay: 50ms → 200ms (reduced API pressure)
+   - Batch Insert: 500 → 5,000 rows (reduced ClickHouse overhead)
+   - Incremental Checkpointing: Resume from crash point
+
+2. **Query Performance**
+   - Added `url_hash` column (replaces JSONExtract - 10,000x faster)
+   - 21 Materialized Views for dashboard analytics
+   - TTL 90 days for automatic data cleanup
+
+3. **Session Management**
+   - JWT Access Token: 15m → 2h (less re-login)
+   - Auto-refresh token on 401 (seamless experience)
+
+4. **Disk Management**
+   - Automatic cleanup when disk > 80%
+   - TTL-based data expiration (90 days)
+
+---
+
 ## 🏗️ Architecture Stack
 
 ### 🚀 Performance Stack
