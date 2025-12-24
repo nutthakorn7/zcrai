@@ -107,17 +107,57 @@ export const requireRole = (...allowedRoles: Role[]) => {
 }
 
 // ==================== TENANT GUARD ====================
-export const tenantGuard = new Elysia({ name: 'tenantGuard' })
-  .use(authGuard)
-  .derive((ctx: any) => {
-    const user = ctx.user as JWTPayload
+// Plugin function for API routes that need tenant isolation
+// Supports both Cookie and Authorization Bearer header
+export const tenantGuard = (app: Elysia) => app
+  .use(jwt({
+    name: 'jwt',
+    secret: process.env.JWT_SECRET || 'super_secret_dev_key',
+  }))
+  .derive(async ({ jwt, cookie: { access_token }, request, set }: any) => {
+    console.log('🔍 [tenantGuard] Checking authentication...')
+    
+    // 1. Try to get token from Cookie first, then Authorization header
+    let token = access_token?.value
+    
+    if (!token) {
+      const authHeader = request.headers.get('authorization')
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        token = authHeader.slice(7)
+        console.log('✅ [tenantGuard] Using Bearer token from header')
+      }
+    } else {
+      console.log('✅ [tenantGuard] Using token from cookie')
+    }
+
+    // 2. Validate token exists
+    if (!token) {
+      console.error('❌ [tenantGuard] No token found')
+      set.status = 401
+      throw new Error('Unauthorized: Missing Token')
+    }
+
+    // 3. Verify JWT
+    const payload = await jwt.verify(token as string)
+    if (!payload) {
+      console.error('❌ [tenantGuard] Invalid token')
+      set.status = 401
+      throw new Error('Unauthorized: Invalid Token')
+    }
+
+    console.log('✅ [tenantGuard] Auth success:', { 
+      id: (payload as any).id, 
+      tenantId: (payload as any).tenantId 
+    })
+
+    // 4. Return user to context
     return {
-      user,
-      checkTenantAccess: (resourceTenantId: string) => {
-        if (user.role === 'superadmin') return true
-        return user.tenantId === resourceTenantId
-      },
-      tenantId: user.tenantId,
+      user: payload as { 
+        id: string
+        tenantId: string
+        role: string
+        email: string
+      }
     }
   })
 

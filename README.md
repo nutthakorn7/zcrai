@@ -16,42 +16,49 @@
 ## ✨ Key Features
 
 ### 🔐 Core Security
+
 - **Multi-Tenant RBAC**: Secure tenant isolation with role-based access control
 - **SSO Integration**: SAML 2.0 support (Google, Okta, Azure AD)
 - **MFA**: Time-based One-Time Password (TOTP) authentication
 - **Audit Logging**: Complete audit trail for compliance
 
 ### 🤖 AI & Automation
+
 - **Natural Language Queries**: AI-powered log search and filtering
 - **Smart Case Summarization**: AI-generated incident summaries
 - **Playbook Suggestions**: Context-aware response recommendations
 - **Automated Query Generation**: Convert natural language to SQL/filters
 
 ### 📊 Data Collection & Analysis
+
 - **Real-time Log Ingestion**: ClickHouse-powered high-volume data processing
 - **EDR Integration**: CrowdStrike, SentinelOne, Microsoft Defender
 - **SIEM Export**: Splunk, QRadar, Elastic integration
 - **Threat Intelligence**: MISP, AlienVault OTX, VirusTotal feeds
 
 ### 🎭 Incident Response
+
 - **Case Management**: Full lifecycle from detection to resolution
 - **Alert Correlation**: Automatic grouping of related security events
 - **Observable Tracking**: IOC management with retroactive scanning
 - **Evidence Chain**: Forensic evidence preservation
 
 ### 🔄 SOAR (Security Orchestration)
+
 - **Visual Playbook Builder**: Drag-and-drop workflow designer
 - **Human-in-the-Loop**: Approval workflows for critical actions
 - **Wait for Input**: Pause execution for manual data collection
 - **Multi-Channel Notifications**: Slack, Teams, Email, PagerDuty
 
 ### 📈 Reporting & Compliance
+
 - **PDF Report Generation**: Executive and technical reports
 - **Custom Widgets**: Drag-and-drop dashboard builder
 - **Scheduled Reports**: Automated delivery
 - **Retention Management**: Configurable data retention policies
 
 ### 🏢 Enterprise Features
+
 - **License Management**: JWT-based enterprise licensing
 - **Backup & Restore**: Automated PostgreSQL backups
 - **Usage Tracking**: Monitor user count, data volume
@@ -62,6 +69,7 @@
 ## 🚀 Quick Start
 
 ### Prerequisites
+
 - **Node.js** 20+ (or **Bun** 1.0+)
 - **Docker** & Docker Compose
 - **PostgreSQL** 16+
@@ -96,6 +104,7 @@ npm run dev
 ```
 
 ### Default Credentials
+
 - **Email**: `superadmin@zcr.ai`
 - **Password**: `SuperAdmin@123!` (change in production!)
 
@@ -124,11 +133,12 @@ npm run dev
 ```
 
 ### Tech Stack
+
 - **Frontend**: React 18, Vite, TanStack Query, HeroUI
 - **Backend**: Bun 1.0, Elysia.js, Drizzle ORM
 - **Database**: PostgreSQL 16 (metadata), ClickHouse 24 (logs)
 - **Cache**: Redis 7
-- **AI**: Google Gemini API
+- **AI**: Claude, Gemini, OpenAI, or Deepseek (configurable)
 - **Auth**: JWT (jose), SAML 2.0
 - **Testing**: Vitest, Playwright
 - **CI/CD**: GitHub Actions
@@ -173,7 +183,15 @@ export DATABASE_URL="postgres://..."
 export CLICKHOUSE_URL="http://..."
 export REDIS_URL="redis://..."
 export JWT_SECRET="..."
-export GOOGLE_GEMINI_API_KEY="..."
+
+# AI Provider Configuration (choose one or more)
+export CLAUDE_API_KEY="..."       # Anthropic Claude (recommended)
+export GEMINI_API_KEY="..."       # Google Gemini
+export OPENAI_API_KEY="..."       # OpenAI GPT
+export DEEPSEEK_API_KEY="..."     # Deepseek
+
+# Optional: Force specific provider (default: auto-detect in priority order)
+export AI_PROVIDER="claude"  # Options: claude, gemini, openai, deepseek
 
 # Deploy via GitHub Actions
 git push origin master
@@ -196,6 +214,7 @@ bun run scripts/generate_license.ts --users 999 --retention 3650 --expiry 1y
 ```
 
 ### Activating License
+
 1. Navigate to **Settings > System > License**
 2. Paste the license key
 3. Click **Activate**
@@ -225,6 +244,7 @@ This project is licensed under the MIT License - see [LICENSE](LICENSE) for deta
 ## 🙏 Acknowledgments
 
 Built with:
+
 - [Bun](https://bun.sh)
 - [Elysia.js](https://elysiajs.com)
 - [React](https://react.dev)

@@ -1,37 +1,74 @@
 import { AIProvider, AIPlaybookSuggestion } from "../ai/types";
-import { MockAIProvider } from "../ai/mock.provider";
 import { GeminiProvider } from "../ai/gemini.provider";
+import { ClaudeProvider } from "../ai/claude.provider";
+import { OpenAIProvider } from "../ai/openai.provider";
+import { DeepseekProvider } from "../ai/deepseek.provider";
 
 export class AIService {
     private static provider: AIProvider;
 
     static createProvider(providerType: string, apiKey: string): AIProvider {
+        if (!apiKey) {
+            throw new Error(`API key is required for ${providerType} provider`);
+        }
+
         switch (providerType.toLowerCase()) {
             case 'gemini':
                 return new GeminiProvider(apiKey);
             case 'openai':
-                // return new OpenAIProvider(apiKey);
-                return new MockAIProvider(); // Placeholder
+                return new OpenAIProvider(apiKey);
+            case 'claude':
+                return new ClaudeProvider(apiKey);
+            case 'deepseek':
+                return new DeepseekProvider(apiKey);
             default:
-                return new MockAIProvider();
+                throw new Error(`Unsupported AI provider: ${providerType}`);
         }
     }
 
     static initialize() {
+        // Check environment variables for AI provider configuration
+        const aiProvider = process.env.AI_PROVIDER?.toLowerCase(); // 'gemini', 'openai', 'claude', 'deepseek'
         const geminiKey = process.env.GEMINI_API_KEY;
         const openaiKey = process.env.OPENAI_API_KEY;
+        const claudeKey = process.env.CLAUDE_API_KEY;
+        const deepseekKey = process.env.DEEPSEEK_API_KEY;
 
-        if (geminiKey) {
-            console.log("[AIService] Using Google Gemini");
+        // Priority: explicit AI_PROVIDER env var, then check for available keys
+        if (aiProvider) {
+            const keyMap: Record<string, string | undefined> = {
+                'gemini': geminiKey,
+                'openai': openaiKey,
+                'claude': claudeKey,
+                'deepseek': deepseekKey
+            };
+
+            const apiKey = keyMap[aiProvider];
+            if (apiKey) {
+                console.log(`[AIService] Using ${aiProvider.toUpperCase()} (from AI_PROVIDER env)`);
+                this.provider = this.createProvider(aiProvider, apiKey);
+                return;
+            } else {
+                console.warn(`[AIService] AI_PROVIDER set to '${aiProvider}' but no API key found`);
+            }
+        }
+
+        // Fallback: check available keys in priority order
+        if (claudeKey) {
+            console.log("[AIService] Using Claude (auto-detected from CLAUDE_API_KEY)");
+            this.provider = new ClaudeProvider(claudeKey);
+        } else if (geminiKey) {
+            console.log("[AIService] Using Google Gemini (auto-detected from GEMINI_API_KEY)");
             this.provider = new GeminiProvider(geminiKey);
-        } else if (process.env.NODE_ENV === 'test') {
-             // In test, always mock unless integration test?
-             // Actually, for simplicity, use Mock if no key.
-             console.log("[AIService] Using Mock Provider (Test/No Key)");
-             this.provider = new MockAIProvider();
+        } else if (openaiKey) {
+            console.log("[AIService] Using OpenAI (auto-detected from OPENAI_API_KEY)");
+            this.provider = new OpenAIProvider(openaiKey);
+        } else if (deepseekKey) {
+            console.log("[AIService] Using Deepseek (auto-detected from DEEPSEEK_API_KEY)");
+            this.provider = new DeepseekProvider(deepseekKey);
         } else {
-            console.log("[AIService] No API Key found, using Mock Provider");
-            this.provider = new MockAIProvider();
+            console.error("[AIService] No AI provider configured. Please set one of: CLAUDE_API_KEY, GEMINI_API_KEY, OPENAI_API_KEY, or DEEPSEEK_API_KEY");
+            throw new Error("AI Service Error: No AI provider API key configured. AI features will not be available.");
         }
     }
 

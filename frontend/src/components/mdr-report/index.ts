@@ -8,5 +8,8 @@ export { MdrOverviewSection } from './MdrOverviewSection'
 export { MdrIncidentDetailSection } from './MdrIncidentDetailSection'
 export { MdrRiskAssessmentSection } from './MdrRiskAssessmentSection'
 export { MdrVulnerabilitySection } from './MdrVulnerabilitySection'
+export { MdrDataLeakSection } from './MdrDataLeakSection'
+export { MdrNetworkActivitySection } from './MdrNetworkActivitySection'
 export { MdrAppendixSection } from './MdrAppendixSection'
 export { MdrContactPage } from './MdrContactPage'
+

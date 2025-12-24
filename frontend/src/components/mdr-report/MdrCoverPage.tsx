@@ -1,6 +1,8 @@
 // Note: Replace with actual Monster Connect logo when available
 // import monsterConnectLogo from '../../assets/logo/mc-logo.png'
 
+import { formatMonthYear, formatDateRange } from '../../shared/lib/date'
+
 interface MdrCoverPageProps {
   tenantName: string
   monthYear: string
@@ -14,25 +16,6 @@ interface MdrCoverPageProps {
  * Matches the Monster Connect branding with Lime Green accent
  */
 export function MdrCoverPage({ tenantName, monthYear, dateRange, companyLogo, customerLogo }: MdrCoverPageProps) {
-  // Format month name in Thai
-  const formatMonthYear = (my: string) => {
-    const [year, month] = my.split('-')
-    const monthNames = [
-      'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 
-      'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม',
-      'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
-    ]
-    const thaiYear = parseInt(year) + 543
-    return `${monthNames[parseInt(month) - 1]} ${thaiYear}`
-  }
-  
-  // Format date range
-  const formatDateRange = (start: string, end: string) => {
-    const startDate = new Date(start)
-    const endDate = new Date(end)
-    const options: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'long', year: 'numeric' }
-    return `${startDate.toLocaleDateString('th-TH', options)} - ${endDate.toLocaleDateString('th-TH', options)}`
-  }
   
   return (
     <div className="mdr-page mdr-cover-page">
@@ -89,7 +72,7 @@ export function MdrCoverPage({ tenantName, monthYear, dateRange, companyLogo, cu
           
           {/* Period */}
           <div className="text-xl text-gray-600">
-            <p className="font-semibold">รายงานประจำเดือน</p>
+            <p className="font-semibold">Report for:</p>
             <p className="text-2xl text-gray-900 font-bold mt-2">
               {formatMonthYear(monthYear)}
             </p>

@@ -83,7 +83,7 @@ export default function UserPage() {
               <TableColumn>ACTIONS</TableColumn>
             </TableHeader>
             <TableBody emptyContent={"No users found."}>
-              {Array.isArray(users) && users.map((user) => (
+              {(users || []).map((user) => (
                 <TableRow key={user.id}>
                   <TableCell>{user.email}</TableCell>
                   <TableCell>

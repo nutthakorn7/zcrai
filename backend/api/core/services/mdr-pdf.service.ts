@@ -1,4 +1,4 @@
-import puppeteer, { type Browser, type Page } from 'puppeteer'
+import { chromium, type Browser, type Page } from 'playwright'
 import { MdrReportService } from './mdr-report.service'
 import { db } from '../../infra/db'
 import { mdrReports } from '../../infra/db/schema'
@@ -9,7 +9,7 @@ let browser: Browser | null = null
 
 async function getBrowser(): Promise<Browser> {
   if (!browser) {
-    browser = await puppeteer.launch({
+    browser = await chromium.launch({
       headless: true,
       args: [
         '--no-sandbox',
@@ -41,14 +41,16 @@ export const MdrPdfService = {
         throw new Error('No report data found')
       }
       
-      // Create new page
-      page = await browserInstance.newPage()
-      
-      // Set viewport for A4 landscape
-      await page.setViewport({
-        width: 1920,
-        height: 1080
+      // Create browser context with viewport (Playwright way)
+      const context = await browserInstance.newContext({
+        viewport: {
+          width: 1920,
+          height: 1080
+        }
       })
+      
+      // Create new page from context
+      page = await context.newPage()
       
       // Navigate to the print route
       // In production, use environment variable for base URL
@@ -59,7 +61,7 @@ export const MdrPdfService = {
       
       // Navigate and wait for content to load
       await page.goto(printUrl, {
-        waitUntil: 'networkidle0',
+        waitUntil: 'networkidle',
         timeout: 60000 // 60 seconds timeout
       })
       
@@ -83,10 +85,17 @@ export const MdrPdfService = {
         format: 'A4',
         landscape: true,
         printBackground: true,
+        displayHeaderFooter: true,
+        footerTemplate: `
+          <div style="width: 100%; font-size: 8px; text-align: center; color: #9CA3AF; padding: 8px 0; border-top: 1px solid #F3F4F6; margin: 0 64px;">
+            <span>Monster Connect | Managed Security Services</span>
+            <span style="margin-left: 20px;">Page <span class="pageNumber"></span> of <span class="totalPages"></span></span>
+          </div>
+        `,
         margin: {
           top: '0mm',
           right: '0mm',
-          bottom: '0mm',
+          bottom: '20mm',
           left: '0mm'
         },
         scale: 1
@@ -124,9 +133,10 @@ export const MdrPdfService = {
       
       throw error
     } finally {
-      // Close the page to free resources
+      // Close the page and context to free resources
       if (page) {
         await page.close()
+        await page.context().close()
       }
     }
   },
@@ -147,10 +157,18 @@ export const MdrPdfService = {
    */
   async generatePdfFromHtml(html: string): Promise<Buffer> {
     const browserInstance = await getBrowser()
-    const page = await browserInstance.newPage()
+    
+    // Create browser context with viewport
+    const context = await browserInstance.newContext({
+      viewport: {
+        width: 1920,
+        height: 1080
+      }
+    })
+    const page = await context.newPage()
     
     try {
-      await page.setContent(html, { waitUntil: 'networkidle0' })
+      await page.setContent(html, { waitUntil: 'networkidle' })
       
       const pdfBuffer = await page.pdf({
         format: 'A4',
@@ -167,6 +185,7 @@ export const MdrPdfService = {
       return Buffer.from(pdfBuffer)
     } finally {
       await page.close()
+      await context.close()
     }
   }
 }

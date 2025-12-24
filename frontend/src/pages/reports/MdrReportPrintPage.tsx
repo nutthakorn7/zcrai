@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { api } from '../../shared/api/api'
-import { mockMdrReportData, MOCK_REPORT_ID } from '../../mocks/mdr-report.mock'
 
 // Import MDR Report Components
 import {
@@ -11,6 +10,8 @@ import {
   MdrIncidentDetailSection,
   MdrRiskAssessmentSection,
   MdrVulnerabilitySection,
+  MdrDataLeakSection,
+  MdrNetworkActivitySection,
   MdrAppendixSection,
   MdrContactPage
 } from '../../components/mdr-report'
@@ -62,53 +63,66 @@ interface MdrReportData {
     }>
     recommendation: string
   }
+  dataLeaks: Array<{
+    source: string
+    dataType: string
+    risk: string
+    status: string
+  }>
+  networkActivity: {
+    inbound: string
+    outbound: string
+    topTalkers: Array<{
+      ip: string
+      bandwidth: string
+    }>
+  }
   glossary: Array<{ term: string; definition: string }>
 }
 
 /**
  * MDR Report Print Page
- * This is a special route designed for PDF generation via Puppeteer
+ * This is a special route designed for PDF generation via Playwright
  * It renders the full report without any navigation or sidebar
  * 
  * Usage:
- * - /report-print/demo - Shows mock data for testing
  * - /report-print/:id - Fetches real report data from API
  */
 export default function MdrReportPrintPage() {
   const { id } = useParams<{ id: string }>()
   const [data, setData] = useState<MdrReportData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   
   useEffect(() => {
-    if (!id) return
-    
-    // Use mock data if ID is 'demo' or matches mock ID
-    if (id === 'demo' || id === MOCK_REPORT_ID) {
-      setData(mockMdrReportData)
-      setLoading(false)
-      return
-    }
-    
-    async function fetchReport() {
+    const fetchReport = async () => {
+      if (!id) return
+
       try {
+        setLoading(true)
         const response = await api.get(`/mdr-reports/${id}`)
+        
+        // Handle nested API response structure: { success: true, data: { reportData: {...} } }
         if (response.data?.success && response.data?.data?.reportData) {
           setData(response.data.data.reportData)
+        } else if (response.data?.reportData) {
+          // Alternative structure: { reportData: {...} }
+          setData(response.data.reportData)
+        } else if (response.data) {
+          // Direct data structure
+          setData(response.data)
         } else {
-          // Fallback to mock data if API returns empty
-          console.warn('No report data from API, using mock data')
-          setData(mockMdrReportData)
+          setError('Invalid report data format')
+          console.error('Invalid API response:', response)
         }
       } catch (err) {
-        console.error('Failed to fetch report:', err)
-        // Fallback to mock data on error (for development/demo)
-        console.warn('API failed, using mock data for demo purposes')
-        setData(mockMdrReportData)
+        console.error('Failed to load report:', err)
+        setError('Failed to load report data')
       } finally {
         setLoading(false)
       }
     }
-    
+
     fetchReport()
   }, [id])
   
@@ -124,6 +138,25 @@ export default function MdrReportPrintPage() {
     )
   }
   
+  // Error state
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <div className="text-center p-8 bg-white rounded-lg shadow-md border border-red-100 max-w-md">
+          <div className="text-5xl mb-4">⚠️</div>
+          <h2 className="text-xl font-bold text-gray-800 mb-2">Unable to Load Report</h2>
+          <p className="text-red-600 mb-6">{error}</p>
+          <button 
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md transition-colors"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   // No data state (should rarely happen with mock fallback)
   if (!data) {
     return (
@@ -151,7 +184,7 @@ export default function MdrReportPrintPage() {
       />
       
       {/* Page 2: Table of Contents & Overview */}
-      <div className="mdr-page relative flex flex-col min-h-[1123px] bg-white text-gray-900">
+      <div className="mdr-page relative flex flex-col bg-white text-gray-900">
           {/* Header */}
           <div className="absolute top-8 right-8 text-right">
              <div className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Confidential</div>
@@ -172,17 +205,10 @@ export default function MdrReportPrintPage() {
                 />
             </div>
           </div>
-          
-           {/* Footer */}
-           <div className="absolute bottom-8 left-0 w-full text-center">
-             <div className="border-t border-gray-100 mx-16 pt-3">
-                <p className="text-[10px] text-gray-400">Monster Connect | Managed Security Services</p>
-             </div>
-           </div>
       </div>
       
       {/* Page 3: Incident Detail */}
-      <div className="mdr-page relative flex flex-col min-h-[1123px] bg-white text-gray-900">
+      <div className="mdr-page relative flex flex-col bg-white text-gray-900">
           {/* Header */}
           <div className="absolute top-8 right-8 text-right">
              <div className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Confidential</div>
@@ -197,17 +223,10 @@ export default function MdrReportPrintPage() {
               recommendation={data.incidentRecommendation}
             />
           </div>
-
-           {/* Footer */}
-           <div className="absolute bottom-8 left-0 w-full text-center">
-             <div className="border-t border-gray-100 mx-16 pt-3">
-                <p className="text-[10px] text-gray-400">Monster Connect | Managed Security Services</p>
-             </div>
-           </div>
       </div>
       
       {/* Page 4: Risk Assessment & Vulnerability */}
-      <div className="mdr-page relative flex flex-col min-h-[1123px] bg-white text-gray-900">
+      <div className="mdr-page relative flex flex-col bg-white text-gray-900">
           {/* Header */}
           <div className="absolute top-8 right-8 text-right">
              <div className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Confidential</div>
@@ -235,17 +254,37 @@ export default function MdrReportPrintPage() {
               />
             </div>
           </div>
+      </div>
+            
+      {/* Page 4.5: Data Leak */}
+      <div className="mdr-page relative flex flex-col bg-white text-gray-900">
+          <div className="absolute top-8 right-8 text-right">
+             <div className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Confidential</div>
+          </div>
 
-           {/* Footer */}
-           <div className="absolute bottom-8 left-0 w-full text-center">
-             <div className="border-t border-gray-100 mx-16 pt-3">
-                <p className="text-[10px] text-gray-400">Monster Connect | Managed Security Services</p>
-             </div>
-           </div>
+          <div className="p-16 pt-20 flex-1">
+            <h2 className="text-2xl font-bold text-gray-800 mb-6 border-b-2 border-lime-500 inline-block pb-2">
+                4. Data Leak Detection
+            </h2>
+            <MdrDataLeakSection dataLeaks={data.dataLeaks} />
+          </div>
       </div>
       
-      {/* Page 5: Appendix */}
-      <div className="mdr-page relative flex flex-col min-h-[1123px] bg-white text-gray-900">
+      {/* Page 5: Network Activity */}
+      <div className="mdr-page relative flex flex-col bg-white text-gray-900">
+          <div className="absolute top-8 right-8 text-right">
+             <div className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Confidential</div>
+          </div>
+
+          <div className="p-16 pt-20 flex-1">
+            <h2 className="text-2xl font-bold text-gray-800 mb-6 border-b-2 border-lime-500 inline-block pb-2">
+                5. Network Activity
+            </h2>
+            <MdrNetworkActivitySection networkActivity={data.networkActivity} />
+          </div>
+      </div>
+      {/* Page 6: Appendix */}
+      <div className="mdr-page relative flex flex-col bg-white text-gray-900">
           <div className="p-16 pt-20 flex-1">
              <MdrAppendixSection 
                 glossary={data.glossary}
@@ -254,13 +293,6 @@ export default function MdrReportPrintPage() {
                  <MdrContactPage />
               </div>
           </div>
-          
-           {/* Footer */}
-           <div className="absolute bottom-8 left-0 w-full text-center">
-             <div className="border-t border-gray-100 mx-16 pt-3">
-                <p className="text-[10px] text-gray-400">Monster Connect | Managed Security Services</p>
-             </div>
-           </div>
       </div>
     </div>
   )

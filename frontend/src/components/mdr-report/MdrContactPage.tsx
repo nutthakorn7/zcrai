@@ -1,3 +1,5 @@
+import lineQR from '../../assets/report/mc-line-qr.png'
+
 /**
  * Contact Page - Final page with company contact information
  */
@@ -11,60 +13,75 @@ export function MdrContactPage() {
         </div>
         
         {/* Content */}
-        <div className="flex-1 p-8 flex items-center justify-center">
-          <div className="text-center max-w-2xl">
-            {/* Company Logo Placeholder */}
-            <div className="w-32 h-32 mx-auto mb-8 bg-lime-100 rounded-full flex items-center justify-center">
-              <span className="text-5xl">🛡️</span>
-            </div>
-            
-            <h2 className="text-3xl font-bold text-gray-900 mb-2">
-              Monster Connect Co., Ltd.
-            </h2>
-            <p className="text-lg text-lime-600 mb-8">
-              Your Trusted Cybersecurity Partner
-            </p>
-            
-            <div className="grid grid-cols-2 gap-8 text-left mb-8">
-              <div className="bg-gray-50 rounded-lg p-6">
-                <h3 className="font-semibold text-gray-800 mb-3">📍 Address</h3>
-                <p className="text-gray-600 text-sm">
-                  123 Cyber Security Tower<br />
-                  Silom Road, Bangrak<br />
-                  Bangkok 10500, Thailand
-                </p>
-              </div>
-              
-              <div className="bg-gray-50 rounded-lg p-6">
-                <h3 className="font-semibold text-gray-800 mb-3">📞 Contact</h3>
-                <p className="text-gray-600 text-sm">
-                  Tel: +66 2 XXX XXXX<br />
-                  Email: soc@monsterconnect.co.th<br />
-                  24/7 SOC Hotline: +66 2 XXX XXXX
-                </p>
-              </div>
-            </div>
-            
-            <div className="bg-lime-50 rounded-lg p-6 border border-lime-200">
-              <h3 className="font-semibold text-lime-800 mb-3">🌐 Online</h3>
-              <p className="text-lime-700">
-                Website: www.monsterconnect.co.th<br />
-                Customer Portal: portal.monsterconnect.co.th
-              </p>
-            </div>
-            
-            {/* QR Code Placeholder */}
-            <div className="mt-8">
-              <div className="inline-block bg-white p-4 rounded-lg border-2 border-lime-500">
-                <div className="w-32 h-32 bg-gray-200 flex items-center justify-center">
-                  <span className="text-gray-400 text-xs text-center">
-                    QR Code<br />Placeholder
-                  </span>
+        <div className="flex-1 p-8">
+          <div className="max-w-4xl mx-auto">
+            <div className="grid grid-cols-2 gap-12 items-start">
+              {/* Left Column: Contact Information */}
+              <div className="space-y-6">
+                {/* Company Logo Placeholder */}
+                <div className="w-32 h-32 bg-lime-100 rounded-full flex items-center justify-center mb-6">
+                  <span className="text-5xl">🛡️</span>
+                </div>
+                
+                <div>
+                  <h2 className="text-3xl font-bold text-gray-900 mb-2">
+                    Monster Connect Co., Ltd.
+                  </h2>
+                  <p className="text-lg text-lime-600">
+                    Your Trusted Cybersecurity Partner
+                  </p>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <h3 className="font-semibold text-gray-800 mb-2 flex items-center">
+                      <span className="mr-2">📍</span> Address
+                    </h3>
+                    <p className="text-gray-600 text-sm leading-relaxed">
+                      Monster Connect Co.,Ltd.<br />
+                      NASA STREET Building B, 99/1 Room L3-B02-B03,<br />
+                      Floor 3rd, Ramkhamhaeng Road,<br />
+                      Suan Luang Subdistrict, Suan Luang District,<br />
+                      Bangkok 10250
+                    </p>
+                  </div>
+                  
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <h3 className="font-semibold text-gray-800 mb-2 flex items-center">
+                      <span className="mr-2">📞</span> Contact
+                    </h3>
+                    <p className="text-gray-600 text-sm">
+                      Tel: 02-026-6664, 02-026-6665<br />
+                      Email: sales@mon.co.th<br />
+                      Line OA: @monsterconnect
+                    </p>
+                  </div>
+
+                  <div className="bg-lime-50 rounded-lg p-4 border border-lime-200">
+                    <h3 className="font-semibold text-lime-800 mb-2 flex items-center">
+                      <span className="mr-2">🌐</span> Online
+                    </h3>
+                    <p className="text-lime-700 text-sm">
+                      Website: www.monsterconnect.co.th
+                    </p>
+                  </div>
                 </div>
               </div>
-              <p className="text-sm text-gray-500 mt-2">
-                Scan to visit our website
-              </p>
+
+              {/* Right Column: QR Code */}
+              <div className="flex flex-col items-center justify-center h-full">
+                <div className="bg-white p-6 rounded-lg border-2 border-lime-500 shadow-lg">
+                  <img 
+                    src={lineQR} 
+                    alt="Line OA QR Code" 
+                    className="w-64 h-64 object-contain"
+                  />
+                </div>
+                <p className="text-sm text-gray-500 mt-4 text-center">
+                  Scan to add Line Official Account<br />
+                  <span className="font-semibold text-lime-600">@monsterconnect</span>
+                </p>
+              </div>
             </div>
           </div>
         </div>

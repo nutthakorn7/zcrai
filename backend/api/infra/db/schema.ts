@@ -663,12 +663,13 @@ export const mdrReports = pgTable('mdr_reports', {
   tenantId: uuid('tenant_id').references(() => tenants.id, { onDelete: 'cascade' }).notNull(),
   monthYear: varchar('month_year', { length: 7 }).notNull(), // Format: '2025-11'
   status: text('status').default('draft').notNull(), // 'draft', 'approved', 'generating', 'sent', 'error'
+  siteNames: jsonb('site_names'), // Array of site names selected during generation
   pdfUrl: text('pdf_url'),
   downloadToken: text('download_token'),
   approvedBy: uuid('approved_by').references(() => users.id),
   approvedAt: timestamp('approved_at'),
   sentAt: timestamp('sent_at'),
-  errorMessage: text('error_message'),
+ errorMessage: text('error_message'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => ({

@@ -13,6 +13,7 @@ interface MdrReport {
   tenantId: string
   monthYear: string
   status: 'draft' | 'approved' | 'generating' | 'sent' | 'error'
+  siteNames: string[] | null
   pdfUrl: string | null
   approvedBy: string | null
   approvedAt: string | null
@@ -52,13 +53,6 @@ const STATUS_COLORS: Record<string, 'default' | 'primary' | 'secondary' | 'succe
   error: 'danger'
 }
 
-const MOCK_SITES = [
-  { key: "Headquarters", label: "Headquarters" },
-  { key: "Branch A", label: "Branch A" },
-  { key: "CloudNet", label: "CloudNet" },
-  { key: "DataCenter", label: "DataCenter" }
-]
-
 export function MdrReportsTab() {
   const [loading, setLoading] = useState(true)
   const [reports, setReports] = useState<MdrReport[]>([])
@@ -68,9 +62,12 @@ export function MdrReportsTab() {
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
   })
   
-  // Site Selection
+  // Site Selection (for generating reports)
   const [selectedSites, setSelectedSites] = useState<Selection>(new Set([]))
   const [sites, setSites] = useState<{key: string, label: string}[]>([])
+  
+  // Site Filter (for filtering report list)
+  const [selectedSiteFilter, setSelectedSiteFilter] = useState<string>('all')
   
   // Edit Modal State
   const { isOpen: isEditOpen, onOpen: onEditOpen, onClose: onEditClose } = useDisclosure()
@@ -92,19 +89,45 @@ export function MdrReportsTab() {
   const fetchReports = async () => {
     try {
       setLoading(true)
-      const res = await api.get('/mdr-reports')
-      if (res.data?.success) {
-        setReports(res.data.data || [])
+      
+      // 🔥 Create Query String with site filter
+      const siteQuery = selectedSiteFilter && selectedSiteFilter !== 'all' ? selectedSiteFilter : 'all'
+      const queryString = siteQuery !== 'all' ? `?siteId=${encodeURIComponent(siteQuery)}` : ''
+      
+      const response = await api.get(`/mdr-reports${queryString}`)
+
+      console.log('API Response:', response) // 🔍 Debug ดูไส้ใน
+
+      // 🔥 แก้ตรงนี้: เช็ค Structure ให้ชัวร์ก่อน Set
+      if (response && Array.isArray(response.data)) {
+        // กรณี Backend ส่ง { success: true, data: [...] }
+        setReports(response.data)
+      } else if (response.data?.success && Array.isArray(response.data.data)) {
+        // กรณี Backend ส่ง { success: true, data: [...] }
+        setReports(response.data.data)
+      } else if (Array.isArray(response)) {
+        // กรณี Backend ส่ง [...] มาตรงๆ (เผื่อไว้)
+        setReports(response)
+      } else {
+        // กรณีไม่มีข้อมูล หรือ Format ผิด
+        console.warn('Invalid Data Format:', response)
+        setReports([])
       }
     } catch (err) {
-      console.error('Failed to fetch MDR reports', err)
+      console.error('Failed to load reports:', err)
+      // toast.error('Failed to load reports') // Uncomment ถ้ามี Toast
+      setReports([]) // กันเหนียว set เป็น empty array ไว้
     } finally {
       setLoading(false)
     }
   }
 
+  // 🔥 Reload reports when site filter changes
   useEffect(() => {
     fetchReports()
+  }, [selectedSiteFilter]) // Add selectedSiteFilter to dependency array
+
+  useEffect(() => {
     fetchSites()
   }, [])
 
@@ -270,8 +293,23 @@ export function MdrReportsTab() {
 
       {/* Reports List */}
       <Card className="bg-content1/50 border border-white/5">
-        <CardHeader>
+        <CardHeader className="flex justify-between items-center">
           <h3 className="text-lg font-semibold">Monthly Reports</h3>
+          <Select
+            label="Filter by Site"
+            placeholder="All Sites"
+            selectedKeys={[selectedSiteFilter]}
+            onChange={(e) => setSelectedSiteFilter(e.target.value)}
+            className="max-w-[200px]"
+            size="sm"
+          >
+            {[
+              <SelectItem key="all">All Sites</SelectItem>,
+              ...sites.map((site) => (
+                <SelectItem key={site.key}>{site.label}</SelectItem>
+              ))
+            ]}
+          </Select>
         </CardHeader>
         <CardBody>
           {loading ? (
@@ -282,17 +320,44 @@ export function MdrReportsTab() {
             <Table aria-label="MDR Reports Table">
               <TableHeader>
                 <TableColumn>MONTH</TableColumn>
+                <TableColumn>SITE</TableColumn>
                 <TableColumn>STATUS</TableColumn>
                 <TableColumn>CREATED</TableColumn>
                 <TableColumn>APPROVED</TableColumn>
                 <TableColumn>ACTIONS</TableColumn>
               </TableHeader>
-              <TableBody items={reports} emptyContent="No reports found. Generate your first report above.">
+              <TableBody 
+                items={reports || []} 
+                emptyContent="No reports found. Generate your first report above."
+                isLoading={loading}
+                loadingContent={<Spinner label="Loading..." />}
+              >
                 {(report) => (
-                  <TableRow key={report.id}>
+                  <TableRow key={report.id || Math.random()}>
                     <TableCell>
                       <span className="font-medium">{formatMonthYear(report.monthYear)}</span>
                     </TableCell>
+                    
+                    {/* Site Column */}
+                    <TableCell>
+                      {report.siteNames && report.siteNames.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {report.siteNames.map((site, idx) => (
+                            <Chip 
+                              key={idx}
+                              size="sm" 
+                              variant="flat"
+                              color="primary"
+                            >
+                              {site}
+                            </Chip>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-default-400 text-sm">All Sites</span>
+                      )}
+                    </TableCell>
+                    
                     <TableCell>
                       <Chip
                         size="sm"

@@ -4,32 +4,27 @@ import { MdrReportService } from '../core/services/mdr-report.service'
 import { MdrPdfService } from '../core/services/mdr-pdf.service'
 
 export const mdrReportController = new Elysia({ prefix: '/mdr-reports' })
-  // .use(tenantGuard) // Bypass middleware, manual check due to context issues
+  .use(tenantGuard)
+
 
   /**
    * List MDR reports for tenant
    * @route GET /mdr-reports
+   * @query {string} siteId - Optional site filter ('all' or empty = no filter)
    * @access Protected - Requires authentication
    * @returns {Object} List of MDR reports
    */
-  .get('/', async ({ jwt, cookie: { access_token }, set }) => {
-    try {
-      if (!access_token?.value) {
-        set.status = 401
-        throw new Error('Unauthorized')
-      }
-      const payload = await jwt.verify(access_token.value as string)
-      if (!payload) {
-        set.status = 401
-        throw new Error('Invalid token')
-      }
-      const user = payload as any
-      const reports = await MdrReportService.listReports(user.tenantId)
-      return { success: true, data: reports }
-    } catch (e) {
-      set.status = 401
-      return { success: false, error: 'Unauthorized' }
-    }
+  .get('/', async ({ user, query }: any) => {
+    // 🔥 1. Extract siteId from Query Param
+    // If sent as "all" or empty, treat as undefined (no filter)
+    const siteId = query.siteId === 'all' || query.siteId === '' || !query.siteId 
+      ? undefined 
+      : query.siteId
+
+    // 🔥 2. Pass siteId to Service
+    const reports = await MdrReportService.listReports(user.tenantId, siteId)
+    
+    return { success: true, data: reports }
   })
 
   /**
@@ -37,22 +32,14 @@ export const mdrReportController = new Elysia({ prefix: '/mdr-reports' })
    * @route GET /mdr-reports/sites
    * @access Protected - Requires authentication
    */
-  .get('/sites', async ({ jwt, cookie: { access_token }, set }) => {
+  .get('/sites', async ({ user, set }: any) => {
     try {
-      if (!access_token?.value) {
-        set.status = 401
-        throw new Error('Unauthorized')
-      }
-      const payload = await jwt.verify(access_token.value as string)
-      if (!payload) {
-        set.status = 401
-        throw new Error('Invalid token')
-      }
-      const user = payload as any
+      console.log('✅ [/sites] User Tenant:', user.tenantId)
+      
       const sites = await MdrReportService.getSites(user.tenantId)
       return { success: true, data: sites }
     } catch (e) {
-      console.error(e)
+      console.error('❌ [/sites] Error:', e)
       set.status = 500
       return { success: false, error: 'Internal Server Error' }
     }
@@ -64,19 +51,8 @@ export const mdrReportController = new Elysia({ prefix: '/mdr-reports' })
    * @access Protected - Requires authentication
    * @returns {Object} Report with snapshot data
    */
-  .get('/:id', async ({ jwt, cookie: { access_token }, set, params }) => {
+  .get('/:id', async ({ user, params, set }: any) => {
     try {
-      if (!access_token?.value) {
-        set.status = 401
-        throw new Error('Unauthorized')
-      }
-      const payload = await jwt.verify(access_token.value as string)
-      if (!payload) {
-        set.status = 401
-        throw new Error('Invalid token')
-      }
-      const user = payload as any
-      
       const { report, snapshot, data } = await MdrReportService.getReportWithSnapshot(params.id)
       
       // Verify tenant access
@@ -102,21 +78,9 @@ export const mdrReportController = new Elysia({ prefix: '/mdr-reports' })
    * @route DELETE /mdr-reports/:id
    * @access Protected - Requires authentication
    */
-  .delete('/:id', async ({ jwt, cookie: { access_token }, set, params }) => {
+  .delete('/:id', async ({ user, params, set }: any) => {
     try {
-      if (!access_token?.value) {
-        set.status = 401
-        throw new Error('Unauthorized')
-      }
-      const payload = await jwt.verify(access_token.value as string)
-      if (!payload) {
-        set.status = 401
-        throw new Error('Invalid token')
-      }
-      const user = payload as any
-      
       await MdrReportService.deleteReport(params.id, user.tenantId)
-      
       return { success: true }
     } catch (e) {
       console.error(e)
@@ -133,19 +97,9 @@ export const mdrReportController = new Elysia({ prefix: '/mdr-reports' })
    * @body {string[]} siteNames - Optional list of sites to filter
    * @returns {Object} Created report with snapshot
    */
-  .post('/generate', async ({ jwt, cookie: { access_token }, set, body }) => {
+  .post('/generate', async ({ user, body, set }: any) => {
     try {
-      if (!access_token?.value) {
-        set.status = 401
-        throw new Error('Unauthorized')
-      }
-      const payload = await jwt.verify(access_token.value as string)
-      if (!payload) {
-        set.status = 401
-        throw new Error('Invalid token')
-      }
-      const user = payload as any
-      const { monthYear, siteNames } = body as any
+      const { monthYear, siteNames } = body
       
       const result = await MdrReportService.createSnapshot(
         user.tenantId,
@@ -174,18 +128,18 @@ export const mdrReportController = new Elysia({ prefix: '/mdr-reports' })
    * @body {object} data - Partial report data to update
    * @returns {Object} Updated snapshot
    */
-  .put('/:id/snapshot', async (ctx: any) => {
+  .put('/:id/snapshot', async ({ user, params, body, set }: any) => {
     // Verify tenant access first
-    const { report } = await MdrReportService.getReportWithSnapshot(ctx.params.id)
-    if (report.tenantId !== ctx.user.tenantId && ctx.user.role !== 'superadmin') {
-      ctx.set.status = 403
+    const { report } = await MdrReportService.getReportWithSnapshot(params.id)
+    if (report.tenantId !== user.tenantId && user.role !== 'superadmin') {
+      set.status = 403
       return { success: false, error: 'Access denied' }
     }
     
     const snapshot = await MdrReportService.updateSnapshot(
-      ctx.params.id,
-      ctx.body.data,
-      ctx.user.id
+      params.id,
+      body.data,
+      user.id
     )
     
     return { success: true, data: snapshot }
@@ -201,19 +155,19 @@ export const mdrReportController = new Elysia({ prefix: '/mdr-reports' })
    * @access Protected - Requires authentication
    * @returns {Object} Approved report
    */
-  .post('/:id/approve', async (ctx: any) => {
+  .post('/:id/approve', async ({ user, params, set }: any) => {
     // Verify tenant access
-    const { report: existingReport } = await MdrReportService.getReportWithSnapshot(ctx.params.id)
-    if (existingReport.tenantId !== ctx.user.tenantId && ctx.user.role !== 'superadmin') {
-      ctx.set.status = 403
+    const { report: existingReport } = await MdrReportService.getReportWithSnapshot(params.id)
+    if (existingReport.tenantId !== user.tenantId && user.role !== 'superadmin') {
+      set.status = 403
       return { success: false, error: 'Access denied' }
     }
     
-    const report = await MdrReportService.approveReport(ctx.params.id, ctx.user.id)
+    const report = await MdrReportService.approveReport(params.id, user.id)
     
     // Trigger PDF generation asynchronously
     // In production, this would be done via a job queue
-    MdrPdfService.generatePdf(ctx.params.id).catch(err => {
+    MdrPdfService.generatePdf(params.id).catch(err => {
       console.error('PDF generation failed:', err)
     })
     
@@ -226,32 +180,32 @@ export const mdrReportController = new Elysia({ prefix: '/mdr-reports' })
    * @access Protected
    * @returns PDF file binary
    */
-  .get('/:id/pdf', async (ctx: any) => {
-    const { report } = await MdrReportService.getReportWithSnapshot(ctx.params.id)
+  .get('/:id/pdf', async ({ user, params, set }: any) => {
+    const { report } = await MdrReportService.getReportWithSnapshot(params.id)
     
     // Verify tenant access
-    if (report.tenantId !== ctx.user.tenantId && ctx.user.role !== 'superadmin') {
-      ctx.set.status = 403
+    if (report.tenantId !== user.tenantId && user.role !== 'superadmin') {
+      set.status = 403
       return { success: false, error: 'Access denied' }
     }
     
     if (!report.pdfUrl) {
-      ctx.set.status = 404
+      set.status = 404
       return { success: false, error: 'PDF not generated yet' }
     }
     
     // In production, this would redirect to S3/storage URL or serve the file
     // For now, generate on-demand if needed
     try {
-      const pdfBuffer = await MdrPdfService.generatePdf(ctx.params.id)
+      const pdfBuffer = await MdrPdfService.generatePdf(params.id)
       
-      ctx.set.headers['Content-Type'] = 'application/pdf'
-      ctx.set.headers['Content-Disposition'] = `attachment; filename="MDR_Report_${report.monthYear}.pdf"`
+      set.headers['Content-Type'] = 'application/pdf'
+      set.headers['Content-Disposition'] = `attachment; filename="MDR_Report_${report.monthYear}.pdf"`
       
       return pdfBuffer
     } catch (err) {
       console.error('PDF generation error:', err)
-      ctx.set.status = 500
+      set.status = 500
       return { success: false, error: 'PDF generation failed' }
     }
   })
@@ -262,25 +216,25 @@ export const mdrReportController = new Elysia({ prefix: '/mdr-reports' })
    * @access Protected
    * @returns PDF file binary for preview
    */
-  .get('/:id/preview', async (ctx: any) => {
-    const { report } = await MdrReportService.getReportWithSnapshot(ctx.params.id)
+  .get('/:id/preview', async ({ user, params, set }: any) => {
+    const { report } = await MdrReportService.getReportWithSnapshot(params.id)
     
     // Verify tenant access
-    if (report.tenantId !== ctx.user.tenantId && ctx.user.role !== 'superadmin') {
-      ctx.set.status = 403
+    if (report.tenantId !== user.tenantId && user.role !== 'superadmin') {
+      set.status = 403
       return { success: false, error: 'Access denied' }
     }
     
     try {
-      const pdfBuffer = await MdrPdfService.generatePdf(ctx.params.id, { preview: true })
+      const pdfBuffer = await MdrPdfService.generatePdf(params.id, { preview: true })
       
-      ctx.set.headers['Content-Type'] = 'application/pdf'
-      ctx.set.headers['Content-Disposition'] = 'inline' // Show in browser
+      set.headers['Content-Type'] = 'application/pdf'
+      set.headers['Content-Disposition'] = 'inline' // Show in browser
       
       return pdfBuffer
     } catch (err) {
       console.error('PDF preview error:', err)
-      ctx.set.status = 500
+      set.status = 500
       return { success: false, error: 'PDF preview failed' }
     }
   })
