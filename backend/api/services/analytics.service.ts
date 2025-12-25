@@ -156,6 +156,26 @@ export class AnalyticsService {
     const determinationBreakdown: Record<string, number> = {};
     const sourceBreakdown: Record<string, number> = {};
 
+    // Helper: Format source name for display
+    const formatSourceName = (source: string): string => {
+      const nameMap: Record<string, string> = {
+        'sentinelone': 'SentinelOne',
+        'crowdstrike': 'CrowdStrike',
+        'simulate': 'Simulate',
+        'simulation': 'Simulation',
+        'microsoft': 'Microsoft',
+        'azure': 'Azure',
+        'aws': 'AWS',
+        'gcp': 'GCP',
+      };
+      const lower = source.toLowerCase();
+      for (const [key, value] of Object.entries(nameMap)) {
+        if (lower.includes(key)) return value;
+      }
+      // Capitalize first letter
+      return source.charAt(0).toUpperCase() + source.slice(1);
+    };
+
     // ==================== STAGE 1: Ingestion -> Categorization (from ClickHouse logs) ====================
     // Calculate category counts from log sources
     const categoryCounts: Record<string, number> = {};
@@ -172,11 +192,15 @@ export class AnalyticsService {
         category = 'Cloud';
       }
       
+      // Format source name for display
+      const formattedSource = formatSourceName(source);
+      
       // Add log flow: Source -> Category
-      addLink(source, category, count);
+      addLink(formattedSource, category, count);
       categoryCounts[category] = (categoryCounts[category] || 0) + count;
-      sourceBreakdown[source] = count;
+      sourceBreakdown[formattedSource] = count;
     }
+
 
     // ==================== STAGE 2-6: From Alerts (PostgreSQL) ====================
     // Group alerts by category first

@@ -53,6 +53,13 @@ const SankeyNode = (props: any) => {
   const { x, y, width, height, index, payload } = props;
   const fill = getNodeColor(payload.name);
   
+  // Format large numbers with commas
+  const formatNumber = (num: number): string => {
+    if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
+    if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
+    return num.toLocaleString();
+  };
+  
   return (
     <Layer key={`CustomNode${index}`}>
       <Rectangle
@@ -72,21 +79,23 @@ const SankeyNode = (props: any) => {
         fontSize={11}
         fontWeight="600"
       >
-        {payload.name}
+        {payload.value ? `${formatNumber(payload.value)} ${payload.name}` : payload.name}
       </text>
       
-      {/* Value */}
-      <text
-        x={x + width / 2}
-        y={y + height / 2}
-        dy="0.35em"
-        textAnchor="middle"
-        fill="#ffffff"
-        fontSize={10}
-        fontWeight="bold"
-      >
-        {payload.value}
-      </text>
+      {/* Value inside bar (only for large bars) */}
+      {height > 20 && (
+        <text
+          x={x + width / 2}
+          y={y + height / 2}
+          dy="0.35em"
+          textAnchor="middle"
+          fill="#ffffff"
+          fontSize={10}
+          fontWeight="bold"
+        >
+          {formatNumber(payload.value)}
+        </text>
+      )}
     </Layer>
   );
 };
