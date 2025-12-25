@@ -47,4 +47,15 @@ temp/
 
 # Environment
 .env
-.env.test
+.env.*
+!.env.example
+backend/api/.env
+backend/api/.env.*
+!backend/api/.env.example
+collector/.env
+collector/.env.*
+!collector/.env.example
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
+!frontend/.env.production.example

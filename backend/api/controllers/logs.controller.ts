@@ -84,6 +84,34 @@ export const logsController = new Elysia({ prefix: '/logs' })
   })
 
   /**
+   * Get log volume histogram
+   * @route GET /logs/histogram
+   */
+  .get('/histogram', async ({ user, cookie: { selected_tenant }, query }: any) => {
+    const tenantId = getEffectiveTenantId(user, selected_tenant)
+    const filters = {
+      startDate: query.startDate as string | undefined,
+      endDate: query.endDate as string | undefined,
+      severity: query.severity ? (query.severity as string).split(',') : undefined,
+      source: query.sources 
+        ? (typeof query.sources === 'string' ? query.sources.split(',').filter(Boolean) : query.sources)
+        : query.source 
+          ? (query.source as string).split(',') 
+          : undefined,
+      host: query.host as string | undefined,
+      user: query.user as string | undefined,
+      search: query.search as string | undefined,
+      eventType: query.eventType as string | undefined,
+      integrationId: query.integration_id as string | undefined,
+      accountName: query.account_name as string | undefined,
+      siteName: query.site_name as string | undefined,
+    }
+    const intervalSeconds = parseInt(query.interval as string) || 3600
+    
+    return await LogsService.getHistogram(tenantId, filters, intervalSeconds)
+  })
+
+  /**
    * Get detailed log entry by ID
    * @route GET /logs/:id
    * @access Protected - Admin only

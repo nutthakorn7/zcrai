@@ -35,11 +35,21 @@ export const threatIntelController = new Elysia({ prefix: '/threat-intel' })
    * @body {string} value - IOC value to lookup
    * @returns {Object} Consolidated threat intelligence report
    */
-  .post('/lookup', async ({ user, body }: any) => {
-    const { ThreatIntelService } = await import('../core/services/threat-intel.service');
-    const { type, value } = body;
-    const result = await ThreatIntelService.lookup(value, type);
-    return { success: true, data: result };
+  .post('/lookup', async ({ user, body, set }: any) => {
+    try {
+      console.log('[ThreatIntel] Lookup request:', body);
+      const { ThreatIntelService } = await import('../core/services/threat-intel.service');
+      const { type, value } = body;
+      console.log('[ThreatIntel] Calling lookup for:', value, 'type:', type);
+      const result = await ThreatIntelService.lookup(value, type);
+      console.log('[ThreatIntel] Lookup success, verdict:', result.verdict);
+      return { success: true, data: result };
+    } catch (e: any) {
+      console.error('[ThreatIntel] Lookup ERROR:', e.message);
+      console.error('[ThreatIntel] Stack:', e.stack);
+      set.status = 500;
+      return { success: false, error: 'Threat Intel lookup failed', message: e.message };
+    }
   }, {
     body: t.Object({
         type: t.Union([t.Literal('ip'), t.Literal('hash'), t.Literal('domain'), t.Literal('url')]),

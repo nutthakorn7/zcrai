@@ -3,28 +3,7 @@ import ForceGraph2D from 'react-force-graph-2d';
 import { Card, CardBody, Button, Spinner } from "@heroui/react";
 import { Icon } from '../../../shared/ui';
 import ReactMarkdown from 'react-markdown';
-
-// Mock Data: "The Patient Zero Scenario"
-const MOCK_DATA = {
-  nodes: [
-    { id: 'Attacker', group: 'threat', val: 20, color: '#ef4444', label: 'C2: 178.12.44.9', icon: 'Globe' },
-    { id: 'Firewall', group: 'infra', val: 10, color: '#f97316', label: 'Firewall', icon: 'Shield' },
-    { id: 'PatientZero', group: 'user', val: 30, color: '#eab308', label: 'Patient Zero (HR-PC)', icon: 'Monitor' },
-    { id: 'Malware', group: 'file', val: 15, color: '#a855f7', label: 'dllhostex.exe', icon: 'FileCode' },
-    { id: 'FileServer', group: 'server', val: 20, color: '#3b82f6', label: 'File Server 01', icon: 'Server' },
-    { id: 'AdminPC', group: 'user', val: 10, color: '#22c55e', label: 'Admin PC', icon: 'User' },
-    { id: 'Switch', group: 'infra', val: 5, color: '#71717a', label: 'Core Switch', icon: 'Cpu' },
-  ],
-  links: [
-    { source: 'Attacker', target: 'Firewall', value: 5, label: 'Inbound Scan' },
-    { source: 'Firewall', target: 'PatientZero', value: 5, label: 'Phishing Email Allowed' },
-    { source: 'PatientZero', target: 'Malware', value: 10, label: 'Executed' },
-    { source: 'Malware', target: 'Attacker', value: 8, label: 'C2 Callback' },
-    { source: 'Malware', target: 'Switch', value: 3, label: 'Scanning' },
-    { source: 'Switch', target: 'FileServer', value: 3, label: 'SMB Access' },
-    { source: 'Switch', target: 'AdminPC', value: 1, label: 'Blocked' },
-  ]
-};
+import { useNavigate } from 'react-router-dom';
 
 interface InvestigationGraphWidgetProps {
   alertId?: string;
@@ -35,8 +14,9 @@ export function InvestigationGraphWidget({ alertId, className }: InvestigationGr
   const fgRef = useRef<any>();
   const [dimensions, setDimensions] = useState({ w: 800, h: 400 });
   const containerRef = useRef<HTMLDivElement>(null);
-  const [graphData, setGraphData] = useState<any>(MOCK_DATA);
+  const [graphData, setGraphData] = useState<any>({ nodes: [], links: [] });
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     // Responsive Resize
@@ -70,14 +50,11 @@ export function InvestigationGraphWidget({ alertId, className }: InvestigationGr
         const { api } = await import('../../../shared/api/api');
         const res = await api.get(`/graph/alert/${alertId}`);
         if(res.data.success) {
-            // Transform backend data to react-force-graph format if needed
-            // Currently backend returns { nodes: [], edges: [] }
-            // ForceGraph expects { nodes, links }
             const { nodes, edges } = res.data.data;
             const formattedData = {
                 nodes: nodes.map((n: any) => ({
                     ...n,
-                    val: n.type === 'alert' ? 20 : 10,
+                    val: n.val || (n.type === 'alert' ? 20 : 10),
                     color: getEntityColor(n.type),
                     icon: getEntityIcon(n.type)
                 })),
@@ -149,6 +126,21 @@ export function InvestigationGraphWidget({ alertId, className }: InvestigationGr
     }, 2500);
   };
 
+  const handleNodeClick = (node: any) => {
+      if (node.id.startsWith('alert-')) {
+          // Maybe show alert details or do nothing for now
+          return; 
+      }
+      
+      const value = node.properties?.value || node.label;
+      if (value && value !== 'unknown') {
+          // Open Hunting page with query
+          const query = `*${value}*`;
+          // window.open(`/hunting?query=${encodeURIComponent(query)}`, '_blank');
+          navigate(`/hunting?query=${encodeURIComponent(query)}`);
+      }
+  };
+
   return (
     <Card className={`bg-content1/50 border border-white/5 w-full h-[450px] ${className || ''}`}>
         <div className="absolute top-4 right-4 z-10 flex gap-2">
@@ -176,6 +168,17 @@ export function InvestigationGraphWidget({ alertId, className }: InvestigationGr
             <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
                 <Spinner color="primary" label="Building Investigation Graph..." />
             </div>
+        )}
+
+        {/* Empty State */}
+        {!loading && (!graphData.nodes || graphData.nodes.length === 0) && (
+             <div className="absolute inset-0 flex items-center justify-center text-foreground/40">
+                 <div className="text-center">
+                     <Icon.Globe className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                     <p>No investigation data available</p>
+                     <p className="text-xs">Select an alert to view relationships</p>
+                 </div>
+             </div>
         )}
 
         {/* AI Result Overlay */}
@@ -211,6 +214,7 @@ export function InvestigationGraphWidget({ alertId, className }: InvestigationGr
                 d3VelocityDecay={0.3}
                 cooldownTicks={100}
                 onEngineStop={() => fgRef.current?.zoomToFit(400)}
+                onNodeClick={handleNodeClick}
                 nodeCanvasObject={(node: any, ctx, globalScale) => {
                     // Custom Node Rendering
                     const label = node.label;

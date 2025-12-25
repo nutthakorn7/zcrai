@@ -22,33 +22,55 @@ export class ThreatHuntService {
      * @param sqlQuery 
      */
     static async runQuery(tenantId: string, sqlQuery: string) {
-        // Security Check: Basic SQL Injection / Tenant Isolation check
-        // In a real prod env, we'd parser the AST to ensure 'tenant_id' clause exists
-        // For MVP, we'll assume the client generated the query correctly OR we append tenant_id 
-        // But specialized CH SQL is hard to regex. 
-        // Let's enforce that the query MUST contain "tenant_id = '{tenantId}'" or we append it to WHERE.
-        
-        // Actually, safer to just use parameter binding if possible, but for raw flexible queries it's hard.
-        // Let's just run it for now, assuming the analyst knows what they are doing (Internal Tool).
-        // WE MUST ensure Read-Only though.
-        
+        // 1. Basic Security Check
         const lowerSql = sqlQuery.toLowerCase();
-        if (lowerSql.includes('alter') || lowerSql.includes('drop') || lowerSql.includes('truncate') || lowerSql.includes('insert')) {
+        if (lowerSql.match(/\b(alter|drop|truncate|insert|update|delete|create|grant)\b/)) {
             throw new Error('Only SELECT queries are allowed.');
         }
 
-        // Ideally we force tenant isolation. 
-        // Simple hack: Enforce tenant_id check in string
-        if (!sqlQuery.includes(`tenant_id = '${tenantId}'`) && !sqlQuery.includes(`tenant_id='${tenantId}'`)) {
-             // Try to inject it? Too risky for complex SQL.
-             // Throw error requiring it.
-             throw new Error("Query must include WHERE tenant_id = '...' for security isolation.");
+        // 2. Normalize and Inject Tenant ID
+        // This is a naive injection for MVP. In production, use a real SQL parser or parameterized queries.
+        // We look for the WHERE clause to append AND tenant_id = ...
+        // If no WHERE, we add WHERE tenant_id = ...
+        
+        let finalQuery = sqlQuery;
+
+        // Check if tenant_id is already present to avoid duplication
+        if (!finalQuery.includes(`tenant_id = '${tenantId}'`) && !finalQuery.includes(`tenant_id='${tenantId}'`)) {
+            const whereMatch = finalQuery.match(/\bwhere\b/i);
+            if (whereMatch) {
+                const index = whereMatch.index!;
+                const preWhere = finalQuery.substring(0, index);
+                const postWhere = finalQuery.substring(index + whereMatch[0].length);
+                
+                // Identify where the conditions end (ORDER BY, LIMIT, etc.)
+                const keywordMatch = postWhere.match(/\b(ORDER BY|LIMIT|GROUP BY|HAVING|UNION)\b/i);
+                let conditions = postWhere;
+                let tail = '';
+                
+                if (keywordMatch) {
+                    conditions = postWhere.substring(0, keywordMatch.index);
+                    tail = postWhere.substring(keywordMatch.index!);
+                }
+                
+                // Construct safer query: WHERE tenant_id = '...' AND (original_conditions)
+                finalQuery = `${preWhere} WHERE tenant_id = '${tenantId}' AND (${conditions}) ${tail}`;
+            } else {
+                // If table is specified, we need to find where to put WHERE
+                // Simple strategy: Split by keywords
+                const parts = finalQuery.split(/(?=\bORDER\b|\bLIMIT\b|\bGROUP\b)/i);
+                // parts[0] is everything before OREDER/LIMIT
+                // Append WHERE to parts[0]
+                parts[0] = `${parts[0]} WHERE tenant_id = '${tenantId}'`;
+                finalQuery = parts.join(' ');
+            }
         }
 
         try {
-            const results = await query(sqlQuery);
+            const results = await query(finalQuery);
             return results;
         } catch (error: any) {
+            console.error('ClickHouse Query Error:', error);
             throw new Error(`Query Execution Failed: ${error.message}`);
         }
     }

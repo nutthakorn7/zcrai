@@ -142,6 +142,17 @@ export const ThreatIntelService = {
       return cached.result;
     }
 
+    // Load API keys from DB and set on providers
+    const [vtKey, abuseKey, otxKey] = await Promise.all([
+      this.getApiKey('virustotal'),
+      this.getApiKey('abuseipdb'),
+      this.getApiKey('alienvault-otx'),
+    ]);
+    
+    if (vtKey) this.virustotal.setApiKey(vtKey);
+    if (abuseKey) this.abuseipdb.setApiKey(abuseKey);
+    if (otxKey) this.otx.setApiKey(otxKey);
+
     const sources: ThreatIntelResult['sources'] = [];
     let allTags: string[] = [];
     let allMalwareFamilies: string[] = [];
@@ -166,15 +177,17 @@ export const ThreatIntelService = {
           break;
       }
 
+      if (vtResult.malicious) maliciousCount++;
+      if (Array.isArray(vtResult.categories)) {
+        allTags.push(...vtResult.categories);
+      }
+
       sources.push({
         name: 'VirusTotal',
         found: vtResult.malicious ?? false,
         risk: vtResult.malicious ? 'malicious' : 'clean',
         details: vtResult
       });
-
-      if (vtResult.malicious) maliciousCount++;
-      if (vtResult.categories) allTags.push(...vtResult.categories);
     } catch (e: any) {
       sources.push({
         name: 'VirusTotal',

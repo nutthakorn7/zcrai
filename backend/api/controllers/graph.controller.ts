@@ -4,12 +4,12 @@
  */
 
 import { Elysia } from 'elysia';
-import { tenantGuard } from '../middlewares/auth.middleware';
+import { withAuth } from '../middleware/auth';
 import { InvestigationGraphService } from '../core/services/investigation-graph.service';
 import { TimelineService } from '../core/services/timeline.service';
 
 export const graphController = new Elysia({ prefix: '/graph' })
-  .use(tenantGuard)
+  .use(withAuth)
 
   /**
    * Get Consolidated Timeline

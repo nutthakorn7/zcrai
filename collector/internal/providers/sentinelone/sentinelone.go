@@ -675,6 +675,7 @@ func (c *S1Client) transformThreat(t S1Threat) models.UnifiedEvent {
 		IntegrationID:   c.integrationID,
 		IntegrationName: c.integrationName,
 		Source:          "sentinelone",
+		URLHash:         c.GetURLHash(),
 		Timestamp:       timestamp,
 
 		Severity:        func() string {
@@ -936,6 +937,7 @@ func (c *S1Client) transformActivity(a S1Activity) models.UnifiedEvent {
 		IntegrationID:   c.integrationID,
 		IntegrationName: c.integrationName,
 		Source:          "sentinelone",
+		URLHash:         c.GetURLHash(),
 		Timestamp:       timestamp,
 		Severity:        "info",
 		EventType:       "activity",
@@ -1119,6 +1121,7 @@ func (c *S1Client) transformAlert(a S1AlertResponse) models.UnifiedEvent {
 		IntegrationID:   c.integrationID,
 		IntegrationName: c.integrationName,
 		Source:          "sentinelone",
+		URLHash:         c.GetURLHash(),
 		Timestamp:       timestamp,
 		Severity:        severity,
 		EventType:       "alert",

@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
-import { Button, Chip, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Input, Card, CardBody, Progress } from "@heroui/react";
+import { Button, Chip, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Input, Card, CardBody, Progress, Pagination } from "@heroui/react";
 import { Icon } from '../../shared/ui';
 import { ObservablesAPI, Observable } from '../../shared/api/observables';
 import { ObservableDetailModal } from '../../components/ObservableDetailModal';
@@ -47,18 +47,34 @@ export default function ObservablesPage() {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
+
+  // Pagination State
+  const [page, setPage] = useState(1);
+  const [limit] = useState(25); // Default limit
+  const [totalPages, setTotalPages] = useState(1);
+  const [isLoading, setIsLoading] = useState(false);
+
   const fetchObservables = useCallback(async () => {
+    setIsLoading(true);
     try {
+      // Note: Backend might need to return total count for precise pagination
+      // For now, we fetch and see if we get full page
       const data = await ObservablesAPI.list({
         type: typeFilter.length > 0 ? typeFilter : undefined,
         isMalicious: statusFilter === 'malicious' ? true : statusFilter === 'safe' ? false : undefined,
         search: searchQuery || undefined,
+        limit: limit,
+        offset: (page - 1) * limit
       });
       setObservables(data);
+      // Mock total pages logic if backend doesn't return count (assuming lots of data if full page)
+      if (data.length === limit) setTotalPages(page + 1);
     } catch (e) {
       console.error(e);
+    } finally {
+      setIsLoading(false);
     }
-  }, [typeFilter, statusFilter, searchQuery]);
+  }, [typeFilter, statusFilter, searchQuery, page, limit]);
 
   useEffect(() => {
     fetchObservables();
@@ -97,24 +113,50 @@ export default function ObservablesPage() {
   const typeDistribution = useMemo(() => {
     return facets.types.map(f => ({ name: f.name, value: f.count }));
   }, [facets]);
-  
-
-
-  // Risk Score Helper (Mock)
   const getRiskScore = (o: Observable) => {
-      if (o.isMalicious) return Math.floor(Math.random() * 20) + 80; // 80-99
-      if (o.isMalicious === false) return Math.floor(Math.random() * 10); // 0-9
+      if (o.enrichmentData) {
+          // Use AbuseIPDB score if available
+          if (o.enrichmentData.abuseipdb?.abuseConfidenceScore) {
+              return o.enrichmentData.abuseipdb.abuseConfidenceScore;
+          }
+          // Use VirusTotal malicious count (normalized to 100 roughly)
+          if (o.enrichmentData.virustotal?.lastAnalysisStats?.malicious) {
+              const malicious = o.enrichmentData.virustotal.lastAnalysisStats.malicious;
+              return Math.min(100, malicious * 10 + 50);
+          }
+      }
+      
+      if (o.isMalicious) return 90;
+      if (o.isMalicious === false) return 0;
       return 0; // Unknown
   };
 
-  const handleBulkEnrich = () => {
+  const handleBulkEnrich = async () => {
       setIsEnriching(true);
-      setTimeout(() => {
-          setIsEnriching(false);
-          setSelectedKeys(new Set([]));
-          // Mock refresh
-          fetchObservables();
-      }, 2000);
+      try {
+        const promises = Array.from(selectedKeys).map(id => ObservablesAPI.enrich(id));
+        await Promise.all(promises);
+        
+        setSelectedKeys(new Set([]));
+        fetchObservables();
+      } catch (e) {
+        console.error("Bulk enrichment failed", e);
+      } finally {
+        setIsEnriching(false);
+      }
+  };
+
+  const handleBulkDelete = async () => {
+    if (!confirm(`Are you sure you want to delete ${selectedKeys.size} observables?`)) return;
+    
+    try {
+        const promises = Array.from(selectedKeys).map(id => ObservablesAPI.delete(id));
+        await Promise.all(promises);
+        setSelectedKeys(new Set([]));
+        fetchObservables();
+    } catch(e) {
+        console.error("Bulk delete failed", e);
+    }
   };
 
   const handleOpenDetail = (observable: Observable) => {
@@ -122,9 +164,18 @@ export default function ObservablesPage() {
     setIsDetailModalOpen(true);
   };
 
-  const handleEnrich = async (_id: string) => {
-    // Call API to trigger enrichment (future implementation)
-
+  const handleEnrich = async (id: string) => {
+    try {
+      await ObservablesAPI.enrich(id);
+      fetchObservables();
+      // If modal is open, we might want to refresh the selected observable too
+      if (selectedObservable && selectedObservable.id === id) {
+        const updated = await ObservablesAPI.getById(id);
+        setSelectedObservable(updated);
+      }
+    } catch (e) {
+      console.error("Enrichment failed", e);
+    }
   };
 
   const getStatusChip = (observable: Observable) => {
@@ -231,7 +282,16 @@ export default function ObservablesPage() {
                      >
                          Enrich
                      </Button>
-                     <Button size="sm" color="danger" variant="light" isIconOnly className="h-7 w-7"><Icon.Delete className="w-4 h-4"/></Button>
+                     <Button 
+                        size="sm" 
+                        color="danger" 
+                        variant="light" 
+                        isIconOnly 
+                        className="h-7 w-7"
+                        onPress={handleBulkDelete}
+                     >
+                        <Icon.Delete className="w-4 h-4"/>
+                     </Button>
                  </div>
              )}
              
@@ -344,8 +404,8 @@ export default function ObservablesPage() {
                                         data={typeDistribution} 
                                         cx="50%" 
                                         cy="50%" 
-                                        innerRadius={25} 
-                                        outerRadius={50} 
+                                        innerRadius={30} 
+                                        outerRadius={45} 
                                         paddingAngle={5} 
                                         dataKey="value"
                                     >
@@ -404,6 +464,21 @@ export default function ObservablesPage() {
         selectionMode="multiple"
         selectedKeys={selectedKeys}
         onSelectionChange={(keys) => setSelectedKeys(keys as Set<string>)}
+        bottomContent={
+          totalPages > 1 ? (
+            <div className="flex w-full justify-center">
+              <Pagination
+                isCompact
+                showControls
+                showShadow
+                color="primary"
+                page={page}
+                total={totalPages}
+                onChange={(page) => setPage(page)}
+              />
+            </div>
+          ) : null
+        }
         classNames={{
           wrapper: "bg-transparent shadow-none border border-white/5 rounded-lg",
           th: "bg-content1/50 backdrop-blur text-[10px] font-bold text-foreground/50 uppercase tracking-wider border-b border-white/10 h-10",
@@ -420,7 +495,7 @@ export default function ObservablesPage() {
           <TableColumn key="lastSeen">LAST SEEN</TableColumn>
           <TableColumn key="actions" align="end">ACTIONS</TableColumn>
         </TableHeader>
-        <TableBody items={filteredObservables} emptyContent="No observables found.">
+        <TableBody items={filteredObservables} emptyContent="No observables found." isLoading={isLoading}>
           {(item) => (
             <TableRow key={item.id}>
               {(columnKey) => <TableCell>{columnKey === 'risk' ? (

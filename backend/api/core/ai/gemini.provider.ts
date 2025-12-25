@@ -10,7 +10,7 @@ export class GeminiProvider implements AIProvider {
         const key = apiKey || process.env.GEMINI_API_KEY;
         if (key) {
              this.client = new GoogleGenerativeAI(key);
-             this.model = this.client.getGenerativeModel({ model: "gemini-1.5-flash" });
+             this.model = this.client.getGenerativeModel({ model: "gemini-2.0-flash" });
         } else {
             console.warn("GeminiProvider initialized without API Key. Analysis will fail if used.");
         }
@@ -49,7 +49,7 @@ export class GeminiProvider implements AIProvider {
             if (schema) config.responseSchema = schema;
 
             const model = this.client.getGenerativeModel({ 
-                model: "gemini-1.5-flash",
+                model: "gemini-2.0-flash",
                 generationConfig: config
             });
 

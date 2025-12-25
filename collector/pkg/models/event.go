@@ -56,7 +56,8 @@ type UnifiedEvent struct {
 	GrandparentProcess ParentProcessInfo `json:"grandparent_process,omitempty"`
 
 	// === Raw Data ===
-	Raw         map[string]any    `json:"raw"` // Original payload
+	URLHash     string            `json:"url_hash,omitempty"` // Hash ของ base URL ของ Provider
+	Raw         map[string]any    `json:"raw"`                // Original payload
 	Metadata    map[string]string `json:"metadata,omitempty"`
 	CollectedAt time.Time         `json:"collected_at"`
 }

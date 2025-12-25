@@ -129,6 +129,7 @@ func (p *Publisher) publishToCH(events []models.UnifiedEvent) error {
 			"host_account_name": event.Host.AccountName,
 			"host_site_id":      event.Host.SiteID,
 			"host_group_id":     event.Host.GroupID,
+			"url_hash":          event.URLHash,
 		}
 	}
 
@@ -175,7 +176,7 @@ func (p *Publisher) publishToVector(events []models.UnifiedEvent) error {
 // PublishBatch sends events in batches
 func (p *Publisher) PublishBatch(events []models.UnifiedEvent, batchSize int) error {
 	if batchSize <= 0 {
-		batchSize = 500
+		batchSize = 50000
 	}
 
 	for i := 0; i < len(events); i += batchSize {

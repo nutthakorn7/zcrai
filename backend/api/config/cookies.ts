@@ -18,7 +18,7 @@ export const COOKIE_CONFIG = {
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax' as const,
     maxAge: DEFAULTS.SESSION_DURATION * 1000, 
-    path: '/auth/refresh'
+    path: '/'  // Changed from '/auth/refresh' - ensures cookie is always sent
   }
 } as const
 

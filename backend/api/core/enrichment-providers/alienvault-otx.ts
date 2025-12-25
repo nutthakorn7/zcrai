@@ -44,6 +44,10 @@ export class AlienVaultOTXProvider {
     this.apiKey = process.env.OTX_API_KEY || '';
   }
 
+  setApiKey(key: string) {
+    this.apiKey = key;
+  }
+
   private canMakeRequest(): boolean {
     const now = Date.now();
     this.rateLimiter.requests = this.rateLimiter.requests.filter(

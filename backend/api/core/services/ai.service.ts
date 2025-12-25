@@ -34,11 +34,12 @@ Analyze the following Security Incident Case to determine if it is a True Positi
 ${caseData.alerts?.map((a: any) => `- [${a.severity}] ${a.title}: ${a.description}`).join('\n') || "No correlated alerts."}
 
 **Instructions**:
-1. Analyze the indicators (IPs, domains, hashes) and behavior.
-2. Determine a **Verdict**: "True Positive", "False Positive", or "Suspicious" (if unsure).
-3. Assign a **Confidence Score** (0-100).
-4. Provide a **Summary** of the incident.
-5. Provide a detailed **Evidence Analysis** (bullet points).
+1. Analyze the indicators (IPs, domains, hashes) and behavior ONLY based on the provided Case Details and Alerts.
+2. DO NOT use external knowledge, internet data, or general information not present in the provided context.
+3. Determine a **Verdict**: "True Positive", "False Positive", or "Suspicious" (if unsure).
+4. Assign a **Confidence Score** (0-100).
+5. Provide a **Summary** of the incident based strictly on internal evidence.
+6. Provide a detailed **Evidence Analysis** (bullet points).
 
 **Output Format**:
 Return valid JSON only.
@@ -64,6 +65,28 @@ Return valid JSON only.
         }
     }
 
+    static async generalChat(messages: { role: string, content: string }[], context?: string): Promise<string> {
+        if (!this.provider) this.initialize();
+
+        const prompt = `
+You are a designated Tier-3 SOC Analyst AI (zcrAI).
+Answer the user's latest query based on the conversation history and provided Internal Context.
+
+**Internal Context**:
+${context || "No internal context provided."}
+
+**Conversation History**:
+${messages.map(m => `[${m.role.toUpperCase()}]: ${m.content}`).join('\n')}
+
+**Instructions**:
+1. Provide a concise, professional response based STRICTLY on the Internal Context.
+2. If the answer is not in the context, explicitly state "I don't have enough internal information to answer this."
+3. DO NOT use external knowledge, internet data, or general AI training for environment-specific details.
+4. Use markdown for formatting.
+`;
+        return await this.provider.generateText(prompt);
+    }
+
     static async streamChat(messages: { role: string, content: string }[], context?: string, callback?: (chunk: string) => void): Promise<void> {
         if (!this.provider) this.initialize();
 
@@ -80,7 +103,9 @@ ${messages.map(m => `[${m.role.toUpperCase()}]: ${m.content}`).join('\n')}
 **Instructions**:
 1. Provide a concise, professional, and actionable response.
 2. Use markdown for formatting.
-3. If context is provided, prioritize it.
+3. STRICTLY use only the provided Context and Conversation History to answer. 
+4. If the answer is not in the provided context, state that "I don't have enough internal information to answer this."
+5. DO NOT use external sources, internet data, or general pre-trained knowledge to answer specific security questions about this environment.
 `;
         if (callback) {
             await this.provider.streamText(prompt, callback);
@@ -170,6 +195,127 @@ JSON Format:
         } catch (e) {
             console.error("Failed to parse AI Query JSON", text);
             return { sql: null, filters: {}, explanation: "Failed to generate query." };
+        }
+    }
+
+    /**
+     * Triage alerts and assign urgency scores
+     */
+    static async triageAlerts(alerts: any[]): Promise<{ triaged: { id: string; urgency: number; category: string; reason: string; action: string }[] }> {
+        if (!this.provider) this.initialize();
+
+        // Limit to top 20 alerts to avoid token limits
+        const alertsToAnalyze = alerts.slice(0, 20);
+
+        const alertsSummary = alertsToAnalyze.map((a, i) => 
+            `${i + 1}. [ID: ${a.id}] [${a.severity}] ${a.title} - Source: ${a.source || 'unknown'}, Time: ${a.timestamp || 'unknown'}`
+        ).join('\n');
+
+        const prompt = `
+You are a SOC Triage AI. Analyze these security alerts and prioritize them by urgency.
+
+**Alerts:**
+${alertsSummary}
+
+**Instructions:**
+1. Score each alert's URGENCY from 0-100 based on:
+   - Severity (critical=high base, info=low base)
+   - Potential impact
+   - Attack chain correlation
+   - Time sensitivity
+2. Categorize each: "active_attack", "lateral_movement", "data_exfil", "persistence", "recon", "policy_violation", "noise"
+3. Provide a 1-line reason why this urgency score
+4. Suggest immediate action: "investigate_now", "create_case", "enrich_iocs", "monitor", "dismiss"
+
+**Output JSON array (maintain alert order):**
+[
+  { "id": "alert_id", "urgency": 85, "category": "active_attack", "reason": "...", "action": "investigate_now" },
+  ...
+]
+Return ONLY the JSON array.
+`;
+        const text = await this.provider.generateText(prompt);
+        try {
+            const jsonStr = text.replace(/```json\n?|\n?```/g, '').trim();
+            const triaged = JSON.parse(jsonStr);
+            return { triaged };
+        } catch (e) {
+            console.error("Failed to parse AI Triage JSON", text);
+            // Fallback: return basic triage based on severity
+            return { 
+                triaged: alertsToAnalyze.map(a => ({
+                    id: a.id,
+                    urgency: a.severity === 'critical' ? 90 : a.severity === 'high' ? 70 : a.severity === 'medium' ? 50 : 30,
+                    category: 'pending_analysis',
+                    reason: 'AI analysis failed, using severity-based scoring',
+                    action: a.severity === 'critical' || a.severity === 'high' ? 'investigate_now' : 'monitor'
+                }))
+            };
+        }
+    }
+
+    static async generateDetectionRule(description: string): Promise<{ name: string, description: string, severity: string, query: string, mitreTechnique: string, runIntervalSeconds: number, explanation: string }> {
+        if (!this.provider) this.initialize();
+
+        const schemaContext = `
+Table: normalized_logs
+Columns:
+- timestamp (DateTime)
+- severity (String: critical, high, medium, low, info)
+- event_type (String)
+- source (String: sentinelone, crowdstrike, firewall, auth, etc.)
+- tenant_id (UUID)
+- host.name, host.ip (String)
+- user.name (String)
+- network.src_ip, network.dst_ip, network.protocol (String)
+- process.name, process.path, process.command_line (String)
+- file.name, file.path, file.hash (String)
+`;
+
+        const prompt = `
+You are a Senior Security Detection Engineer.
+Create a production-ready Detection Rule based on this request: "${description}"
+
+**Context**:
+${schemaContext}
+
+**Instructions**:
+1. **Name**: Short, professional title (e.g., "Brute Force: SSH").
+2. **Description**: Concise explanation of what is detected.
+3. **Severity**: "critical", "high", "medium", or "low" based on risk.
+4. **Query (SQL)**: A ClickHouse WHERE clause. 
+   - Use 'normalized_logs' schema. 
+   - inferred thresholds (adaptive baselining) if specific numbers aren't given (e.g. > 5 attempts).
+   - DO NOT include "WHERE" keyword.
+5. **MITRE**: The most relevant MITRE ATT&CK Technique ID (e.g., "T1110").
+6. **Interval**: Recommended run interval in seconds (default 3600, shorter for critical).
+
+**Output JSON**:
+{
+  "name": "string",
+  "description": "string",
+  "severity": "critical"|"high"|"medium"|"low",
+  "query": "string",
+  "mitreTechnique": "string",
+  "runIntervalSeconds": number,
+  "explanation": "string"
+}
+`;
+        const text = await this.provider.generateText(prompt);
+        try {
+            const jsonStr = text.replace(/```json\n?|\n?```/g, '').trim();
+            return JSON.parse(jsonStr);
+        } catch (e) {
+            console.error("Failed to parse AI Rule JSON", text);
+            return {
+                name: "Generated Rule",
+                description: description,
+                severity: "medium",
+                query: "1=1",
+                mitreTechnique: "",
+                runIntervalSeconds: 3600,
+                explanation: "Failed to generate structured rule."
+            };
         }
     }
 }

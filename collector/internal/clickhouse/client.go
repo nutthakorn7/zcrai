@@ -239,7 +239,8 @@ func (c *Client) InsertEvents(events []map[string]interface{}) error {
 			network_src_ip, network_dst_ip, network_src_port, network_dst_port,
 			network_protocol, network_direction, network_bytes_sent, network_bytes_recv,
 			raw, metadata, integration_id, integration_name,
-			host_account_id, host_account_name, host_site_id, host_group_id
+			host_account_id, host_account_name, host_site_id, host_group_id,
+			url_hash
 		) VALUES (
 			?, ?, ?, ?, ?, ?,
 			?, ?, ?, ?,
@@ -250,7 +251,8 @@ func (c *Client) InsertEvents(events []map[string]interface{}) error {
 			?, ?, ?, ?,
 			?, ?, ?, ?,
 			?, ?, ?, ?,
-			?, ?, ?, ?
+			?, ?, ?, ?,
+			?, ?
 		)
 	`)
 	if err != nil {
@@ -309,6 +311,7 @@ func (c *Client) InsertEvents(events []map[string]interface{}) error {
 			event["host_account_name"],
 			event["host_site_id"],
 			event["host_group_id"],
+			event["url_hash"],
 		)
 		if err != nil {
 			c.logger.Warn("Failed to insert event", zap.Any("event_id", event["id"]), zap.Error(err))

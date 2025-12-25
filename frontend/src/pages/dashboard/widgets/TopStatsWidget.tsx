@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Card, CardBody, CardHeader, Tabs, Tab, Chip, ScrollShadow } from '@heroui/react';
 import { Icon } from '../../../shared/ui';
 import { ActiveThreatsWidget } from './ActiveThreatsWidget';
+import { useNavigate } from 'react-router-dom';
 
 interface TopStatsWidgetProps {
     topHosts: any[];
@@ -9,7 +10,16 @@ interface TopStatsWidgetProps {
 }
 
 export function TopStatsWidget({ topHosts, topUsers }: TopStatsWidgetProps) {
+    const navigate = useNavigate();
     const [selectedTab, setSelectedTab] = useState<'hosts'|'users'|'threats'>('hosts');
+
+    const handleRowClick = (item: any) => {
+        if (selectedTab === 'hosts') {
+            navigate(`/hunting?host=${item.host_name}`);
+        } else if (selectedTab === 'users') {
+            navigate(`/hunting?user=${item.user_name}`);
+        }
+    };
 
     return (
         <Card className="h-full bg-content1/50 border border-white/5 backdrop-blur-sm flex flex-col">
@@ -56,6 +66,7 @@ export function TopStatsWidget({ topHosts, topUsers }: TopStatsWidgetProps) {
                             {(selectedTab === 'hosts' ? topHosts : topUsers).map((item, i) => (
                                 <div 
                                     key={i} 
+                                    onClick={() => handleRowClick(item)}
                                     className="flex items-center justify-between p-2 rounded-lg hover:bg-white/5 transition-colors cursor-pointer group"
                                 >
                                     <div className="flex items-center gap-3">

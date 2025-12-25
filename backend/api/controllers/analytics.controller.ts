@@ -1,9 +1,9 @@
 import { Elysia, t } from 'elysia';
-import { tenantGuard } from '../middlewares/auth.middleware';
+import { withAuth } from '../middleware/auth';
 import { analyticsService } from '../core/services/analytics.service';
 
 export const analyticsController = new Elysia({ prefix: '/api/analytics' })
-  .use(tenantGuard)
+  .use(withAuth)
   
   /**
    * Get analytics dashboard metrics

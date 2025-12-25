@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { Button, Tooltip as HerouiTooltip, Card, CardBody, CardHeader, Chip } from "@heroui/react";
 import { api } from "../../shared/api/api";
 import { usePageContext } from "../../contexts/PageContext";
@@ -11,6 +11,7 @@ import {
 import { Icon } from '../../shared/ui';
 import { useAlertSocket } from "../../shared/hooks/useAlertSocket";
 import { toast } from "react-hot-toast";
+import { Dropdown, DropdownTrigger, DropdownMenu, DropdownItem } from "@heroui/react";
 
 // Import Types from separate file
 import { 
@@ -103,8 +104,11 @@ export default function DashboardPage() {
   const navigate = useNavigate();
 
   const handleTimelineClick = (data: any) => {
-    if (data && data.activeLabel) {
-      navigate(`/detections?date=${data.activeLabel}`);
+    if (data && data.activePayload && data.activePayload.length > 0) {
+      const fullDate = data.activePayload[0].payload.fullDate;
+      if (fullDate) {
+        navigate(`/detections?date=${fullDate}`);
+      }
     }
   };
 
@@ -352,7 +356,8 @@ export default function DashboardPage() {
     
     while (currentDate <= end) {
       const formattedTime = currentDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      dateMap[formattedTime] = { time: formattedTime };
+      const isoDate = currentDate.toISOString().split('T')[0];
+      dateMap[formattedTime] = { time: formattedTime, fullDate: isoDate };
       currentDate.setDate(currentDate.getDate() + 1);
     }
     
@@ -381,6 +386,47 @@ export default function DashboardPage() {
 
   // Transform source data for pie chart
 
+  // Animated Counter Component
+  const AnimatedCounter = ({ value, duration = 1500 }: { value: number; duration?: number }) => {
+    const [displayValue, setDisplayValue] = useState(0);
+    const previousValueRef = useRef(0);
+    const animationRef = useRef<number>();
+
+    const easeOutExpo = useCallback((t: number): number => {
+      return t === 1 ? 1 : 1 - Math.pow(2, -10 * t);
+    }, []);
+
+    useEffect(() => {
+      const startValue = previousValueRef.current;
+      const endValue = value || 0;
+      const startTime = performance.now();
+
+      const animate = (currentTime: number) => {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const easedProgress = easeOutExpo(progress);
+        const currentValue = Math.floor(startValue + (endValue - startValue) * easedProgress);
+        
+        setDisplayValue(currentValue);
+
+        if (progress < 1) {
+          animationRef.current = requestAnimationFrame(animate);
+        } else {
+          previousValueRef.current = endValue;
+        }
+      };
+
+      animationRef.current = requestAnimationFrame(animate);
+
+      return () => {
+        if (animationRef.current) {
+          cancelAnimationFrame(animationRef.current);
+        }
+      };
+    }, [value, duration, easeOutExpo]);
+
+    return <>{displayValue.toLocaleString()}</>;
+  };
 
   const Sparkline = ({ data, dataKey, color }: { data: any[], dataKey: string, color: string }) => (
     <div className="h-[40px] w-[80px]">
@@ -427,7 +473,9 @@ export default function DashboardPage() {
                          </div>
                          <div>
                             <p className="text-sm text-default-600 font-medium uppercase tracking-wider">{title}</p>
-                            <h3 className="text-3xl font-bold mt-1" style={{ color: color === 'var(--color-primary)' ? undefined : color }}>{count?.toLocaleString() || 0}</h3>
+                            <h3 className="text-3xl font-bold mt-1" style={{ color: color === 'var(--color-primary)' ? undefined : color }}>
+                              <AnimatedCounter value={count || 0} />
+                            </h3>
                             <div className="flex items-center gap-2 mt-1">
                                 <Chip 
                                     size="sm" 
@@ -606,6 +654,49 @@ export default function DashboardPage() {
           >
             <Icon.Refresh className="w-4 h-4" />
           </Button>
+
+          {/* Simulation Dropdown */}
+          <Dropdown backdrop="blur">
+            <DropdownTrigger>
+              <Button 
+                size="sm" 
+                color="secondary" 
+                variant="shadow"
+                startContent={<Icon.ShieldAlert className="w-4 h-4" />}
+              >
+                Simulate Attack
+              </Button>
+            </DropdownTrigger>
+            <DropdownMenu 
+              aria-label="Simulation Scenarios"
+              onAction={(key) => {
+                const scenario = key === 'malicious-login' ? 'Malicious Login' : 'Ransomware';
+                toast.promise(
+                  api.post(`/simulation/${key}`),
+                  {
+                    loading: `Triggering ${scenario} simulation...`,
+                    success: (res: any) => res.data.message || `${scenario} triggered!`,
+                    error: (err: any) => `Simulation failed: ${err.message}`,
+                  }
+                );
+              }}
+            >
+              <DropdownItem 
+                key="malicious-login" 
+                description="Simulate brute force followed by admin login"
+                startContent={<Icon.Lock className="w-4 h-4 text-warning" />}
+              >
+                Brute Force + Admin Login
+              </DropdownItem>
+              <DropdownItem 
+                key="ransomware" 
+                description="Simulate high-frequency file encryption"
+                startContent={<Icon.FileCode className="w-4 h-4 text-danger" />}
+              >
+                Ransomware Activity
+              </DropdownItem>
+            </DropdownMenu>
+          </Dropdown>
         </div>
       </div>
       

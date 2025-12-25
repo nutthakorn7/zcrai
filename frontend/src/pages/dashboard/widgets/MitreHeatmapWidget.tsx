@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Card, CardBody, Tooltip } from "@heroui/react";
 import { MitreData } from "../type";
+import { useNavigate } from 'react-router-dom';
 
 interface MitreHeatmapProps {
   data: MitreData[];
@@ -42,6 +43,7 @@ const NORMALIZE_TACTIC: Record<string, string> = {
 };
 
 export function MitreHeatmapWidget({ data }: MitreHeatmapProps) {
+  const navigate = useNavigate();
   
   // 1. Group data by Tactic
   const groupedData = useMemo(() => {
@@ -119,6 +121,7 @@ export function MitreHeatmapWidget({ data }: MitreHeatmapProps) {
                                                 className="bg-content1 border border-white/10"
                                             >
                                                 <div 
+                                                    onClick={() => navigate(`/detections?technique=${encodeURIComponent(item.mitre_technique)}`)}
                                                     className={`
                                                         w-full p-1.5 rounded text-[9px] leading-tight font-medium transition-all cursor-pointer truncate
                                                         ${getColor(parseInt(item.count))}

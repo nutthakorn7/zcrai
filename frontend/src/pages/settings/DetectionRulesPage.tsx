@@ -2,10 +2,12 @@ import { useEffect, useState } from 'react';
 import { Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Chip, Button, Switch, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Input, Select, SelectItem, Textarea, Tabs, Tab, Popover, PopoverTrigger, PopoverContent } from "@heroui/react";
 import { Icon } from '../../shared/ui';
 import { DetectionRulesAPI, DetectionRule } from '../../shared/api/detection-rules';
+import { PlaybooksAPI, Playbook } from '../../shared/api/playbooks';
 import { MitreHeatmap } from '../../components/MitreHeatmap';
 
 export default function DetectionRulesPage() {
   const [rules, setRules] = useState<DetectionRule[]>([]);
+  const [playbooks, setPlaybooks] = useState<Playbook[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<string>("manage");
   
@@ -29,16 +31,29 @@ export default function DetectionRulesPage() {
   const [aiPrompt, setAiPrompt] = useState('');
   const [isAiPopoverOpen, setIsAiPopoverOpen] = useState(false);
 
+  // Filter State
+  const [searchTerm, setSearchTerm] = useState('');
+  const [severityFilter, setSeverityFilter] = useState<'all' | 'critical' | 'high' | 'medium' | 'low'>('all');
+
+  // Delete State
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [ruleToDelete, setRuleToDelete] = useState<DetectionRule | null>(null);
+
   const handleAiGenerate = async () => {
       if (!aiPrompt) return;
       setIsAiGenerating(true);
       try {
-          const res = await DetectionRulesAPI.generateQuery(aiPrompt);
-          if (res.success && res.data.sql) {
-              setEditForm({ ...editForm, query: res.data.sql });
+          // Use the new generateRule that returns full rule config
+          const res = await DetectionRulesAPI.generateRule(aiPrompt);
+          if (res.success && res.data) {
+              setEditForm({ 
+                  ...editForm, 
+                  ...res.data, // Auto-fill Name, Desc, Severity, Query, MITRE, Interval
+                  isEnabled: true
+              });
               setIsAiPopoverOpen(false); // Close popover on success
           } else {
-              alert('Failed to generate query');
+              alert('Failed to generate rule');
           }
       } catch (e) {
           console.error(e);
@@ -63,17 +78,92 @@ export default function DetectionRulesPage() {
       }
   };
 
+  // Import/Export Logic
+  const handleExport = () => {
+      const dataStr = JSON.stringify(rules, null, 2);
+      const blob = new Blob([dataStr], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `detection-rules-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+  };
+
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+          try {
+              const json = JSON.parse(event.target?.result as string);
+              if (Array.isArray(json)) {
+                  setLoading(true);
+                  let successCount = 0;
+                  for (const rule of json) {
+                      // Basic validation or sanitization could happen here
+                      // We strip ID to create as new
+                      const { id, createdAt, updatedAt, ...rest } = rule;
+                      await DetectionRulesAPI.create({ ...rest, isEnabled: false }); // Import as disabled
+                      successCount++;
+                  }
+                  await fetchRules();
+                  alert(`Successfully imported ${successCount} rules.`);
+              }
+          } catch (err) {
+              console.error(err);
+              alert('Failed to import rules. Invalid JSON.');
+          } finally {
+             setLoading(false);
+          }
+      };
+      reader.readAsText(file);
+      // Reset input
+      e.target.value = '';
+  };
+
   const fetchRules = async () => {
     try {
       setLoading(true);
       const data = await DetectionRulesAPI.list();
       setRules(data);
+      
+      // Fetch Playbooks
+      const playbookList = await PlaybooksAPI.list();
+      setPlaybooks(playbookList);
     } catch (e) {
       console.error(e);
     } finally {
         setLoading(false);
     }
   };
+
+  const handleDeleteClick = (rule: DetectionRule) => {
+      setRuleToDelete(rule);
+      setIsDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+      if (!ruleToDelete) return;
+      try {
+          await DetectionRulesAPI.delete(ruleToDelete.id);
+          setRules(rules.filter(r => r.id !== ruleToDelete.id));
+          setIsDeleteModalOpen(false);
+          setRuleToDelete(null);
+      } catch (e) {
+          console.error(e);
+          alert('Failed to delete rule');
+      }
+  };
+
+  const filteredRules = rules.filter(rule => {
+      const matchesSearch = rule.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                            rule.description?.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesSeverity = severityFilter === 'all' || rule.severity === severityFilter;
+      return matchesSearch && matchesSeverity;
+  });
 
   useEffect(() => {
     fetchRules();
@@ -104,6 +194,8 @@ export default function DetectionRulesPage() {
           isEnabled: true,
           runIntervalSeconds: 3600,
           query: '',
+
+          mitreTechnique: '', // Initialize MITRE field
           actions: { group_by: [] }
       });
       setTestResults(null); // Reset test
@@ -142,12 +234,46 @@ export default function DetectionRulesPage() {
           <p className="text-foreground/60">Manage SIGMA-based detection logic and automation</p>
         </div>
         <div className="flex gap-4 items-center">
+             <Input 
+                className="w-64" 
+                placeholder="Search rules..." 
+                startContent={<Icon.Search className="w-4 h-4 text-default-400"/>}
+                value={searchTerm}
+                onValueChange={setSearchTerm}
+                size="sm"
+             />
+             <Select 
+                className="w-40" 
+                placeholder="Severity" 
+                selectedKeys={[severityFilter]} 
+                onChange={(e) => setSeverityFilter(e.target.value as any)}
+                size="sm"
+             >
+                <SelectItem key="all">All Severities</SelectItem>
+                <SelectItem key="critical">Critical</SelectItem>
+                <SelectItem key="high">High</SelectItem>
+                <SelectItem key="medium">Medium</SelectItem>
+                <SelectItem key="low">Low</SelectItem>
+             </Select>
+
              <Tabs aria-label="View Mode" selectedKey={activeTab} onSelectionChange={(k) => setActiveTab(String(k))}>
                 <Tab key="manage" title="Manage Rules" />
                 <Tab key="coverage" title="Coverage Analysis" />
             </Tabs>
             {activeTab === 'manage' && (
-                <Button color="primary" onPress={handleNewRule} startContent={<Icon.Add className="w-4 h-4"/>}>New Rule</Button>
+                <div className="flex gap-2">
+                    <Button variant="flat" onPress={handleExport} startContent={<Icon.Download className="w-4 h-4"/>}>Export</Button>
+                    <div className="relative">
+                        <input 
+                            type="file" 
+                            accept=".json" 
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
+                            onChange={handleImport}
+                        />
+                        <Button variant="flat" startContent={<Icon.Upload className="w-4 h-4"/>}>Import</Button>
+                    </div>
+                    <Button color="primary" onPress={handleNewRule} startContent={<Icon.Add className="w-4 h-4"/>}>New Rule</Button>
+                </div>
             )}
         </div>
       </div>
@@ -162,7 +288,7 @@ export default function DetectionRulesPage() {
               <TableColumn>LAST RUN</TableColumn>
               <TableColumn>MANAGE</TableColumn>
             </TableHeader>
-            <TableBody items={rules} isLoading={loading}>
+            <TableBody items={filteredRules} isLoading={loading} emptyContent="No detection rules found">
               {(item) => (
                 <TableRow key={item.id}>
                   <TableCell>
@@ -188,6 +314,9 @@ export default function DetectionRulesPage() {
                            {item.actions?.auto_case && (
                                <Chip size="sm" startContent={<Icon.Cpu className="w-3 h-3"/>} color="primary" variant="flat">Auto-Case</Chip>
                            )}
+                           {item.actions?.playbook_id && (
+                               <Chip size="sm" startContent={<Icon.Zap className="w-3 h-3"/>} color="warning" variant="flat">Playbook</Chip>
+                           )}
                       </div>
                   </TableCell>
                   <TableCell>
@@ -200,7 +329,7 @@ export default function DetectionRulesPage() {
                           <Button isIconOnly size="sm" variant="light" onPress={() => handleEdit(item)}>
                               <Icon.Edit className="w-4 h-4"/>
                           </Button>
-                          <Button isIconOnly size="sm" variant="light" color="danger">
+                          <Button isIconOnly size="sm" variant="light" color="danger" onPress={() => handleDeleteClick(item)}>
                               <Icon.Delete className="w-4 h-4"/>
                           </Button>
                       </div>
@@ -229,6 +358,12 @@ export default function DetectionRulesPage() {
                           <SelectItem key="medium">Medium</SelectItem>
                           <SelectItem key="low">Low</SelectItem>
                       </Select>
+                      <Input 
+                        label="MITRE Technique ID" 
+                        placeholder="e.g. T1003" 
+                        value={editForm.mitreTechnique || ''} 
+                        onValueChange={v => setEditForm({...editForm, mitreTechnique: v})} 
+                      />
                       <Input type="number" label="Interval (Seconds)" value={editForm.runIntervalSeconds?.toString()} onValueChange={v => setEditForm({...editForm, runIntervalSeconds: parseInt(v)})} />
                   </div>
 
@@ -250,6 +385,28 @@ export default function DetectionRulesPage() {
                                   actions: { ...editForm.actions, auto_case: v }
                               })} 
                           />
+                      </div>
+
+                      {/* Playbook Selection */}
+                      <div className="flex items-center justify-between border-t border-divider pt-2 mt-2">
+                           <div className="flex-1 mr-4">
+                               <div className="text-sm">Run Playbook (Response)</div>
+                               <div className="text-xs text-foreground/50">Execute a playbook when this rule triggers</div>
+                           </div>
+                           <Select 
+                                className="w-48"
+                                placeholder="Select Playbook" 
+                                size="sm"
+                                selectedKeys={editForm.actions?.playbook_id ? [editForm.actions.playbook_id] : []}
+                                onChange={e => setEditForm({
+                                    ...editForm,
+                                    actions: { ...editForm.actions, playbook_id: e.target.value }
+                                })}
+                           >
+                               {playbooks.map(pb => (
+                                   <SelectItem key={pb.id} textValue={pb.title}>{pb.title}</SelectItem>
+                               ))}
+                           </Select>
                       </div>
 
                       {/* Grouping Params */}
@@ -278,16 +435,17 @@ export default function DetectionRulesPage() {
                     onValueChange={v => setEditForm({...editForm, query: v})} 
                   />
                   
-                  <div className="flex justify-end -mt-2 mb-2">
+                   <div className="flex justify-end -mt-2 mb-2">
                        <Popover isOpen={isAiPopoverOpen} onOpenChange={setIsAiPopoverOpen} placement="top">
                            <PopoverTrigger>
                                <Button size="sm" variant="flat" color="secondary" startContent={<Icon.Cpu className="w-4 h-4"/>}>
-                                   Generate with AI
+                                   Generate Rule with AI
                                </Button>
                            </PopoverTrigger>
                            <PopoverContent className="w-[300px] p-4 bg-content1 border border-white/10">
                                <div className="space-y-2">
                                    <div className="font-bold text-sm">Describe Detection Logic</div>
+                                   <p className="text-xs text-foreground/60">AI will auto-fill Name, Query, Severity, and MITRE for you.</p>
                                    <Textarea 
                                         placeholder="e.g. Detect 5 failed logins followed by success from same IP within 10 minutes"
                                         minRows={2}
@@ -295,14 +453,12 @@ export default function DetectionRulesPage() {
                                         onValueChange={setAiPrompt}
                                    />
                                    <Button 
-                                    size="sm" 
-                                    color="primary" 
-                                    onPress={handleAiGenerate} 
-                                    isLoading={isAiGenerating}
                                     fullWidth
                                     isDisabled={!aiPrompt}
+                                    onPress={handleAiGenerate}
+                                    isLoading={isAiGenerating}
                                    >
-                                       Generate SQL
+                                       Generate Full Rule
                                    </Button>
                                </div>
                            </PopoverContent>
@@ -367,6 +523,20 @@ export default function DetectionRulesPage() {
                       Test Rule
                   </Button>
                   <Button color="primary" onPress={handleSave}>Save Changes</Button>
+              </ModalFooter>
+          </ModalContent>
+      </Modal>
+      {/* Delete Confirmation Modal */}
+      <Modal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)}>
+          <ModalContent>
+              <ModalHeader>Confirm Deletion</ModalHeader>
+              <ModalBody>
+                  Are you sure you want to delete the rule "{ruleToDelete?.name}"?
+                  This action cannot be undone.
+              </ModalBody>
+              <ModalFooter>
+                  <Button variant="light" onPress={() => setIsDeleteModalOpen(false)}>Cancel</Button>
+                  <Button color="danger" onPress={confirmDelete}>Delete Rule</Button>
               </ModalFooter>
           </ModalContent>
       </Modal>

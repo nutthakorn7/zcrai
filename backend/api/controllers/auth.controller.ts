@@ -193,6 +193,17 @@ export const authController = new Elysia({ prefix: '/auth' })
    * @throws {401} Invalid/expired refresh token
    */
   .post('/refresh', async ({ jwt, cookie: { access_token, refresh_token } }) => {
+    console.log('[HTTP] POST /auth/refresh | Cookies:', { 
+      access_token: access_token?.value ? 'present' : 'missing',
+      refresh_token: refresh_token?.value ? 'present' : 'missing'
+    });
+    
+    // Check if refresh_token cookie exists
+    if (!refresh_token?.value) {
+      console.log('[AUTH] Refresh failed: No refresh_token cookie');
+      throw Errors.Unauthorized('Refresh token not found')
+    }
+    
     const payload = await jwt.verify(refresh_token.value as string)
     if (!payload || payload.type !== 'refresh') {
       throw Errors.Unauthorized('Invalid refresh token')

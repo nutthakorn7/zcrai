@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Card, CardBody, Chip, Progress, Divider, Button } from '@heroui/react';
+import { Card, CardBody, Chip, Progress, Divider, Button, Tooltip as HerouiTooltip } from '@heroui/react';
 import { api } from '../shared/api/api';
 import { Icon } from '../shared/ui';
 import { Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, Area, ComposedChart } from 'recharts';
+import { useNavigate } from 'react-router-dom';
 
 interface AnomalyData {
   metric: string;
@@ -21,6 +22,15 @@ interface TimeSeriesPoint {
   isAnomaly: boolean;
   baseline?: number;
 }
+
+// Explanations for each metric
+const METRIC_EXPLANATIONS: Record<string, string> = {
+  'Alert Volume': 'Total number of security alerts. A sudden spike might indicate a widespread attack or a misconfiguration.',
+  'Login Failures': 'Number of failed authentication attempts. High volume could signal a brute-force or credential stuffing attack.',
+  'Network Traffic': 'Volume of data moving through the network. Unexpected surges can indicate data exfiltration or a DDoS attack.',
+  'API Errors': 'Frequency of 4xx/5xx responses from the API. Spikes may reveal application vulnerabilities or intentional tampering.',
+  'Memory Usage': 'System memory consumption. Anomalies here often precede service instability or indicate resource-heavy malware.',
+};
 
 // Mock anomaly data
 const MOCK_ANOMALIES: AnomalyData[] = [
@@ -101,10 +111,28 @@ const generateTimeSeries = (): TimeSeriesPoint[] => {
 };
 
 export function AnomalyDashboardCard() {
+  const navigate = useNavigate();
   const [anomalies, setAnomalies] = useState<AnomalyData[]>([]);
   const [timeSeries, setTimeSeries] = useState<TimeSeriesPoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAll, setShowAll] = useState(false);
+
+  const handleMetricClick = (anomaly: AnomalyData) => {
+    const metric = anomaly.metric.toLowerCase();
+    
+    if (metric.includes('alert')) {
+      navigate('/detections');
+    } else if (metric.includes('login')) {
+      navigate(`/hunting?query=${encodeURIComponent("SELECT * FROM security_events WHERE event_type LIKE '%login%' OR title LIKE '%login%' ORDER BY timestamp DESC LIMIT 50")}`);
+    } else if (metric.includes('traffic') || metric.includes('network')) {
+      navigate(`/hunting?query=${encodeURIComponent("SELECT * FROM security_events WHERE event_type LIKE '%network%' OR title LIKE '%traffic%' ORDER BY timestamp DESC LIMIT 50")}`);
+    } else if (metric.includes('error') || metric.includes('api')) {
+      navigate(`/hunting?query=${encodeURIComponent("SELECT * FROM security_events WHERE event_type LIKE '%error%' OR title LIKE '%error%' ORDER BY timestamp DESC LIMIT 50")}`);
+    } else {
+      // Fallback for unknown metrics
+      navigate(`/hunting?query=${encodeURIComponent(`SELECT * FROM security_events WHERE title LIKE '%${anomaly.metric}%' ORDER BY timestamp DESC LIMIT 50`)}`);
+    }
+  };
 
   useEffect(() => {
     fetchAnomalies();
@@ -137,10 +165,10 @@ export function AnomalyDashboardCard() {
 
   const getSeverityBg = (severity: string) => {
     switch (severity) {
-      case 'critical': return 'bg-danger/10 border-danger/30';
-      case 'high': return 'bg-warning/10 border-warning/30';
-      case 'medium': return 'bg-secondary/10 border-secondary/30';
-      default: return 'bg-content2/50 border-white/5';
+      case 'critical': return 'bg-danger/10 border-danger/30 hover:bg-danger/20';
+      case 'high': return 'bg-warning/10 border-warning/30 hover:bg-warning/20';
+      case 'medium': return 'bg-secondary/10 border-secondary/30 hover:bg-secondary/20';
+      default: return 'bg-content2/50 border-white/5 hover:bg-content2';
     }
   };
 
@@ -270,58 +298,74 @@ export function AnomalyDashboardCard() {
           </div>
 
           {displayAnomalies.map((anomaly, idx) => (
-            <div 
-              key={idx} 
-              className={`p-3 rounded-lg border ${getSeverityBg(anomaly.isAnomaly ? anomaly.severity : 'low')}`}
+            <HerouiTooltip 
+              key={idx}
+              content={
+                <div className="px-1 py-1 max-w-[250px]">
+                  <p className="text-xs font-semibold mb-1">{anomaly.metric}</p>
+                  <p className="text-[10px] text-foreground/80">
+                    {METRIC_EXPLANATIONS[anomaly.metric] || 'Monitoring this metric for statistical deviations from normal baseline.'}
+                  </p>
+                  <div className="mt-2 text-[10px] text-primary italic">Click to investigate logs</div>
+                </div>
+              }
+              placement="left"
+              delay={500}
             >
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <span className="font-medium text-sm">{anomaly.metric}</span>
-                  {anomaly.isAnomaly && (
-                    <Chip 
-                      size="sm" 
-                      color={getSeverityColor(anomaly.severity)} 
-                      variant="flat"
-                      className="uppercase text-[10px]"
-                    >
-                      {anomaly.severity}
-                    </Chip>
-                  )}
+              <div 
+                onClick={() => handleMetricClick(anomaly)}
+                className={`p-3 rounded-lg border cursor-pointer transition-all ${getSeverityBg(anomaly.isAnomaly ? anomaly.severity : 'low')}`}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-sm">{anomaly.metric}</span>
+                    <Icon.Info className="w-3 h-3 text-foreground/40" />
+                    {anomaly.isAnomaly && (
+                      <Chip 
+                        size="sm" 
+                        color={getSeverityColor(anomaly.severity)} 
+                        variant="flat"
+                        className="uppercase text-[10px]"
+                      >
+                        {anomaly.severity}
+                      </Chip>
+                    )}
+                  </div>
+                  <div className="text-right">
+                    <span className={`text-lg font-bold ${anomaly.isAnomaly ? 'text-danger' : 'text-foreground'}`}>
+                      {anomaly.currentValue}
+                    </span>
+                    <span className="text-xs text-foreground/60 ml-1">
+                      / {anomaly.baseline} baseline
+                    </span>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <span className={`text-lg font-bold ${anomaly.isAnomaly ? 'text-danger' : 'text-foreground'}`}>
-                    {anomaly.currentValue}
-                  </span>
-                  <span className="text-xs text-foreground/60 ml-1">
-                    / {anomaly.baseline} baseline
-                  </span>
-                </div>
-              </div>
 
-              <div className="flex items-center justify-between text-xs">
-                <div className="flex items-center gap-4">
-                  <span className="text-foreground/60">
-                    Z-Score: <span className={anomaly.isAnomaly ? 'text-danger font-medium' : ''}>{anomaly.zScore}</span>
-                  </span>
-                  <span className="text-foreground/60">
-                    Confidence: {((anomaly.confidence ?? 0) * 100).toFixed(0)}%
-                  </span>
+                <div className="flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-4">
+                    <span className="text-foreground/60">
+                      Z-Score: <span className={anomaly.isAnomaly ? 'text-danger font-medium' : ''}>{anomaly.zScore}</span>
+                    </span>
+                    <span className="text-foreground/60">
+                      Confidence: {((anomaly.confidence ?? 0) * 100).toFixed(0)}%
+                    </span>
+                  </div>
+                  <div className={`flex items-center gap-1 ${(anomaly.change ?? 0) > 50 ? 'text-danger' : (anomaly.change ?? 0) > 20 ? 'text-warning' : 'text-success'}`}>
+                    <Icon.ArrowUpRight className="w-3 h-3" />
+                    <span>{(anomaly.change ?? 0) > 0 ? '+' : ''}{(anomaly.change ?? 0).toFixed(1)}%</span>
+                  </div>
                 </div>
-                <div className={`flex items-center gap-1 ${(anomaly.change ?? 0) > 50 ? 'text-danger' : (anomaly.change ?? 0) > 20 ? 'text-warning' : 'text-success'}`}>
-                  <Icon.ArrowUpRight className="w-3 h-3" />
-                  <span>{(anomaly.change ?? 0) > 0 ? '+' : ''}{(anomaly.change ?? 0).toFixed(1)}%</span>
-                </div>
-              </div>
 
-              {anomaly.isAnomaly && (
-                <Progress 
-                  value={anomaly.confidence * 100} 
-                  size="sm" 
-                  color={getSeverityColor(anomaly.severity)}
-                  className="mt-2"
-                />
-              )}
-            </div>
+                {anomaly.isAnomaly && (
+                  <Progress 
+                    value={anomaly.confidence * 100} 
+                    size="sm" 
+                    color={getSeverityColor(anomaly.severity)}
+                    className="mt-2"
+                  />
+                )}
+              </div>
+            </HerouiTooltip>
           ))}
         </div>
 

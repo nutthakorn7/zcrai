@@ -290,10 +290,10 @@ func (s *Scheduler) collectSentinelOne(forceFullSync bool) error {
 			}
 
 			if !foundExisting {
-				// ไม่มี data จาก URL นี้ หรือ data ไม่ครบ → Full sync 30 วัน (ลดจาก 365 เพื่อลด CPU)
-				startTime = endTime.AddDate(0, 0, -30)
+				// ไม่มี data จาก URL นี้ หรือ data ไม่ครบ → Full sync 14 วัน (ลดจาก 30/365 เพื่อลด CPU)
+				startTime = endTime.AddDate(0, 0, -14)
 				isFullSync = true
-				s.logger.Info("Performing Full Sync (30 days)",
+				s.logger.Info("Performing Full Sync (14 days)",
 					zap.String("tenantId", integration.TenantID),
 					zap.String("urlHash", urlHash),
 					zap.String("reason", integration.LastSyncStatus))
@@ -348,7 +348,7 @@ func (s *Scheduler) collectSentinelOne(forceFullSync bool) error {
 
 		// Callback สำหรับส่ง events ไป Vector ทันทีแต่ละ page (Streaming)
 		onPageEvents := func(events []models.UnifiedEvent) error {
-			return s.publisher.PublishBatch(events, 5000) // ⭐ Increased from 500 to reduce ClickHouse CPU
+			return s.publisher.PublishBatch(events, 50000) // ⭐ Increased from 5000 to 50000 to reduce ClickHouse CPU
 		}
 
 		// ⭐ ดึง FetchSettings จาก config (User สามารถ custom ได้)
@@ -384,9 +384,10 @@ func (s *Scheduler) collectSentinelOne(forceFullSync bool) error {
 		// ดึง Threats (ถ้า enabled)
 		threatCount := 0
 		if fetchSettings.Threats == nil || fetchSettings.Threats.Enabled {
-			threatDays := 365
+			threatDays := 14 // ⭐ Reduced from 365
 			if fetchSettings.Threats != nil {
 				threatDays = fetchSettings.Threats.Days
+				if threatDays > 30 { threatDays = 30 } // ⭐ Cap at 30 for safety
 			}
 
 			threatStartTime := startTime
@@ -416,9 +417,10 @@ func (s *Scheduler) collectSentinelOne(forceFullSync bool) error {
 		// ดึง Activities (ถ้า enabled)
 		activityCount := 0
 		if fetchSettings.Activities == nil || fetchSettings.Activities.Enabled {
-			activityDays := 120
+			activityDays := 7 // ⭐ Reduced from 120
 			if fetchSettings.Activities != nil {
 				activityDays = fetchSettings.Activities.Days
+				if activityDays > 14 { activityDays = 14 } // ⭐ Cap at 14 for safety
 			}
 
 			activityStartTime := startTime
@@ -446,9 +448,10 @@ func (s *Scheduler) collectSentinelOne(forceFullSync bool) error {
 		// ⭐ ดึง Cloud Detection Alerts (ถ้า enabled)
 		alertCount := 0
 		if fetchSettings.Alerts == nil || fetchSettings.Alerts.Enabled {
-			alertDays := 365
+			alertDays := 14 // ⭐ Reduced from 365
 			if fetchSettings.Alerts != nil {
 				alertDays = fetchSettings.Alerts.Days
+				if alertDays > 30 { alertDays = 30 } // ⭐ Cap at 30 for safety
 			}
 
 			alertStartTime := startTime
@@ -486,10 +489,10 @@ func (s *Scheduler) collectSentinelOne(forceFullSync bool) error {
 		}
 		s.config.UpdateSyncStatus(integration.TenantID, "sentinelone", "success", "")
 
-		// ⭐ Event-based OPTIMIZE: dedupe ทันทีหลัง sync เสร็จ
-		if totalEvents > 0 {
-			s.optimizeClickHouse()
-		}
+		// ⭐ Event-based OPTIMIZE: disabled to reduce CPU (Let ClickHouse merge in background)
+		// if totalEvents > 0 {
+		// 	s.optimizeClickHouse()
+		// }
 
 		s.logger.Info("S1 collection completed",
 			zap.String("tenantId", integration.TenantID),
@@ -625,7 +628,7 @@ func (s *Scheduler) collectCrowdStrike(forceFullSync bool) error {
 
 		// Callback สำหรับส่ง events ไป Vector ทันทีแต่ละ page (Streaming)
 		onPageEvents := func(events []models.UnifiedEvent) error {
-			return s.publisher.PublishBatch(events, 5000) // ⭐ Increased from 500 to reduce ClickHouse CPU
+			return s.publisher.PublishBatch(events, 50000) // ⭐ Increased from 5000 to 50000 to reduce ClickHouse CPU
 		}
 
 		// ⭐ ดึง FetchSettings จาก config (User สามารถ custom ได้)
@@ -709,10 +712,10 @@ func (s *Scheduler) collectCrowdStrike(forceFullSync bool) error {
 		}
 		s.config.UpdateSyncStatus(integration.TenantID, "crowdstrike", "success", "")
 
-		// ⭐ Event-based OPTIMIZE: dedupe ทันทีหลัง sync เสร็จ
-		if totalEvents > 0 {
-			s.optimizeClickHouse()
-		}
+		// ⭐ Event-based OPTIMIZE: disabled to reduce CPU (Let ClickHouse merge in background)
+		// if totalEvents > 0 {
+		// 	s.optimizeClickHouse()
+		// }
 
 		s.logger.Info("CrowdStrike collection completed",
 			zap.String("tenantId", integration.TenantID),

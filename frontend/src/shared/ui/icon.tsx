@@ -28,6 +28,7 @@ import {
   ArrowLeftStartOnRectangleIcon,
   ArrowPathIcon,
   ArrowDownTrayIcon,
+  ArrowUpTrayIcon,
   DevicePhoneMobileIcon,
   ComputerDesktopIcon,
   MapPinIcon,
@@ -184,6 +185,7 @@ export const Icon = {
   Wrench: WrenchIcon,
   Briefcase: BriefcaseIcon,
   Download: ArrowDownTrayIcon,
+  Upload: ArrowUpTrayIcon,
   // Devices
   DevicePhoneMobile: DevicePhoneMobileIcon,
   DeviceComputer: ComputerDesktopIcon,

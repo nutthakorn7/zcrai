@@ -1,5 +1,5 @@
 import { Elysia, t } from 'elysia'
-import { tenantGuard } from '../middlewares/auth.middleware'
+import { withAuth, JWTUserPayload } from '../middleware/auth'
 import { AIService } from '../core/services/ai.service'
 import { AIFeedbackService } from '../core/services/ai-feedback.service'
 import { Errors } from '../middleware/error'
@@ -12,7 +12,7 @@ interface ChatBody {
 }
 
 export const aiController = new Elysia({ prefix: '/ai' })
-  .use(tenantGuard)
+  .use(withAuth)
   
   /**
    * Generate ClickHouse query from natural language
@@ -26,6 +26,20 @@ export const aiController = new Elysia({ prefix: '/ai' })
     if (!tenantId) throw Errors.Unauthorized('Missing tenant context');
 
     const result = await AIService.generateQuery(prompt);
+    return { success: true, data: result };
+  })
+
+  /**
+   * Generate full Detection Rule from natural language
+   */
+  .post('/generate-rule', async ({ body, user }: any) => {
+    const { description } = body;
+    if (!description) throw Errors.BadRequest('Description is required');
+    
+    const tenantId = user?.tenantId;
+    if (!tenantId) throw Errors.Unauthorized('Missing tenant context');
+
+    const result = await AIService.generateDetectionRule(description);
     return { success: true, data: result };
   })
 
@@ -54,25 +68,54 @@ export const aiController = new Elysia({ prefix: '/ai' })
     console.log(`[AI Chat] Request from Tenant: ${tenantId} (User: ${user.email || user.id})`)
 
     try {
-      // Use synchronous summarize
-      const lastMessage = messages[messages.length - 1]?.content || ''
-      const response = await AIService.summarizeCase({
-        title: 'Chat Query',
-        description: lastMessage,
-        severity: 'info',
-        alerts: context ? [{ severity: 'info', title: 'Context', description: context }] : []
-      })
+      const lastMessage = (messages[messages.length - 1]?.content || '').toLowerCase()
+      
+      let chatContext = context
+      
+      // Proactively fetch alerts if query suggests a report/summary and context is empty
+      const isReportQuery = lastMessage.includes('report') || 
+                           lastMessage.includes('summarize') || 
+                           lastMessage.includes('summarise') || 
+                           lastMessage.includes('sign') || 
+                           lastMessage.includes('health') ||
+                           lastMessage.includes('alert');
+
+      if (!chatContext && (isReportQuery || messages.length === 1)) {
+        console.log(`[AI Chat] Context empty. Proactively fetching alerts for tenant: ${tenantId}`);
+        const { AlertService } = await import('../core/services/alert.service');
+        const recentAlerts = await AlertService.list({ 
+          tenantId: tenantId, 
+          limit: 20,
+          status: ['new', 'reviewing']
+        });
+        
+        if (recentAlerts.length > 0) {
+          chatContext = `Recent Internal Alerts:\n${recentAlerts.map((a: any) => `- [${a.severity}] ${a.title} (${a.status}): ${a.description}`).join('\n')}`;
+        } else {
+          chatContext = "No recent active alerts found in the internal system.";
+        }
+      }
+
+      console.log(`[AI Chat] Calling AIService.generalChat. Context provided: ${!!chatContext}`);
+      
+      const messageText = await AIService.generalChat(messages, chatContext);
+
+      console.log(`[AI Chat] Response handled.`)
 
       return { 
         success: true, 
-        response,
-        message: 'AI response generated'
+        message: messageText
       }
     } catch (e: any) {
-      console.error('[AI Chat] Backend Error:', e.message)
+      console.error('[AI Chat] Backend Error:', e.message);
+      // Clean error message - remove anything that looks like an API key or internal URL
+      const cleanMessage = (e.message || 'AI analysis failed')
+        .replace(/AIzaSy[A-Za-z0-9_-]{35}/g, '***KEY_REDACTED***')
+        .replace(/https:\/\/generativelanguage\.googleapis\.com\/[^\s]+/g, '[INTERNAL_URL]');
+
       return { 
         success: false, 
-        message: `AI error: ${e.message}` 
+        message: `AI error: ${cleanMessage}` 
       }
     }
   })
@@ -92,15 +135,46 @@ export const aiController = new Elysia({ prefix: '/ai' })
                 tenantId = selected_tenant.value
             }
 
-            console.log(`[AI Streaming] Starting SSE for Tenant: ${tenantId}`)
+            const lastMessage = (messages[messages.length - 1]?.content || '').toLowerCase()
+            let chatContext = context
+            
+            const isReportQuery = lastMessage.includes('report') || 
+                                 lastMessage.includes('summarize') || 
+                                 lastMessage.includes('summarise') || 
+                                 lastMessage.includes('sign') || 
+                                 lastMessage.includes('health') ||
+                                 lastMessage.includes('alert');
 
-            await AIService.streamChat(messages, context, (chunk) => {
+            if (!chatContext && (isReportQuery || messages.length === 1)) {
+                console.log(`[AI Streaming] Proactively fetching alerts for tenant: ${tenantId}`);
+                const { AlertService } = await import('../core/services/alert.service');
+                const recentAlerts = await AlertService.list({ 
+                    tenantId: tenantId, 
+                    limit: 20,
+                    status: ['new', 'reviewing']
+                });
+                
+                if (recentAlerts.length > 0) {
+                    chatContext = `Recent Internal Alerts:\n${recentAlerts.map((a: any) => `- [${a.severity}] ${a.title} (${a.status}): ${a.description}`).join('\n')}`;
+                } else {
+                    chatContext = "No recent active alerts found in the internal system.";
+                }
+            }
+
+            console.log(`[AI Streaming] Starting SSE with internal context: ${!!chatContext}`)
+
+            await AIService.streamChat(messages, chatContext, (chunk) => {
                 stream.send(chunk)
             })
 
             stream.close()
         } catch (e: any) {
-            stream.send(`Error: ${e.message}`)
+            console.error('[AI Streaming] SSE Error:', e.message);
+            const cleanMessage = (e.message || 'Streaming failed')
+                .replace(/AIzaSy[A-Za-z0-9_-]{35}/g, '***KEY_REDACTED***')
+                .replace(/https:\/\/generativelanguage\.googleapis\.com\/[^\s]+/g, '[INTERNAL_URL]');
+            
+            stream.send(`Error: ${cleanMessage}`)
             stream.close()
         }
     })

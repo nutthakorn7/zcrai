@@ -4,11 +4,11 @@
  */
 
 import { Elysia } from 'elysia';
-import { tenantGuard } from '../middlewares/auth.middleware';
+import { withAuth } from '../middleware/auth';
 import { MitreService } from '../core/services/mitre.service';
 
 export const mitreController = new Elysia({ prefix: '/mitre' })
-  .use(tenantGuard)
+  .use(withAuth)
 
   /**
    * Get MITRE ATT&CK coverage matrix

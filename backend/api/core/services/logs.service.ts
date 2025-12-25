@@ -33,11 +33,11 @@ export const LogsService = {
 
     if (filters.startDate) {
       conditions.push('timestamp >= {startDate:DateTime64}')
-      params.startDate = filters.startDate
+      params.startDate = filters.startDate.replace('T', ' ').replace('Z', '')
     }
     if (filters.endDate) {
       conditions.push('timestamp <= {endDate:DateTime64}')
-      params.endDate = filters.endDate
+      params.endDate = filters.endDate.replace('T', ' ').replace('Z', '')
     }
     if (filters.severity?.length) {
       conditions.push(`severity IN ({severity:Array(String)})`)
@@ -85,7 +85,13 @@ export const LogsService = {
       SELECT 
         id, source, timestamp, severity, event_type,
         host_name, host_ip, user_name, mitre_tactic, mitre_technique,
-        process_name, file_name, integration_id
+        process_name, file_name,
+        integration_id, integration_name,
+        host_site_name, host_account_name,
+        CASE
+          WHEN event_type != '' THEN event_type
+          ELSE 'System Event'
+        END as title
       FROM security_events
       WHERE ${whereClause}
       ORDER BY ${orderClause}
@@ -100,9 +106,12 @@ export const LogsService = {
       WHERE ${whereClause}
     `
 
-    const [data, countResult] = await Promise.all([
+    const [data, countResult, topSources, topHosts, topUsers] = await Promise.all([
       query<any>(dataSql, params),
       queryOne<{ total: string }>(countSql, params),
+      query<{name: string, count: string}>(`SELECT source as name, count() as count FROM security_events WHERE ${whereClause} GROUP BY source ORDER BY count DESC LIMIT 5`, params),
+      query<{name: string, count: string}>(`SELECT host_name as name, count() as count FROM security_events WHERE ${whereClause} AND host_name != '' GROUP BY host_name ORDER BY count DESC LIMIT 5`, params),
+      query<{name: string, count: string}>(`SELECT user_name as name, count() as count FROM security_events WHERE ${whereClause} AND user_name != '' GROUP BY user_name ORDER BY count DESC LIMIT 5`, params)
     ])
 
     const total = parseInt(countResult?.total || '0')
@@ -115,6 +124,11 @@ export const LogsService = {
         total,
         totalPages: Math.ceil(total / limit),
       },
+      facets: {
+        sources: topSources.map(r => ({ name: r.name, count: parseInt(r.count) })),
+        hosts: topHosts.map(r => ({ name: r.name, count: parseInt(r.count) })),
+        users: topUsers.map(r => ({ name: r.name, count: parseInt(r.count) })),
+      }
     }
   },
 
@@ -178,5 +192,69 @@ export const LogsService = {
       accounts: accounts.map(r => ({ id: r.host_account_id, name: r.host_account_name })),
       sites: sites.map(r => ({ id: r.host_site_id, name: r.host_site_name })),
     }
+  },
+  // ==================== GET HISTOGRAM ====================
+  async getHistogram(tenantId: string, filters: LogFilters, intervalSeconds: number) {
+    const conditions: string[] = ['tenant_id = {tenantId:String}']
+    const params: Record<string, any> = { tenantId, intervalSeconds }
+
+    if (filters.startDate) {
+      conditions.push('timestamp >= {startDate:DateTime64}')
+      params.startDate = filters.startDate.replace('T', ' ').replace('Z', '')
+    }
+    if (filters.endDate) {
+      conditions.push('timestamp <= {endDate:DateTime64}')
+      params.endDate = filters.endDate.replace('T', ' ').replace('Z', '')
+    }
+    if (filters.severity?.length) {
+      conditions.push(`severity IN ({severity:Array(String)})`)
+      params.severity = filters.severity
+    }
+    if (filters.source?.length) {
+      conditions.push(`source IN ({source:Array(String)})`)
+      params.source = filters.source
+    }
+    if (filters.host) {
+      conditions.push('host_name ILIKE {host:String}')
+      params.host = `%${filters.host}%`
+    }
+    if (filters.user) {
+      conditions.push('user_name ILIKE {user:String}')
+      params.user = `%${filters.user}%`
+    }
+    if (filters.eventType) {
+      conditions.push('event_type = {eventType:String}')
+      params.eventType = filters.eventType
+    }
+    if (filters.search) {
+      conditions.push('(title ILIKE {search:String} OR description ILIKE {search:String})')
+      params.search = `%${filters.search}%`
+    }
+    if (filters.integrationId) {
+      conditions.push('integration_id = {integrationId:String}')
+      params.integrationId = filters.integrationId
+    }
+    if (filters.accountName) {
+      conditions.push('host_account_name = {accountName:String}')
+      params.accountName = filters.accountName
+    }
+    if (filters.siteName) {
+      conditions.push('host_site_name = {siteName:String}')
+      params.siteName = filters.siteName
+    }
+
+    const whereClause = conditions.join(' AND ')
+
+    const sql = `
+      SELECT
+        toStartOfInterval(timestamp, INTERVAL {intervalSeconds:UInt32} SECOND) as time,
+        count() as count,
+        countIf(severity = 'critical') as critical_count
+      FROM security_events
+      WHERE ${whereClause}
+      GROUP BY time
+      ORDER BY time
+    `
+    return await query<{ time: string; count: number; critical_count: number }>(sql, params)
   },
 }

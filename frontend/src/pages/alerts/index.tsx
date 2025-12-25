@@ -7,6 +7,7 @@ import { Icon } from '../../shared/ui';
 import sentineloneLogo from '../../assets/logo/sentinelone.png';
 import crowdstrikeLogo from '../../assets/logo/crowdstrike.png';
 import { Copy, AlertTriangle, FileText } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 
 // Severity color mapping
 const severityColors = {
@@ -90,29 +91,44 @@ interface Summary {
 }
 
 export default function AlertsPage() {
+  const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'incidents' | 'logs'>('incidents');
   const [alerts, setAlerts] = useState<PageAlert[]>([]);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [startDate, setStartDate] = useState(() => {
+    const dStr = searchParams.get('date');
+    if (dStr) return new Date(dStr);
     const d = new Date();
     d.setDate(d.getDate() - 7);
     return d;
   });
   const [endDate, setEndDate] = useState(() => {
+    const dStr = searchParams.get('date');
+    if (dStr) {
+        const d = new Date(dStr);
+        d.setDate(d.getDate() + 1);
+        return d;
+    }
     const d = new Date();
     d.setDate(d.getDate() + 1);
     return d;
   });
   
   // Filter State
-  const [selectedProvider, setSelectedProvider] = useState<string>('all');
+  const [selectedProvider, setSelectedProvider] = useState<string>(searchParams.get('source') || 'all');
   const [availableProviders, setAvailableProviders] = useState<string[]>([]);
   const [queueFilter, setQueueFilter] = useState<'all' | 'unassigned' | 'my_queue'>('unassigned'); 
   const [aiStatus, setAiStatus] = useState<string>('all'); // 'all' | 'verified' | 'blocked' | 'pending'
+  const [severityFilter] = useState<string>(searchParams.get('severity') || 'all');
+  const [techniqueFilter] = useState<string>(searchParams.get('technique') || 'all');
 
   // Drawer State
   const [selectedAlert, setSelectedAlert] = useState<PageAlert | null>(null);
+
+  // AI Triage State
+  const [triageLoading, setTriageLoading] = useState(false);
+  const [triageData, setTriageData] = useState<Map<string, { urgency: number; category: string; reason: string; action: string }>>(new Map());
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -131,6 +147,8 @@ export default function AlertsPage() {
       let params = `startDate=${start}&endDate=${end}`;
       if (selectedProvider !== 'all') params += `&source=${selectedProvider}`;
       if (aiStatus !== 'all') params += `&aiStatus=${aiStatus}`;
+      if (severityFilter !== 'all') params += `&severity=${severityFilter}`;
+      if (techniqueFilter !== 'all') params += `&technique=${techniqueFilter}`;
 
       if (viewMode === 'incidents') {
           if (queueFilter === 'unassigned') params += '&status=new';
@@ -165,6 +183,36 @@ export default function AlertsPage() {
     loadData();
   }, [loadData]);
 
+  // AI Triage Handler
+  const handleTriage = async () => {
+    if (alerts.length === 0) return;
+    
+    setTriageLoading(true);
+    try {
+      const res = await api.post('/alerts/triage', { alerts: alerts.slice(0, 20) });
+      if (res.data?.success && res.data?.data) {
+        const triageMap = new Map<string, { urgency: number; category: string; reason: string; action: string }>();
+        res.data.data.forEach((t: any) => {
+          triageMap.set(t.id, { urgency: t.urgency, category: t.category, reason: t.reason, action: t.action });
+        });
+        setTriageData(triageMap);
+        
+        // Sort alerts by urgency (highest first)
+        setAlerts(prev => {
+          const sorted = [...prev].sort((a, b) => {
+            const urgA = triageMap.get(a.id)?.urgency || 0;
+            const urgB = triageMap.get(b.id)?.urgency || 0;
+            return urgB - urgA;
+          });
+          return sorted;
+        });
+      }
+    } catch (e) {
+      console.error('Triage failed:', e);
+    } finally {
+      setTriageLoading(false);
+    }
+  };
 
 
   const renderCell = (alert: PageAlert, columnKey: string) => {
@@ -498,6 +546,21 @@ export default function AlertsPage() {
           
            {/* Filters */}
            <DateRangePicker startDate={startDate} endDate={endDate} onChange={(s, e) => { setStartDate(s); setEndDate(e); }} />
+           
+           {/* AI Triage Button */}
+           <Tooltip content="AI analyzes and prioritizes alerts by urgency">
+             <Button 
+               size="sm" 
+               color="secondary" 
+               variant={triageData.size > 0 ? "solid" : "flat"}
+               onPress={handleTriage}
+               isLoading={triageLoading}
+               startContent={!triageLoading && <Icon.Cpu className="w-4 h-4" />}
+             >
+               {triageData.size > 0 ? `Triaged (${triageData.size})` : 'AI Triage'}
+             </Button>
+           </Tooltip>
+           
            <Button size="sm" isIconOnly variant="light" onPress={loadData}><Icon.Refresh className="w-4 h-4" /></Button>
         </div>
       </header>

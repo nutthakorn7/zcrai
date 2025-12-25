@@ -4,22 +4,8 @@ import { DashboardLayoutService } from '../core/services/dashboard-layout.servic
 import { ActivityService } from '../core/services/activity.service'
 import { SLAService } from '../core/services/sla.service'
 import { withAuth } from '../middleware/auth'
+import { getEffectiveTenantId } from '../core/utils/tenant'
 
-// Helper: Get effective tenantId (supports superadmin impersonation)
-const getEffectiveTenantId = (user: any, selectedTenant: { value?: unknown } | undefined): string => {
-  if (user.role === 'superadmin') {
-    if (selectedTenant?.value) {
-      return String(selectedTenant.value)
-    }
-    // Fallback to system tenant ID for superadmin view (main demo tenant with data)
-    return '03c703a2-6731-4306-9a39-e68070415069'
-  }
-  
-  if (!user.tenantId) {
-    throw new Error('No tenant selected. Super Admin must select a tenant first.')
-  }
-  return user.tenantId as string
-}
 
 // Helper: Parse date range from query params
 const parseDateRange = (query: any): { startDate: string, endDate: string } => {
@@ -241,20 +227,20 @@ export const dashboardController = new Elysia({ prefix: '/dashboard' })
     }
   })
 
-  .get('/ai-metrics', async ({ user, set }) => {
+  .get('/ai-metrics', async ({ user, cookie: { selected_tenant }, set }) => {
     try {
-      if (!user?.tenantId) throw new Error('Tenant context required');
-      return await DashboardService.getAIMetrics(user.tenantId)
+      const tenantId = getEffectiveTenantId(user, selected_tenant)
+      return await DashboardService.getAIMetrics(tenantId)
     } catch (e: any) {
       set.status = 400
       return { error: e.message }
     }
   })
 
-  .get('/ai-feedback', async ({ user, set }) => {
+  .get('/ai-feedback', async ({ user, cookie: { selected_tenant }, set }) => {
     try {
-      if (!user?.tenantId) throw new Error('Tenant context required');
-      return await DashboardService.getFeedbackMetrics(user.tenantId)
+      const tenantId = getEffectiveTenantId(user, selected_tenant)
+      return await DashboardService.getFeedbackMetrics(tenantId)
     } catch (e: any) {
       set.status = 400
       return { error: e.message }

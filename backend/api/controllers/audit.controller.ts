@@ -1,9 +1,9 @@
 import { Elysia, t } from 'elysia';
 import { AuditService } from '../core/services/audit.service';
-import { tenantGuard } from '../middlewares/auth.middleware';
+import { withAuth } from '../middleware/auth';
 
 export const auditController = new Elysia({ prefix: '/audit-logs' })
-  .use(tenantGuard)
+  .use(withAuth)
 
   /**
    * List audit logs with filtering

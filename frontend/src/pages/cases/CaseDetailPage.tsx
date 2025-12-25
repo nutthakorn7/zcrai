@@ -35,6 +35,11 @@ export default function CaseDetailPage() {
   const [aiSuggestion, setAiSuggestion] = useState<any>(null);
   const [aiLoading, setAiLoading] = useState(false);
 
+  // Copilot State
+  const [copilotMessages, setCopilotMessages] = useState<{ role: 'user' | 'ai'; content: string }[]>([]);
+  const [copilotQuery, setCopilotQuery] = useState('');
+  const [copilotLoading, setCopilotLoading] = useState(false);
+
   const fetchCase = useCallback(async () => {
     if (!id) return;
     try {
@@ -78,6 +83,41 @@ export default function CaseDetailPage() {
   useEffect(() => {
     fetchCase();
   }, [fetchCase]);
+
+  // Copilot Chat Handler
+  const handleCopilotChat = async () => {
+    if (!copilotQuery.trim() || !caseItem) return;
+    
+    const userMessage = { role: 'user' as const, content: copilotQuery };
+    setCopilotMessages(prev => [...prev, userMessage]);
+    setCopilotQuery('');
+    setCopilotLoading(true);
+    
+    try {
+      // Build case context for AI
+      const caseContext = `
+Case: ${caseItem.title}
+Severity: ${caseItem.severity}
+Status: ${caseItem.status}
+Description: ${caseItem.description || 'N/A'}
+Alerts: ${caseItem.alerts?.map((a: any) => `[${a.severity}] ${a.title}`).join(', ') || 'None'}
+Evidence: ${caseItem.evidence?.length || 0} items
+`;
+      
+      const { AIAPI } = await import('../../shared/api/ai');
+      const res = await AIAPI.chat([...copilotMessages, userMessage], caseContext);
+      
+      if (res.data?.success && res.data?.message) {
+        setCopilotMessages(prev => [...prev, { role: 'ai', content: res.data.message }]);
+      } else {
+        setCopilotMessages(prev => [...prev, { role: 'ai', content: 'Error: Could not get response.' }]);
+      }
+    } catch (e: any) {
+      setCopilotMessages(prev => [...prev, { role: 'ai', content: `Error: ${e.message}` }]);
+    } finally {
+      setCopilotLoading(false);
+    }
+  };
 
   const handleStatusChange = async (newStatus: string) => {
     if (!caseItem) return;
@@ -393,6 +433,92 @@ export default function CaseDetailPage() {
                 <Tab key="forensics" title="Forensics">
                     <div className="mt-4">
                         <ForensicsTab caseId={caseItem.id} />
+                    </div>
+                </Tab>
+
+                <Tab key="copilot" title="🤖 AI Copilot">
+                    <div className="mt-4 flex flex-col h-[600px]">
+                        {/* Chat Messages */}
+                        <div className="flex-1 overflow-y-auto space-y-4 p-4 bg-content2/30 rounded-lg border border-white/5">
+                            {copilotMessages.length === 0 && (
+                                <div className="text-center py-12">
+                                    <Icon.Cpu className="w-12 h-12 mx-auto text-secondary/50 mb-4" />
+                                    <h3 className="text-lg font-semibold text-foreground/70">Investigation Copilot</h3>
+                                    <p className="text-sm text-foreground/50 mt-2 max-w-md mx-auto">
+                                        Ask questions about this case. I have access to the case details, alerts, and evidence.
+                                    </p>
+                                    <div className="flex flex-wrap gap-2 justify-center mt-6">
+                                        {['What are the key IOCs?', 'Is this a true positive?', 'What should I investigate next?'].map(q => (
+                                            <Button 
+                                                key={q} 
+                                                size="sm" 
+                                                variant="flat" 
+                                                color="secondary"
+                                                onPress={() => { setCopilotQuery(q); }}
+                                            >
+                                                {q}
+                                            </Button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                            
+                            {copilotMessages.map((msg, i) => (
+                                <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                    <div className={`max-w-[80%] p-3 rounded-lg ${
+                                        msg.role === 'user' 
+                                            ? 'bg-primary text-primary-foreground' 
+                                            : 'bg-content2 border border-white/10'
+                                    }`}>
+                                        {msg.role === 'ai' ? (
+                                            <div className="prose prose-invert prose-sm max-w-none">
+                                                <Markdown remarkPlugins={[remarkGfm]}>{msg.content}</Markdown>
+                                            </div>
+                                        ) : (
+                                            <p className="text-sm">{msg.content}</p>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                            
+                            {copilotLoading && (
+                                <div className="flex justify-start">
+                                    <div className="bg-content2 border border-white/10 p-3 rounded-lg">
+                                        <div className="flex items-center gap-2">
+                                            <Spinner size="sm" color="secondary" />
+                                            <span className="text-sm text-foreground/70">Thinking...</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                        
+                        {/* Input */}
+                        <div className="mt-4 flex gap-2">
+                            <Textarea
+                                placeholder="Ask about this case..."
+                                minRows={1}
+                                maxRows={3}
+                                value={copilotQuery}
+                                onValueChange={setCopilotQuery}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && !e.shiftKey) {
+                                        e.preventDefault();
+                                        handleCopilotChat();
+                                    }
+                                }}
+                                classNames={{ inputWrapper: 'bg-content2/50' }}
+                            />
+                            <Button 
+                                color="secondary" 
+                                isIconOnly 
+                                onPress={handleCopilotChat}
+                                isLoading={copilotLoading}
+                                isDisabled={!copilotQuery.trim()}
+                            >
+                                <Icon.ArrowUpRight className="w-4 h-4" />
+                            </Button>
+                        </div>
                     </div>
                 </Tab>
             </Tabs>

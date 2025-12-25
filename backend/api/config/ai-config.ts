@@ -4,7 +4,7 @@
 export const AI_CONFIG = {
   // Triage Thresholds
   TRIAGE: {
-    MODEL: "gemini-1.5-flash",
+    MODEL: "gemini-2.0-flash",
     AUTO_DISMISS_CONFIDENCE: 90, // Confidence >= 90% and FALSE_POSITIVE -> dismiss
     AUTO_PROMOTE_CONFIDENCE: 85,  // Confidence >= 85% and TRUE_POSITIVE -> promote to case
     AUTO_BLOCK_CONFIDENCE: 95,    // Confidence >= 95% and TRUE_POSITIVE/CRITICAL -> auto-block

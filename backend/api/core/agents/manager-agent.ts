@@ -91,7 +91,7 @@ export class ManagerAgent extends BaseAgent {
     private async generateFinalReport(alert: any, findings: AgentResult[]) {
         if (!genAI) return "AI Service Unavailable. See raw findings.";
 
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
         
         const findingsText = findings.map(f => `[${f.agent}] ${f.summary}`).join('\n');
         
@@ -105,7 +105,11 @@ export class ManagerAgent extends BaseAgent {
             Team Findings:
             ${findingsText}
 
-            Generate a concise Executive Summary and final verdict (True/False Positive).
+            **Instructions**:
+            1. Generate a concise Executive Summary and final verdict (True/False Positive).
+            2. STRICTLY use only the Team Findings and Alert data provided above.
+            3. DO NOT use external security knowledge, internet data, or general AI training to hallucinate details not found in the records.
+            4. If the data is insufficient, state that some details are missing from internal records.
         `;
 
         try {

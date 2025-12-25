@@ -259,4 +259,35 @@ export const alertController = new Elysia({ prefix: '/alerts' })
     
     const recommendations = await AlertFeedbackService.getTuningRecommendations(user.tenantId);
     return { success: true, data: recommendations };
+  })
+
+  /**
+   * AI Triage - Analyze and prioritize alerts by urgency
+   * @route POST /alerts/triage
+   * @access Protected - Requires authentication
+   * @body {Array} alerts - Array of alert objects to analyze
+   * @returns {Object} Triaged alerts with urgency scores, categories, and actions
+   */
+  .post('/triage', async ({ body, user, set }: any) => {
+    try {
+      const { alerts } = body;
+      
+      if (!alerts || !Array.isArray(alerts) || alerts.length === 0) {
+        set.status = 400;
+        return { success: false, error: 'alerts array is required' };
+      }
+
+      const { AIService } = await import('../core/services/ai.service');
+      const result = await AIService.triageAlerts(alerts);
+
+      return { 
+        success: true, 
+        data: result.triaged,
+        message: `Triaged ${result.triaged.length} alerts`
+      };
+    } catch (e: any) {
+      console.error('[ALERTS] Triage failed:', e.message);
+      set.status = 500;
+      return { success: false, error: 'AI Triage failed', message: e.message };
+    }
   });

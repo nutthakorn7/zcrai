@@ -3,7 +3,8 @@ import {
   Button, Input, Spinner,
   Table, TableHeader, TableColumn, TableBody, TableRow, TableCell,
   Pagination, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Chip,
-  Dropdown, DropdownTrigger, DropdownMenu, DropdownItem, Tooltip
+  Dropdown, DropdownTrigger, DropdownMenu, DropdownItem, Tooltip,
+  Tabs, Tab, Textarea, Select, SelectItem, Card, CardBody, useDisclosure
 } from "@heroui/react";
 
 import { api } from "../../shared/api/api";
@@ -120,6 +121,122 @@ export default function LogViewerPage() {
   
   // Detail Modal
   const [selectedLog, setSelectedLog] = useState<LogEntry | null>(null);
+  
+  // === HUNTING FEATURES ===
+  const [activeMode, setActiveMode] = useState<string>("quick");
+  const [sqlQuery, setSqlQuery] = useState("SELECT * FROM security_events ORDER BY timestamp DESC LIMIT 50");
+  const [naturalQuery, setNaturalQuery] = useState("");
+  const [sigmaYaml, setSigmaYaml] = useState(`title: Suspicious Process
+logsource:
+    category: process_creation
+detection:
+    selection:
+        Image: 'powershell.exe'
+    condition: selection`);
+  const [huntResults, setHuntResults] = useState<any[]>([]);
+  const [huntColumns, setHuntColumns] = useState<string[]>([]);
+  const [huntError, setHuntError] = useState("");
+  const [generatedSql, setGeneratedSql] = useState("");
+  const [histogramData, setHistogramData] = useState<HistogramDataPoint[]>([]);
+  
+  // Time Range
+  const TIME_RANGES = [
+    { key: '1h', label: 'Last 1 Hour' },
+    { key: '24h', label: 'Last 24 Hours' },
+    { key: '7d', label: 'Last 7 Days' },
+    { key: '30d', label: 'Last 30 Days' },
+    { key: 'all', label: 'All Time' },
+  ];
+  const [timeRange, setTimeRange] = useState('24h');
+  
+  // Query History & Save
+  const { isOpen: isSaveOpen, onOpen: onSaveOpen, onClose: onSaveClose } = useDisclosure();
+  const [queryName, setQueryName] = useState("");
+  const [savedQueries, setSavedQueries] = useState<{id: string; name: string; query: string; type: string; createdAt: string}[]>([]);
+  const [queryHistory, setQueryHistory] = useState<{id: string; query: string; type: string; resultCount: number; executedAt: string; generatedSql?: string}[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
+  const [showSavedQueries, setShowSavedQueries] = useState(false);
+  
+  // AI Suggestions
+  const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  
+  // Example Questions
+  const exampleQuestions = [
+    "หา Login ล้มเหลวมากกว่า 5 ครั้งจาก IP เดียวกัน",
+    "แสดง Event ที่มี Severity เป็น Critical หรือ High",
+    "ค้นหา Process ที่รัน powershell.exe หรือ cmd.exe",
+    "หาการเชื่อมต่อไปยัง Port 4444,5555,6666 (Reverse Shell)",
+    "แสดง Events ที่เกี่ยวกับ mimikatz, psexec, cobalt",
+  ];
+  
+  // Load saved queries and history from localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem('hunting_saved_queries');
+    if (saved) setSavedQueries(JSON.parse(saved));
+    const history = localStorage.getItem('hunting_query_history');
+    if (history) setQueryHistory(JSON.parse(history));
+  }, []);
+
+  const getTimeParams = () => {
+    const now = new Date();
+    let startDate: string | undefined;
+    const endDate = now.toISOString();
+    let interval = 3600; // Default 1h
+
+    switch (timeRange) {
+        case '1h':
+            startDate = new Date(now.getTime() - 60 * 60 * 1000).toISOString();
+            interval = 60; // 1 min bucket
+            break;
+        case '24h':
+            startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+            interval = 3600; // 1 hour bucket
+            break;
+        case '7d':
+            startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+            interval = 21600; // 6 hour bucket
+            break;
+        case '30d':
+            startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+            interval = 86400; // 1 day bucket
+            break;
+    }
+    return { startDate, endDate, interval };
+  };
+
+  const loadHistogram = useCallback(async () => {
+    try {
+      const { startDate, endDate, interval } = getTimeParams();
+      const params = new URLSearchParams({ interval: interval.toString() });
+      if (startDate) params.append('startDate', startDate);
+      if (endDate) params.append('endDate', endDate);
+      
+      const kql = parseKQL(search);
+      if (kql.search) params.append('search', kql.search);
+      if (kql.severity) params.append('severity', kql.severity);
+      else if (severity) params.append('severity', severity);
+      if (kql.source) params.append('source', kql.source);
+      
+      if (selectedProvider !== 'all') {
+         params.append('sources', selectedProvider);
+      }
+      
+      if (integrationId) params.append('integration_id', integrationId);
+      if (accountName) params.append('account_name', accountName);
+      if (siteName) params.append('site_name', siteName);
+
+      const res = await api.get(`/logs/histogram?${params.toString()}`);
+      if (res.data) {
+          const formatted = res.data.map((item: any) => ({
+              time: new Date(item.time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
+              count: Number(item.count),
+              severity: Number(item.critical_count) > 0 ? 'critical' : 'info'
+          }));
+           setHistogramData(formatted);
+      }
+    } catch (e) { console.error('Failed to load histogram:', e); }
+  }, [timeRange, search, severity, selectedProvider, integrationId, accountName, siteName]);
 
   const loadLogs = useCallback(async () => {
     setLoading(true);
@@ -136,7 +253,7 @@ export default function LogViewerPage() {
       setAvailableProviders(uniqueActiveProviders);
       
       // Determine target sources based on selected provider
-      let targetSources = uniqueActiveProviders;
+      let targetSources: string[] = []; // Default to NO source filter (fetch all)
       if (selectedProvider !== 'all') {
         targetSources = [selectedProvider];
       }
@@ -145,6 +262,11 @@ export default function LogViewerPage() {
         page: pagination.page.toString(),
         limit: pagination.limit.toString(),
       });
+      
+      const { startDate } = getTimeParams();
+      if (startDate) params.append('startDate', startDate);
+      // Removed endDate to prevent clock-skew issues hiding recent logs
+      // if (endDate) params.append('endDate', endDate);
       
       // KQL Parsing
       const kql = parseKQL(search);
@@ -159,10 +281,13 @@ export default function LogViewerPage() {
       // Add sources parameter based on provider selection
       if (targetSources.length > 0) {
         params.append('sources', targetSources.join(','));
-      } else if (selectedProvider === 'all') {
-        params.append('sources', 'none');
       } else {
-        params.append('sources', selectedProvider);
+        // If specific provider selected but no active integration found (edge case),
+        // we might still want to try fetching or just respect the selection.
+        if (selectedProvider !== 'all') {
+            params.append('sources', selectedProvider);
+        }
+        // If 'all' and no active integrations, send nothing -> Backend fetches all.
       }
       
       if (integrationId) params.append('integration_id', integrationId);
@@ -173,24 +298,29 @@ export default function LogViewerPage() {
       setLogs(logsData);
       setPagination(res.data.pagination);
       
-      // Compute Facets
-      const countBy = (key: keyof LogEntry) => {
-          const counts: Record<string, number> = {};
-          logsData.forEach((l: LogEntry) => {
-              const val = l[key] as string;
-              if (val) counts[val] = (counts[val] || 0) + 1;
-          });
-          return Object.entries(counts)
-              .map(([name, count]) => ({ name, count }))
-              .sort((a,b) => b.count - a.count)
-              .slice(0, 5);
-      };
+      // Use Facets from Backend (Global Aggregation)
+      if (res.data.facets) {
+          setFacets(res.data.facets);
+      } else {
+          // Fallback if backend doesn't return facets (for safety)
+          const countBy = (key: keyof LogEntry) => {
+              const counts: Record<string, number> = {};
+              logsData.forEach((l: LogEntry) => {
+                  const val = l[key] as string;
+                  if (val) counts[val] = (counts[val] || 0) + 1;
+              });
+              return Object.entries(counts)
+                  .map(([name, count]) => ({ name, count }))
+                  .sort((a,b) => b.count - a.count)
+                  .slice(0, 5);
+          };
 
-      setFacets({
-          sources: countBy('source'),
-          hosts: countBy('host_name'),
-          users: countBy('user_name')
-      });
+          setFacets({
+              sources: countBy('source'),
+              hosts: countBy('host_name'),
+              users: countBy('user_name')
+          });
+      }
       
       // AI Context Data
       const severityBreakdown = logsData.reduce((acc: Record<string, number>, log: LogEntry) => {
@@ -244,11 +374,15 @@ export default function LogViewerPage() {
     } finally {
       setLoading(false);
     }
-  }, [pagination.page, pagination.limit, selectedProvider, search, severity, integrationId, accountName, siteName, setPageContext]);
+  }, [pagination.page, pagination.limit, selectedProvider, search, severity, integrationId, accountName, siteName, setPageContext, timeRange]);
 
   useEffect(() => {
     loadLogs();
   }, [pagination.page, selectedProvider, loadLogs]);
+
+  useEffect(() => {
+    loadHistogram();
+  }, [loadHistogram]);
   
   // Live Tail Polling
   useEffect(() => {
@@ -260,19 +394,7 @@ export default function LogViewerPage() {
       return () => clearInterval(interval);
   }, [isLive, pagination.page, loadLogs]);
 
-  // Histogram Data Aggregation
-  const histogramData: HistogramDataPoint[] = logs.reduce((acc: HistogramDataPoint[], log) => {
-      const date = new Date(log.timestamp);
-      const key = `${date.getHours()}:${date.getMinutes() < 10 ? '0' : ''}${date.getMinutes()}`;
-      const existing = acc.find(item => item.time === key);
-      if (existing) {
-          existing.count++;
-          if (log.severity === 'critical') existing.severity = 'critical';
-      } else {
-          acc.push({ time: key, count: 1, severity: log.severity });
-      }
-      return acc;
-  }, []).sort((a,b) => a.time.localeCompare(b.time));
+  // Histogram Data is now managed by loadHistogram and stored in histogramData state
   
   interface KQLFilters {
     search: string;
@@ -356,23 +478,188 @@ export default function LogViewerPage() {
     setPagination(prev => ({ ...prev, page }));
   };
 
+  // === HUNTING HANDLERS ===
+  const addToHistory = (queryText: string, type: string, resultCount: number, genSql?: string) => {
+    const newItem = {
+      id: Date.now().toString(),
+      query: queryText,
+      type,
+      resultCount,
+      executedAt: new Date().toISOString(),
+      generatedSql: genSql
+    };
+    const updated = [newItem, ...queryHistory].slice(0, 50);
+    setQueryHistory(updated);
+    localStorage.setItem('hunting_query_history', JSON.stringify(updated));
+  };
+
+  const handleRunSQL = async () => {
+    if (!sqlQuery) return;
+    setLoading(true);
+    setHuntError("");
+    setHuntResults([]);
+    try {
+      const res = await api.post('/hunting/query', { query: sqlQuery });
+      if (res.data.success) {
+        const data = res.data.data;
+        setHuntResults(data);
+        if (data.length > 0) setHuntColumns(Object.keys(data[0]));
+        addToHistory(sqlQuery, 'sql', data.length);
+      }
+    } catch (err: any) {
+      setHuntError(err.response?.data?.message || err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAskAI = async () => {
+    if (!naturalQuery.trim()) return;
+    setLoading(true);
+    setHuntError("");
+    setHuntResults([]);
+    setGeneratedSql("");
+    setAiSuggestions([]);
+    
+    const timeContext = timeRange !== 'all' 
+      ? ` (ในช่วง ${TIME_RANGES.find(r => r.key === timeRange)?.label})` 
+      : '';
+    const questionWithTime = naturalQuery + timeContext;
+    
+    try {
+      const res = await api.post('/hunting/natural', { question: questionWithTime, execute: true });
+      if (res.data.success) {
+        setGeneratedSql(res.data.data.generatedSql);
+        const data = res.data.data.results;
+        setHuntResults(data);
+        if (data.length > 0) setHuntColumns(Object.keys(data[0]));
+        addToHistory(naturalQuery, 'natural', data.length, res.data.data.generatedSql);
+        
+        // Fetch AI suggestions
+        if (data.length > 0) {
+          setLoadingSuggestions(true);
+          try {
+            const topValues: Record<string, string[]> = {};
+            ['severity', 'host_name', 'user_name', 'network_src_ip', 'event_type'].forEach(field => {
+              const vals = data.map((r: any) => r[field]).filter((v: any) => v && v !== '').slice(0, 3);
+              if (vals.length) topValues[field] = [...new Set(vals)] as string[];
+            });
+            const sugRes = await api.post('/hunting/suggestions', {
+              originalQuestion: naturalQuery,
+              resultSummary: `Found ${data.length} events`,
+              topValues
+            });
+            if (sugRes.data.success) setAiSuggestions(sugRes.data.data.suggestions || []);
+          } catch { /* ignore */ } finally { setLoadingSuggestions(false); }
+        }
+      }
+    } catch (err: any) {
+      setHuntError(err.response?.data?.message || err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRunSigma = async () => {
+    setLoading(true);
+    setHuntError("");
+    setHuntResults([]);
+    setGeneratedSql("");
+    try {
+      const res = await api.post('/hunting/sigma', { yaml: sigmaYaml, execute: true });
+      if (res.data.success) {
+        setGeneratedSql(res.data.data.generatedSql);
+        const data = res.data.data.results;
+        setHuntResults(data);
+        if (data.length > 0) setHuntColumns(Object.keys(data[0]));
+        addToHistory(sigmaYaml, 'sigma', data.length, res.data.data.generatedSql);
+      }
+    } catch (err: any) {
+      setHuntError(err.response?.data?.message || err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSaveQuery = () => {
+    if (!queryName.trim()) return;
+    const newQuery = {
+      id: Date.now().toString(),
+      name: queryName,
+      query: activeMode === 'ai' ? naturalQuery : activeMode === 'sql' ? sqlQuery : sigmaYaml,
+      type: activeMode,
+      createdAt: new Date().toISOString()
+    };
+    const updated = [...savedQueries, newQuery];
+    setSavedQueries(updated);
+    localStorage.setItem('hunting_saved_queries', JSON.stringify(updated));
+    setQueryName("");
+    onSaveClose();
+  };
+
+  const handleLoadQuery = (saved: typeof savedQueries[0]) => {
+    if (saved.type === 'natural' || saved.type === 'ai') {
+      setNaturalQuery(saved.query);
+      setActiveMode('ai');
+    } else if (saved.type === 'sql') {
+      setSqlQuery(saved.query);
+      setActiveMode('sql'); 
+    } else {
+      setSigmaYaml(saved.query);
+      setActiveMode('sigma');
+    }
+    setShowSavedQueries(false);
+  };
+
+  const handleDeleteQuery = (id: string) => {
+    const updated = savedQueries.filter(q => q.id !== id);
+    setSavedQueries(updated);
+    localStorage.setItem('hunting_saved_queries', JSON.stringify(updated));
+  };
+
+  const handleLoadFromHistory = (item: typeof queryHistory[0]) => {
+    if (item.type === 'natural') {
+      setNaturalQuery(item.query);
+      setActiveMode('ai');
+      if (item.generatedSql) setGeneratedSql(item.generatedSql);
+    } else if (item.type === 'sql') {
+      setSqlQuery(item.query);
+      setActiveMode('sql');
+    } else {
+      setSigmaYaml(item.query);
+      setActiveMode('sigma');
+    }
+    setShowHistory(false);
+  };
+
+  const handleClearHistory = () => {
+    setQueryHistory([]);
+    localStorage.removeItem('hunting_query_history');
+  };
+
   const renderCell = (log: LogEntry, columnKey: string) => {
     switch (columnKey) {
       case "time":
-        const dateObj = new Date(log.timestamp);
-        const time = dateObj.toLocaleTimeString('en-US', { 
-          hour: '2-digit', 
-          minute: '2-digit',
-          hour12: false 
-        });
-        const date = dateObj.toLocaleDateString('en-US', { 
-          month: 'short', 
-          day: 'numeric'
-        });
+        // Force UTC interpretation by appending 'Z' if missing and replacing space with T for ISO format
+        const timeStr = log.timestamp.replace(' ', 'T') + (log.timestamp.endsWith('Z') ? '' : 'Z');
+        const dateObj = new Date(timeStr);
+        
+        // Relative time calculation
+        const now = new Date();
+        const diffInSeconds = Math.floor((now.getTime() - dateObj.getTime()) / 1000);
+        
+        let relativeTime;
+        if (diffInSeconds < 60) relativeTime = "Just now";
+        else if (diffInSeconds < 3600) relativeTime = `${Math.floor(diffInSeconds / 60)}m ago`;
+        else if (diffInSeconds < 86400) relativeTime = `${Math.floor(diffInSeconds / 3600)}h ago`;
+        else relativeTime = `${Math.floor(diffInSeconds / 86400)}d ago`;
+
+        const fullDate = dateObj.toLocaleDateString('en-US', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false });
+
         return (
           <div className="flex flex-col">
-            <span className="text-xs text-foreground/90">{time}</span>
-            <span className="text-[10px] text-foreground/50">{date}</span>
+            <span className="text-xs font-medium text-foreground/90">{fullDate}</span>
+            <span className="text-[10px] text-foreground/50">{relativeTime}</span>
           </div>
         );
       
@@ -404,43 +691,66 @@ export default function LogViewerPage() {
         return <VendorLogo source={log.source} />;
       
       case "details":
+        const isCriticalOrHigh = ['critical', 'high'].includes(log.severity.toLowerCase());
         return (
-          <div className="flex flex-col gap-0.5">
-            <span className="text-sm font-medium text-foreground/90 truncate group-hover:text-primary transition-colors cursor-pointer">
+          <div className="flex flex-col gap-0.5 relative pl-3">
+             {/* Visual Severity Indicator Line */}
+             {isCriticalOrHigh && (
+                <div className={`absolute left-0 top-1 bottom-1 w-0.5 rounded-full ${log.severity.toLowerCase() === 'critical' ? 'bg-danger' : 'bg-warning'}`} />
+             )}
+            <span className={`text-sm font-medium transition-colors cursor-pointer truncate ${isCriticalOrHigh ? 'text-foreground' : 'text-foreground/80'} group-hover:text-primary`}>
               {log.title}
             </span>
             <div className="flex items-center gap-2 text-[10px] text-foreground/50 ">
               {log.mitre_tactic && log.mitre_tactic !== '-' && (
-                <span className="bg-white/5 px-1 rounded">#{log.mitre_tactic}</span>
+                <span className="bg-white/5 px-1 rounded text-foreground/60">#{log.mitre_tactic}</span>
               )}
-              <span>via {log.integration_name || '-'}</span>
+              {log.integration_name && <span>via {log.integration_name}</span>}
             </div>
           </div>
         );
       
-      case "context":
+      case "user":
+         return (
+             <div className="flex items-center gap-1.5 text-xs text-foreground/80">
+                 <Icon.User className="w-3 h-3 text-foreground/50 flex-shrink-0" />
+                 <span className="truncate" title={log.user_name}>{log.user_name || '-'}</span>
+             </div>
+         );
+
+      case "host":
         return (
-          <div className="flex flex-col gap-1 text-xs text-foreground/60">
-            {log.host_name && (
-              <div className="flex items-center gap-1.5">
-                <Icon.Server className="w-3 h-3" />
-                <span className="truncate">{log.host_name}</span>
-              </div>
-            )}
-            {log.user_name && (
-              <div className="flex items-center gap-1.5">
-                <Icon.User className="w-3 h-3" />
-                <span className="truncate">{log.user_name}</span>
-              </div>
-            )}
+          <div className="flex items-center gap-1.5 text-xs text-foreground/80">
+            <Icon.Server className="w-3 h-3 text-foreground/50 flex-shrink-0" />
+            <span className="truncate" title={log.host_name}>{log.host_name || '-'}</span>
           </div>
         );
       
+      case "file":
+         return (
+             <div className="flex flex-col gap-0.5 text-[10px] text-foreground/70">
+                 {log.process_name && (
+                     <div className="flex items-center gap-1">
+                         <Icon.Cpu className="w-3 h-3 flex-shrink-0" />
+                         <span className="truncate" title={log.process_name}>{log.process_name}</span>
+                     </div>
+                 )}
+                 {log.file_name && (
+                     <div className="flex items-center gap-1">
+                         <Icon.Document className="w-3 h-3 flex-shrink-0" />
+                         <span className="truncate" title={log.file_name}>{log.file_name}</span>
+                     </div>
+                 )}
+                 {!log.process_name && !log.file_name && <span className="text-foreground/30">-</span>}
+             </div>
+         );
+
       case "site":
         return (
-          <span className="text-xs text-foreground/60 truncate">
-            {log.host_site_name || '-'}
-          </span>
+          <div className="flex flex-col gap-0.5 text-[10px]">
+              <span className="text-foreground/80 truncate font-medium" title={log.host_site_name}>{log.host_site_name || '-'}</span>
+              <span className="text-foreground/40 truncate" title={log.host_account_name}>{log.host_account_name}</span>
+          </div>
         );
       
       case "actions":
@@ -458,6 +768,56 @@ export default function LogViewerPage() {
       default:
         return null;
     }
+  };
+  
+  // === HUNTING RESULTS HELPERS ===
+  const [huntPage, setHuntPage] = useState(1);
+  
+  // Reset page when results change
+  useEffect(() => {
+     setHuntPage(1);
+  }, [huntResults]);
+
+  const renderHuntCell = (row: any, columnKey: string) => {
+    const value = row[columnKey];
+    
+    // 1. Severity
+    if (columnKey.toLowerCase() === 'severity') {
+        const sev = (value || 'low').toLowerCase() as keyof typeof severityColors;
+        const hexColor = severityColors[sev] || severityColors.low;
+        return (
+          <Chip size="sm" variant="flat" style={{ backgroundColor: `${hexColor}1A`, color: hexColor }} className="uppercase text-[10px]">
+            {value}
+          </Chip>
+        );
+    }
+    
+    // 2. Time / Timestamp (Relative)
+    if (['time', 'timestamp', '@timestamp'].includes(columnKey.toLowerCase())) {
+        try {
+            const dateObj = new Date(value);
+            const now = new Date();
+            const diff = Math.floor((now.getTime() - dateObj.getTime()) / 1000);
+            let rel = "Just now";
+            if (diff >= 60 && diff < 3600) rel = `${Math.floor(diff/60)}m ago`;
+            else if (diff >= 3600 && diff < 86400) rel = `${Math.floor(diff/3600)}h ago`;
+            else if (diff >= 86400) rel = `${Math.floor(diff/86400)}d ago`;
+            
+            return <div className="flex flex-col"><span className="text-xs">{rel}</span><span className="text-[10px] text-foreground/40">{value}</span></div>;
+        } catch { return <span className="text-xs">{value}</span>; }
+    }
+    
+    // 3. Source (Vendor Logo)
+    if (columnKey.toLowerCase() === 'source' || columnKey.toLowerCase() === 'integration') {
+        return <VendorLogo source={value} />;
+    }
+    
+    // Default: Truncate JSON or Text
+    if (typeof value === 'object') {
+        return <span className="text-xs font-mono text-foreground/60">{JSON.stringify(value).slice(0, 50)}</span>;
+    }
+    
+    return <span className="text-xs text-foreground/80 truncate max-w-[200px] block" title={value}>{value}</span>;
   };
 
   // Export to CSV function - fetches ALL filtered logs, not just current page
@@ -770,13 +1130,260 @@ export default function LogViewerPage() {
 
         {/* Main Content */}
         <div className="flex-1 min-w-0">
-            <AIQueryInput onFiltersApplied={(f) => {
-                handleAIFilters(f);
-                // Trigger reload after state update (hacky but functional for now)
-                setTimeout(loadLogs, 100);
-            }} />
-            <Histogram data={histogramData} onBarClick={() => {}} />
-            
+            {/* Mode Tabs & Controls */}
+            <div className="flex items-center justify-between mb-4">
+                <Tabs 
+                    aria-label="Search Mode" 
+                    selectedKey={activeMode} 
+                    onSelectionChange={(k) => setActiveMode(k as string)}
+                    color="primary"
+                    variant="underlined"
+                    classNames={{ tabList: "gap-6" }}
+                >
+                    <Tab key="quick" title={<div className="flex items-center gap-2"><Icon.Search className="w-4 h-4"/>Quick View</div>} />
+                    <Tab key="ai" title={<div className="flex items-center gap-2"><Icon.Cpu className="w-4 h-4"/>AI Search</div>} />
+                    <Tab key="sql" title={<div className="flex items-center gap-2"><Icon.Terminal className="w-4 h-4"/>SQL Query</div>} />
+                    <Tab key="sigma" title={<div className="flex items-center gap-2"><Icon.Shield className="w-4 h-4"/>Sigma Rule</div>} />
+                </Tabs>
+                
+                <div className="flex items-center gap-2">
+                    <Select
+                        size="sm"
+                        label="Time Range"
+                        selectedKeys={[timeRange]}
+                        onChange={(e) => setTimeRange(e.target.value)}
+                        className="w-36"
+                    >
+                        {TIME_RANGES.map(r => (
+                            <SelectItem key={r.key}>{r.label}</SelectItem>
+                        ))}
+                    </Select>
+                    
+                    <Button size="sm" variant="flat" startContent={<Icon.Clock className="w-4 h-4"/>}
+                        onPress={() => { setShowHistory(!showHistory); setShowSavedQueries(false); }}>
+                        History ({queryHistory.length})
+                    </Button>
+                    
+                    <Button size="sm" variant="flat" startContent={<Icon.Folder className="w-4 h-4"/>}
+                        onPress={() => { setShowSavedQueries(!showSavedQueries); setShowHistory(false); }}>
+                        Saved ({savedQueries.length})
+                    </Button>
+                </div>
+            </div>
+
+            {/* History Panel */}
+            {showHistory && queryHistory.length > 0 && (
+                <Card className="bg-content2/50 border border-white/5 mb-4">
+                    <CardBody className="p-4">
+                        <div className="flex justify-between items-center mb-3">
+                            <h4 className="font-semibold text-sm">Query History</h4>
+                            <div className="flex gap-2">
+                                <Button size="sm" variant="light" color="danger" onPress={handleClearHistory}>Clear</Button>
+                                <Button size="sm" variant="light" isIconOnly onPress={() => setShowHistory(false)}><Icon.Close className="w-4 h-4"/></Button>
+                            </div>
+                        </div>
+                        <div className="space-y-1 max-h-32 overflow-y-auto">
+                            {queryHistory.slice(0, 8).map(item => (
+                                <div key={item.id} className="flex items-center justify-between p-2 bg-black/20 rounded hover:bg-white/5 cursor-pointer" onClick={() => handleLoadFromHistory(item)}>
+                                    <span className="text-sm truncate">{item.type === 'natural' ? '🤖' : item.type === 'sigma' ? '📜' : '💻'} {item.query.slice(0, 50)}...</span>
+                                    <Chip size="sm" variant="flat">{item.resultCount}</Chip>
+                                </div>
+                            ))}
+                        </div>
+                    </CardBody>
+                </Card>
+            )}
+
+            {/* Saved Queries Panel */}
+            {showSavedQueries && savedQueries.length > 0 && (
+                <Card className="bg-content2/50 border border-white/5 mb-4">
+                    <CardBody className="p-4">
+                        <div className="flex justify-between items-center mb-3">
+                            <h4 className="font-semibold text-sm">Saved Queries</h4>
+                            <Button size="sm" variant="light" isIconOnly onPress={() => setShowSavedQueries(false)}><Icon.Close className="w-4 h-4"/></Button>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                            {savedQueries.map(sq => (
+                                <Chip key={sq.id} variant="flat" className="cursor-pointer hover:bg-primary/20" onClose={() => handleDeleteQuery(sq.id)} onClick={() => handleLoadQuery(sq)}>
+                                    {sq.type === 'ai' || sq.type === 'natural' ? '🤖' : sq.type === 'sql' ? '💻' : '📜'} {sq.name}
+                                </Chip>
+                            ))}
+                        </div>
+                    </CardBody>
+                </Card>
+            )}
+
+            {/* === TAB CONTENT === */}
+            {activeMode === 'quick' && (
+                <>
+                    <AIQueryInput onFiltersApplied={(f) => { handleAIFilters(f); setTimeout(loadLogs, 100); }} />
+                    <Histogram data={histogramData} onBarClick={() => {}} />
+                </>
+            )}
+
+            {activeMode === 'ai' && (
+                <Card className="bg-content1 border border-white/5 mb-4">
+                    <CardBody className="p-4 space-y-4">
+                        <Textarea
+                            label="ถามคำถามเป็นภาษาธรรมชาติ (ไทย/English)"
+                            placeholder="เช่น: หา Login ที่ล้มเหลว, แสดง Event ที่มี Severity เป็น Critical..."
+                            value={naturalQuery}
+                            onChange={(e) => setNaturalQuery(e.target.value)}
+                            minRows={3}
+                        />
+                        <div className="flex flex-wrap gap-2">
+                            <span className="text-xs text-foreground/40">ตัวอย่าง:</span>
+                            {exampleQuestions.map((q, i) => (
+                                <Chip key={i} size="sm" variant="flat" className="cursor-pointer hover:bg-primary/20" onClick={() => setNaturalQuery(q)}>{q}</Chip>
+                            ))}
+                        </div>
+                        <div className="flex justify-between items-center">
+                            <Button color="primary" startContent={<Icon.Search className="w-4 h-4"/>} onPress={handleAskAI} isLoading={loading}>
+                                Search with AI
+                            </Button>
+                            <Button variant="flat" startContent={<Icon.Folder className="w-4 h-4"/>} onPress={onSaveOpen}>Save Query</Button>
+                        </div>
+                        {generatedSql && (
+                            <div className="bg-black/30 p-3 rounded-lg">
+                                <span className="text-xs text-foreground/40">Generated SQL:</span>
+                                <pre className="text-xs text-green-400 mt-1 overflow-x-auto">{generatedSql}</pre>
+                            </div>
+                        )}
+                        {huntError && <div className="text-sm text-danger">{huntError}</div>}
+                        
+                        {/* AI Suggestions */}
+                        {(aiSuggestions.length > 0 || loadingSuggestions) && (
+                            <div className="bg-gradient-to-r from-primary/10 to-secondary/10 p-3 rounded-lg border border-primary/20">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <Icon.Cpu className="w-4 h-4 text-primary"/>
+                                    <span className="text-sm font-medium">AI แนะนำคำถามต่อ</span>
+                                    {loadingSuggestions && <Spinner size="sm"/>}
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                    {aiSuggestions.map((s, i) => (
+                                        <Chip key={i} variant="flat" color="primary" className="cursor-pointer hover:bg-primary/30" onClick={() => { setNaturalQuery(s); setAiSuggestions([]); }}>
+                                            💡 {s}
+                                        </Chip>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </CardBody>
+                </Card>
+            )}
+
+            {activeMode === 'sql' && (
+                <Card className="bg-content1 border border-white/5 mb-4">
+                    <CardBody className="p-4 space-y-4">
+                        <Textarea
+                            label="SQL Query"
+                            placeholder="SELECT * FROM security_events WHERE severity = 'critical' ORDER BY timestamp DESC LIMIT 50"
+                            value={sqlQuery}
+                            onChange={(e) => setSqlQuery(e.target.value)}
+                            minRows={4}
+                            classNames={{ input: "font-mono text-sm" }}
+                        />
+                        <div className="flex gap-2">
+                            <Button color="primary" startContent={<Icon.Zap className="w-4 h-4"/>} onPress={handleRunSQL} isLoading={loading}>Run Query</Button>
+                            <Button variant="flat" onPress={onSaveOpen}>Save</Button>
+                        </div>
+                        {huntError && <div className="text-sm text-danger">{huntError}</div>}
+                    </CardBody>
+                </Card>
+            )}
+
+            {activeMode === 'sigma' && (
+                <Card className="bg-content1 border border-white/5 mb-4">
+                    <CardBody className="p-4 space-y-4">
+                        <Textarea
+                            label="Sigma Rule (YAML)"
+                            placeholder="title: Suspicious Process..."
+                            value={sigmaYaml}
+                            onChange={(e) => setSigmaYaml(e.target.value)}
+                            minRows={6}
+                            classNames={{ input: "font-mono text-sm" }}
+                        />
+                        <div className="flex gap-2">
+                            <Button color="secondary" startContent={<Icon.Shield className="w-4 h-4"/>} onPress={handleRunSigma} isLoading={loading}>Run Sigma</Button>
+                            <Button variant="flat" onPress={onSaveOpen}>Save</Button>
+                        </div>
+                        {generatedSql && (
+                            <div className="bg-black/30 p-3 rounded-lg">
+                                <span className="text-xs text-foreground/40">Generated SQL:</span>
+                                <pre className="text-xs text-green-400 mt-1 overflow-x-auto">{generatedSql}</pre>
+                            </div>
+                        )}
+                        {huntError && <div className="text-sm text-danger">{huntError}</div>}
+                    </CardBody>
+                </Card>
+            )}
+
+            {activeMode !== 'quick' && huntResults.length > 0 && (
+                <Card className="bg-content1 border border-white/5 mb-4">
+                    <CardBody className="p-4">
+                        <div className="flex justify-between items-center mb-3">
+                            <span className="text-sm font-medium">{huntResults.length} results</span>
+                            <Button size="sm" variant="flat" startContent={<Icon.Download className="w-4 h-4"/>}
+                                onPress={() => {
+                                    const csv = [huntColumns.join(','), ...huntResults.map(r => huntColumns.map(c => JSON.stringify(r[c] || '')).join(','))].join('\n');
+                                    const blob = new Blob([csv], { type: 'text/csv' });
+                                    const link = document.createElement('a');
+                                    link.href = URL.createObjectURL(blob);
+                                    link.download = `hunt_results_${new Date().toISOString().slice(0,10)}.csv`;
+                                    link.click();
+                                }}>
+                                Export CSV
+                            </Button>
+                        </div>
+                        
+                        <Table 
+                            aria-label="Hunt Results"
+                            classNames={{
+                                wrapper: "bg-transparent shadow-none border border-white/5 rounded-lg p-0",
+                                th: "bg-black/20 text-[10px] font-bold text-foreground/50 uppercase tracking-wider border-b border-white/10 h-10",
+                                td: "py-2 text-foreground/90 border-b border-white/5",
+                                tr: "hover:bg-content1/50 transition-all cursor-default",
+                            }}
+                            bottomContent={
+                                huntResults.length > 10 ? (
+                                    <div className="flex w-full justify-center px-4 py-2">
+                                        <Pagination
+                                            isCompact
+                                            showControls
+                                            showShadow
+                                            color="primary"
+                                            page={huntPage}
+                                            total={Math.ceil(huntResults.length / 10)}
+                                            onChange={(page) => setHuntPage(page)}
+                                        />
+                                    </div>
+                                ) : null
+                            }
+                        >
+                            <TableHeader>
+                                {huntColumns.map(c => (
+                                    <TableColumn key={c}>{c}</TableColumn>
+                                ))}
+                            </TableHeader>
+                            <TableBody items={huntResults.slice((huntPage - 1) * 10, huntPage * 10)}>
+                                {(item: any) => (
+                                    <TableRow key={item.id || Math.random()}>
+                                        {(columnKey) => (
+                                            <TableCell>
+                                                {renderHuntCell(item, columnKey as string)}
+                                            </TableCell>
+                                        )}
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </CardBody>
+                </Card>
+            )}
+
+            {/* Original Log Table (Quick View mode) */}
+            {activeMode === 'quick' && (
+            <>
             {loading ? (
             <div className="flex justify-center py-12">
                 <Spinner size="lg" color="primary" />
@@ -796,13 +1403,15 @@ export default function LogViewerPage() {
              {/* ... */}
 
               <TableHeader>
-                <TableColumn key="time" className="w-32">Time</TableColumn>
-                <TableColumn key="severity" className="w-28">Severity</TableColumn>
-                <TableColumn key="source" className="w-20">Source</TableColumn>
-                <TableColumn key="details">Event Details</TableColumn>
-                <TableColumn key="context" className="w-48">Context</TableColumn>
-                <TableColumn key="site" className="w-24">Site</TableColumn>
-                <TableColumn key="actions" className="w-20">Actions</TableColumn>
+                <TableColumn key="time" className="w-[130px]">Time</TableColumn>
+                <TableColumn key="severity" className="w-[100px]">Severity</TableColumn>
+                <TableColumn key="source" className="w-[80px]">Source</TableColumn>
+                <TableColumn key="details" className="w-[350px]">Event Details</TableColumn>
+                <TableColumn key="user" className="w-[150px]">User</TableColumn>
+                <TableColumn key="host" className="w-[150px]">Host</TableColumn>
+                <TableColumn key="file" className="w-[180px]">File/Process</TableColumn>
+                <TableColumn key="site" className="w-[150px]">Site</TableColumn>
+                <TableColumn key="actions" className="w-[80px]">Actions</TableColumn>
               </TableHeader>
               <TableBody
                 items={logs}
@@ -836,6 +1445,8 @@ export default function LogViewerPage() {
               </div>
             )}
            </>
+          )}
+          </>
           )}
         </div>
       </div>
@@ -901,6 +1512,25 @@ export default function LogViewerPage() {
             }}>
               Create Case
             </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      {/* Save Query Modal */}
+      <Modal isOpen={isSaveOpen} onClose={onSaveClose} size="sm">
+        <ModalContent>
+          <ModalHeader>Save Query</ModalHeader>
+          <ModalBody>
+            <Input
+              label="Query Name"
+              placeholder="Enter a name for this query..."
+              value={queryName}
+              onChange={(e) => setQueryName(e.target.value)}
+            />
+          </ModalBody>
+          <ModalFooter>
+            <Button variant="light" onPress={onSaveClose}>Cancel</Button>
+            <Button color="primary" onPress={handleSaveQuery} isDisabled={!queryName.trim()}>Save</Button>
           </ModalFooter>
         </ModalContent>
       </Modal>

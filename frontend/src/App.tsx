@@ -26,7 +26,6 @@ const ObservablesPage = lazy(() => import("./pages/observables/ObservablesPage")
 const ThreatIntelPage = lazy(() => import("./pages/ThreatIntelPage"));
 const PlaybooksPage = lazy(() => import("./pages/playbooks/PlaybooksPage"));
 const ReportsPage = lazy(() => import("./pages/reports/ReportsPage"));
-const HuntingPage = lazy(() => import("./pages/HuntingPage"));
 
 const AdminDashboard = lazy(() => import("./pages/admin"));
 
@@ -278,11 +277,7 @@ function App() {
             />
             <Route 
               path="/hunting" 
-              element={
-                <ProtectedRoute>
-                  <HuntingPage />
-                </ProtectedRoute>
-              } 
+              element={<Navigate to="/logs" replace />}
             />
 
             {/* Super Admin Routes */}

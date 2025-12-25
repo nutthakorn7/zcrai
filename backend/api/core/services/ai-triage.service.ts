@@ -11,12 +11,12 @@ import { AI_CONFIG } from '../../config/ai-config';
 import { aiFeedback, tenants } from '../../infra/db/schema';
 import { and, gte, ne, or, sql } from 'drizzle-orm';
 
-// Mock Response for when API is missing
+// Mock Response for when API is missing (Updated to trigger Autopilot demonstration)
 const MOCK_ANALYSIS = {
-    classification: "FALSE_POSITIVE",
-    confidence: 85,
-    reasoning: "Analysis (Mock): Pattern resembles authorized administrative activity. No malicious indicators found in correlated logs.",
-    suggested_action: "dismiss"
+    classification: "TRUE_POSITIVE",
+    confidence: 98,
+    reasoning: "Analysis (Mock): Observed high-frequency brute force attempts followed by successful administrative login from a suspicious geolocated IP. Pattern matches lateral movement techniques.",
+    suggested_action: "isolate"
 };
 
 export class AITriageService {

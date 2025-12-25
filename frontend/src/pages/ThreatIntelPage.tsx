@@ -1,12 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Card,
   CardBody,
   CardHeader,
   Input,
   Button,
-  Select,
-  SelectItem,
   Chip,
   Spinner,
   Divider,
@@ -82,6 +80,36 @@ export default function ThreatIntelPage() {
   const [type, setType] = useState<'ip' | 'domain' | 'url' | 'hash'>('ip');
   const [result, setResult] = useState<ThreatResult | null>(null);
 
+  // Auto-detect type
+  useEffect(() => {
+    const trimmed = indicator.trim();
+    if (!trimmed) return;
+
+    // URL
+    if (/^https?:\/\//i.test(trimmed)) {
+      setType('url');
+      return;
+    }
+
+    // IP
+    if (/^(?:\d{1,3}\.){3}\d{1,3}$/.test(trimmed)) {
+      setType('ip');
+      return;
+    }
+
+    // Hash (MD5=32, SHA1=40, SHA256=64)
+    if (/^[a-fA-F0-9]{32}$/.test(trimmed) || /^[a-fA-F0-9]{40}$/.test(trimmed) || /^[a-fA-F0-9]{64}$/.test(trimmed)) {
+      setType('hash');
+      return;
+    }
+
+    // Domain (basic check: contains dot, no spaces)
+    if (/^[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/.test(trimmed)) {
+      setType('domain');
+      return;
+    }
+  }, [indicator]);
+
   // Fetch summary
   const { data: summary } = useQuery<ThreatSummary>({
     queryKey: ['threat-intel-summary'],
@@ -104,11 +132,14 @@ export default function ThreatIntelPage() {
   // Lookup mutation
   const lookupMutation = useMutation({
     mutationFn: async ({ indicator, type }: { indicator: string; type: string }) => {
-      const res = await api.post('/threat-intel/lookup', { indicator, type });
+      const res = await api.post('/threat-intel/lookup', { value: indicator, type });
       return res.data;
     },
-    onSuccess: (data) => {
-      setResult(data);
+    onSuccess: (response) => {
+      // Backend returns { success: true, data: result }
+      if (response?.success && response?.data) {
+        setResult(response.data);
+      }
     },
   });
 
@@ -174,25 +205,18 @@ export default function ThreatIntelPage() {
                 onChange={(e) => setIndicator(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleLookup()}
                 startContent={<MagnifyingGlassIcon className="w-5 h-5 text-default-400" />}
+                endContent={
+                  indicator && (
+                    <Chip size="sm" variant="flat" color="primary" className="min-w-[80px]">
+                      {indicatorTypes.find(t => t.key === type)?.label}
+                    </Chip>
+                  )
+                }
                 size="lg"
                 classNames={{
                   input: 'font-mono',
                 }}
               />
-            </div>
-            <div className="w-48">
-              <label className="text-sm font-medium mb-2 block">Type</label>
-              <Select
-                selectedKeys={[type]}
-                onChange={(e) => setType(e.target.value as any)}
-                size="lg"
-              >
-                {indicatorTypes.map((t) => (
-                  <SelectItem key={t.key} startContent={<t.icon className="w-4 h-4" />}>
-                    {t.label}
-                  </SelectItem>
-                ))}
-              </Select>
             </div>
             <Button
               color="primary"
@@ -266,8 +290,8 @@ export default function ThreatIntelPage() {
                 {result.sources.map((source) => (
                   <Card key={source.name} className="bg-content2">
                     <CardBody className="p-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="font-medium">{source.name}</span>
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="font-medium text-sm">{source.name}</span>
                         <Chip
                           size="sm"
                           color={
@@ -280,18 +304,127 @@ export default function ThreatIntelPage() {
                           {source.risk}
                         </Chip>
                       </div>
-                      <div className="text-xs text-default-500 space-y-1">
-                        {source.details.abuseConfidenceScore !== undefined && (
-                          <p>Abuse Score: {source.details.abuseConfidenceScore}%</p>
-                        )}
+                      <div className="text-xs space-y-1.5">
+                        {/* VirusTotal specific */}
                         {source.details.detectionRatio && (
-                          <p>Detection: {source.details.detectionRatio}</p>
+                          <div className="flex justify-between">
+                            <span className="text-default-500">Detection</span>
+                            <span className="font-mono">{source.details.detectionRatio}</span>
+                          </div>
                         )}
-                        {source.details.pulseCount !== undefined && (
-                          <p>Pulses: {source.details.pulseCount}</p>
+                        {source.details.reputation !== undefined && (
+                          <div className="flex justify-between">
+                            <span className="text-default-500">Reputation</span>
+                            <span className={source.details.reputation < 0 ? 'text-danger' : 'text-success'}>
+                              {source.details.reputation}
+                            </span>
+                          </div>
+                        )}
+                        {source.details.country && (
+                          <div className="flex justify-between">
+                            <span className="text-default-500">Country</span>
+                            <span>{source.details.country}</span>
+                          </div>
+                        )}
+                        {source.details.asn && (
+                          <div className="flex justify-between">
+                            <span className="text-default-500">ASN</span>
+                            <span className="font-mono text-[10px]">AS{source.details.asn}</span>
+                          </div>
+                        )}
+                        {source.details.lastAnalysisDate && (
+                          <div className="flex justify-between">
+                            <span className="text-default-500">Last Scan</span>
+                            <span className="text-[10px]">{new Date(source.details.lastAnalysisDate).toLocaleDateString()}</span>
+                          </div>
+                        )}
+                        
+                        {/* AbuseIPDB specific */}
+                        {source.details.abuseConfidenceScore !== undefined && (
+                          <div className="flex justify-between">
+                            <span className="text-default-500">Abuse Score</span>
+                            <span className={source.details.abuseConfidenceScore > 50 ? 'text-danger font-bold' : ''}>
+                              {source.details.abuseConfidenceScore}%
+                            </span>
+                          </div>
                         )}
                         {source.details.totalReports !== undefined && (
-                          <p>Reports: {source.details.totalReports}</p>
+                          <div className="flex justify-between">
+                            <span className="text-default-500">Total Reports</span>
+                            <span>{source.details.totalReports}</span>
+                          </div>
+                        )}
+                        {source.details.countryCode && (
+                          <div className="flex justify-between">
+                            <span className="text-default-500">Country</span>
+                            <span>{source.details.countryCode}</span>
+                          </div>
+                        )}
+                        {source.details.isWhitelisted !== undefined && (
+                          <div className="flex justify-between">
+                            <span className="text-default-500">Whitelisted</span>
+                            <span className={source.details.isWhitelisted ? 'text-success' : 'text-default-400'}>
+                              {source.details.isWhitelisted ? 'Yes' : 'No'}
+                            </span>
+                          </div>
+                        )}
+                        {source.details.lastReportedAt && (
+                          <div className="flex justify-between">
+                            <span className="text-default-500">Last Reported</span>
+                            <span className="text-[10px]">{new Date(source.details.lastReportedAt).toLocaleDateString()}</span>
+                          </div>
+                        )}
+                        
+                        {/* AlienVault OTX specific */}
+                        {source.details.pulseCount !== undefined && (
+                          <div className="flex justify-between">
+                            <span className="text-default-500">Pulses</span>
+                            <span className={source.details.pulseCount > 0 ? 'text-warning font-bold' : ''}>
+                              {source.details.pulseCount}
+                            </span>
+                          </div>
+                        )}
+                        {source.details.risk && source.name.includes('AlienVault') && (
+                          <div className="flex justify-between">
+                            <span className="text-default-500">Risk Level</span>
+                            <span className={
+                              source.details.risk === 'critical' || source.details.risk === 'high' ? 'text-danger' :
+                              source.details.risk === 'medium' ? 'text-warning' : 'text-success'
+                            }>
+                              {source.details.risk.toUpperCase()}
+                            </span>
+                          </div>
+                        )}
+                        {source.details.tags && source.details.tags.length > 0 && (
+                          <div className="mt-2">
+                            <span className="text-default-500 block mb-1">Tags</span>
+                            <div className="flex flex-wrap gap-1">
+                              {source.details.tags.slice(0, 5).map((tag: string) => (
+                                <Chip key={tag} size="sm" variant="flat" className="text-[10px] h-5">
+                                  {tag}
+                                </Chip>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {source.details.malwareFamilies && source.details.malwareFamilies.length > 0 && (
+                          <div className="mt-2">
+                            <span className="text-default-500 block mb-1">Malware</span>
+                            <div className="flex flex-wrap gap-1">
+                              {source.details.malwareFamilies.slice(0, 3).map((m: string) => (
+                                <Chip key={m} size="sm" color="danger" variant="flat" className="text-[10px] h-5">
+                                  {m}
+                                </Chip>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Error case */}
+                        {source.details.error && (
+                          <div className="text-danger text-[10px] mt-1">
+                            ⚠️ {source.details.error}
+                          </div>
                         )}
                       </div>
                     </CardBody>
