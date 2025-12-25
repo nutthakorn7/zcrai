@@ -21,9 +21,21 @@ export class AnalyticsService {
     const source = (alert.source || '').toLowerCase();
     const title = (alert.title || '').toLowerCase();
     const description = (alert.description || '').toLowerCase();
+
+    // Source-based categorization (highest priority)
+    // EDR sources
+    if (source.includes('sentinelone') || source.includes('crowdstrike')) {
+      return 'EDR';
+    }
+    
+    // Identity sources
+    if (source.includes('simulate') || source.includes('simulation')) {
+      return 'Identity';
+    }
+
     const combined = `${source} ${title} ${description}`;
 
-    // Identity-related
+    // Identity-related keywords
     if (combined.includes('identity') || 
         combined.includes('user') || 
         combined.includes('authentication') ||
