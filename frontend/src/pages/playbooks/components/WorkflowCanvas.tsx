@@ -137,7 +137,7 @@ export function WorkflowCanvas({
     return { initialNodes: nodes, initialEdges: edges };
   }, [steps]);
 
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
+  const [nodes, _setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
   const onConnect = useCallback(

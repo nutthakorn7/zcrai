@@ -35,12 +35,47 @@ export function InvestigationGraphWidget({ alertId, className }: InvestigationGr
     return () => window.removeEventListener('resize', updateSize);
   }, []);
 
-  // Fetch Real Graph Data if alertId is present
+  // Fetch Real Graph Data if alertId is present, otherwise show demo data
   useEffect(() => {
     if (alertId) {
         loadGraphData();
+    } else {
+        // Load demo data for dashboard display
+        loadDemoData();
     }
   }, [alertId]);
+
+  const loadDemoData = () => {
+    // Demo data showing a simulated lateral movement attack
+    const demoNodes = [
+      { id: 'alert-1', label: 'Ransomware Detected', type: 'alert', val: 25 },
+      { id: 'ip-1', label: '178.12.44.9', type: 'ip', properties: { value: '178.12.44.9' }, val: 15 },
+      { id: 'host-1', label: 'HR-PC', type: 'host', properties: { value: 'HR-PC' }, val: 18 },
+      { id: 'host-2', label: 'FileServer01', type: 'host', properties: { value: 'FileServer01' }, val: 18 },
+      { id: 'user-1', label: 'jsmith', type: 'user', properties: { value: 'jsmith' }, val: 12 },
+      { id: 'file-1', label: 'dllhostex.exe', type: 'file', properties: { value: 'dllhostex.exe' }, val: 10 },
+    ];
+
+    const demoLinks = [
+      { source: 'ip-1', target: 'host-1', label: 'connected' },
+      { source: 'host-1', target: 'alert-1', label: 'triggered' },
+      { source: 'user-1', target: 'host-1', label: 'logged_in' },
+      { source: 'file-1', target: 'host-1', label: 'executed' },
+      { source: 'host-1', target: 'host-2', label: 'lateral_move' },
+    ];
+
+    setGraphData({
+      nodes: demoNodes.map(n => ({
+        ...n,
+        color: getEntityColor(n.type),
+        icon: getEntityIcon(n.type)
+      })),
+      links: demoLinks.map(e => ({
+        ...e,
+        value: 2
+      }))
+    });
+  };
 
   const loadGraphData = async () => {
     if (!alertId) return;
