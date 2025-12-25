@@ -2,7 +2,23 @@
 import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import { Card, CardBody, CardHeader, Chip, Button, Spinner, Switch } from '@heroui/react';
 // import ForceGraph2D from 'react-force-graph-2d'; // Moved to lazy
-const ForceGraph2D = lazy(() => import('react-force-graph-2d'));
+// Safe lazy import with error handling
+const ForceGraph2D = lazy(async () => {
+  try {
+    return await import('react-force-graph-2d');
+  } catch (error) {
+    console.error("❌ Failed to load react-force-graph-2d:", error);
+    // Return a dummy component that renders nothing or an error message
+    // preventing the entire app from crashing
+    return { default: () => (
+      <div className="flex flex-col items-center justify-center h-full text-danger p-4 text-center">
+        <Icon.Alert className="w-8 h-8 mb-2" />
+        <p>Failed to load Graph Visualization library.</p>
+        <p className="text-xs opacity-50 mt-1">Check console for details.</p>
+      </div>
+    )};
+  }
+});
 import { api } from '../shared/api/api';
 import { Icon } from '../shared/ui';
 import { ComponentErrorBoundary } from './ComponentErrorBoundary';
