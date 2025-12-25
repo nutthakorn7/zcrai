@@ -201,7 +201,8 @@ Evidence: ${caseItem.evidence?.length || 0} items
   if (!caseItem) return <div className="p-10 text-center">Case not found</div>;
 
   // SLA Logic
-  const getSLAHours = (severity: string) => {
+  const getSLAHours = (severity: string | undefined | null) => {
+    if (!severity) return 24; // Default SLA
     switch(severity.toLowerCase()) {
         case 'critical': return 4;
         case 'high': return 8;
