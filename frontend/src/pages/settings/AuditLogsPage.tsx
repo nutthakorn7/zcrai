@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardBody, Button, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Chip, Input, Pagination, Spinner, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure } from "@heroui/react";
-import { api } from "../../shared/api/api";
+import { api } from "@/shared/api";
 
 
 interface AuditLog {
@@ -70,8 +70,8 @@ export default function AuditLogsPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold">Audit Logs</h1>
-          <p className="text-default-500">Track all user activities and system changes.</p>
+          <h1 className="text-3xl font-bold font-display tracking-tight text-foreground">Audit Logs</h1>
+          <p className="text-sm mt-1 text-foreground/60">Track all user activities and system changes.</p>
         </div>
         <Button color="primary" variant="flat" onPress={fetchLogs}>
           Refresh
@@ -109,12 +109,12 @@ export default function AuditLogsPage() {
             }
           >
             <TableHeader>
-              <TableColumn>TIMESTAMP</TableColumn>
-              <TableColumn>USER</TableColumn>
-              <TableColumn>ACTION</TableColumn>
-              <TableColumn>RESOURCE</TableColumn>
-              <TableColumn>IP ADDRESS</TableColumn>
-              <TableColumn>DETAILS</TableColumn>
+              <TableColumn className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">TIMESTAMP</TableColumn>
+              <TableColumn className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">USER</TableColumn>
+              <TableColumn className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">ACTION</TableColumn>
+              <TableColumn className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">RESOURCE</TableColumn>
+              <TableColumn className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">IP ADDRESS</TableColumn>
+              <TableColumn className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">DETAILS</TableColumn>
             </TableHeader>
             <TableBody 
               items={logs} 

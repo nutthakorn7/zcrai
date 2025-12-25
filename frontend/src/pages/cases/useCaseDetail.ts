@@ -1,9 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDisclosure } from '@heroui/react';
-import { CasesAPI } from '../../shared/api/cases';
-import { PlaybooksAPI } from '../../shared/api/playbooks';
-import { api } from '../../shared/api/api';
+import { CasesAPI, PlaybooksAPI, api } from '@/shared/api';
 import { useCaseSocket } from '../../shared/hooks/useCaseSocket';
 import { useAuth } from '../../shared/store/useAuth';
 

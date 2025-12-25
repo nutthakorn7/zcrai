@@ -3,7 +3,7 @@ import {
   Card, CardBody, Button, Input, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, 
   Chip, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure 
 } from "@heroui/react";
-import { api } from "../../shared/api/api";
+import { api } from "@/shared/api";
 
 interface Tenant {
   id: string;
@@ -58,18 +58,18 @@ export default function TenantPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Tenant Management</h1>
-        <Button color="primary" onPress={onOpen}>Create Tenant</Button>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold font-display tracking-tight text-foreground">Tenant Management</h1>
+        <Button color="primary" onPress={onOpen} className="font-bold">Create Tenant</Button>
       </div>
 
       <Card className="bg-content1">
         <CardBody>
           <Table aria-label="Tenants table">
             <TableHeader>
-              <TableColumn>NAME</TableColumn>
-              <TableColumn>STATUS</TableColumn>
-              <TableColumn>ACTIONS</TableColumn>
+              <TableColumn className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">NAME</TableColumn>
+              <TableColumn className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">STATUS</TableColumn>
+              <TableColumn className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">ACTIONS</TableColumn>
             </TableHeader>
             <TableBody emptyContent={"No tenants found."}>
               {tenants.map((tenant) => (

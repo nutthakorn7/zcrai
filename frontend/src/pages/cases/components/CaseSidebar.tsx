@@ -38,7 +38,7 @@ export const CaseSidebar = ({
                 <div className="flex flex-wrap justify-between items-center mb-4 gap-2">
                     <div className="flex items-center gap-2">
                         <UiIcon.Cpu className="w-5 h-5 text-secondary animate-pulse" />
-                        <h3 className="font-bold text-secondary">AI Investigator</h3>
+                        <h3 className="text-sm font-bold font-display text-secondary uppercase tracking-wider">AI Investigator</h3>
                     </div>
                      {!aiResult && (
                         <Button 
@@ -143,7 +143,7 @@ export const CaseSidebar = ({
             <EvidenceWidget caseId={caseItem.id} />
 
             <Card className="p-4 flex flex-col gap-4">
-                <h3 className="font-semibold border-b border-gray-700 pb-2">Case Info</h3>
+                <h3 className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em] border-b border-white/5 pb-2">Case Info</h3>
                 <div className="flex justify-between text-sm">
                     <span className="text-gray-400">Priority</span>
                     <span>{caseItem.priority}</span>
@@ -159,7 +159,7 @@ export const CaseSidebar = ({
             </Card>
 
             <Card className="p-4 flex flex-col gap-4">
-                <h3 className="font-semibold border-b border-gray-700 pb-2">Attachments</h3>
+                <h3 className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em] border-b border-white/5 pb-2">Attachments</h3>
                 
                 {/* Upload */}
                 <div className="flex gap-2">

@@ -1,8 +1,7 @@
 import { useState, useEffect } from "react";
 import { Button, Input, Select, SelectItem, Card, CardBody, Switch, Divider } from "@heroui/react";
-import { Icon } from "../../shared/ui";
-
-import { api } from "../../shared/api/api";
+import { api } from "@/shared/api";
+import { Icon } from "@/shared/ui";
 
 // Example Providers
 const PROVIDERS = [
@@ -66,10 +65,10 @@ export default function SSOPage() {
   return (
     <div className="space-y-6 max-w-4xl">
       <div>
-        <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-default-500 bg-clip-text text-transparent">
+        <h1 className="text-3xl font-bold font-display tracking-tight text-foreground">
           Single Sign-On (SSO)
         </h1>
-        <p className="text-default-500 mt-1">Configure enterprise authentication for your team</p>
+        <p className="text-foreground/60 mt-1">Configure enterprise authentication for your team</p>
       </div>
 
       <Card className="border border-default-200">
@@ -80,7 +79,7 @@ export default function SSOPage() {
                         <Icon.Key className="w-6 h-6 text-primary" />
                     </div>
                     <div>
-                        <h3 className="text-lg font-semibold">Enable SSO</h3>
+                        <h3 className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">Enable SSO</h3>
                         <p className="text-xs text-default-400">Allow users to sign in using your Identity Provider</p>
                     </div>
                 </div>
@@ -152,7 +151,7 @@ export default function SSOPage() {
                     color="primary" 
                     onPress={handleSave} 
                     isLoading={isLoading}
-                    className="font-medium shadow-lg shadow-primary/20"
+                    className="h-[44px] bg-primary hover:bg-primary/90 text-black font-bold font-display tracking-tight shadow-lg shadow-primary/20"
                 >
                     {isSaved ? 'Saved Successfully' : 'Save Configuration'}
                 </Button>

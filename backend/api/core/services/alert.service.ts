@@ -96,7 +96,7 @@ export class AlertService {
 
     // Auto-extract IOCs from description + rawData
     const textToScan = data.description + (data.rawData ? JSON.stringify(data.rawData) : '');
-    const extractedIOCs = await ObservableService.extract(textToScan, data.tenantId, undefined, alert.id);
+    const extractedIOCs = await ObservableService.extract(textToScan, data.tenantId, undefined, alert.id, 'system');
 
     // Auto-correlate after creation
     await this.correlate(alert.id);

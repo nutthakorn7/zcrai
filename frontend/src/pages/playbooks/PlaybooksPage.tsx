@@ -6,7 +6,7 @@ import {
   Spinner
 } from "@heroui/react";
 import { Icon } from '../../shared/ui';
-import { PlaybooksAPI, Playbook } from '../../shared/api/playbooks';
+import { PlaybooksAPI, Playbook } from '@/shared/api';
 import PlaybookEditor from './PlaybookEditor';
 
 // Client-side Templates (for quick start)
@@ -105,8 +105,8 @@ export default function PlaybooksPage() {
        {/* Page Header */}
        <div className="p-6 border-b border-white/5 flex justify-between items-center">
          <div>
-           <h1 className="text-2xl font-bold text-foreground">Automation Playbooks</h1>
-           <p className="text-sm text-default-500">Design and manage security automation workflows</p>
+           <h1 className="text-3xl font-bold font-display tracking-tight text-foreground">Automation Playbooks</h1>
+           <p className="text-sm mt-1 text-foreground/60">Design and manage security automation workflows</p>
          </div>
          <Button 
            color="primary" 
@@ -121,20 +121,22 @@ export default function PlaybooksPage() {
        <div className="flex flex-1 overflow-hidden">
          {/* Sidebar: Library */}
          <div className="w-80 border-r border-white/5 bg-content1/50 flex flex-col">
-            <div className="p-4 border-b border-white/5">
-                <h2 className="font-bold flex items-center gap-2 text-foreground"><Icon.Briefcase className="w-5 h-5 text-primary"/> Library</h2>
+            <div className="p-4 border-b border-white/5 bg-white/5">
+                <h2 className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em] flex items-center gap-2 mb-3">
+                    <Icon.Briefcase className="w-4 h-4 text-primary"/> Library
+                </h2>
                 <Input placeholder="Search playbooks..." size="sm" className="mt-2" startContent={<Icon.Search className="w-4 h-4 text-foreground/60"/>} />
            </div>
 
            {/* Enterprise ROI Stats */}
            <div className="p-4 grid grid-cols-2 gap-3 border-b border-white/5 bg-white/5">
-                <div className="bg-content1 rounded-lg p-3 border border-white/5">
-                    <div className="text-[10px] text-foreground/60 uppercase font-bold">Time Saved</div>
-                    <div className="text-xl font-mono font-bold text-success">124h</div>
+                <div className="bg-content1 rounded-lg p-3 border border-white/5 flex flex-col justify-center">
+                    <div className="text-[9px] text-foreground/40 uppercase font-black font-display tracking-widest">Time Saved</div>
+                    <div className="text-xl font-bold font-display text-success tracking-tight">124h</div>
                 </div>
-                <div className="bg-content1 rounded-lg p-3 border border-white/5">
-                    <div className="text-[10px] text-foreground/60 uppercase font-bold">Active</div>
-                    <div className="text-xl font-mono font-bold text-primary">{playbooks.filter(p => p.isActive).length}/{playbooks.length}</div>
+                <div className="bg-content1 rounded-lg p-3 border border-white/5 flex flex-col justify-center">
+                    <div className="text-[9px] text-foreground/40 uppercase font-black font-display tracking-widest">Active</div>
+                    <div className="text-xl font-bold font-display text-primary tracking-tight">{playbooks.filter(p => p.isActive).length}/{playbooks.length}</div>
                 </div>
            </div>
            

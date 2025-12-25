@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Card, CardBody, Input, Button, Image } from "@heroui/react";
-import { api } from "../../shared/api/api";
+import { api } from "@/shared/api";
 import { useNavigate } from "react-router-dom";
 
 export default function MFASetupPage() {
@@ -51,7 +51,7 @@ export default function MFASetupPage() {
     <div className="flex items-center justify-center min-h-screen bg-background p-4">
       <Card className="w-full max-w-md p-4">
         <CardBody>
-          <h1 className="text-2xl font-bold text-center mb-6 bg-gradient-to-r from-blue-500 to-purple-500 text-transparent bg-clip-text">
+          <h1 className="text-2xl font-bold text-center mb-6 font-display tracking-tight text-foreground">
             Setup MFA
           </h1>
 

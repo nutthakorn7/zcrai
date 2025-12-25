@@ -50,7 +50,7 @@ export function InvestigationGraphWidget({ alertId, className }: InvestigationGr
   const loadLatestCorrelated = async () => {
     try {
         setLoading(true);
-        const { api } = await import('../../../shared/api/api');
+        const { api } = await import('../../../shared/api');
         const res = await api.get('/graph/latest-correlated');
         
         if (res.data.success && res.data.data) {
@@ -120,7 +120,7 @@ export function InvestigationGraphWidget({ alertId, className }: InvestigationGr
     try {
         setLoading(true);
         // Dynamic import to avoid circular dep issues if any, or just standard import
-        const { api } = await import('../../../shared/api/api');
+        const { api } = await import('../../../shared/api');
         const res = await api.get(`/graph/alert/${alertId}`);
         if(res.data.success) {
             const { nodes, edges } = res.data.data;

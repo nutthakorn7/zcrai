@@ -57,6 +57,7 @@ export function Sidebar() {
       children: [
         { label: 'Log Viewer', path: '/logs' },
         { label: 'Threat Intel', path: '/threat-intel' },
+        { label: 'Investigations', path: '/investigations' },
         { label: 'Observables', path: '/observables' },
       ],
     },
@@ -138,8 +139,8 @@ export function Sidebar() {
             ${isExpanded ? 'w-auto opacity-100' : 'w-0 opacity-0'}
           `}
         >
-          <span className="text-lg font-semibold text-foreground whitespace-nowrap">
-            zcrAI
+          <span className="text-xl font-bold font-display text-foreground tracking-tight whitespace-nowrap">
+            zcr<span className="text-primary italic">AI</span>
           </span>
         </div>
       </div>
@@ -199,7 +200,7 @@ export function Sidebar() {
                         ${isExpanded ? 'w-auto opacity-100' : 'w-0 opacity-0'}
                       `}
                     >
-                      <span className="text-sm font-medium whitespace-nowrap">
+                      <span className="text-sm font-semibold font-display tracking-tight whitespace-nowrap">
                         {entry.label}
                       </span>
                       <svg

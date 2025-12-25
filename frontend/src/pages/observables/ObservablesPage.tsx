@@ -1,19 +1,12 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { Button, Chip, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Input, Card, CardBody, Progress, Pagination } from "@heroui/react";
 import { Icon } from '../../shared/ui';
-import { ObservablesAPI, Observable } from '../../shared/api/observables';
+import { ObservablesAPI, Observable } from '../../shared/api';
 import { ObservableDetailModal } from '../../components/ObservableDetailModal';
 import { AddObservableModal } from '../../components/observables/AddObservableModal';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 
-const IOC_TYPE_COLORS: Record<string, string> = {
-  ip: 'primary',
-  domain: 'secondary',
-  email: 'success',
-  url: 'warning',
-  hash: 'danger',
-  file: 'default',
-};
+import { IOC_TYPE_COLORS } from '../../shared/config/theme';
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const IOC_TYPE_ICONS: Record<string, any> = {
@@ -194,8 +187,16 @@ export default function ObservablesPage() {
         const TypeIcon = IOC_TYPE_ICONS[observable.type] || Icon.Document;
         return (
           <div className="flex items-center gap-2">
-            <TypeIcon className="w-4 h-4" />
-            <Chip size="sm" color={IOC_TYPE_COLORS[observable.type] as "primary" | "secondary" | "success" | "warning" | "danger" | "default"} variant="flat" className="capitalize">
+            <TypeIcon className="w-4 h-4" style={{ color: IOC_TYPE_COLORS[observable.type.toLowerCase()] || '#ccc' }} />
+            <Chip 
+              size="sm" 
+              variant="dot" 
+              style={{ 
+                borderColor: `${IOC_TYPE_COLORS[observable.type.toLowerCase()]}44`, 
+                color: IOC_TYPE_COLORS[observable.type.toLowerCase()] 
+              }} 
+              className="capitalize bg-transparent border-none"
+            >
               {observable.type}
             </Chip>
           </div>
@@ -207,7 +208,21 @@ export default function ObservablesPage() {
             onClick={() => handleOpenDetail(observable)}
           >
             {observable.value}
-          </span>
+            </span>
+        );
+      case "source":
+        return (
+          <div className="flex items-center gap-1.5">
+            {observable.source === 'manual' ? (
+              <Chip size="sm" variant="flat" color="default" startContent={<Icon.User className="w-3 h-3" />}>
+                Manual
+              </Chip>
+            ) : (
+              <Chip size="sm" variant="flat" color="primary" startContent={<Icon.Zap className="w-3 h-3 text-primary" />}>
+                AI Extracted
+              </Chip>
+            )}
+          </div>
         );
       case "status":
         return getStatusChip(observable);
@@ -264,7 +279,7 @@ export default function ObservablesPage() {
       {/* Sticky Glass Header */}
       <header className="sticky top-0 z-40 w-full backdrop-blur-xl bg-background/60 border-b border-white/5 h-16 flex items-center justify-between px-8">
          <div className="flex items-center gap-3">
-           <h1 className="text-2xl font-bold tracking-tight text-foreground">Observables</h1>
+           <h1 className="text-3xl font-bold font-display tracking-tight text-foreground">Observables</h1>
            <span className="text-sm text-foreground/60 border-l border-white/10 pl-3">Indicator Management</span>
          </div>
          
@@ -325,9 +340,9 @@ export default function ObservablesPage() {
             </div>
 
             <div className="space-y-4">
-                <h3 className="text-xs font-bold text-foreground/50 uppercase tracking-wider flex justify-between items-center">
+                <h3 className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em] flex justify-between items-center">
                     Type
-                    {typeFilter.length > 0 && <span onClick={() => setTypeFilter([])} className="text-[10px] text-primary cursor-pointer hover:underline">Clear</span>}
+                    {typeFilter.length > 0 && <span onClick={() => setTypeFilter([])} className="text-[10px] text-primary cursor-pointer hover:underline normal-case tracking-normal">Clear</span>}
                 </h3>
                 <div className="space-y-1">
                     {facets.types.map(f => (
@@ -354,9 +369,9 @@ export default function ObservablesPage() {
             <div className="w-full h-px bg-white/5" />
 
             <div className="space-y-4">
-                <h3 className="text-xs font-bold text-foreground/50 uppercase tracking-wider flex justify-between items-center">
+                <h3 className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em] flex justify-between items-center">
                     Status
-                    {statusFilter && <span onClick={() => setStatusFilter('')} className="text-[10px] text-primary cursor-pointer hover:underline">Clear</span>}
+                    {statusFilter && <span onClick={() => setStatusFilter('')} className="text-[10px] text-primary cursor-pointer hover:underline normal-case tracking-normal">Clear</span>}
                 </h3>
                 <div className="space-y-1">
                     {facets.statuses.map(f => (
@@ -375,7 +390,7 @@ export default function ObservablesPage() {
             <div className="w-full h-px bg-white/5" />
 
             <div className="space-y-4">
-                <h3 className="text-xs font-bold text-foreground/50 uppercase tracking-wider">Top Tags</h3>
+                <h3 className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">Top Tags</h3>
                 <div className="flex flex-wrap gap-2">
                     {facets.tags.map(f => (
                          <Chip 
@@ -396,21 +411,27 @@ export default function ObservablesPage() {
             {/* Analytics Section */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <Card className="bg-content1/50 border border-white/5">
-                    <CardBody className="p-4 flex flex-row items-center gap-4 h-32">
-                        <div className="h-full w-32 flex-shrink-0">
+                    <CardBody className="p-4 flex flex-row items-center gap-4 h-40">
+                        <div className="h-full w-40 flex-shrink-0">
                             <ResponsiveContainer width="100%" height="100%">
                                 <PieChart>
                                     <Pie 
                                         data={typeDistribution} 
                                         cx="50%" 
                                         cy="50%" 
-                                        innerRadius={30} 
-                                        outerRadius={45} 
+                                        innerRadius={38} 
+                                        outerRadius={60} 
                                         paddingAngle={5} 
                                         dataKey="value"
+                                        stroke="none"
+                                        cornerRadius={8}
                                     >
                                         {typeDistribution.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={IOC_TYPE_COLORS[entry.name] ? `var(--nextui-${IOC_TYPE_COLORS[entry.name]})` : '#8884d8'} />
+                                            <Cell 
+                                                key={`cell-${index}`} 
+                                                fill={IOC_TYPE_COLORS[entry.name.toLowerCase()] || '#8884d8'} 
+                                                style={{ filter: `drop-shadow(0 0 6px ${IOC_TYPE_COLORS[entry.name.toLowerCase()]}AA)` }}
+                                            />
                                         ))}
                                     </Pie>
                                 </PieChart>
@@ -419,13 +440,13 @@ export default function ObservablesPage() {
                         <div className="flex-1">
                              <h3 className="text-sm font-medium text-foreground/70 mb-2">Type Distribution</h3>
                               <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-                                  {typeDistribution.slice(0, 4).map(t => (
-                                      <div key={t.name} className="flex items-center justify-between text-xs">
-                                          <div className="flex items-center gap-1.5">
-                                              <div className={`w-2 h-2 rounded-full bg-${IOC_TYPE_COLORS[t.name] || 'default'}-500`} />
-                                              <span className="capitalize opacity-70">{t.name}</span>
+                                  {typeDistribution.slice(0, 6).map(t => (
+                                      <div key={t.name} className="flex items-center justify-between text-[11px]">
+                                          <div className="flex items-center gap-2">
+                                              <div className="w-2.5 h-2.5 rounded-full shadow-[0_0_8px_rgba(255,255,255,0.2)]" style={{ backgroundColor: IOC_TYPE_COLORS[t.name.toLowerCase()] || '#8884d8' }} />
+                                              <span className="capitalize text-foreground/70 font-medium">{t.name}</span>
                                           </div>
-                                          <span className="font-mono">{t.value}</span>
+                                          <span className="font-mono text-foreground/40">{t.value}</span>
                                       </div>
                                   ))}
                               </div>
@@ -434,7 +455,7 @@ export default function ObservablesPage() {
                 </Card>
 
                 <Card className="bg-content1/50 border border-white/5">
-                    <CardBody className="p-4 flex flex-col justify-center h-32">
+                    <CardBody className="p-4 flex flex-col justify-center h-40">
                         <div className="flex justify-between items-end mb-2">
                            <h3 className="text-sm font-medium text-foreground/70">Enrichment Queue</h3>
                            <span className="text-xs text-foreground/50">{observables.filter(o => o.enrichedAt).length}/{observables.length} processed</span>
@@ -490,6 +511,7 @@ export default function ObservablesPage() {
           <TableColumn key="risk" className="w-16">RISK</TableColumn>
           <TableColumn key="type">TYPE</TableColumn>
           <TableColumn key="value">VALUE</TableColumn>
+          <TableColumn key="source">SOURCE</TableColumn>
           <TableColumn key="tags">TAGS</TableColumn>
           <TableColumn key="enrichment">INTELLIGENCE</TableColumn>
           <TableColumn key="lastSeen">LAST SEEN</TableColumn>

@@ -5,7 +5,7 @@ import {
   Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, 
   Chip, Tabs, Tab
 } from "@heroui/react";
-import { api } from '../../shared/api/api';
+import { api } from '../../shared/api';
 import { Icon } from '../../shared/ui';
 import { 
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,

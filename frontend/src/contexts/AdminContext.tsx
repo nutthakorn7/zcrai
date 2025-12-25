@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react'
-import { api } from '../shared/api/api'
+import { api } from '../shared/api';
 
 interface Tenant {
   id: string
@@ -35,6 +35,7 @@ export function AdminProvider({ children, userRole }: { children: ReactNode; use
     if (!isSuperAdmin) return
     setLoading(true)
     try {
+      const { api } = await import('../shared/api');
       const res = await api.get('/admin/tenants')
       setTenants(res.data)
     } catch (e) {

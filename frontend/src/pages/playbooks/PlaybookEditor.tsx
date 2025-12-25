@@ -7,8 +7,7 @@ import {
   Popover, PopoverTrigger, PopoverContent
 } from "@heroui/react";
 import { Icon } from '../../shared/ui';
-import { Playbook, PlaybookStep, PlaybooksAPI, Action, PlaybookExecution } from '../../shared/api/playbooks';
-import { CasesAPI, Case } from '../../shared/api/cases';
+import { Playbook, PlaybookStep, PlaybooksAPI, Action, PlaybookExecution, CasesAPI, Case } from '@/shared/api';
 import { WorkflowCanvas } from './components/WorkflowCanvas';
 
 interface PlaybookEditorProps {

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardBody, Button, Input, Divider } from "@heroui/react";
 import { toast } from 'react-hot-toast';
-import { api } from '../../shared/api/api';
+import { api } from '../../shared/api';
 import { Loader2, Trash2 } from 'lucide-react';
 
 export default function RetentionSettingsPage() {
@@ -68,14 +68,14 @@ export default function RetentionSettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Data Retention Policy</h1>
-        <p className="text-default-500">Configure automated data cleanup schedules to meet compliance requirements.</p>
+        <h1 className="text-3xl font-bold font-display tracking-tight text-foreground">Data Retention Policy</h1>
+        <p className="text-foreground/60 text-sm mt-1">Configure automated data cleanup schedules to meet compliance requirements.</p>
       </div>
 
       <Card>
         <CardBody className="gap-6 p-6">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold">Retention Periods (Days)</h3>
+            <h3 className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">Retention Periods (Days)</h3>
             <Button
               color="danger"
               variant="flat"

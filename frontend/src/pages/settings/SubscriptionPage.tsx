@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Card, CardBody, CardHeader, Button, Progress, Chip } from "@heroui/react";
 import { Icon } from '../../shared/ui';
-import { BillingAPI } from '../../shared/api/billing';
+import { BillingAPI } from '@/shared/api';
 
 interface SubscriptionData {
   subscription: {
@@ -78,9 +78,9 @@ export default function SubscriptionPage() {
 
     return (
         <div className="p-6 h-screen overflow-y-auto animate-fade-in">
-             <div className="mb-8">
-                <h1 className="text-2xl font-bold flex items-center gap-2">
-                    <Icon.CreditCard className="w-6 h-6 text-primary"/> 
+             <div className="mb-6">
+                <h1 className="text-3xl font-bold font-display tracking-tight text-foreground flex items-center gap-3">
+                    <Icon.CreditCard className="w-8 h-8 text-primary"/> 
                     Subscription & Billing
                 </h1>
                 <p className="text-foreground/60 text-sm mt-1">Manage your plan and view usage.</p>
@@ -90,8 +90,8 @@ export default function SubscriptionPage() {
                 {/* Current Plan Card */}
                 <Card className="bg-gradient-to-br from-primary-50 to-primary-100 dark:from-primary-900/20 dark:to-primary-900/10 border-primary/20">
                     <CardHeader className="pb-0 pt-6 px-6 flex-col items-start">
-                        <small className="text-default-500 uppercase font-bold">Current Plan</small>
-                        <h3 className="font-bold text-2xl uppercase text-primary">{subscription.tier}</h3>
+                        <small className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">Current Plan</small>
+                        <h3 className="font-bold text-3xl font-display uppercase text-primary tracking-tight">{subscription.tier}</h3>
                     </CardHeader>
                     <CardBody className="overflow-visible py-6">
                         <div className="flex flex-col gap-2">
@@ -108,7 +108,7 @@ export default function SubscriptionPage() {
                 {/* Usage Stats */}
                 <Card className="col-span-2 bg-white/5 border border-white/5">
                     <CardHeader className="pb-0 pt-6 px-6 flex-col items-start">
-                         <h3 className="font-bold text-lg">Resource Usage</h3>
+                         <h3 className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">Resource Usage</h3>
                     </CardHeader>
                     <CardBody className="py-6 px-6 gap-6">
                         {/* Users */}
@@ -148,7 +148,7 @@ export default function SubscriptionPage() {
                 </Card>
             </div>
 
-            <h2 className="text-xl font-bold mb-4">Available Plans</h2>
+            <h2 className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em] mb-4">Available Plans</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                  {/* FREE */}
                  <PlanCard 
@@ -191,9 +191,9 @@ interface PlanCardProps {
 
 const PlanCard = ({ title, price, features, featured, current, onSelect }: PlanCardProps) => (
     <Card className={`border ${featured ? 'border-primary' : 'border-white/10'} bg-white/5`}>
-        <CardHeader className="pb-0 pt-6 px-6 flex-col items-start gap-2">
-             <h3 className="font-bold text-2xl">{title}</h3>
-             <p className="text-xl text-default-500">{price}</p>
+        <CardHeader className="pb-0 pt-6 px-6 flex-col items-start gap-1">
+             <h3 className="font-bold text-2xl font-display tracking-tight">{title}</h3>
+             <p className="text-xl font-bold font-display text-foreground/50">{price}</p>
         </CardHeader>
         <CardBody className="py-6 px-6">
             <ul className="space-y-2 mb-6">

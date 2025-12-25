@@ -1,8 +1,8 @@
 import { useEffect, useState, useCallback } from "react";
 import { Card, CardBody, Button, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Input, useDisclosure, Tabs, Tab } from "@heroui/react";
 import { useNavigate } from "react-router-dom";
-import { api } from "../../shared/api/api";
-import { Icon } from "../../shared/ui";
+import { api } from "@/shared/api";
+import { Icon } from "@/shared/ui";
 import { usePageContext } from "../../contexts/PageContext";
 
 interface InputRequest {
@@ -87,10 +87,10 @@ export default function InputsPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-end">
         <div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-default-500 bg-clip-text text-transparent">
+          <h1 className="text-3xl font-bold font-display tracking-tight text-foreground">
             Input Requests
           </h1>
-          <p className="text-default-500 mt-1">Provide context for automated workflows</p>
+          <p className="text-foreground/60 text-sm mt-1">Provide context for automated workflows</p>
         </div>
         <div className="flex items-center gap-3">
           <Tabs 
@@ -130,10 +130,10 @@ export default function InputsPage() {
             }}
           >
             <TableHeader>
-              <TableColumn>PLAYBOOK / STEP</TableColumn>
-              <TableColumn>CASE</TableColumn>
-              <TableColumn>REQUESTED</TableColumn>
-              <TableColumn align="center">ACTIONS</TableColumn>
+              <TableColumn className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">PLAYBOOK / STEP</TableColumn>
+              <TableColumn className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">CASE</TableColumn>
+              <TableColumn className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">REQUESTED</TableColumn>
+              <TableColumn className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]" align="center">ACTIONS</TableColumn>
             </TableHeader>
             <TableBody emptyContent={isLoading ? "Loading requests..." : "No input requests found"}>
               {inputs.map((item: InputRequest) => (

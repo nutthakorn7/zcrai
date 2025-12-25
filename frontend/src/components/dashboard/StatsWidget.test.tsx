@@ -1,10 +1,10 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { StatsWidget } from './widgets';
-import { api } from '../../shared/api/api';
+import { api } from '../../shared/api';
 
 // Mock API
-vi.mock('../../shared/api/api', () => ({
+vi.mock('../../shared/api', () => ({
   api: {
     get: vi.fn()
   }

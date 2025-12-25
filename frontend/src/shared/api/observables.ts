@@ -10,6 +10,7 @@ export interface Observable {
   isMalicious?: boolean;
   tlpLevel: string;
   tags: string[];
+  source: string;
   firstSeen: string;
   lastSeen: string;
   sightingCount: string;

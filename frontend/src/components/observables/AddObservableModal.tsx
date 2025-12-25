@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, Input, Select, SelectItem, Switch } from "@heroui/react";
-import { ObservablesAPI } from '../../shared/api/observables';
+import { ObservablesAPI } from '@/shared/api';
 import { Icon } from '../../shared/ui';
 
 interface AddObservableModalProps {

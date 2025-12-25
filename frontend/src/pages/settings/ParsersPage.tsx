@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Card, Button, Input, Textarea, Select, SelectItem, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Chip, useDisclosure } from '@heroui/react';
 import { Plus, Edit, Trash2, TestTube } from 'lucide-react';
-import { api } from '../../shared/api/api';
+import { api } from '../../shared/api';
 import toast from 'react-hot-toast';
 
 interface Parser {
@@ -129,8 +129,8 @@ export default function ParsersPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold">Custom Parsers</h1>
-          <p className="text-sm text-default-600">Create custom log parsing rules</p>
+          <h1 className="text-3xl font-bold font-display tracking-tight text-foreground">Custom Parsers</h1>
+          <p className="text-foreground/60 text-sm mt-1">Create custom log parsing rules</p>
         </div>
         <Button color="primary" startContent={<Plus className="w-4 h-4" />} onPress={openCreateModal}>
           New Parser
@@ -140,11 +140,11 @@ export default function ParsersPage() {
       <Card className="p-6">
         <Table aria-label="Parsers table">
           <TableHeader>
-            <TableColumn>NAME</TableColumn>
-            <TableColumn>TYPE</TableColumn>
-            <TableColumn>PATTERN</TableColumn>
-            <TableColumn>STATUS</TableColumn>
-            <TableColumn>ACTIONS</TableColumn>
+            <TableColumn className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">NAME</TableColumn>
+            <TableColumn className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">TYPE</TableColumn>
+            <TableColumn className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">PATTERN</TableColumn>
+            <TableColumn className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">STATUS</TableColumn>
+            <TableColumn className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">ACTIONS</TableColumn>
           </TableHeader>
           <TableBody emptyContent="No parsers found" isLoading={loading}>
             {parsers.map((parser) => (

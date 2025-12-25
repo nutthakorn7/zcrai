@@ -12,7 +12,7 @@ import {
   Spinner,
   Divider
 } from '@heroui/react';
-import { Alert, AlertCorrelation, AlertsAPI } from '../../shared/api/alerts';
+import { AlertCorrelation, Alert, AlertsAPI } from '@/shared/api';
 import { CorrelationCard } from './CorrelationCard';
 import { Icon } from '../../shared/ui';
 

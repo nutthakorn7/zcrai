@@ -4,7 +4,7 @@ import {
   Chip, Dropdown, DropdownTrigger, DropdownMenu, DropdownItem, 
   Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure, Select, SelectItem
 } from "@heroui/react";
-import { api } from "../../shared/api/api";
+import { api } from "@/shared/api";
 import { useAuth } from "../../shared/store/useAuth";
 
 interface User {
@@ -70,20 +70,20 @@ export default function UserPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">User Management</h1>
-        <Button color="primary" onPress={onOpen}>Invite User</Button>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold font-display tracking-tight text-foreground">User Management</h1>
+        <Button color="primary" onPress={onOpen} className="font-bold">Invite User</Button>
       </div>
 
       <Card className="bg-content1">
         <CardBody>
           <Table aria-label="Users table">
             <TableHeader>
-              <TableColumn>EMAIL</TableColumn>
-              <TableColumn>ROLE</TableColumn>
-              <TableColumn>STATUS</TableColumn>
-              <TableColumn>MFA</TableColumn>
-              <TableColumn>ACTIONS</TableColumn>
+              <TableColumn className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">EMAIL</TableColumn>
+              <TableColumn className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">ROLE</TableColumn>
+              <TableColumn className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">STATUS</TableColumn>
+              <TableColumn className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">MFA</TableColumn>
+              <TableColumn className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">ACTIONS</TableColumn>
             </TableHeader>
             <TableBody emptyContent={"No users found."}>
               {users.map((user) => (

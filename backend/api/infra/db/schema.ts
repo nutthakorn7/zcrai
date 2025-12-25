@@ -398,9 +398,10 @@ export const observables = pgTable('observables', {
   isMalicious: boolean('is_malicious'), // null = unknown
   tlpLevel: text('tlp_level').default('amber').notNull(), // 'white', 'green', 'amber', 'red'
   tags: jsonb('tags'), // Array of tags
+  source: text('source').default('manual').notNull(), // 'manual', 'system', 'ai'
   firstSeen: timestamp('first_seen').defaultNow().notNull(),
   lastSeen: timestamp('last_seen').defaultNow().notNull(),
-  sightingCount: text('sighting_count').default('1').notNull(), // Store as text to avoid int type
+  sightingCount: varchar('sighting_count', { length: 32 }).default('1').notNull(),
   enrichmentData: jsonb('enrichment_data'),
   enrichedAt: timestamp('enriched_at'),
   createdAt: timestamp('created_at').defaultNow().notNull(),

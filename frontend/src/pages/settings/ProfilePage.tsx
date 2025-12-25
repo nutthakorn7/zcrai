@@ -3,9 +3,9 @@ import {
   Card, CardBody, CardHeader, Button, Input, Avatar, Chip, Switch, Divider, 
   Textarea
 } from "@heroui/react";
-import { api } from "../../shared/api/api";
+import { api } from "@/shared/api";
 import { useAuth } from "../../shared/store/useAuth";
-import { Icon } from "../../shared/ui";
+import { Icon } from "@/shared/ui";
 
 interface Session {
   id: string;
@@ -177,7 +177,7 @@ export default function ProfilePage() {
           </div>
           <div className="flex-1">
              <div className="flex items-center gap-3">
-                 <h1 className="text-2xl font-bold">{name}</h1>
+                 <h1 className="text-3xl font-bold font-display tracking-tight text-foreground">{name}</h1>
                  <Chip color="primary" variant="flat" size="sm">Admin</Chip>
                  <Chip color="warning" variant="flat" size="sm">Pro Plan</Chip>
              </div>
@@ -202,10 +202,10 @@ export default function ProfilePage() {
               <Card className="bg-content1/50 border border-white/5">
                   <CardHeader className="pb-0 pt-6 px-6 flex justify-between items-start">
                       <div>
-                        <h3 className="text-lg font-bold">Personal Information</h3>
-                        <p className="text-sm text-foreground/60">Update your personal details and contact info.</p>
+                        <h3 className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">Personal Information</h3>
+                        <p className="text-foreground/60 text-sm mt-1">Update your personal details and contact info.</p>
                       </div>
-                      <Icon.User className="w-5 h-5 text-foreground/30" />
+                      <Icon.User className="w-4 h-4 text-foreground/30" />
                   </CardHeader>
                   <CardBody className="p-6 grid grid-cols-2 gap-4">
                       <Input label="Display Name" value={name} onValueChange={setName} variant="bordered" />
@@ -222,10 +222,10 @@ export default function ProfilePage() {
               <Card className="bg-content1/50 border border-white/5">
                   <CardHeader className="pb-0 pt-6 px-6 flex justify-between items-start">
                       <div>
-                        <h3 className="text-lg font-bold">Security Center</h3>
-                        <p className="text-sm text-foreground/60">Manage your password and authentication methods.</p>
+                        <h3 className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">Security Center</h3>
+                        <p className="text-foreground/60 text-sm mt-1">Manage your password and authentication methods.</p>
                       </div>
-                      <Icon.Shield className="w-5 h-5 text-success" />
+                      <Icon.Shield className="w-4 h-4 text-success" />
                   </CardHeader>
                   <CardBody className="p-6 space-y-6">
                       <div className="p-4 rounded-lg bg-content2/50 border border-white/5 flex items-center justify-between">
@@ -260,8 +260,8 @@ export default function ProfilePage() {
                <Card className="bg-content1/50 border border-white/5">
                   <CardHeader className="pb-0 pt-6 px-6">
                       <div>
-                        <h3 className="text-lg font-bold">Active Sessions</h3>
-                        <p className="text-sm text-foreground/60">Manage devices logged into your account.</p>
+                        <h3 className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">Active Sessions</h3>
+                        <p className="text-foreground/60 text-sm mt-1">Manage devices logged into your account.</p>
                       </div>
                   </CardHeader>
                   <CardBody className="p-6">
@@ -297,7 +297,7 @@ export default function ProfilePage() {
               {/* Notification Preferences */}
               <Card className="bg-content1/50 border border-white/5">
                   <CardHeader className="pb-0 pt-6 px-6">
-                      <h3 className="text-lg font-bold">Notifications</h3>
+                      <h3 className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">Notifications</h3>
                   </CardHeader>
                   <CardBody className="p-6 space-y-4">
                       <div className="flex justify-between items-center">
@@ -318,7 +318,7 @@ export default function ProfilePage() {
                {/* API Usage */}
                <Card className="bg-content1/50 border border-white/5">
                   <CardHeader className="pb-0 pt-6 px-6">
-                      <h3 className="text-lg font-bold">API Usage</h3>
+                      <h3 className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">API Usage</h3>
                   </CardHeader>
                   <CardBody className="p-6">
                       <div className="mb-4">

@@ -1,7 +1,7 @@
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import CaseBoardPage from './index';
-import { CasesAPI } from '../../shared/api/cases';
+import { CasesAPI } from '@/shared/api';
 import { MemoryRouter } from 'react-router-dom';
 
 // Mock dependencies

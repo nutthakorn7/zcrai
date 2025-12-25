@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import SystemPage from './SystemPage';
-import { SystemAPI } from '../../shared/api/system';
+import { SystemAPI } from '@/shared/api';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 
 // Mock SystemAPI

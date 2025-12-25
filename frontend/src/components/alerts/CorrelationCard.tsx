@@ -1,5 +1,5 @@
 import { Card, CardBody, Chip } from '@heroui/react';
-import { AlertCorrelation, Alert } from '../../shared/api/alerts';
+import { AlertCorrelation, Alert } from '@/shared/api';
 import { Icon } from '../../shared/ui';
 
 interface CorrelationCardProps {

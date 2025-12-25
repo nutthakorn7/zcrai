@@ -19,7 +19,7 @@ const ForceGraph2D = lazy(async () => {
     )};
   }
 });
-import { api } from '../shared/api/api';
+import { api } from '../shared/api';
 import { Icon } from '../shared/ui';
 import { ComponentErrorBoundary } from './ComponentErrorBoundary';
 

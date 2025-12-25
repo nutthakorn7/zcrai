@@ -1,7 +1,7 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { CorrelationCard } from './CorrelationCard';
-import { AlertCorrelation } from '../../shared/api/alerts';
+import { AlertCorrelation } from '@/shared/api';
 
 describe('CorrelationCard', () => {
     const mockCorrelation: AlertCorrelation = {

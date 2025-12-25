@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Card, CardBody, Button, Chip, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure, Divider, Progress, Tabs, Tab, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell } from '@heroui/react';
-import { api } from '../shared/api/api';
+import { api } from '../shared/api';
 import { Icon } from '../shared/ui';
 import toast from 'react-hot-toast';
 

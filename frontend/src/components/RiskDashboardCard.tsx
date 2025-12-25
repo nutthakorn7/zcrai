@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { useState, useEffect } from 'react';
 import { Card, CardBody, CardHeader, Chip, Progress, Divider, Tooltip } from '@heroui/react';
-import { api } from '../shared/api/api';
+import { api } from '../shared/api';
 import { Icon } from '../shared/ui';
 import { 
   AreaChart, Area, XAxis, YAxis, Tooltip as ChartTooltip, 

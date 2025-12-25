@@ -6,7 +6,7 @@ import {
 } from "@heroui/react";
 import { Icon } from '../../shared/ui';
 import { DateRangePicker } from '../../components/DateRangePicker';
-import { api } from '../../shared/api/api';
+import { api } from '../../shared/api';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -127,7 +127,7 @@ export function CustomReportTab() {
 
                         {/* Date Range */}
                         <div className="flex flex-col gap-2">
-                             <span className="text-small text-default-500">Date Range</span>
+                             <span className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">Date Range</span>
                              <DateRangePicker 
                                 startDate={startDate} 
                                 endDate={endDate} 
@@ -137,7 +137,7 @@ export function CustomReportTab() {
 
                         {/* Filters */}
                         <div className="flex flex-col gap-2">
-                           <span className="text-small text-default-500">
+                           <span className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">
                                 {source === 'cases' ? 'Status' : 'Severity'}
                            </span>
                            {source === 'cases' ? (
@@ -183,7 +183,7 @@ export function CustomReportTab() {
             {generated && (
                 <div className="animate-fade-in space-y-4">
                     <div className="flex justify-between items-center">
-                        <h3 className="text-lg font-semibold">Results ({reportData.length})</h3>
+                        <h3 className="text-lg font-bold font-display tracking-tight">Results ({reportData.length})</h3>
                         <Button 
                             color="secondary" 
                             variant="flat" 
@@ -197,12 +197,12 @@ export function CustomReportTab() {
 
                     <Table aria-label="Report Data Table">
                         <TableHeader>
-                            <TableColumn>ID</TableColumn>
-                            <TableColumn>TITLE</TableColumn>
-                            <TableColumn>SEVERITY</TableColumn>
-                            <TableColumn>{source === 'cases' ? 'ASSIGNEE' : 'SOURCE'}</TableColumn>
-                            <TableColumn>STATUS</TableColumn>
-                            <TableColumn>DATE</TableColumn>
+                            <TableColumn className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">ID</TableColumn>
+                            <TableColumn className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">TITLE</TableColumn>
+                            <TableColumn className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">SEVERITY</TableColumn>
+                            <TableColumn className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">{source === 'cases' ? 'ASSIGNEE' : 'SOURCE'}</TableColumn>
+                            <TableColumn className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">STATUS</TableColumn>
+                            <TableColumn className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">DATE</TableColumn>
                         </TableHeader>
                         <TableBody items={reportData} emptyContent="No data found matching filters.">
                             {(item) => (

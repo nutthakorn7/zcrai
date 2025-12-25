@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Card, CardBody, Chip, Skeleton } from '@heroui/react';
-import { api } from '../../../shared/api/api';
+import { api } from '../../../shared/api';
 import { Icon } from '../../../shared/ui';
 
 interface AIMetrics {

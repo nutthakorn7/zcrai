@@ -1,7 +1,7 @@
 import { Card, CardBody, Chip, Skeleton } from "@heroui/react";
 import { useEffect, useState } from "react";
 import { Icon } from "../../shared/ui";
-import { api } from "../../shared/api/api"; // Assuming api export exists
+import { api } from '../../shared/api';
 
 export function AIWorkforceWidget() {
     const [stats, setStats] = useState<any>(null);

@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Chip, Button, Switch, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Input, Select, SelectItem, Textarea, Tabs, Tab, Popover, PopoverTrigger, PopoverContent } from "@heroui/react";
 import { Icon } from '../../shared/ui';
-import { DetectionRulesAPI, DetectionRule } from '../../shared/api/detection-rules';
-import { PlaybooksAPI, Playbook } from '../../shared/api/playbooks';
+import { DetectionRulesAPI, DetectionRule, PlaybooksAPI, Playbook } from '@/shared/api';
 import { MitreHeatmap } from '../../components/MitreHeatmap';
 
 export default function DetectionRulesPage() {
@@ -230,8 +229,8 @@ export default function DetectionRulesPage() {
     <div className="p-6 min-h-screen bg-background space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Detection Rules</h2>
-          <p className="text-foreground/60">Manage SIGMA-based detection logic and automation</p>
+          <h2 className="text-3xl font-bold font-display tracking-tight text-foreground">Detection Rules</h2>
+          <p className="text-foreground/60 text-sm mt-1">Manage SIGMA-based detection logic and automation</p>
         </div>
         <div className="flex gap-4 items-center">
              <Input 
@@ -281,12 +280,12 @@ export default function DetectionRulesPage() {
       {activeTab === 'manage' ? (
           <Table aria-label="Detection Rules Table">
             <TableHeader>
-              <TableColumn>STATUS</TableColumn>
-              <TableColumn>NAME</TableColumn>
-              <TableColumn>SEVERITY</TableColumn>
-              <TableColumn>ACTIONS</TableColumn>
-              <TableColumn>LAST RUN</TableColumn>
-              <TableColumn>MANAGE</TableColumn>
+              <TableColumn className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">STATUS</TableColumn>
+              <TableColumn className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">NAME</TableColumn>
+              <TableColumn className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">SEVERITY</TableColumn>
+              <TableColumn className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">ACTIONS</TableColumn>
+              <TableColumn className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">LAST RUN</TableColumn>
+              <TableColumn className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">MANAGE</TableColumn>
             </TableHeader>
             <TableBody items={filteredRules} isLoading={loading} emptyContent="No detection rules found">
               {(item) => (

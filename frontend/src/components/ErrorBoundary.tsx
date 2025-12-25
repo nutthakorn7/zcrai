@@ -30,7 +30,7 @@ export class ErrorBoundary extends Component<Props, State> {
     console.error('ErrorBoundary caught an error:', error, errorInfo);
     this.setState({ errorInfo });
     
-    // TODO: Send to error tracking service (e.g., Sentry)
+    // Error reporting service could be integrated here in the future
     // if (process.env.NODE_ENV === 'production') {
     //   sendToErrorTracking(error, errorInfo);
     // }

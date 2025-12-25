@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Card, CardBody, Button, Input, Select, SelectItem, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure, Chip, Divider, Textarea } from '@heroui/react';
-import { api } from '../../shared/api/api';
+import { api } from '../../shared/api';
 import toast from 'react-hot-toast';
 import { Icon } from '../../shared/ui';
 
@@ -149,8 +149,8 @@ export default function EDRActionsPage() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold">EDR Response Actions</h1>
-          <p className="text-sm text-default-600">Execute endpoint detection & response actions</p>
+          <h1 className="text-3xl font-bold font-display tracking-tight text-foreground">EDR Response Actions</h1>
+          <p className="text-foreground/60 text-sm mt-1">Execute endpoint detection & response actions</p>
         </div>
         <Chip color="warning" variant="flat" startContent={<Icon.Alert className="w-4 h-4" />}>
           Actions are logged for audit
@@ -161,7 +161,7 @@ export default function EDRActionsPage() {
         {/* Action Form */}
         <Card className="lg:col-span-2 bg-content1/50 backdrop-blur-md border border-white/5">
           <CardBody className="p-6 space-y-6">
-            <h2 className="text-lg font-semibold">Execute Action</h2>
+            <h2 className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em] mb-4">Execute Action</h2>
             
             {/* Provider Selection */}
             <Select
@@ -275,7 +275,7 @@ export default function EDRActionsPage() {
         {/* Recent Actions */}
         <Card className="bg-content1/50 backdrop-blur-md border border-white/5">
           <CardBody className="p-6">
-            <h2 className="text-lg font-semibold mb-4">Recent Actions</h2>
+            <h2 className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em] mb-4">Recent Actions</h2>
             
             {actionLogs.length === 0 ? (
               <p className="text-sm text-foreground/60 text-center py-8">

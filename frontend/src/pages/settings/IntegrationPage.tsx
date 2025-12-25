@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Card, CardBody, Button, Input, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure, Chip, Select, SelectItem, Switch, Divider } from "@heroui/react";
-import { api } from "../../shared/api/api";
-import { usePageContext } from "../../contexts/PageContext";
+import { api } from "@/shared/api";
+import { usePageContext } from "@/contexts/PageContext";
 import { Icon } from '../../shared/ui';
 
 // ⭐ Import Logos
@@ -541,7 +541,7 @@ export default function IntegrationPage() {
             url: s1Url,
             token: s1Token,
             label: label || 'SentinelOne',
-            fetchSettings: s1FetchSettings, // ⭐ ส่ง fetch settings
+            fetchSettings: s1FetchSettings,
           });
         } else if (modalType === 'cs') {
           await api.post('/integrations/crowdstrike', {
@@ -549,7 +549,7 @@ export default function IntegrationPage() {
             clientId: csClientId,
             clientSecret: csSecret,
             label: label || 'CrowdStrike',
-            fetchSettings: csFetchSettings, // ⭐ ส่ง fetch settings
+            fetchSettings: csFetchSettings,
           });
         } else if (modalType === 'ai') {
           await api.post(`/integrations/ai/${aiProvider}`, {
@@ -725,16 +725,16 @@ export default function IntegrationPage() {
     <div className="space-y-8">
       {/* ⭐ Header Section - Simple */}
       <div>
-        <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-default-500 bg-clip-text text-transparent">
+        <h1 className="text-3xl font-bold font-display tracking-tight text-foreground">
           Integrations
         </h1>
-        <p className="text-default-600 mt-1">Connect your security tools and AI providers</p>
+        <p className="text-foreground/60 text-sm mt-1">Connect your security tools and AI providers</p>
       </div>
 
       {/* ⭐ Security Integrations Section */}
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-default-600 flex items-center gap-2">
-          <Icon.Wrench className="w-5 h-5 text-secondary" />
+        <h2 className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em] flex items-center gap-2">
+          <Icon.Wrench className="w-4 h-4 text-secondary" />
           Security & Cloud Tools
         </h2>
         

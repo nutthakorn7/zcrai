@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Card, CardBody, Button, Input, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure, Chip, Select, SelectItem, Divider } from "@heroui/react";
-import { api } from "../../shared/api/api";
+import { api } from "@/shared/api";
 import { usePageContext } from "../../contexts/PageContext";
 import { Icon } from '../../shared/ui';
 import { Plus, Check, Zap } from 'lucide-react';
@@ -172,10 +172,10 @@ export default function NotificationChannelsPage() {
     <div className="space-y-8 w-full p-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-default-500 bg-clip-text text-transparent">
+          <h1 className="text-3xl font-bold font-display tracking-tight text-foreground">
             Notification Channels
           </h1>
-          <p className="text-default-500 mt-1">Configure real-time alerts for Slack and Microsoft Teams</p>
+          <p className="text-foreground/60 text-sm mt-1">Configure real-time alerts for Slack and Microsoft Teams</p>
         </div>
         <Button color="primary" startContent={<Plus className="w-4 h-4" />} onPress={handleOpenAdd}>
             Add Channel

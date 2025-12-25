@@ -26,9 +26,9 @@ export const SSOCallbackPage = () => {
     }, [searchParams, navigate]);
 
     return (
-        <div className="flex h-screen items-center justify-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-            <span className="ml-2">Completing login...</span>
+        <div className="flex h-screen flex-col items-center justify-center bg-background">
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary mb-4"></div>
+            <span className="text-sm font-bold font-display uppercase tracking-[0.2em] text-foreground/60">Completing login...</span>
         </div>
     );
 };

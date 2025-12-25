@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Dropdown, DropdownTrigger, DropdownMenu, DropdownItem, Button, Badge } from '@heroui/react';
 import { Icon } from '../shared/ui';
-import { api } from '../shared/api/api';
+import { api } from '../shared/api';
 import { ApprovalsAPI, ApprovalRequest } from '../shared/api/approvals';
 import { useNavigate } from 'react-router-dom';
 

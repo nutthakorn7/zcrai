@@ -68,8 +68,8 @@ export const CaseHeader = ({
         <div className="flex justify-between items-start w-full">
             <div className="flex flex-col gap-2 flex-1 w-full">
                 <Button variant="light" size="sm" startContent={<Icon.ArrowLeft className="w-4 h-4"/>} onPress={() => navigate('/cases')} className="w-fit -ml-3">Back to Board</Button>
-                <div className="flex items-center gap-3 flex-wrap">
-                    <h1 className="text-2xl font-bold">{caseItem.title || 'Untitled Case'}</h1>
+                <div className="flex items-center gap-4 flex-wrap">
+                    <h1 className="text-3xl font-bold font-display tracking-tight text-foreground">{caseItem.title || 'Untitled Case'}</h1>
                     {caseItem.severity && <Chip color={caseItem.severity === 'critical' ? 'danger' : caseItem.severity === 'high' ? 'warning' : 'primary'}>{caseItem.severity}</Chip>}
                     
                     {slaDeadline && caseItem.status !== 'resolved' && caseItem.status !== 'closed' && (
@@ -77,7 +77,7 @@ export const CaseHeader = ({
                             variant="flat" 
                             color={isBreached ? "danger" : (timeLeftMs < 3600000 ? "warning" : "success")}
                             startContent={<Icon.Clock className="w-3 h-3" />}
-                            className="font-mono"
+                            className="font-display font-medium"
                         >
                             {isBreached ? `Breached by ${formatTimeLeft(timeLeftMs)}` : `${formatTimeLeft(timeLeftMs)} remaining`}
                         </Chip>
@@ -85,10 +85,10 @@ export const CaseHeader = ({
                 </div>
                 
                 {/* Meta Row */}
-                <div className="flex flex-wrap justify-between items-center w-full gap-y-2 text-gray-400 text-sm">
+                <div className="flex flex-wrap justify-between items-center w-full gap-y-2 text-foreground/40 text-xs mt-1">
                     <div className="flex items-center gap-4">
-                        <span>Created {formatDate(createdAt)}</span>
-                        {caseItem.status && <span>• Status: {caseItem.status}</span>}
+                        <span className="font-medium">Created {formatDate(createdAt)}</span>
+                        {caseItem.status && <span className="uppercase tracking-[0.1em] font-bold text-[10px]">Status: {caseItem.status}</span>}
                     </div>
                     
                     {activeUsers.length > 0 && (

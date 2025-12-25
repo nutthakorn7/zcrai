@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Chip, Spinner } from '@heroui/react';
-import { api } from '../../shared/api/api';
+import { api } from '../../shared/api';
 import { Icon } from '../../shared/ui';
 import { AIWorkforceWidget } from './AIWorkforceWidget';
 import { 

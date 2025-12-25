@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Card, CardBody, Button, Chip, Spinner } from "@heroui/react";
 import { FileText, Download, ShieldCheck, Lock } from 'lucide-react';
-import { api } from '../../shared/api/api';
+import { api } from '../../shared/api';
 
 export default function ReportsPage() {
     const [generating, setGenerating] = useState<string | null>(null);
@@ -33,11 +33,11 @@ export default function ReportsPage() {
         <div className="p-6 space-y-6">
             <div className="flex justify-between items-center">
                 <div>
-                    <h1 className="text-2xl font-bold flex items-center gap-2">
+                    <h1 className="text-3xl font-bold font-display tracking-tight text-foreground flex items-center gap-2">
                         <FileText className="w-6 h-6 text-primary" />
                         Compliance Reports
                     </h1>
-                    <p className="text-gray-400">Generate audit-ready PDF reports for compliance standards.</p>
+                    <p className="text-foreground/60 text-sm mt-1">Generate audit-ready PDF reports for compliance standards.</p>
                 </div>
             </div>
 
@@ -52,8 +52,8 @@ export default function ReportsPage() {
                             <Chip size="sm" variant="flat" color="primary">Available</Chip>
                         </div>
                         <div>
-                            <h3 className="text-xl font-bold">SOC 2 Type II Report</h3>
-                            <p className="text-gray-400 text-sm mt-1">
+                            <h3 className="text-xl font-bold font-display tracking-tight">SOC 2 Type II Report</h3>
+                            <p className="text-foreground/60 text-sm mt-2">
                                 Comprehensive audit of Access Controls. Includes user roster, role assignments, MFA status, and recent access logs.
                             </p>
                         </div>
@@ -81,8 +81,8 @@ export default function ReportsPage() {
                             <Chip size="sm" variant="flat" color="success">Available</Chip>
                         </div>
                         <div>
-                            <h3 className="text-xl font-bold">ISO 27001 Report</h3>
-                            <p className="text-gray-400 text-sm mt-1">
+                            <h3 className="text-xl font-bold font-display tracking-tight">ISO 27001 Report</h3>
+                            <p className="text-foreground/60 text-sm mt-2">
                                 Information Security Management metrics. Covers Incident Response times, Alert Volumes, and Risk Handling verdicts.
                             </p>
                         </div>

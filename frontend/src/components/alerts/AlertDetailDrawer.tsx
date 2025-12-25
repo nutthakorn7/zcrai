@@ -8,7 +8,7 @@ import {
   Spinner,
   ScrollShadow
 } from '@heroui/react';
-import { Alert, AlertCorrelation, AlertsAPI } from '../../shared/api/alerts';
+import { Alert, AlertCorrelation, AlertsAPI } from '../../shared/api';
 import { CorrelationCard } from './CorrelationCard';
 import { AlertTriangle, CheckCircle, Activity, ShieldCheck, BookOpen, ThumbsUp, ThumbsDown, Share2 } from 'lucide-react';
 import { Icon } from '../../shared/ui';
@@ -83,7 +83,7 @@ export function AlertDetailDrawer({ alert, isOpen, onClose }: AlertDetailDrawerP
     try {
         setIsLoadingSuggestions(true);
         // Assuming AlertsAPI has been updated or we call api directly
-        const { api } = await import('../../shared/api/api');
+        const { api } = await import('../../shared/api');
         const res = await api.get(`/playbooks/suggestions?alertId=${alert.id}`);
         if(res.data.success) {
             setSuggestions(res.data.data.suggestions);

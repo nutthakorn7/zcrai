@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Card, CardBody, Chip, Progress, Divider, Button, Tooltip as HerouiTooltip } from '@heroui/react';
-import { api } from '../shared/api/api';
+import { api } from '../shared/api';
 import { Icon } from '../shared/ui';
 import { Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, Area, ComposedChart } from 'recharts';
 import { useNavigate } from 'react-router-dom';

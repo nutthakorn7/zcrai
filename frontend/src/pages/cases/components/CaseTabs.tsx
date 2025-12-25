@@ -49,14 +49,14 @@ export const CaseTabs = ({
         <Tabs aria-label="Case Options" color="primary" variant="underlined">
             <Tab key="overview" title="Overview">
                 <div className="flex flex-col gap-6 mt-4">
-                    <Card className="p-4">
-                        <h3 className="text-lg font-semibold mb-2">Description</h3>
+                    <Card className="p-5 bg-content1 border border-white/5">
+                        <h3 className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em] mb-3">Description</h3>
                         <p className="text-gray-300 whitespace-pre-wrap">{caseItem.description || 'No description provided.'}</p>
                     </Card>
 
                     {/* Comments */}
                     <div className="flex flex-col gap-4">
-                        <h3 className="text-lg font-semibold">Activity & Comments</h3>
+                        <h3 className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">Activity & Comments</h3>
                         
                         {/* Input */}
                         <div className="flex flex-col gap-2">
@@ -143,7 +143,7 @@ export const CaseTabs = ({
                         {copilotMessages.length === 0 && (
                             <div className="text-center py-12">
                                 <Icon.Cpu className="w-12 h-12 mx-auto text-secondary/50 mb-4" />
-                                <h3 className="text-lg font-semibold text-foreground/70">Investigation Copilot</h3>
+                                <h3 className="text-xl font-bold font-display text-foreground/70">Investigation Copilot</h3>
                                 <p className="text-sm text-foreground/50 mt-2 max-w-md mx-auto">
                                     Ask questions about this case. I have access to the case details, alerts, and evidence.
                                 </p>

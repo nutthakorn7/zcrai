@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Progress, Spinner } from '@heroui/react';
+import { api } from '../../../shared/api';
 import { Icon } from '../../../shared/ui';
-import { api } from '../../../shared/api/api';
 
 interface ThreatTag {
     tag: string;
