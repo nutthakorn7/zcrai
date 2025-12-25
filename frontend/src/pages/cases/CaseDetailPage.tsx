@@ -262,13 +262,14 @@ Evidence: ${caseItem.evidence?.length || 0} items
                 )}
             </div>
             
-            {/* Presence Bar & Meta */}
-            <div className="flex items-center gap-4 text-gray-400 text-sm">
+            {/* Meta Row */}
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-gray-400 text-sm">
                 <span>Created {formatDate(caseItem.createdAt)}</span>
+                {caseItem.status && <span>• Status: {caseItem.status}</span>}
                 
                 {activeUsers.length > 0 && (
-                     <div className="flex items-center gap-2 border-l border-white/10 pl-4">
-                        <span className="text-xs font-semibold text-primary uppercase tracking-widest">LIVE</span>
+                     <div className="flex items-center gap-2 border-l border-white/10 pl-4 ml-auto">
+                        <span className="text-xs font-semibold text-success uppercase tracking-widest animate-pulse">LIVE</span>
                         <AvatarGroup isBordered max={4} size="sm">
                             {activeUsers.map(u => (
                                 <Tooltip key={u.id} content={u.name}>
