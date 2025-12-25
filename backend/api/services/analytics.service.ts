@@ -137,9 +137,20 @@ export class AnalyticsService {
       // 2. Categorization (Identity, Email, Cloud, EDR)
       const categoryNode = this.categorizeAlert(alert);
 
-      // 3. Enrichment
-      const isEnriched = !!alert.aiAnalysis;
-      const enrichmentNode = isEnriched ? 'AI Enriched' : 'Raw Event';
+      // 3. Enrichment (MITRE ATT&CK Tactic)
+      // Extract MITRE Tactic from rawData or aiAnalysis
+      const rawData = alert.rawData as any;
+      let mitreTactic = rawData?.mitre_tactic || rawData?.MitreTactic || rawData?.tactic || '';
+      
+      // Fallback: try to get from aiAnalysis
+      if (!mitreTactic && alert.aiAnalysis) {
+        mitreTactic = (alert.aiAnalysis as any)?.mitreTactic || '';
+      }
+      
+      // Clean up tactic name (some APIs return with underscores)
+      const enrichmentNode = mitreTactic 
+        ? mitreTactic.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())
+        : 'Other';
 
       // 4. Agent Triage (Escalation Status)
       const isEscalated = !!alert.caseId || !!alert.promotedCaseId || ['new', 'investigating'].includes(alert.status);

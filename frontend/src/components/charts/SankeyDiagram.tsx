@@ -12,9 +12,20 @@ const getNodeColor = (nodeName: string): string => {
   if (nodeName === 'Cloud') return '#06b6d4'; // cyan
   if (nodeName === 'EDR') return '#f97316'; // orange
   
-  // Enrichment
-  if (nodeName === 'AI Enriched') return '#10b981'; // green
-  if (nodeName === 'Raw Event') return '#6b7280'; // gray
+  // Enrichment (MITRE ATT&CK Tactics)
+  if (nodeName === 'Initial Access') return '#ef4444'; // red
+  if (nodeName === 'Execution') return '#f97316'; // orange
+  if (nodeName === 'Persistence') return '#eab308'; // yellow
+  if (nodeName === 'Privilege Escalation') return '#84cc16'; // lime
+  if (nodeName === 'Defense Evasion') return '#22c55e'; // green
+  if (nodeName === 'Credential Access') return '#14b8a6'; // teal
+  if (nodeName === 'Discovery') return '#06b6d4'; // cyan
+  if (nodeName === 'Lateral Movement') return '#3b82f6'; // blue
+  if (nodeName === 'Collection') return '#8b5cf6'; // violet
+  if (nodeName === 'Command And Control') return '#a855f7'; // purple
+  if (nodeName === 'Exfiltration') return '#d946ef'; // fuchsia
+  if (nodeName === 'Impact') return '#ec4899'; // pink
+  if (nodeName === 'Other') return '#6b7280'; // gray
   
   // Triage
   if (nodeName === 'Escalated') return '#ef4444'; // red
