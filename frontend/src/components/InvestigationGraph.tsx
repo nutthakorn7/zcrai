@@ -5,6 +5,7 @@ import { Card, CardBody, CardHeader, Chip, Button, Spinner, Switch } from '@hero
 const ForceGraph2D = lazy(() => import('react-force-graph-2d'));
 import { api } from '../shared/api/api';
 import { Icon } from '../shared/ui';
+import { ComponentErrorBoundary } from './ComponentErrorBoundary';
 
 interface GraphNode {
   id: string;
@@ -242,6 +243,7 @@ export function InvestigationGraph({ caseId, alertId, className }: Investigation
       <CardBody className="p-0 flex-1 min-h-[400px]">
         <div ref={containerRef} className="relative w-full h-full bg-content2/30 rounded-b-lg overflow-hidden">
           {dimensions.width > 0 && dimensions.height > 0 && (
+          <ComponentErrorBoundary>
           <Suspense fallback={<div className="flex justify-center items-center h-full"><Spinner /></div>}>
           <ForceGraph2D
             ref={graphRef}
@@ -301,6 +303,7 @@ export function InvestigationGraph({ caseId, alertId, className }: Investigation
             onEngineStop={() => graphRef.current?.zoomToFit(400)}
           />
           </Suspense>
+          </ComponentErrorBoundary>
           )}
 
           {/* Legend */}

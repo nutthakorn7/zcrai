@@ -17,6 +17,9 @@ export default defineConfig({
     setupFiles: './src/test/setup.ts',
     css: true,
   },
+  optimizeDeps: {
+    include: ['react-force-graph-2d', 'force-graph', 'three']
+  },
   build: {
     chunkSizeWarningLimit: 1000,
     minify: 'esbuild',
