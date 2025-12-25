@@ -173,9 +173,42 @@ export function InvestigationGraph({ caseId, alertId, className }: Investigation
     })),
   };
 
+  // Responsive sizing logic
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+
+  useEffect(() => {
+    const updateDimensions = () => {
+      if (containerRef.current) {
+        setDimensions({
+          width: containerRef.current.offsetWidth,
+          height: containerRef.current.offsetHeight
+        });
+      }
+    };
+
+    // Initial measure
+    updateDimensions();
+
+    // Observer
+    const observer = new ResizeObserver(() => {
+       updateDimensions();
+       // Force graph re-center/fit after resize
+       if (graphRef.current) {
+         graphRef.current.zoomToFit(200);
+       }
+    });
+    
+    if (containerRef.current) {
+      observer.observe(containerRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <Card className={`bg-content1/50 border border-white/5 ${className}`}>
-      <CardHeader className="flex items-center justify-between px-6 pt-6">
+    <Card className={`bg-content1/50 border border-white/5 flex flex-col ${className}`}>
+      <CardHeader className="flex items-center justify-between px-6 pt-6 shrink-0">
         <div className="flex items-center gap-3">
           <div className="p-2 rounded-lg bg-secondary/20">
             <Icon.Global className="w-5 h-5 text-secondary" />
@@ -200,10 +233,12 @@ export function InvestigationGraph({ caseId, alertId, className }: Investigation
         </div>
       </CardHeader>
 
-      <CardBody className="p-0">
-        <div className="relative h-[400px] bg-content2/30 rounded-b-lg overflow-hidden">
+      <CardBody className="p-0 flex-1 min-h-[400px]">
+        <div ref={containerRef} className="relative w-full h-full bg-content2/30 rounded-b-lg overflow-hidden">
           <ForceGraph2D
             ref={graphRef}
+            width={dimensions.width}
+            height={dimensions.height}
             graphData={forceGraphData}
             nodeLabel={(node: any) => {
                 let label = `${node.type}: ${node.label}`;
