@@ -2,11 +2,11 @@ import { useEffect, useState } from 'react';
 import { 
   Button, Card, CardBody, Input, Chip, 
   Modal, ModalContent, ModalHeader, ModalBody, ModalFooter,
-  Textarea, Select, SelectItem, ScrollShadow,
+  Textarea, ScrollShadow,
   Spinner
 } from "@heroui/react";
 import { Icon } from '../../shared/ui';
-import { PlaybooksAPI, Playbook, PlaybookStep } from '../../shared/api/playbooks';
+import { PlaybooksAPI, Playbook } from '../../shared/api/playbooks';
 import PlaybookEditor from './PlaybookEditor';
 
 // Client-side Templates (for quick start)
@@ -27,11 +27,6 @@ export default function PlaybooksPage() {
   // Create Form State
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [steps, setSteps] = useState<PlaybookStep[]>([]);
-  
-  // Step Form (in Modal)
-  const [newStepName, setNewStepName] = useState('');
-  const [newStepType, setNewStepType] = useState<'manual' | 'automation'>('manual');
 
   // Selected Playbook for Editing
   const [selectedPlaybook, setSelectedPlaybook] = useState<Playbook | null>(null);
@@ -55,19 +50,12 @@ export default function PlaybooksPage() {
   const handleSelectTemplate = (t: any) => {
     setTitle(t.title);
     setDescription(t.description);
-    setSteps([
-        { name: 'Start', type: 'manual', order: 1, description: 'Trigger Event' },
-        { name: 'Analyze', type: 'automation', order: 2, description: 'Run analysis script' },
-        { name: 'Decision', type: 'manual', order: 3, description: 'Human approval' },
-    ]);
-    setNewStepName('');
     setIsModalOpen(true);
   };
 
   const handleOpenCreate = () => {
     setTitle('');
     setDescription('');
-    setSteps([]);
     setIsModalOpen(true);
   };
 
@@ -78,7 +66,7 @@ export default function PlaybooksPage() {
       const newPlaybook = await PlaybooksAPI.create({
         title,
         description,
-        steps,
+        steps: [], // Start with empty steps
         triggerType: 'manual',
         isActive: true
       });
@@ -110,24 +98,6 @@ export default function PlaybooksPage() {
           console.error(e);
           alert('Failed to delete playbook');
       }
-  };
-
-  const addStepToModal = () => {
-    if (!newStepName) return;
-    setSteps([...steps, {
-      name: newStepName,
-      type: newStepType,
-      order: steps.length + 1,
-      description: newStepType === 'manual' ? 'Manual instruction' : undefined
-    }]);
-    setNewStepName('');
-    setNewStepType('manual');
-  };
-
-  const removeStepFromModal = (index: number) => {
-    const newSteps = [...steps];
-    newSteps.splice(index, 1);
-    setSteps(newSteps);
   };
 
   return (
@@ -245,52 +215,6 @@ export default function PlaybooksPage() {
                   value={description}
                   onValueChange={setDescription}
                 />
-                
-                <div className="border border-white/10 rounded-lg p-4 mt-2">
-                  <h3 className="border-b border-white/10 pb-2 mb-3 text-sm font-semibold">Steps Definition</h3>
-                  
-                  {/* Step List */}
-                  <div className="flex flex-col gap-2 mb-4">
-                    {steps.length === 0 && <p className="text-sm text-gray-500 italic">No steps added yet.</p>}
-                    {steps.map((step, idx) => (
-                      <div key={idx} className="flex justify-between items-center bg-content2 p-2 rounded">
-                        <div className="flex items-center gap-2">
-                          <Chip size="sm">{idx + 1}</Chip>
-                          <span className="font-medium">{step.name}</span>
-                          <Chip size="sm" variant="flat" color={step.type === 'automation' ? "secondary" : "default"}>
-                            {step.type}
-                          </Chip>
-                        </div>
-                        <Button isIconOnly size="sm" color="danger" variant="light" onPress={() => removeStepFromModal(idx)}>
-                          <Icon.Delete className="w-4 h-4"/>
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Add Step */}
-                  <div className="flex gap-2 items-end">
-                    <Input 
-                      label="New Step Name" 
-                      size="sm"
-                      value={newStepName}
-                      onValueChange={setNewStepName}
-                      className="flex-grow"
-                    />
-                    <Select 
-                      label="Type" 
-                      size="sm" 
-                      className="w-40"
-                      selectedKeys={[newStepType]}
-                      onChange={(e) => setNewStepType(e.target.value as any)}
-                    >
-                      <SelectItem key="manual">Manual</SelectItem>
-                      <SelectItem key="automation">Automation</SelectItem>
-                    </Select>
-                    <Button size="sm" color="primary" onPress={addStepToModal}>Add</Button>
-                  </div>
-                </div>
-
               </ModalBody>
               <ModalFooter>
                 <Button variant="flat" onPress={onClose}>Cancel</Button>

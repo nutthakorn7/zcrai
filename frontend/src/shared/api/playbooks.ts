@@ -3,11 +3,13 @@ import { api } from './api';
 export interface PlaybookStep {
   id?: string;
   name: string;
-  type: 'manual' | 'automation';
+  type: 'manual' | 'automation' | 'condition';
   order?: number;
   description?: string;
   actionId?: string;
   config?: any;
+  positionX?: number;
+  positionY?: number;
 }
 
 export interface Playbook {

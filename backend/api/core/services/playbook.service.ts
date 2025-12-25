@@ -1,5 +1,5 @@
 import { db } from '../../infra/db'
-import { playbooks, playbookSteps, playbookExecutions, playbookExecutionSteps, cases, approvals, playbookInputs } from '../../infra/db/schema'
+import { playbooks, playbookSteps, playbookExecutions, playbookExecutionSteps, cases, approvals, playbookInputs, alerts } from '../../infra/db/schema'
 import { eq, and, desc } from 'drizzle-orm'
 
 export class PlaybookService {
@@ -46,7 +46,9 @@ export class PlaybookService {
         order: index + 1,
         description: step.description,
         actionId: step.actionId,
-        config: step.config
+        config: step.config,
+        positionX: step.positionX,
+        positionY: step.positionY
       }))
       await db.insert(playbookSteps).values(stepsToInsert)
     }
@@ -79,7 +81,9 @@ export class PlaybookService {
         order: index + 1,
         description: step.description,
         actionId: step.actionId,
-        config: step.config
+        config: step.config,
+        positionX: step.positionX,
+        positionY: step.positionY
       }))
       if (stepsToInsert.length > 0) {
         await db.insert(playbookSteps).values(stepsToInsert)
@@ -156,17 +160,166 @@ export class PlaybookService {
     })
   }
 
-  static async updateStepStatus(tenantId: string, executionId: string, stepId: string, status: string, result?: any) {
-    await db.update(playbookExecutionSteps)
-      .set({
-        status, // 'completed', 'skipped', 'failed', 'in_progress', 'waiting_for_approval'
-        result,
-        completedAt: ['completed', 'failed', 'skipped'].includes(status) ? new Date() : null
-      })
-      .where(eq(playbookExecutionSteps.id, stepId))
 
-    return { success: true }
+
+
+
+
+    // ... (previous code)
+
+  // Helper: Resolve Variables in Config
+  private static resolveVariables(config: any, context: any): any {
+    if (typeof config === 'string') {
+        // Replace {{ key }}
+        return config.replace(/\{\{\s*([\w\.]+)\s*\}\}/g, (match, key) => {
+            const keys = key.split('.');
+            let value = context;
+            for (const k of keys) {
+                value = value?.[k];
+            }
+            return value !== undefined ? value : match; // Return original if not found
+        });
+    } else if (Array.isArray(config)) {
+        return config.map(item => this.resolveVariables(item, context));
+    } else if (typeof config === 'object' && config !== null) {
+        const resolved: any = {};
+        for (const key in config) {
+            resolved[key] = this.resolveVariables(config[key], context);
+        }
+        return resolved;
+    }
+    return config;
   }
+
+    // Helper: Evaluate Condition
+    private static evaluateCondition(condition: string, context: any): boolean {
+        // Simple parser: "variable operator value"
+        // e.g. "{{case.severity}} == critical"
+        try {
+            // Resolve variable side
+            const resolvedCondition = this.resolveVariables(condition, context);
+            
+            // Split by operators
+            const operators = ['==', '!=', '>', '<', 'contains'];
+            let operator = '';
+            for (const op of operators) {
+                if (resolvedCondition.includes(` ${op} `)) {
+                    operator = op;
+                    break;
+                }
+            }
+
+            if (!operator) return false;
+
+            const [left, right] = resolvedCondition.split(` ${operator} `).map((s: string) => s.trim().replace(/^['"]|['"]$/g, '')); // Strip quotes
+
+            switch (operator) {
+                case '==': return left == right;
+                case '!=': return left != right;
+                case '>': return Number(left) > Number(right);
+                case '<': return Number(left) < Number(right);
+                case 'contains': return left.includes(right);
+                default: return false;
+            }
+        } catch (e) {
+            console.error('Condition Evaluation Failed:', e);
+            return false;
+        }
+    }
+
+    // Orchestrator: Trigger Next Step
+    static async triggerNextStep(tenantId: string, executionId: string, completedStepId: string) {
+        console.log(`[Playbook] Triggering next step after ${completedStepId}`);
+
+        // 1. Get Completed Step & Execution Context
+        const completedStep = await db.query.playbookExecutionSteps.findFirst({
+            where: eq(playbookExecutionSteps.id, completedStepId),
+            with: {
+                step: true,
+                execution: {
+                    with: { case: true }
+                }
+            }
+        });
+
+        if (!completedStep || !completedStep.step) return;
+
+        // 2. Determine Next Step Order
+        let nextOrder = completedStep.step.order + 1;
+
+        // Check for Branching Logic in Config
+        if (completedStep.step.type === 'condition' || ((completedStep.step.config as any)?.transitions)) {
+            const config = completedStep.step.config as any;
+            
+            if (config?.condition) {
+                 // Fetch Alerts for Context (Reuse logic)
+                const associatedAlerts = await db.query.alerts.findMany({
+                    where: eq(alerts.caseId, completedStep.execution.caseId)
+                });
+                const context = {
+                    case: completedStep.execution.case,
+                    alerts: associatedAlerts,
+                    alert: associatedAlerts[0]
+                };
+
+                const isTrue = this.evaluateCondition(config.condition, context);
+                console.log(`[Playbook] Condition '${config.condition}' evaluated to: ${isTrue}`);
+
+                if (isTrue && config.true_step) {
+                    nextOrder = parseInt(config.true_step); // Jump to specific order
+                } else if (!isTrue && config.false_step) {
+                    nextOrder = parseInt(config.false_step);
+                }
+                // If no jump defined for result, default to nextOrder (sequential)
+            }
+        }
+
+        // 3. Find Next Step Record
+        const nextStep = await db.query.playbookExecutionSteps.findFirst({
+            where: and(
+                eq(playbookExecutionSteps.executionId, executionId),
+                eq(playbookExecutionSteps.status, 'pending')
+            ), 
+            with: {
+                step: true
+            }
+            // We need to filter by order, but we can't easily join in 'where' with drizzle's query builder here efficiently 
+            // without fully fetching or using raw sql. 
+            // Better strategy: Fetch all pending steps and find the one matching order.
+        });
+
+        // 4. Optimization: Fetch specific next step by finding the template step first
+        // Find the template step with this order for this playbook
+        const nextTemplateStep = await db.query.playbookSteps.findFirst({
+            where: and(
+                eq(playbookSteps.playbookId, completedStep.step.playbookId),
+                eq(playbookSteps.order, nextOrder)
+            )
+        });
+
+        if (!nextTemplateStep) {
+            console.log('[Playbook] End of playbook reached (no next step).');
+            // Update Execution Status to Completed
+            await db.update(playbookExecutions)
+                .set({ status: 'completed', completedAt: new Date() })
+                .where(eq(playbookExecutions.id, executionId));
+            return;
+        }
+
+        // Find the corresponding execution step
+        const nextExecStep = await db.query.playbookExecutionSteps.findFirst({
+            where: and(
+                eq(playbookExecutionSteps.executionId, executionId),
+                eq(playbookExecutionSteps.stepId, nextTemplateStep.id)
+            )
+        });
+
+        if (nextExecStep) {
+            console.log(`[Playbook] Executing next step: ${nextTemplateStep.name} (ID: ${nextExecStep.id})`);
+            // Execute it!
+            await this.executeStep(tenantId, executionId, nextExecStep.id);
+        }
+    }
 
   // ==================== AUTOMATED EXECUTION ====================
   static async executeStep(tenantId: string, executionId: string, stepId: string) {
@@ -175,11 +328,22 @@ export class PlaybookService {
       where: eq(playbookExecutionSteps.id, stepId),
       with: {
         step: true, // Config is in the template step
-        execution: true // To get caseId
+        execution: {
+            with: {
+                case: true
+            }
+        } 
       }
     });
 
     if (!step || !step.step) throw new Error('Step not found');
+
+    // Handle Conditional Step (Virtual Step)
+    if (step.step.type === 'condition') {
+        await this.updateStepStatus(tenantId, executionId, stepId, 'completed', { result: 'evaluated' });
+        // updateStepStatus will triggerNextStep
+        return { success: true, message: 'Condition Evaluated' };
+    }
 
     // 2. Check type
     if (step.step.type === 'approval') {
@@ -239,9 +403,25 @@ export class PlaybookService {
     try {
         // 4. Resolve Action
         const actionId = step.step.actionId;
-        const config = step.step.config as Record<string, any>; // Inputs
+        let config = step.step.config as Record<string, any>; // Inputs
 
         if (!actionId) throw new Error('No Action ID configured');
+
+        // RESOLVE VARIABLES
+        if (config && step.execution.caseId) {
+            // Fetch associated alerts manually for context
+            const associatedAlerts = await db.query.alerts.findMany({
+                where: eq(alerts.caseId, step.execution.caseId)
+            });
+
+            const context = {
+                case: step.execution.case,
+                alerts: associatedAlerts,
+                alert: associatedAlerts[0] // Alias for convenience
+            };
+            config = this.resolveVariables(config, context);
+            console.log(`[Playbook] Resolved config for step ${step.step.name}:`, JSON.stringify(config));
+        }
 
         // Import Registry dynamically or ensure it's loaded
         const { ActionRegistry } = await import('../actions'); // Import from index to ensure actions are registered
@@ -273,6 +453,32 @@ export class PlaybookService {
         return { success: false, error: e.message };
     }
   }
+
+  // ==================== EXECUTION HELPERS ====================
+
+  static async updateStepStatus(tenantId: string, executionId: string, stepId: string, status: string, result?: any) {
+    await db.update(playbookExecutionSteps)
+      .set({
+        status, // 'completed', 'skipped', 'failed', 'in_progress', 'waiting_for_approval'
+        result,
+        completedAt: ['completed', 'failed', 'skipped'].includes(status) ? new Date() : null
+      })
+      .where(eq(playbookExecutionSteps.id, stepId))
+    
+    // Auto-trigger next step if completed
+    if (status === 'completed') {
+        // Run asynchronously to not block response
+        this.triggerNextStep(tenantId, executionId, stepId).catch(err => console.error('Next step trigger failed:', err));
+    } else if (status === 'failed') {
+        // Mark execution as failed
+        await db.update(playbookExecutions)
+            .set({ status: 'failed', completedAt: new Date() })
+            .where(eq(playbookExecutions.id, executionId));
+    }
+
+    return { success: true }
+  }
+
 
   // ==================== APPROVALS ====================
   static async listPendingApprovals(tenantId: string) {
@@ -372,4 +578,3 @@ export class PlaybookService {
     return { success: true }
   }
 }
-

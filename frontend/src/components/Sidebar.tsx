@@ -46,6 +46,7 @@ export function Sidebar() {
         { label: 'Detection Engine', path: '/rules' }, // Merged: Rules + Detections
         { label: 'Cases', path: '/cases' },
         { label: 'Playbooks', path: '/playbooks' },
+        { label: 'Approvals', path: '/approvals' },
       ],
     },
 

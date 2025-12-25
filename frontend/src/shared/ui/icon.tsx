@@ -197,6 +197,7 @@ export const Icon = {
   Zap: BoltIcon,
   Globe: GlobeAltIcon,
   FileCode: DocumentTextIcon, // Fallback
+  Plus: PlusIcon,
 } as const;
 
 /**

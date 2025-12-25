@@ -26,6 +26,8 @@ const ObservablesPage = lazy(() => import("./pages/observables/ObservablesPage")
 const ThreatIntelPage = lazy(() => import("./pages/ThreatIntelPage"));
 const PlaybooksPage = lazy(() => import("./pages/playbooks/PlaybooksPage"));
 const ReportsPage = lazy(() => import("./pages/reports/ReportsPage"));
+const ApprovalsPage = lazy(() => import("./pages/approvals/ApprovalsPage"));
+const InputsPage = lazy(() => import("./pages/approvals/InputsPage"));
 
 const AdminDashboard = lazy(() => import("./pages/admin"));
 
@@ -272,6 +274,22 @@ function App() {
               element={
                 <ProtectedRoute>
                   <ReportsPage />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/approvals" 
+              element={
+                <ProtectedRoute>
+                  <ApprovalsPage />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/approvals/inputs" 
+              element={
+                <ProtectedRoute>
+                  <InputsPage />
                 </ProtectedRoute>
               } 
             />

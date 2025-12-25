@@ -42,3 +42,30 @@ export const approvalsController = new Elysia({ prefix: '/approvals' })
         comments: t.Optional(t.String())
     })
   })
+
+  /**
+   * List pending playbook input requests
+   * @route GET /approvals/pending-inputs
+   */
+  .get('/pending-inputs', async ({ user }: any) => {
+    const inputs = await PlaybookService.listPendingInputs(user.tenantId)
+    return { success: true, data: inputs }
+  })
+
+  /**
+   * Submit input for a playbook step
+   * @route POST /approvals/inputs/:id/submit
+   */
+  .post('/inputs/:id/submit', async ({ user, params: { id }, body }: any) => {
+    const result = await PlaybookService.submitInput(
+        user.tenantId,
+        id,
+        user.id,
+        body.data
+    )
+    return { success: true, data: result }
+  }, {
+    body: t.Object({
+        data: t.Any()
+    })
+  })

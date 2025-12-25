@@ -453,17 +453,13 @@ export const playbookSteps = pgTable('playbook_steps', {
   id: uuid('id').defaultRandom().primaryKey(),
   playbookId: uuid('playbook_id').references(() => playbooks.id, { onDelete: 'cascade' }).notNull(),
   order: integer('order').notNull(),
-  // Wait, I used integer in the plan. Let's stick to integer if possible, but schema.ts has `drizzle-orm/pg-core`.
-  // Checking imports... `integer` is NOT imported in line 1. I need to add it or use text.
-  // Existing schema uses text for 'retry_count' and 'sighting_count'. I will use text for order to be safe/consistent with this project's quirks, or add integer import.
-  // Let's check line 1 imports: `pgTable, uuid, text, timestamp, boolean, jsonb`.
-  // I will add `integer` to imports or just use text and parse it.
-  // Actually, better to add `integer` import.
   type: text('type').notNull(), // 'manual', 'automation'
   name: text('name').notNull(),
   description: text('description'),
   actionId: text('action_id'), // 'block_ip', 'enrich_ip'
   config: jsonb('config'), // Action parameters
+  positionX: integer('position_x'), // Visual position
+  positionY: integer('position_y'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 })
