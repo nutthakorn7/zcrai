@@ -1,4 +1,4 @@
-import React, { Component, ErrorInfo, ReactNode } from 'react';
+import { Component, ErrorInfo, ReactNode } from 'react';
 import { Card, CardBody, Button } from '@heroui/react';
 import { Icon } from '../shared/ui';
 
