@@ -209,7 +209,7 @@ export function InvestigationGraph({ caseId, alertId, className }: Investigation
   }, []);
 
   return (
-    <Card className={`bg-content1/50 border border-white/5 flex flex-col ${className}`}>
+    <Card className={`bg-content1/50 border border-white/5 flex flex-col h-full ${className}`}>
       <CardHeader className="flex items-center justify-between px-6 pt-6 shrink-0">
         <div className="flex items-center gap-3">
           <div className="p-2 rounded-lg bg-secondary/20">

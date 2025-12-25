@@ -10,6 +10,7 @@ import { EvidenceWidget } from '../../components/EvidenceWidget';
 import { EvidenceTab } from '../../components/EvidenceTab';
 import { ForensicsTab } from '../../components/ForensicsTab';
 import { InvestigationGraph } from '../../components/InvestigationGraph';
+import { api } from '../../shared/api/api';
 import { useCaseSocket } from '../../shared/hooks/useCaseSocket';
 import { ActivityTimeline } from '../../components/cases/ActivityTimeline';
 import Markdown from 'react-markdown';
@@ -245,8 +246,8 @@ Evidence: ${caseItem.evidence?.length || 0} items
   return (
     <div className="p-6 h-full flex flex-col gap-6 w-full pb-32">
       {/* Header */}
-      <div className="flex justify-between items-start">
-        <div className="flex flex-col gap-2">
+      <div className="flex justify-between items-start w-full">
+        <div className="flex flex-col gap-2 flex-1 w-full">
             <Button variant="light" size="sm" startContent={<Icon.ArrowLeft className="w-4 h-4"/>} onPress={() => navigate('/cases')} className="w-fit -ml-3">Back to Board</Button>
             <div className="flex items-center gap-3 flex-wrap">
                 <h1 className="text-2xl font-bold">{caseItem.title || 'Untitled Case'}</h1>
@@ -689,10 +690,8 @@ Evidence: ${caseItem.evidence?.length || 0} items
                             formData.append('file', file);
                             
                             try {
-                                await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/cases/${caseItem.id}/attachments`, {
-                                    method: 'POST',
-                                    body: formData,
-                                    credentials: 'include'
+                                await api.post(`/cases/${caseItem.id}/attachments`, formData, {
+                                    headers: { 'Content-Type': 'multipart/form-data' }
                                 });
                                 fetchCase(); // Refresh
                             } catch (err) {
