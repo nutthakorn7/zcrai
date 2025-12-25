@@ -86,11 +86,16 @@ export default function CaseDetailPage() {
   }, [fetchCase]);
 
   // Copilot Chat Handler
+  // Copilot Chat Handler
   const handleCopilotChat = async () => {
     if (!copilotQuery.trim() || !caseItem) return;
     
     const userMessage = { role: 'user' as const, content: copilotQuery };
     setCopilotMessages(prev => [...prev, userMessage]);
+    
+    // Add placeholder for AI response
+    setCopilotMessages(prev => [...prev, { role: 'ai', content: '' }]);
+    
     setCopilotQuery('');
     setCopilotLoading(true);
     
@@ -106,16 +111,23 @@ Evidence: ${caseItem.evidence?.length || 0} items
 `;
       
       const { AIAPI } = await import('../../shared/api/ai');
-      const res = await AIAPI.chat([...copilotMessages, userMessage], caseContext);
       
-      if (res.data?.success && res.data?.message) {
-        setCopilotMessages(prev => [...prev, { role: 'ai', content: res.data.message }]);
-      } else {
-        setCopilotMessages(prev => [...prev, { role: 'ai', content: 'Error: Could not get response.' }]);
-      }
+      // Use Streaming API
+      AIAPI.streamChat([...copilotMessages, userMessage], caseContext, (chunk) => {
+          setCopilotMessages(prev => {
+              const newMessages = [...prev];
+              const lastMsg = newMessages[newMessages.length - 1];
+              if (lastMsg.role === 'ai') {
+                  lastMsg.content += chunk;
+              }
+              return newMessages;
+          });
+          
+          setCopilotLoading(false); // Stop loading indicator once streaming starts
+      });
+
     } catch (e: any) {
       setCopilotMessages(prev => [...prev, { role: 'ai', content: `Error: ${e.message}` }]);
-    } finally {
       setCopilotLoading(false);
     }
   };
