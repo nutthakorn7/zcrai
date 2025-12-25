@@ -30,15 +30,21 @@ export default function AuditLogsPage() {
   const fetchLogs = useCallback(async () => {
     setIsLoading(true);
     try {
+      const limit = 20;
+      const offset = (page - 1) * limit;
+      
       const response = await api.get('/audit-logs', {
         params: {
-          page,
-          limit: 20,
+          limit,
+          offset,
           action: actionFilter || undefined
         }
       });
-      setLogs(response.data.data);
-      setTotalPages(Math.ceil(response.data.total / 20));
+      
+      if (response.data && response.data.data) {
+        setLogs(response.data.data.logs || []);
+        setTotalPages(Math.ceil((response.data.data.total || 0) / limit));
+      }
     } catch (error) {
       console.error("Failed to fetch audit logs", error);
     } finally {
