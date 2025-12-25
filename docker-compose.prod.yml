@@ -86,7 +86,7 @@ services:
       - SSO_REDIRECT_URI=${SSO_REDIRECT_URI}
       - FRONTEND_URL=${FRONTEND_URL:-https://app.zcr.ai}
       - COLLECTOR_URL=http://zcrai_collector:8001
-      - ENCRYPTION_KEY=abcdefghijklmnopqrstuvwxyz123456
+      - ENCRYPTION_KEY=zcrAI_32char_encryption_key_2024
       - COLLECTOR_API_KEY=zcrai_collector_api_key_prod_2024
       - JWT_ACCESS_EXPIRY=2h  # Increased from 15m for better session persistence
     depends_on:
