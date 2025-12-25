@@ -83,10 +83,10 @@ export function InvestigationGraph({ caseId, alertId, className }: Investigation
   const [graphData, setGraphData] = useState<InvestigationGraphData | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
-  const [showMitre, setShowMitre] = useState(false); // Toggle for overlays
-  // Using 'any' for ref as react-force-graph-2d has complex internal types
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [showMitre, setShowMitre] = useState(false);
   const graphRef = useRef<any>(null);
+
+  console.log('InvestigationGraph Rendered caseId:', caseId);
 
   // Wrap fetchGraphData in useCallback to satisfy exhaustive-deps
   const fetchGraphData = useCallback(async () => {

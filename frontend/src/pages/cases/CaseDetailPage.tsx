@@ -60,7 +60,7 @@ export default function CaseDetailPage() {
       <CaseHeader 
         caseItem={caseItem}
         activeUsers={activeUsers}
-        onGraphOpen={onGraphOpen}
+        onGraphOpen={() => { console.log('Graph Open Clicked'); onGraphOpen(); }}
         onSyncOpen={onSyncOpen}
         onExportPDF={handleExportPDF}
         exporting={exporting}
