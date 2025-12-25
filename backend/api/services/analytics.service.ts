@@ -15,9 +15,70 @@ export interface SankeyLink {
 
 export class AnalyticsService {
   /**
+   * Categorize alert based on source and alert type
+   */
+  private categorizeAlert(alert: any): string {
+    const source = (alert.source || '').toLowerCase();
+    const title = (alert.title || '').toLowerCase();
+    const description = (alert.description || '').toLowerCase();
+    const combined = `${source} ${title} ${description}`;
+
+    // Identity-related
+    if (combined.includes('identity') || 
+        combined.includes('user') || 
+        combined.includes('authentication') ||
+        combined.includes('login') ||
+        combined.includes('credential') ||
+        combined.includes('azure ad') ||
+        combined.includes('active directory')) {
+      return 'Identity';
+    }
+
+    // Email-related
+    if (combined.includes('email') || 
+        combined.includes('phishing') || 
+        combined.includes('spam') ||
+        combined.includes('mailbox') ||
+        combined.includes('exchange') ||
+        combined.includes('outlook')) {
+      return 'Email';
+    }
+
+    // Cloud-related
+    if (combined.includes('cloud') || 
+        combined.includes('azure') || 
+        combined.includes('aws') ||
+        combined.includes('gcp') ||
+        combined.includes('s3') ||
+        combined.includes('storage') ||
+        combined.includes('cloudtrail')) {
+      return 'Cloud';
+    }
+
+    // EDR-related (Endpoint Detection & Response)
+    if (combined.includes('endpoint') || 
+        combined.includes('defender') || 
+        combined.includes('sentinel') ||
+        combined.includes('crowdstrike') ||
+        combined.includes('process') ||
+        combined.includes('malware') ||
+        combined.includes('file') ||
+        combined.includes('registry')) {
+      return 'EDR';
+    }
+
+    // Default fallback
+    return 'EDR';
+  }
+
+  /**
    * Generates aggregated data for the Enterprise Insights Sankey Diagram
    */
-  async getInsightsData(tenantId: string, days: number): Promise<{ nodes: SankeyNode[], links: SankeyLink[], stats: any }> {
+  async getInsightsData(tenantId: string, days: number): Promise<{ 
+    nodes: SankeyNode[], 
+    links: SankeyLink[], 
+    stats: any 
+  }> {
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
 
@@ -54,29 +115,21 @@ export class AnalyticsService {
     let notEscalatedCount = 0;
     let automatedCount = 0;
     const determinationBreakdown: Record<string, number> = {};
+    const sourceBreakdown: Record<string, number> = {};
 
     for (const alert of alertsData) {
       // 1. Ingestion (Source)
       const sourceNode = alert.source || 'Unknown Source';
+      sourceBreakdown[sourceNode] = (sourceBreakdown[sourceNode] || 0) + 1;
 
-      // 2. Categorization
-      // Try to use AI classification, fallback to source-based heuristic
-      let categoryNode = (alert.aiAnalysis as any)?.classification || 'Unclassified';
-      
-      // Cleanup Category Names
-      if (categoryNode.includes('Identity')) categoryNode = 'Identity';
-      if (categoryNode.includes('Email')) categoryNode = 'Email';
-      if (categoryNode.includes('Cloud')) categoryNode = 'Cloud';
-      if (categoryNode.includes('Network')) categoryNode = 'Network';
-      if (categoryNode.includes('Endpoint')) categoryNode = 'Endpoint';
+      // 2. Categorization (Identity, Email, Cloud, EDR)
+      const categoryNode = this.categorizeAlert(alert);
 
       // 3. Enrichment
-      // Logic: If AI Analysis exists, we assume enriched.
       const isEnriched = !!alert.aiAnalysis;
-      const enrichmentNode = isEnriched ? 'Enriched Context' : 'Raw Event';
+      const enrichmentNode = isEnriched ? 'AI Enriched' : 'Raw Event';
 
       // 4. Agent Triage (Escalation Status)
-      // Logic: If linked to a case OR status is investigating/new -> Escalated
       const isEscalated = !!alert.caseId || !!alert.promotedCaseId || ['new', 'investigating'].includes(alert.status);
       const triageNode = isEscalated ? 'Escalated' : 'Not Escalated';
       
@@ -85,23 +138,24 @@ export class AnalyticsService {
       // 5. Determination
       let determinationNode = 'Benign';
       if (isEscalated) {
-          // If escalated, defaults to Suspicious unless AI says Malicious
           determinationNode = 'Suspicious';
           const aiClass = (alert.aiAnalysis as any)?.classification || '';
           if (aiClass.toLowerCase().includes('malicious')) determinationNode = 'Malicious';
+          if (aiClass.toLowerCase().includes('review')) determinationNode = 'Review Recommended';
       } else {
-          // If not escalated (auto-resolved), defaults to Benign/False Positive
           const aiClass = (alert.aiAnalysis as any)?.classification || '';
-          if (aiClass.toLowerCase().includes('clean') || aiClass.toLowerCase().includes('benign')) determinationNode = 'Benign';
-          else if (aiClass.toLowerCase().includes('malicious')) determinationNode = 'True Positive (Blocked)';
-          else determinationNode = 'False Positive'; 
+          if (aiClass.toLowerCase().includes('benign')) determinationNode = 'Benign';
+          else if (aiClass.toLowerCase().includes('acceptable')) determinationNode = 'Acceptable Risk';
+          else if (aiClass.toLowerCase().includes('mitigated')) determinationNode = 'Mitigated';
+          else determinationNode = 'Benign';
       }
       
       determinationBreakdown[determinationNode] = (determinationBreakdown[determinationNode] || 0) + 1;
 
       // 6. Status
       let statusNode = 'Closed';
-      if (['new', 'investigating', 'open'].includes(alert.status)) statusNode = 'Open';
+      if (['new', 'investigating'].includes(alert.status)) statusNode = 'Open';
+      if (alert.status === 'in_progress') statusNode = 'In Progress';
       if (alert.case && ['open', 'investigating', 'new'].includes(alert.case.status)) statusNode = 'Open';
 
       // Build Flow
@@ -111,7 +165,7 @@ export class AnalyticsService {
       addLink(triageNode, determinationNode);
       addLink(determinationNode, statusNode);
 
-      // Time Saved Calc
+      // Time Saved Calc (15 min per auto-resolved alert)
       if (!isEscalated) automatedCount++;
     }
 
@@ -125,7 +179,9 @@ export class AnalyticsService {
       };
     });
 
-    const timeSavedHours = Math.round((automatedCount * 15) / 60);
+    const totalMinutes = automatedCount * 15;
+    const timeSavedHours = Math.floor(totalMinutes / 60);
+    const timeSavedMinutes = totalMinutes % 60;
 
     return {
       nodes,
@@ -134,7 +190,10 @@ export class AnalyticsService {
         escalated: escalatedCount,
         notEscalated: notEscalatedCount,
         timeSavedHours,
-        determinationBreakdown
+        timeSavedMinutes,
+        totalAlerts: alertsData.length,
+        determinationBreakdown,
+        sourceBreakdown
       }
     };
   }

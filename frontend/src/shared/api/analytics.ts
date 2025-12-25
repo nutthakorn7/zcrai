@@ -17,7 +17,10 @@ export interface SankeyData {
     escalated: number;
     notEscalated: number;
     determinationBreakdown: Record<string, number>;
+    sourceBreakdown: Record<string, number>;
     timeSavedHours: number;
+    timeSavedMinutes: number;
+    totalAlerts: number;
   };
 }
 
