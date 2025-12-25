@@ -241,7 +241,7 @@ Evidence: ${caseItem.evidence?.length || 0} items
   // useCaseSocket was moved to the top of the component (line 24) to fix React hooks rules
 
   return (
-    <div className="p-6 h-full flex flex-col gap-6 w-full">
+    <div className="p-6 h-full flex flex-col gap-6 w-full pb-24">
       {/* Header */}
       <div className="flex justify-between items-start">
         <div className="flex flex-col gap-2">
@@ -268,7 +268,7 @@ Evidence: ${caseItem.evidence?.length || 0} items
                 {caseItem.status && <span>• Status: {caseItem.status}</span>}
                 
                 {activeUsers.length > 0 && (
-                     <div className="flex items-center gap-2 border-l border-white/10 pl-4 ml-auto">
+                     <div className="flex items-center gap-4 border-l border-white/10 pl-4 ml-auto">
                         <span className="text-xs font-semibold text-success uppercase tracking-widest animate-pulse">LIVE</span>
                         <AvatarGroup isBordered max={4} size="sm">
                             {activeUsers.map(u => (
@@ -545,7 +545,7 @@ Evidence: ${caseItem.evidence?.length || 0} items
             
             {/* AI Investigator Widget */}
             <Card className="p-4 border border-secondary/20 bg-secondary/5">
-                <div className="flex justify-between items-center mb-4">
+                <div className="flex flex-wrap justify-between items-center mb-4 gap-2">
                     <div className="flex items-center gap-2">
                         <Icon.Cpu className="w-5 h-5 text-secondary animate-pulse" />
                         <h3 className="font-bold text-secondary">AI Investigator</h3>
