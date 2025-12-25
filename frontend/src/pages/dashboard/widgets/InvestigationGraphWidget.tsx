@@ -35,15 +35,52 @@ export function InvestigationGraphWidget({ alertId, className }: InvestigationGr
     return () => window.removeEventListener('resize', updateSize);
   }, []);
 
-  // Fetch Real Graph Data if alertId is present, otherwise show demo data
+  // Fetch Real Graph Data if alertId is present, otherwise try to auto-fetch latest
+  const [_isRealData, setIsRealData] = useState(false);
+
   useEffect(() => {
     if (alertId) {
         loadGraphData();
     } else {
-        // Load demo data for dashboard display
-        loadDemoData();
+        // Try to auto-load latest correlated alert
+        loadLatestCorrelated();
     }
   }, [alertId]);
+
+  const loadLatestCorrelated = async () => {
+    try {
+        setLoading(true);
+        const { api } = await import('../../../shared/api/api');
+        const res = await api.get('/graph/latest-correlated');
+        
+        if (res.data.success && res.data.data) {
+            const { graph } = res.data.data;
+            const formattedData = {
+                nodes: graph.nodes.map((n: any) => ({
+                    ...n,
+                    color: getEntityColor(n.type),
+                    icon: getEntityIcon(n.type)
+                })),
+                links: graph.edges.map((e: any) => ({
+                    source: e.source,
+                    target: e.target,
+                    label: e.label,
+                    value: 2
+                }))
+            };
+            setGraphData(formattedData);
+            setIsRealData(true);
+        } else {
+            // Fallback to demo data
+            loadDemoData();
+        }
+    } catch (error) {
+        console.error('Failed to load latest correlated:', error);
+        loadDemoData();
+    } finally {
+        setLoading(false);
+    }
+  };
 
   const loadDemoData = () => {
     // Demo data showing a simulated lateral movement attack
@@ -75,6 +112,7 @@ export function InvestigationGraphWidget({ alertId, className }: InvestigationGr
         value: 2
       }))
     });
+    setIsRealData(false);
   };
 
   const loadGraphData = async () => {

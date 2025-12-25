@@ -375,6 +375,110 @@ export const InvestigationGraphService = {
     const matches = text.match(hashRegex) || [];
     matches.forEach(h => hashes.add(h));
     return Array.from(hashes).slice(0, 5);
+  },
+
+  /**
+   * Get the latest alert with correlation data for dashboard display
+   * Returns the graph data or null if no suitable alert found
+   */
+  async getLatestCorrelatedAlert(tenantId: string): Promise<{ alertId: string; graph: InvestigationGraph } | null> {
+    try {
+      // Query ClickHouse for recent high-severity events that have entity data
+      const sql = `
+        SELECT 
+          id, 
+          title, 
+          source, 
+          severity,
+          timestamp,
+          host_ip,
+          host_name,
+          user_name,
+          file_hash
+        FROM security_events
+        WHERE tenant_id = {tenantId:String}
+          AND severity IN ('critical', 'high')
+          AND (
+            host_ip != '' OR 
+            host_name != '' OR 
+            user_name != '' OR 
+            file_hash != ''
+          )
+          AND timestamp >= now() - INTERVAL 7 DAY
+        ORDER BY 
+          CASE severity 
+            WHEN 'critical' THEN 1 
+            WHEN 'high' THEN 2 
+            ELSE 3 
+          END,
+          timestamp DESC
+        LIMIT 1
+      `;
+
+      const events = await query<any>(sql, { tenantId });
+      
+      if (!events || events.length === 0) {
+        return null;
+      }
+
+      const event = events[0];
+      
+      // Build a simple graph from this event
+      const nodes: GraphNode[] = [];
+      const edges: GraphEdge[] = [];
+      const nodeSet = new Set<string>();
+
+      // Add the main alert node
+      const alertNodeId = `alert-${event.id}`;
+      nodes.push({
+        id: alertNodeId,
+        type: 'alert',
+        label: event.title || 'Security Event',
+        properties: {
+          source: event.source,
+          timestamp: event.timestamp
+        },
+        severity: event.severity as any,
+        val: 25
+      });
+      nodeSet.add(alertNodeId);
+
+      // Add entity nodes
+      const addEntity = (type: GraphNode['type'], value: string, relation: GraphEdge['type']) => {
+        if (!value || value === '' || value === '-' || value === 'unknown') return;
+        const nodeId = `${type}-${value}`;
+        if (!nodeSet.has(nodeId)) {
+          nodes.push({
+            id: nodeId,
+            type,
+            label: value,
+            properties: { value },
+            val: 12
+          });
+          nodeSet.add(nodeId);
+        }
+        edges.push({
+          id: `edge-${alertNodeId}-${nodeId}`,
+          source: alertNodeId,
+          target: nodeId,
+          type: relation,
+          label: relation
+        });
+      };
+
+      if (event.host_ip) addEntity('ip', event.host_ip, 'originated_from');
+      if (event.host_name) addEntity('host', event.host_name, 'targeted');
+      if (event.user_name) addEntity('user', event.user_name, 'executed_by');
+      if (event.file_hash) addEntity('hash', event.file_hash, 'related_to');
+
+      return {
+        alertId: event.id,
+        graph: this.finalizeGraph(nodes, edges)
+      };
+    } catch (error) {
+      console.error('Failed to get latest correlated alert:', error);
+      return null;
+    }
   }
 };
 

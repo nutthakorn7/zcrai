@@ -47,4 +47,17 @@ export const graphController = new Elysia({ prefix: '/graph' })
     const alertId = (context as any).params.alertId;
     const graph = await InvestigationGraphService.buildAlertGraph(alertId, user.tenantId);
     return { success: true, data: graph };
+  })
+
+  /**
+   * Get latest alert with correlation data for dashboard
+   * @route GET /graph/latest-correlated
+   * @access Protected - Requires authentication
+   * @returns {Object} Alert ID and graph data, or null if no correlated alerts
+   * @description Finds the most recent high-severity alert with entity correlations
+   */
+  .get('/latest-correlated', async (context) => {
+    const user = (context as any).user;
+    const result = await InvestigationGraphService.getLatestCorrelatedAlert(user.tenantId);
+    return { success: true, data: result };
   });
