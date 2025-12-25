@@ -209,15 +209,45 @@ export class AnalyticsService {
     for (const alert of alertsData) {
       const categoryNode = this.categorizeAlert(alert);
 
-      // 3. Enrichment (MITRE ATT&CK Tactic)
+      // 3. Enrichment (MITRE ATT&CK Tactic) - Try multiple sources
       const rawData = alert.rawData as any;
-      let mitreTactic = rawData?.mitre_tactic || rawData?.MitreTactic || rawData?.tactic || '';
-      if (!mitreTactic && alert.aiAnalysis) {
-        mitreTactic = (alert.aiAnalysis as any)?.mitreTactic || '';
+      let mitreTactic = '';
+      
+      // Try direct fields first
+      mitreTactic = rawData?.mitre_tactic || rawData?.MitreTactic || rawData?.tactic || '';
+      
+      // Try metadata
+      if (!mitreTactic && rawData?.metadata) {
+        mitreTactic = rawData.metadata.mitre_tactic || '';
       }
+      
+      // Try nested threatInfo.indicators (SentinelOne format)
+      if (!mitreTactic && rawData?.Raw?.ThreatInfo?.Indicators?.[0]?.Tactics?.[0]?.Name) {
+        mitreTactic = rawData.Raw.ThreatInfo.Indicators[0].Tactics[0].Name;
+      }
+      
+      // Try AI analysis
+      if (!mitreTactic && alert.aiAnalysis) {
+        mitreTactic = (alert.aiAnalysis as any)?.mitreTactic || (alert.aiAnalysis as any)?.tactic || '';
+      }
+      
+      // Fallback to classification-based mapping (e.g., Malware -> Execution)
+      if (!mitreTactic && rawData?.classification) {
+        const classLower = rawData.classification.toLowerCase();
+        if (classLower.includes('malware') || classLower.includes('trojan')) mitreTactic = 'Execution';
+        else if (classLower.includes('ransomware')) mitreTactic = 'Impact';
+        else if (classLower.includes('phishing')) mitreTactic = 'Initial Access';
+        else if (classLower.includes('exploit')) mitreTactic = 'Privilege Escalation';
+        else if (classLower.includes('backdoor')) mitreTactic = 'Persistence';
+        else if (classLower.includes('infostealer')) mitreTactic = 'Credential Access';
+        else if (classLower.includes('c2') || classLower.includes('command')) mitreTactic = 'Command And Control';
+      }
+      
+      // Format the tactic name nicely
       const enrichmentNode = mitreTactic 
         ? mitreTactic.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())
         : 'Other';
+
 
       // 4. Agent Triage (Escalation Status)
       const isEscalated = !!alert.caseId || !!alert.promotedCaseId || ['new', 'investigating'].includes(alert.status);
