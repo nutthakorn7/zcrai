@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Chip, Tooltip } from '@heroui/react';
+import { Card, CardBody, Chip, Progress, Tooltip } from '@heroui/react';
 import { Icon } from '../../shared/ui';
 import { api } from '../../shared/api/api';
 
@@ -27,7 +27,6 @@ interface AutopilotStats {
   threatsBlocked: number;
 }
 
-// --- RADIANT SECURITY STYLE UI ---
 const AutopilotPage: React.FC = () => {
   const [actions, setActions] = useState<AutopilotAction[]>([]);
   const [stats, setStats] = useState<AutopilotStats | null>(null);
@@ -54,127 +53,184 @@ const AutopilotPage: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
+  const getSeverityColor = (severity: string) => {
+    switch (severity?.toLowerCase()) {
+      case 'critical': return 'danger';
+      case 'high': return 'warning';
+      case 'medium': return 'primary';
+      default: return 'default';
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-[#050505] text-white p-8">
-      {/* Radiant Header */}
-      <div className="max-w-6xl mx-auto mb-12">
-        <div className="flex justify-between items-end border-b border-white/10 pb-8">
-          <div>
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />
-              <span className="text-xs font-bold tracking-[0.2em] text-primary uppercase">Autopilot Active</span>
-            </div>
-            <h1 className="text-5xl font-extrabold tracking-tight">AI Remediations</h1>
+    <div className="p-6 h-full flex flex-col bg-background">
+      {/* Header */}
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-2 h-2 bg-success rounded-full animate-pulse" />
+            <span className="text-xs font-semibold text-success uppercase tracking-wider">Autopilot Active</span>
           </div>
-          <div className="text-right">
-            <p className="text-foreground/40 text-sm mb-1 uppercase tracking-widest font-semibold">Total Impact</p>
-            <p className="text-4xl font-mono font-bold text-primary">+{stats?.totalRemediations || 0}</p>
-          </div>
+          <h1 className="text-2xl font-bold">AI Autopilot</h1>
+          <p className="text-default-500">Autonomous threat remediation powered by AI</p>
         </div>
       </div>
 
-      {/* High-Impact Stat Cards */}
-      <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
-         <Card className="bg-[#0A0A0A] border-white/5 rounded-none p-8 flex flex-col gap-2">
-            <span className="text-xs font-bold text-foreground/40 tracking-widest uppercase italic">Threats Quarantined</span>
-            <span className="text-5xl font-mono text-white leading-tight">{stats?.threatsBlocked || 0}</span>
-         </Card>
-         <Card className="bg-[#0A0A0A] border-white/5 rounded-none p-8 flex flex-col gap-2 border-l-primary border-l-4">
-            <span className="text-xs font-bold text-primary tracking-widest uppercase italic">Analyst Time Saved</span>
-            <span className="text-5xl font-mono text-white leading-tight">{Math.floor((stats?.timeSavedMinutes || 0) / 60)}h {(stats?.timeSavedMinutes || 0) % 60}m</span>
-         </Card>
-         <Card className="bg-[#0A0A0A] border-white/5 rounded-none p-8 flex flex-col gap-2">
-            <span className="text-xs font-bold text-foreground/40 tracking-widest uppercase italic">Avg. Response Time</span>
-            <span className="text-5xl font-mono text-white leading-tight">1.2s</span>
-         </Card>
-      </div>
-
-      {/* Incident Cards / AI Journeys */}
-      <div className="max-w-6xl mx-auto space-y-12">
-        <h2 className="text-sm font-bold tracking-[0.3em] text-foreground/40 uppercase mb-8">Recent Autonomous Journeys</h2>
-        
-        {actions.map((action) => (
-          <div key={action.id} className="relative group">
-            {/* Connection Line */}
-            <div className="absolute left-[39px] top-20 bottom-0 w-[2px] bg-white/5 group-last:hidden" />
-            
-            <div className="flex gap-10">
-              {/* Outcome Circle */}
-              <div className="relative z-10">
-                <div className={`w-20 h-20 rounded-full flex items-center justify-center border-2 border-[#1A1A1A] bg-[#050505] transition-all duration-500 group-hover:border-primary/50 group-hover:scale-110 shadow-lg ${
-                    action.status === 'completed' ? 'text-primary' : 'text-red-500'
-                }`}>
-                   <Icon.Shield className="w-8 h-8" />
-                </div>
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <Card className="bg-content1 border border-white/5">
+          <CardBody className="p-5">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                <Icon.Shield className="w-5 h-5 text-primary" />
               </div>
-
-              {/* Journey Content */}
-              <div className="flex-1 pb-16">
-                <Card className="bg-[#0A0A0A] border-none rounded-none p-10 hover:bg-[#0D0D0D] transition-colors shadow-2xl">
-                  <div className="flex justify-between items-start mb-8">
-                     <div>
-                        <div className="flex items-center gap-3 mb-2">
-                           <Chip className="bg-primary/10 text-primary border-none rounded-none font-bold text-[10px] tracking-widest uppercase">
-                              {action.actionType}
-                           </Chip>
-                           <span className="text-foreground/40 text-xs font-mono">{new Date(action.createdAt).toLocaleTimeString()} • {new Date(action.createdAt).toLocaleDateString()}</span>
-                        </div>
-                        <h3 className="text-3xl font-bold tracking-tight mb-2">{action.alertTitle}</h3>
-                        <p className="text-foreground/60 text-lg flex items-center gap-2">
-                           Target Secured: <span className="font-mono text-white">{action.target}</span>
-                        </p>
-                     </div>
-                     <div className="text-right">
-                        <Tooltip content="AI Confidence Score">
-                           <div className="flex flex-col items-end gap-1">
-                              <span className="text-[10px] font-bold text-foreground/40 uppercase tracking-widest italic">Confidence</span>
-                              <span className="text-3xl font-bold font-mono text-primary">{action.aiAnalysis?.confidence || 0}%</span>
-                           </div>
-                        </Tooltip>
-                     </div>
-                  </div>
-
-                  {/* AI Reasoning Block */}
-                  <div className="bg-[#050505] border border-white/5 p-8 mb-8">
-                     <div className="flex items-center gap-3 mb-4">
-                        <Icon.Lock className="w-4 h-4 text-primary" />
-                        <span className="text-xs font-bold text-primary tracking-widest uppercase italic">Autonomous Reasoning</span>
-                     </div>
-                     <p className="text-foreground/80 text-xl leading-relaxed italic font-light">
-                        "{action.aiAnalysis?.reasoning}"
-                     </p>
-                  </div>
-
-                  {/* Metadata / Outcome Details */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-sm">
-                     <div className="border-t border-white/5 pt-4">
-                        <p className="text-foreground/40 mb-1 uppercase tracking-widest font-bold text-[10px]">Threat Classification</p>
-                        <p className="text-white font-semibold flex items-center gap-2">
-                           <div className="w-1.5 h-1.5 bg-red-500 rounded-full" />
-                           {action.aiAnalysis?.classification}
-                        </p>
-                     </div>
-                     <div className="border-t border-white/5 pt-4">
-                        <p className="text-foreground/40 mb-1 uppercase tracking-widest font-bold text-[10px]">Remediation Status</p>
-                        <p className="text-primary font-semibold flex items-center gap-2">
-                           <div className="w-1.5 h-1.5 bg-primary rounded-full shadow-[0_0_8px_rgba(var(--primary-rgb),0.5)]" />
-                           Successfully {action.status === 'completed' ? 'Executed' : 'Attempted'}
-                        </p>
-                     </div>
-                  </div>
-                </Card>
+              <div>
+                <p className="text-xs text-default-500 uppercase tracking-wider font-semibold">Threats Blocked</p>
+                <p className="text-2xl font-bold font-mono">{stats?.threatsBlocked || 0}</p>
               </div>
             </div>
-          </div>
-        ))}
+          </CardBody>
+        </Card>
 
-        {actions.length === 0 && !isLoading && (
-          <div className="h-[400px] flex flex-col items-center justify-center text-center bg-[#0A0A0A] border border-dashed border-white/5">
-            <Icon.Shield className="w-16 h-16 text-white/5 mb-6" />
-            <h3 className="text-2xl font-bold text-white/20">System Quiet</h3>
-            <p className="text-white/10 max-w-sm">Autonomous SOC is monitoring all channels. No interventions required in the last 24 hours.</p>
-          </div>
-        )}
+        <Card className="bg-content1 border border-white/5 border-l-4 border-l-success">
+          <CardBody className="p-5">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-xl bg-success/10 flex items-center justify-center">
+                <Icon.Clock className="w-5 h-5 text-success" />
+              </div>
+              <div>
+                <p className="text-xs text-default-500 uppercase tracking-wider font-semibold">Time Saved</p>
+                <p className="text-2xl font-bold font-mono">
+                  {Math.floor((stats?.timeSavedMinutes || 0) / 60)}h {(stats?.timeSavedMinutes || 0) % 60}m
+                </p>
+              </div>
+            </div>
+          </CardBody>
+        </Card>
+
+        <Card className="bg-content1 border border-white/5">
+          <CardBody className="p-5">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-xl bg-secondary/10 flex items-center justify-center">
+                <Icon.Cpu className="w-5 h-5 text-secondary" />
+              </div>
+              <div>
+                <p className="text-xs text-default-500 uppercase tracking-wider font-semibold">Total Remediations</p>
+                <p className="text-2xl font-bold font-mono">{stats?.totalRemediations || 0}</p>
+              </div>
+            </div>
+          </CardBody>
+        </Card>
+      </div>
+
+      {/* Actions List */}
+      <div className="flex-1 overflow-hidden">
+        <div className="flex items-center gap-2 mb-4">
+          <Icon.Zap className="w-4 h-4 text-default-500" />
+          <h2 className="text-sm font-semibold text-default-500 uppercase tracking-wider">Recent Actions</h2>
+          <Chip size="sm" variant="flat" className="bg-default-100">{actions.length}</Chip>
+        </div>
+
+        <div className="space-y-4 overflow-y-auto h-[calc(100%-40px)] custom-scrollbar pr-2">
+          {actions.map((action) => (
+            <Card 
+              key={action.id} 
+              className="bg-content1 border border-white/5 hover:border-primary/30 transition-all"
+            >
+              <CardBody className="p-5">
+                <div className="flex items-start gap-4">
+                  {/* Status Icon */}
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                    action.status === 'completed' 
+                      ? 'bg-success/10 text-success' 
+                      : 'bg-danger/10 text-danger'
+                  }`}>
+                    {action.status === 'completed' 
+                      ? <Icon.Check className="w-6 h-6" />
+                      : <Icon.Alert className="w-6 h-6" />
+                    }
+                  </div>
+
+                  {/* Content */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Chip 
+                        size="sm" 
+                        color={getSeverityColor(action.alertSeverity)}
+                        variant="dot"
+                        className="capitalize"
+                      >
+                        {action.alertSeverity}
+                      </Chip>
+                      <Chip size="sm" variant="flat" className="bg-default-100 uppercase text-[10px] font-bold">
+                        {action.actionType.replace(/_/g, ' ')}
+                      </Chip>
+                      <span className="text-xs text-default-400 font-mono">
+                        {new Date(action.createdAt).toLocaleString()}
+                      </span>
+                    </div>
+
+                    <h3 className="font-semibold text-foreground mb-1 truncate">{action.alertTitle}</h3>
+                    
+                    <p className="text-sm text-default-500 flex items-center gap-2">
+                      <Icon.Shield className="w-3.5 h-3.5" />
+                      Target: <span className="font-mono text-foreground">{action.target}</span>
+                    </p>
+
+                    {/* AI Reasoning */}
+                    {action.aiAnalysis?.reasoning && (
+                      <div className="mt-3 p-3 bg-default-50 rounded-lg border border-white/5">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Icon.Cpu className="w-3.5 h-3.5 text-primary" />
+                          <span className="text-xs font-semibold text-primary uppercase">AI Reasoning</span>
+                        </div>
+                        <p className="text-sm text-default-600 italic">"{action.aiAnalysis.reasoning}"</p>
+                      </div>
+                    )}
+
+                    {/* Confidence */}
+                    {action.aiAnalysis?.confidence && (
+                      <div className="mt-3 flex items-center gap-3">
+                        <span className="text-xs text-default-400">Confidence</span>
+                        <Progress 
+                          size="sm" 
+                          value={action.aiAnalysis.confidence} 
+                          color={action.aiAnalysis.confidence > 80 ? 'success' : action.aiAnalysis.confidence > 50 ? 'warning' : 'danger'}
+                          className="flex-1 max-w-[200px]"
+                        />
+                        <span className="text-xs font-mono font-bold text-foreground">{action.aiAnalysis.confidence}%</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Status Badge */}
+                  <Tooltip content={action.status === 'completed' ? 'Action completed successfully' : 'Action failed'}>
+                    <Chip 
+                      size="sm" 
+                      color={action.status === 'completed' ? 'success' : 'danger'}
+                      variant="flat"
+                      className="capitalize"
+                    >
+                      {action.status}
+                    </Chip>
+                  </Tooltip>
+                </div>
+              </CardBody>
+            </Card>
+          ))}
+
+          {actions.length === 0 && !isLoading && (
+            <Card className="bg-content1 border border-dashed border-white/10">
+              <CardBody className="py-16 flex flex-col items-center justify-center text-center">
+                <Icon.Shield className="w-16 h-16 text-default-200 mb-4" />
+                <h3 className="text-lg font-semibold text-default-400 mb-2">No Actions Yet</h3>
+                <p className="text-sm text-default-400 max-w-md">
+                  The AI Autopilot is monitoring all channels. Automated remediations will appear here when triggered.
+                </p>
+              </CardBody>
+            </Card>
+          )}
+        </div>
       </div>
     </div>
   );
