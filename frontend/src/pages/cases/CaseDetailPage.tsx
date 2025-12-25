@@ -213,7 +213,9 @@ Evidence: ${caseItem.evidence?.length || 0} items
   };
 
   // Safe date parsing
-  const createdAtDate = caseItem.createdAt ? new Date(caseItem.createdAt) : null;
+  // Safe date parsing
+  const createdAt = caseItem.createdAt || caseItem.created_at;
+  const createdAtDate = createdAt ? new Date(createdAt) : null;
   const isValidDate = createdAtDate && !isNaN(createdAtDate.getTime());
   
   const slaDeadline = isValidDate 
@@ -241,7 +243,7 @@ Evidence: ${caseItem.evidence?.length || 0} items
   // useCaseSocket was moved to the top of the component (line 24) to fix React hooks rules
 
   return (
-    <div className="p-6 h-full flex flex-col gap-6 w-full pb-24">
+    <div className="p-6 h-full flex flex-col gap-6 w-full pb-32">
       {/* Header */}
       <div className="flex justify-between items-start">
         <div className="flex flex-col gap-2">
@@ -263,12 +265,14 @@ Evidence: ${caseItem.evidence?.length || 0} items
             </div>
             
             {/* Meta Row */}
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-gray-400 text-sm">
-                <span>Created {formatDate(caseItem.createdAt)}</span>
-                {caseItem.status && <span>• Status: {caseItem.status}</span>}
+            <div className="flex flex-wrap justify-between items-center w-full gap-y-2 text-gray-400 text-sm">
+                <div className="flex items-center gap-4">
+                    <span>Created {formatDate(createdAt)}</span>
+                    {caseItem.status && <span>• Status: {caseItem.status}</span>}
+                </div>
                 
                 {activeUsers.length > 0 && (
-                     <div className="flex items-center gap-4 border-l border-white/10 pl-4 ml-auto">
+                     <div className="flex items-center gap-4 border-l border-white/10 pl-4">
                         <span className="text-xs font-semibold text-success uppercase tracking-widest animate-pulse">LIVE</span>
                         <AvatarGroup isBordered max={4} size="sm">
                             {activeUsers.map(u => (
