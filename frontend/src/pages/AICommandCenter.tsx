@@ -87,211 +87,149 @@ export default function AICommandCenter() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 relative overflow-hidden">
-      {/* Animated Background Elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-primary/10 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-secondary/10 rounded-full blur-3xl animate-pulse delay-1000" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-radial from-primary/5 to-transparent rounded-full" />
+  return (
+    <div className="p-6 h-full flex flex-col gap-6 w-full">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">AI Command Center</h1>
+          <p className="text-sm mt-1 text-foreground/60">Autonomous SOC Analyst • Powered by Gemini Pro</p>
+        </div>
+        
+        <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-success/10 border border-success/20">
+                <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
+                <span className="text-xs text-success font-medium">System Active</span>
+            </div>
+            <Chip size="sm" variant="flat" color="primary">v2.0</Chip>
+        </div>
       </div>
 
-      <div className="relative z-10 p-8 max-w-7xl mx-auto">
-        {/* Header with Gradient */}
-        <div className="mb-8 text-center">
-          <div className="inline-flex items-center gap-3 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 mb-4">
-            <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
-            <span className="text-sm text-primary font-medium">AI System Active</span>
-          </div>
-          <h1 className="text-4xl font-bold mb-3 bg-gradient-to-r from-foreground via-primary to-secondary bg-clip-text text-transparent">
-            AI Command Center
-          </h1>
-          <p className="text-foreground/60 text-lg">Your Autonomous SOC Analyst • Powered by Gemini Pro</p>
-        </div>
-
-        {/* Stats Cards */}
-        <div className="grid grid-cols-3 gap-4 mb-8">
-          {stats.map((stat, i) => (
-            <Card key={i} className="bg-content1/50 backdrop-blur-xl border border-white/10 hover:border-primary/30 transition-all duration-300">
-              <CardBody className="p-5">
-                <div className="flex items-center gap-4">
-                  <div className={`w-12 h-12 rounded-xl bg-${stat.color}/20 flex items-center justify-center`}>
-                    <stat.icon className={`w-6 h-6 text-${stat.color}`} />
-                  </div>
-                  <div>
-                    <div className={`text-2xl font-bold text-${stat.color}`}>{stat.value}</div>
-                    <div className="text-sm text-foreground/60">{stat.label}</div>
-                  </div>
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {stats.map((stat, i) => (
+          <Card key={i} className="bg-content1/50 border border-white/5 shadow-sm">
+            <CardBody className="p-4">
+              <div className="flex items-center gap-4">
+                <div className={`w-10 h-10 rounded-lg bg-${stat.color}/20 flex items-center justify-center`}>
+                  <stat.icon className={`w-5 h-5 text-${stat.color}`} />
                 </div>
-              </CardBody>
-            </Card>
-          ))}
-        </div>
-
-        {/* Main Chat Area */}
-        <Card className="mb-6 bg-content1/50 backdrop-blur-xl border border-white/10 overflow-hidden">
-          <CardBody className="p-0">
-            {/* Chat Header */}
-            <div className="px-6 py-4 border-b border-white/10 bg-gradient-to-r from-primary/10 to-secondary/10">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
-                    <Icon.Cpu className="w-5 h-5 text-white" />
-                  </div>
-                  <div>
-                    <div className="font-bold">zcrAI Analyst</div>
-                    <div className="text-xs text-foreground/60 flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
-                      Ready to assist
-                    </div>
-                  </div>
+                <div>
+                  <div className={`text-xl font-bold text-${stat.color}`}>{stat.value}</div>
+                  <div className="text-xs text-foreground/60">{stat.label}</div>
                 </div>
-                <Chip size="sm" color="success" variant="flat">v2.0</Chip>
               </div>
-            </div>
+            </CardBody>
+          </Card>
+        ))}
+      </div>
 
-            {/* Messages Area */}
-            <div className="h-[400px] overflow-y-auto p-6 space-y-4">
-              {messages.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-center">
-                  <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center mb-4">
-                    <Icon.Cpu className="w-10 h-10 text-primary animate-pulse" />
-                  </div>
-                  <h3 className="text-xl font-bold mb-2">How can I help you today?</h3>
-                  <p className="text-foreground/60 max-w-md">
-                    I can analyze threats, investigate incidents, generate reports, and answer security questions.
-                  </p>
-                </div>
-              ) : (
-                messages.map((msg, i) => (
-                  <div key={i} className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in slide-in-from-bottom-2`}>
-                    {msg.role === 'ai' && (
-                      <Avatar 
-                        size="sm" 
-                        className="bg-gradient-to-br from-primary to-secondary"
-                        icon={<Icon.Cpu className="w-4 h-4 text-white" />}
-                      />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full min-h-[500px]">
+          {/* Main Chat Area - Left 2/3 */}
+          <Card className="lg:col-span-2 bg-content1/50 border border-white/5 flex flex-col h-[600px] lg:h-auto">
+            <CardBody className="p-0 flex flex-col h-full relative">
+                {/* Messages Area */}
+                <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                    {messages.length === 0 ? (
+                        <div className="h-full flex flex-col items-center justify-center text-center opacity-50">
+                            <Icon.Cpu className="w-12 h-12 mb-4" />
+                            <h3 className="text-lg font-semibold">How can I help you?</h3>
+                            <p className="text-sm text-foreground/60 max-w-xs">I can analyze threats, investigate incidents, and generate reports.</p>
+                        </div>
+                    ) : (
+                        messages.map((msg, i) => (
+                            <div key={i} className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                {msg.role === 'ai' && (
+                                    <Avatar size="sm" icon={<Icon.Cpu className="w-4 h-4" />} className="flex-shrink-0" />
+                                )}
+                                <div className={`max-w-[85%] rounded-2xl px-4 py-2 text-sm ${
+                                    msg.role === 'user' ? 'bg-primary text-white rounded-br-none' : 'bg-content2 text-foreground rounded-bl-none'
+                                }`}>
+                                    <p className="whitespace-pre-wrap">{msg.content}</p>
+                                    <p className="text-[10px] opacity-50 mt-1 text-right">
+                                        {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    </p>
+                                </div>
+                            </div>
+                        ))
                     )}
-                    <div className={`max-w-[70%] rounded-2xl px-4 py-3 ${
-                      msg.role === 'user' 
-                        ? 'bg-primary text-white rounded-br-md' 
-                        : 'bg-content2 text-foreground rounded-bl-md'
-                    }`}>
-                      <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
-                      <p className={`text-xs mt-1 ${msg.role === 'user' ? 'text-white/60' : 'text-foreground/40'}`}>
-                        {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </p>
-                    </div>
-                    {msg.role === 'user' && (
-                      <Avatar size="sm" className="bg-content3" icon={<Icon.User className="w-4 h-4" />} />
+                     {loading && (
+                        <div className="flex gap-2 items-center text-xs text-foreground/50 ml-10">
+                            <span className="w-1.5 h-1.5 bg-foreground/50 rounded-full animate-bounce" />
+                            <span className="w-1.5 h-1.5 bg-foreground/50 rounded-full animate-bounce delay-100" />
+                            <span className="w-1.5 h-1.5 bg-foreground/50 rounded-full animate-bounce delay-200" />
+                            Thinking...
+                        </div>
                     )}
-                  </div>
-                ))
-              )}
-              
-              {/* Typing Indicator */}
-              {loading && (
-                <div className="flex gap-3 animate-in fade-in">
-                  <Avatar 
-                    size="sm" 
-                    className="bg-gradient-to-br from-primary to-secondary"
-                    icon={<Icon.Cpu className="w-4 h-4 text-white" />}
-                  />
-                  <div className="bg-content2 rounded-2xl rounded-bl-md px-4 py-3">
-                    <div className="flex gap-1">
-                      <span className="w-2 h-2 rounded-full bg-foreground/40 animate-bounce" style={{ animationDelay: '0ms' }} />
-                      <span className="w-2 h-2 rounded-full bg-foreground/40 animate-bounce" style={{ animationDelay: '150ms' }} />
-                      <span className="w-2 h-2 rounded-full bg-foreground/40 animate-bounce" style={{ animationDelay: '300ms' }} />
+                    <div ref={messagesEndRef} />
+                </div>
+
+                {/* Input Area */}
+                <div className="p-4 border-t border-white/5 bg-content2/20">
+                    <div className="flex gap-2">
+                        <Input 
+                            placeholder="Ask me anything..." 
+                            value={query}
+                            onChange={(e) => setQuery(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleQuery()}
+                            isDisabled={loading}
+                            className="flex-1"
+                        />
+                        <Button isIconOnly color="primary" onPress={() => handleQuery()} isLoading={loading} isDisabled={!query.trim()}>
+                            <Icon.ArrowUpRight className="w-4 h-4" />
+                        </Button>
                     </div>
-                  </div>
                 </div>
-              )}
-              <div ref={messagesEndRef} />
-            </div>
+            </CardBody>
+          </Card>
 
-            {/* Input Area */}
-            <div className="px-6 py-4 border-t border-white/10 bg-content2/30">
-              <div className="flex gap-3">
-                <Input
-                  placeholder="Ask AI anything... (e.g., 'Summarize today's threats')"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleQuery()}
-                  size="lg"
-                  startContent={<Icon.Search className="w-5 h-5 text-foreground/40" />}
-                  classNames={{
-                    inputWrapper: "bg-content1 border border-white/10 hover:border-primary/30 transition-colors"
-                  }}
-                  isDisabled={loading}
-                />
-                <Button 
-                  color="primary" 
-                  size="lg"
-                  className="px-6 bg-gradient-to-r from-primary to-secondary shadow-lg shadow-primary/20"
-                  onPress={() => handleQuery()}
-                  isDisabled={!query.trim() || loading}
-                  isLoading={loading}
-                >
-                  <Icon.ArrowUpRight className="w-5 h-5" />
-                </Button>
-              </div>
-            </div>
-          </CardBody>
-        </Card>
+          {/* Right Sidebar: Quick Commands & Nav */}
+          <div className="flex flex-col gap-4">
+              <Card className="bg-content1/50 border border-white/5">
+                  <CardBody className="p-4">
+                      <h3 className="text-xs font-semibold text-foreground/50 uppercase mb-3">Quick Actions</h3>
+                      <div className="flex flex-col gap-2">
+                          {quickCommands.map((cmd, i) => (
+                              <button 
+                                key={i}
+                                onClick={() => handleQuery(cmd.text)}
+                                disabled={loading}
+                                className="text-left p-3 rounded-lg hover:bg-content2 text-sm text-foreground/80 hover:text-primary transition-colors border border-transparent hover:border-primary/20 flex items-start gap-3"
+                              >
+                                  <span>{cmd.icon}</span>
+                                  <span>{cmd.text}</span>
+                              </button>
+                          ))}
+                      </div>
+                  </CardBody>
+              </Card>
 
-        {/* Quick Commands */}
-        <div className="mb-8">
-          <h3 className="text-sm font-semibold text-foreground/60 mb-3 uppercase tracking-wider">Quick Commands</h3>
-          <div className="grid grid-cols-2 gap-3">
-            {quickCommands.map((cmd, i) => (
-              <button
-                key={i}
-                onClick={() => handleQuery(cmd.text)}
-                disabled={loading}
-                className="text-left px-4 py-3 rounded-xl bg-content1/50 backdrop-blur-sm border border-white/10 hover:border-primary/30 hover:bg-primary/5 transition-all duration-300 group"
-              >
-                <div className="flex items-center gap-3">
-                  <span className="text-xl">{cmd.icon}</span>
-                  <span className="text-sm text-foreground/80 group-hover:text-foreground transition-colors">{cmd.text}</span>
-                </div>
-              </button>
-            ))}
+              <Card className="bg-content1/50 border border-white/5">
+                <CardBody className="p-4">
+                     <h3 className="text-xs font-semibold text-foreground/50 uppercase mb-3">Jump To</h3>
+                     <div className="grid grid-cols-2 gap-2">
+                        {[
+                            { icon: Icon.Alert, label: 'Alerts', path: '/alerts', color: 'text-warning' },
+                            { icon: Icon.FileText, label: 'Cases', path: '/cases', color: 'text-primary' },
+                            { icon: Icon.Cpu, label: 'Autopilot', path: '/autopilot', color: 'text-success' },
+                            { icon: Icon.Dashboard, label: 'Dashboard', path: '/dashboard', color: 'text-secondary' },
+                        ].map((item, i) => (
+                            <Button 
+                                key={i} 
+                                variant="flat" 
+                                className="justify-start h-auto py-2" 
+                                onPress={() => navigate(item.path)}
+                                startContent={<item.icon className={`w-4 h-4 ${item.color}`} />}
+                            >
+                                <span className="text-xs">{item.label}</span>
+                            </Button>
+                        ))}
+                     </div>
+                </CardBody>
+              </Card>
           </div>
-        </div>
-
-        {/* Quick Navigation */}
-        <div className="grid grid-cols-4 gap-4">
-          {[
-            { icon: Icon.Alert, label: 'Alerts', path: '/alerts', color: 'warning' },
-            { icon: Icon.FileText, label: 'Cases', path: '/cases', color: 'primary' },
-            { icon: Icon.Cpu, label: 'Autopilot', path: '/autopilot', color: 'success' },
-            { icon: Icon.Dashboard, label: 'Dashboard', path: '/dashboard', color: 'secondary' },
-          ].map((item, i) => (
-            <Card 
-              key={i}
-              isPressable
-              onPress={() => navigate(item.path)}
-              className="bg-content1/50 backdrop-blur-sm border border-white/10 hover:border-primary/30 hover:scale-[1.02] transition-all duration-300"
-            >
-              <CardBody className="p-5 text-center">
-                <div className={`w-12 h-12 rounded-xl bg-${item.color}/20 flex items-center justify-center mx-auto mb-3`}>
-                  <item.icon className={`w-6 h-6 text-${item.color}`} />
-                </div>
-                <div className="font-semibold">{item.label}</div>
-              </CardBody>
-            </Card>
-          ))}
-        </div>
-
-        {/* Footer Status */}
-        <div className="mt-8 text-center">
-          <div className="inline-flex items-center gap-3 px-5 py-3 rounded-full bg-content1/50 backdrop-blur-sm border border-white/10">
-            <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
-            <span className="text-sm text-foreground/60">AI is monitoring your environment 24/7</span>
-            <span className="text-xs text-foreground/40">•</span>
-            <span className="text-xs text-foreground/40">Last scan: just now</span>
-          </div>
-        </div>
       </div>
     </div>
+  );
   );
 }
