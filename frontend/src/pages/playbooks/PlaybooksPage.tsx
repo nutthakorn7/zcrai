@@ -101,12 +101,29 @@ export default function PlaybooksPage() {
   };
 
   return (
-    <div className="flex h-screen bg-background overflow-hidden animate-fade-in">
-       {/* Sidebar: Library */}
-       <div className="w-80 border-r border-white/5 bg-content1/50 flex flex-col pt-16">
-           <div className="p-4 border-b border-white/5">
-               <h2 className="font-bold flex items-center gap-2 text-foreground"><Icon.Briefcase className="w-5 h-5 text-primary"/> Library</h2>
-               <Input placeholder="Search playbooks..." size="sm" className="mt-2" startContent={<Icon.Search className="w-4 h-4 text-foreground/60"/>} />
+    <div className="h-screen bg-background flex flex-col overflow-hidden animate-fade-in">
+       {/* Page Header */}
+       <div className="p-6 border-b border-white/5 flex justify-between items-center">
+         <div>
+           <h1 className="text-2xl font-bold text-foreground">Automation Playbooks</h1>
+           <p className="text-sm text-default-500">Design and manage security automation workflows</p>
+         </div>
+         <Button 
+           color="primary" 
+           onPress={handleOpenCreate}
+           startContent={<Icon.Add className="w-4 h-4" />}
+         >
+           New Playbook
+         </Button>
+       </div>
+
+       {/* Main Content */}
+       <div className="flex flex-1 overflow-hidden">
+         {/* Sidebar: Library */}
+         <div className="w-80 border-r border-white/5 bg-content1/50 flex flex-col">
+            <div className="p-4 border-b border-white/5">
+                <h2 className="font-bold flex items-center gap-2 text-foreground"><Icon.Briefcase className="w-5 h-5 text-primary"/> Library</h2>
+                <Input placeholder="Search playbooks..." size="sm" className="mt-2" startContent={<Icon.Search className="w-4 h-4 text-foreground/60"/>} />
            </div>
 
            {/* Enterprise ROI Stats */}
@@ -189,6 +206,8 @@ export default function PlaybooksPage() {
                <Button color="primary" variant="flat" className="mt-6" onPress={handleOpenCreate}>Create New Playbook</Button>
            </div>
        )}
+
+       </div> {/* End of Main Content flex wrapper */}
 
       {/* Create Modal */}
       <Modal 
