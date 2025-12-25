@@ -1,6 +1,7 @@
 import { db } from '../infra/db';
 import { alerts, cases } from '../infra/db/schema';
 import { sql, eq, and, gte, lte, desc } from 'drizzle-orm';
+import { query } from '../infra/clickhouse/client';
 
 export interface SankeyNode {
   name: string;
@@ -84,6 +85,28 @@ export class AnalyticsService {
   }
 
   /**
+   * Get log counts from ClickHouse by source
+   */
+  private async getLogCountsBySource(tenantId: string, startDate: Date): Promise<Record<string, number>> {
+    const startDateStr = startDate.toISOString().replace('T', ' ').replace('Z', '');
+    
+    const result = await query<{ source: string; count: string }>(`
+      SELECT source, count() as count
+      FROM security_events
+      WHERE tenant_id = {tenantId:String}
+        AND timestamp >= {startDate:DateTime64}
+      GROUP BY source
+      ORDER BY count DESC
+    `, { tenantId, startDate: startDateStr });
+    
+    const breakdown: Record<string, number> = {};
+    for (const row of result) {
+      breakdown[row.source || 'Unknown Source'] = parseInt(row.count);
+    }
+    return breakdown;
+  }
+
+  /**
    * Generates aggregated data for the Enterprise Insights Sankey Diagram
    */
   async getInsightsData(tenantId: string, days: number): Promise<{ 
@@ -93,6 +116,10 @@ export class AnalyticsService {
   }> {
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
+
+    // Fetch log counts from ClickHouse for Ingestion stage
+    const logCountsBySource = await this.getLogCountsBySource(tenantId, startDate);
+    const totalLogs = Object.values(logCountsBySource).reduce((sum, c) => sum + c, 0);
 
     // Fetch alerts with their related case status
     const alertsData = await db.query.alerts.findMany({
@@ -118,9 +145,9 @@ export class AnalyticsService {
     };
 
     const links: Record<string, number> = {};
-    const addLink = (source: string, target: string) => {
+    const addLink = (source: string, target: string, count: number = 1) => {
       const key = `${source}|${target}`;
-      links[key] = (links[key] || 0) + 1;
+      links[key] = (links[key] || 0) + count;
     };
 
     let escalatedCount = 0;
@@ -129,25 +156,41 @@ export class AnalyticsService {
     const determinationBreakdown: Record<string, number> = {};
     const sourceBreakdown: Record<string, number> = {};
 
-    for (const alert of alertsData) {
-      // 1. Ingestion (Source)
-      const sourceNode = alert.source || 'Unknown Source';
-      sourceBreakdown[sourceNode] = (sourceBreakdown[sourceNode] || 0) + 1;
+    // ==================== STAGE 1: Ingestion -> Categorization (from ClickHouse logs) ====================
+    // Calculate category counts from log sources
+    const categoryCounts: Record<string, number> = {};
+    for (const [source, count] of Object.entries(logCountsBySource)) {
+      let category = 'EDR';
+      const sourceLower = source.toLowerCase();
+      if (sourceLower.includes('sentinelone') || sourceLower.includes('crowdstrike')) {
+        category = 'EDR';
+      } else if (sourceLower.includes('simulate') || sourceLower.includes('simulation')) {
+        category = 'Identity';
+      } else if (sourceLower.includes('email') || sourceLower.includes('exchange')) {
+        category = 'Email';
+      } else if (sourceLower.includes('azure') || sourceLower.includes('aws') || sourceLower.includes('cloud')) {
+        category = 'Cloud';
+      }
+      
+      // Add log flow: Source -> Category
+      addLink(source, category, count);
+      categoryCounts[category] = (categoryCounts[category] || 0) + count;
+      sourceBreakdown[source] = count;
+    }
 
-      // 2. Categorization (Identity, Email, Cloud, EDR)
+    // ==================== STAGE 2-6: From Alerts (PostgreSQL) ====================
+    // Group alerts by category first
+    const alertsByCategoryEnrichment: Record<string, Record<string, number>> = {};
+    
+    for (const alert of alertsData) {
       const categoryNode = this.categorizeAlert(alert);
 
       // 3. Enrichment (MITRE ATT&CK Tactic)
-      // Extract MITRE Tactic from rawData or aiAnalysis
       const rawData = alert.rawData as any;
       let mitreTactic = rawData?.mitre_tactic || rawData?.MitreTactic || rawData?.tactic || '';
-      
-      // Fallback: try to get from aiAnalysis
       if (!mitreTactic && alert.aiAnalysis) {
         mitreTactic = (alert.aiAnalysis as any)?.mitreTactic || '';
       }
-      
-      // Clean up tactic name (some APIs return with underscores)
       const enrichmentNode = mitreTactic 
         ? mitreTactic.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())
         : 'Other';
@@ -181,8 +224,7 @@ export class AnalyticsService {
       if (alert.status === 'in_progress') statusNode = 'In Progress';
       if (alert.case && ['open', 'investigating', 'new'].includes(alert.case.status)) statusNode = 'Open';
 
-      // Build Flow
-      addLink(sourceNode, categoryNode);
+      // Build Flow from Categorization onward (alert-level)
       addLink(categoryNode, enrichmentNode);
       addLink(enrichmentNode, triageNode);
       addLink(triageNode, determinationNode);
@@ -215,10 +257,12 @@ export class AnalyticsService {
         timeSavedHours,
         timeSavedMinutes,
         totalAlerts: alertsData.length,
+        totalLogs,
         determinationBreakdown,
         sourceBreakdown
       }
     };
+
   }
 }
 
