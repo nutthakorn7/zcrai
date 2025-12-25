@@ -212,16 +212,30 @@ Evidence: ${caseItem.evidence?.length || 0} items
     }
   };
 
-  const slaDeadline = new Date(new Date(caseItem.createdAt).getTime() + getSLAHours(caseItem.severity) * 60 * 60 * 1000);
+  // Safe date parsing
+  const createdAtDate = caseItem.createdAt ? new Date(caseItem.createdAt) : null;
+  const isValidDate = createdAtDate && !isNaN(createdAtDate.getTime());
+  
+  const slaDeadline = isValidDate 
+    ? new Date(createdAtDate.getTime() + getSLAHours(caseItem.severity) * 60 * 60 * 1000)
+    : null;
   const now = new Date();
-  const timeLeftMs = slaDeadline.getTime() - now.getTime();
-  const isBreached = timeLeftMs < 0;
+  const timeLeftMs = slaDeadline ? slaDeadline.getTime() - now.getTime() : 0;
+  const isBreached = slaDeadline ? timeLeftMs < 0 : false;
   
   const formatTimeLeft = (ms: number) => {
+      if (!isFinite(ms) || isNaN(ms)) return 'N/A';
       const absMs = Math.abs(ms);
       const h = Math.floor(absMs / (1000 * 60 * 60));
       const m = Math.floor((absMs % (1000 * 60 * 60)) / (1000 * 60));
       return `${h}h ${m}m`;
+  };
+
+  const formatDate = (dateStr: string | undefined | null) => {
+    if (!dateStr) return 'Unknown';
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return 'Unknown';
+    return date.toLocaleString();
   };
 
   // useCaseSocket was moved to the top of the component (line 24) to fix React hooks rules
@@ -232,14 +246,14 @@ Evidence: ${caseItem.evidence?.length || 0} items
       <div className="flex justify-between items-start">
         <div className="flex flex-col gap-2">
             <Button variant="light" size="sm" startContent={<Icon.ArrowLeft className="w-4 h-4"/>} onPress={() => navigate('/cases')} className="w-fit -ml-3">Back to Board</Button>
-            <div className="flex items-center gap-3">
-                <h1 className="text-3xl font-bold">{caseItem.title}</h1>
-                <Chip color={caseItem.severity === 'critical' ? 'danger' : 'primary'}>{caseItem.severity}</Chip>
+            <div className="flex items-center gap-3 flex-wrap">
+                <h1 className="text-2xl font-bold">{caseItem.title || 'Untitled Case'}</h1>
+                {caseItem.severity && <Chip color={caseItem.severity === 'critical' ? 'danger' : caseItem.severity === 'high' ? 'warning' : 'primary'}>{caseItem.severity}</Chip>}
                 
-                {caseItem.status !== 'resolved' && caseItem.status !== 'closed' && (
+                {slaDeadline && caseItem.status !== 'resolved' && caseItem.status !== 'closed' && (
                     <Chip 
                         variant="flat" 
-                        color={isBreached ? "danger" : (timeLeftMs < 3600000 ? "warning" : "success")} // Warning if < 1h
+                        color={isBreached ? "danger" : (timeLeftMs < 3600000 ? "warning" : "success")}
                         startContent={<Icon.Clock className="w-3 h-3" />}
                         className="font-mono"
                     >
@@ -250,7 +264,7 @@ Evidence: ${caseItem.evidence?.length || 0} items
             
             {/* Presence Bar & Meta */}
             <div className="flex items-center gap-4 text-gray-400 text-sm">
-                <span>Created by User on {new Date(caseItem.createdAt).toLocaleString()}</span>
+                <span>Created {formatDate(caseItem.createdAt)}</span>
                 
                 {activeUsers.length > 0 && (
                      <div className="flex items-center gap-2 border-l border-white/10 pl-4">
