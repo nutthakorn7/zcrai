@@ -1,7 +1,8 @@
 // Note: Some react-force-graph-2d types use 'any' - consider adding proper types
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import { Card, CardBody, CardHeader, Chip, Button, Spinner, Switch } from '@heroui/react';
-import ForceGraph2D from 'react-force-graph-2d';
+// import ForceGraph2D from 'react-force-graph-2d'; // Moved to lazy
+const ForceGraph2D = lazy(() => import('react-force-graph-2d'));
 import { api } from '../shared/api/api';
 import { Icon } from '../shared/ui';
 
@@ -241,6 +242,7 @@ export function InvestigationGraph({ caseId, alertId, className }: Investigation
       <CardBody className="p-0 flex-1 min-h-[400px]">
         <div ref={containerRef} className="relative w-full h-full bg-content2/30 rounded-b-lg overflow-hidden">
           {dimensions.width > 0 && dimensions.height > 0 && (
+          <Suspense fallback={<div className="flex justify-center items-center h-full"><Spinner /></div>}>
           <ForceGraph2D
             ref={graphRef}
             width={dimensions.width}
@@ -298,6 +300,7 @@ export function InvestigationGraph({ caseId, alertId, className }: Investigation
             cooldownTicks={100}
             onEngineStop={() => graphRef.current?.zoomToFit(400)}
           />
+          </Suspense>
           )}
 
           {/* Legend */}
