@@ -192,11 +192,13 @@ export function InvestigationGraph({ caseId, alertId, className }: Investigation
 
     // Observer
     const observer = new ResizeObserver(() => {
-       updateDimensions();
-       // Force graph re-center/fit after resize
-       if (graphRef.current) {
-         graphRef.current.zoomToFit(200);
-       }
+       requestAnimationFrame(() => {
+           updateDimensions();
+           // Force graph re-center/fit after resize
+           if (graphRef.current) {
+             graphRef.current.zoomToFit(200);
+           }
+       });
     });
     
     if (containerRef.current) {
@@ -235,6 +237,7 @@ export function InvestigationGraph({ caseId, alertId, className }: Investigation
 
       <CardBody className="p-0 flex-1 min-h-[400px]">
         <div ref={containerRef} className="relative w-full h-full bg-content2/30 rounded-b-lg overflow-hidden">
+          {dimensions.width > 0 && dimensions.height > 0 && (
           <ForceGraph2D
             ref={graphRef}
             width={dimensions.width}
@@ -292,6 +295,7 @@ export function InvestigationGraph({ caseId, alertId, className }: Investigation
             cooldownTicks={100}
             onEngineStop={() => graphRef.current?.zoomToFit(400)}
           />
+          )}
 
           {/* Legend */}
           <div className="absolute bottom-3 left-3 bg-content1/80 backdrop-blur-sm rounded-lg p-3 text-xs">
