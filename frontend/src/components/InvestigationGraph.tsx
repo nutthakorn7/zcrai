@@ -180,9 +180,12 @@ export function InvestigationGraph({ caseId, alertId, className }: Investigation
   useEffect(() => {
     const updateDimensions = () => {
       if (containerRef.current) {
-        setDimensions({
-          width: containerRef.current.offsetWidth,
-          height: containerRef.current.offsetHeight
+        const { offsetWidth, offsetHeight } = containerRef.current;
+        setDimensions(prev => {
+           if (prev.width === offsetWidth && prev.height === offsetHeight) {
+             return prev;
+           }
+           return { width: offsetWidth, height: offsetHeight };
         });
       }
     };
