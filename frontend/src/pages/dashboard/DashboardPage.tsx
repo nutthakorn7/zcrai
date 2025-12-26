@@ -24,7 +24,7 @@ import {
   SiteData, 
   RecentDetection 
 } from './type.ts';
-import { ConnectivityStatusCard } from '../../components/ConnectivityStatusCard';
+import { IntegrationHealthWidget } from './widgets/IntegrationHealthWidget';
 import { AnomalyDashboardCard } from '../../components/AnomalyDashboardCard';
 
 
@@ -100,6 +100,7 @@ export default function DashboardPage() {
   // Available providers for filter buttons
   const [availableProviders, setAvailableProviders] = useState<string[]>([]);
   const [activeIntegrationsList, setActiveIntegrationsList] = useState<any[]>([]);
+  const prevIntegrationStatusRef = useRef<Record<string, string>>({}); // Track previous health status for notifications
   const [autoRefresh, setAutoRefresh] = useState(false);
   const navigate = useNavigate();
 
@@ -205,21 +206,59 @@ export default function DashboardPage() {
       const activeIntRes = await api.get('/integrations');
       const activeIntegrations = activeIntRes.data || [];
       
-      // Map lastSyncStatus to status for ConnectivityStatusCard compatibility
-      // Backend uses 'lastSyncStatus: success/pending/error' but UI expects 'status: active/inactive'
+      // Map lastSyncStatus to healthStatus for ConnectivityStatusCard compatibility
+      // Backend uses 'lastSyncStatus: success/pending/error' but UI expects 'healthStatus: healthy/down'
       const mappedIntegrations = activeIntegrations.map((i: any) => ({
         ...i,
-        status: i.lastSyncStatus === 'success' ? 'active' : 'inactive'
+        healthStatus: i.lastSyncStatus === 'success' ? 'healthy' : (i.lastSyncStatus === 'error' ? 'down' : 'degraded'),
+        status: i.lastSyncStatus === 'success' ? 'active' : 'inactive' // Keep legacy status for filter buttons
       }));
       
       const activeProviders = mappedIntegrations
-        .filter((i: any) => i.status === 'active')
+        .filter((i: any) => i.healthStatus === 'healthy')
         .map((i: any) => i.provider.toLowerCase())
         .filter((p: string) => ['sentinelone', 'crowdstrike', 'aws-cloudtrail'].includes(p));
         
       const uniqueActiveProviders = Array.from(new Set(activeProviders)) as string[];
       setAvailableProviders(uniqueActiveProviders);
       setActiveIntegrationsList(mappedIntegrations);
+      
+      // 🔔 Detect integration disconnections and reconnections - show notifications
+      const edrProviders = ['sentinelone', 'crowdstrike', 'aws-cloudtrail'];
+      const currentStatus: Record<string, string> = {};
+      mappedIntegrations
+        .filter((i: any) => edrProviders.includes(i.provider.toLowerCase()))
+        .forEach((i: any) => {
+          currentStatus[i.id] = i.healthStatus;
+          const prevStatus = prevIntegrationStatusRef.current[i.id];
+          // If was healthy before but now unhealthy → show disconnect notification
+          if (prevStatus === 'healthy' && i.healthStatus !== 'healthy') {
+            toast.error(`⚠️ ${i.label || i.provider} disconnected`, {
+              duration: 8000,
+              icon: '🔌',
+              style: {
+                borderRadius: '10px',
+                background: '#1A1D1F',
+                color: '#fff',
+                border: '1px solid rgba(239,68,68,0.5)'
+              },
+            });
+          }
+          // 🔌 If was unhealthy before but now healthy → show reconnect notification
+          if (prevStatus && prevStatus !== 'healthy' && i.healthStatus === 'healthy') {
+            toast.success(`🔌 ${i.label || i.provider} reconnected!`, {
+              duration: 5000,
+              icon: '✅',
+              style: {
+                borderRadius: '10px',
+                background: '#1A1D1F',
+                color: '#fff',
+                border: '1px solid rgba(34,197,94,0.5)'
+              },
+            });
+          }
+        });
+      prevIntegrationStatusRef.current = currentStatus;
 
       // 2. Determine sources query param
       let targetSources: string[] = []; // Default to empty (show all)
@@ -860,7 +899,7 @@ export default function DashboardPage() {
 
       {/* System Metrics */}
       <div className="mb-8 animate-fade-in">
-        <ConnectivityStatusCard integrations={activeIntegrationsList} />
+        <IntegrationHealthWidget integrations={activeIntegrationsList} loading={loading} />
       </div>
 
       {/* ML Anomaly Detection */}

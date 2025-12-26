@@ -7,6 +7,7 @@ interface AuditLog {
   id: string;
   action: string;
   resource: string;
+  resourceId?: string; // Added resourceId
   details: any;
   ipAddress: string;
   user?: {
@@ -165,6 +166,16 @@ export default function AuditLogsPage() {
                           <div>
                             <span className="text-tiny text-default-500 block">Timestamp</span>
                             <span>{new Date(selectedLog.createdAt).toLocaleString()}</span>
+                          </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <span className="text-tiny text-default-500 block">Resource Type</span>
+                            <span className="capitalize">{selectedLog.resource}</span>
+                          </div>
+                          <div>
+                            <span className="text-tiny text-default-500 block">Resource ID</span>
+                            <span className="font-mono text-xs">{selectedLog.resourceId || '-'}</span>
                           </div>
                       </div>
                       <div>

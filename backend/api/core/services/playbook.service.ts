@@ -1,6 +1,7 @@
 import { db } from '../../infra/db'
 import { playbooks, playbookSteps, playbookExecutions, playbookExecutionSteps, cases, approvals, playbookInputs, alerts } from '../../infra/db/schema'
 import { eq, and, desc } from 'drizzle-orm'
+import { NotificationService } from './notification.service'
 
 export class PlaybookService {
   // ==================== CRUD PLAYBOOK ====================
@@ -366,6 +367,18 @@ export class PlaybookService {
         // Update Step Status
         await this.updateStepStatus(tenantId, executionId, stepId, 'waiting_for_approval')
         
+        // Notify
+        if (step.execution.startedBy) {
+            await NotificationService.create({
+                tenantId,
+                userId: step.execution.startedBy,
+                type: 'approval_requested',
+                title: 'Approval Required',
+                message: `Playbook step '${step.step.name}' requires your approval.`,
+                metadata: { executionId, stepId, caseId: step.execution.caseId }
+            })
+        }
+
         return { success: true, status: 'waiting_for_approval', message: 'Approval requested' }
     }
 
@@ -389,6 +402,18 @@ export class PlaybookService {
 
         // Update Step Status
         await this.updateStepStatus(tenantId, executionId, stepId, 'waiting_for_input')
+
+        // Notify
+        if (step.execution.startedBy) {
+            await NotificationService.create({
+                tenantId,
+                userId: step.execution.startedBy,
+                type: 'input_requested',
+                title: 'Input Required',
+                message: `Playbook step '${step.step.name}' needs your input.`,
+                metadata: { executionId, stepId, caseId: step.execution.caseId }
+            })
+        }
         
         return { success: true, status: 'waiting_for_input', message: 'Input requested' }
     }

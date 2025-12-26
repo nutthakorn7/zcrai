@@ -200,10 +200,27 @@ export const ThreatIntelService = {
       });
     }
 
-    // Query AbuseIPDB (IP only)
-    if (type === 'ip') {
+    // Query AbuseIPDB (IP with DNS resolution for domains)
+    if (type === 'ip' || type === 'domain') {
       try {
-        const abuseResult = await this.abuseipdb.checkIP(indicator);
+        let ipToCheck = indicator;
+        let isResolved = false;
+
+        // Resolve domain to IP if needed
+        if (type === 'domain') {
+          try {
+            const dns = await import('dns/promises');
+            const resolved = await dns.lookup(indicator);
+            ipToCheck = resolved.address;
+            isResolved = true;
+          } catch (e) {
+            // DNS resolution failed, skip AbuseIPDB
+            console.warn(`[ThreatIntel] DNS resolution failed for ${indicator}`);
+            throw new Error('DNS resolution failed');
+          }
+        }
+
+        const abuseResult = await this.abuseipdb.checkIP(ipToCheck);
         
         const isHighRisk = abuseResult.abuseConfidenceScore > 50;
         const isMediumRisk = abuseResult.abuseConfidenceScore > 20;
@@ -212,18 +229,25 @@ export const ThreatIntelService = {
           name: 'AbuseIPDB',
           found: abuseResult.totalReports > 0,
           risk: isHighRisk ? 'malicious' : (isMediumRisk ? 'suspicious' : 'clean'),
-          details: abuseResult
+          details: {
+            ...abuseResult,
+            note: isResolved ? `Resolved from domain: ${ipToCheck}` : undefined,
+            resolvedIp: isResolved ? ipToCheck : undefined
+          }
         });
 
         if (isHighRisk) maliciousCount++;
         else if (isMediumRisk) suspiciousCount++;
       } catch (e: any) {
-        sources.push({
-          name: 'AbuseIPDB',
-          found: false,
-          risk: 'error',
-          details: { error: e.message }
-        });
+        // Only add error result if it was an IP lookup or if resolution was attempted
+        if (type === 'ip') {
+             sources.push({
+              name: 'AbuseIPDB',
+              found: false,
+              risk: 'error',
+              details: { error: e.message }
+            });
+        }
       }
     }
 

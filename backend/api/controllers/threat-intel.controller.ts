@@ -56,3 +56,45 @@ export const threatIntelController = new Elysia({ prefix: '/threat-intel' })
         value: t.String()
     })
   })
+
+  /**
+   * Get dynamic status of all threat intel providers
+   * @route GET /threat-intel/providers
+   * @returns {Array} List of providers with their configuration status
+   */
+  .get('/providers', async ({ user, set }: any) => {
+    try {
+      if (!user) {
+        set.status = 401;
+        return { success: false, error: 'Authentication required', code: 'UNAUTHORIZED' };
+      }
+      const { ThreatIntelService } = await import('../core/services/threat-intel.service');
+      const data = await ThreatIntelService.getProviderStatus();
+      return { success: true, data };
+    } catch (e: any) {
+      console.error('[ThreatIntel] Provider status error:', e.message);
+      set.status = 500;
+      return { success: false, error: 'Failed to fetch provider status', message: e.message };
+    }
+  })
+
+  /**
+   * Get summary of recent threat intel activity
+   * @route GET /threat-intel/summary
+   * @returns {Object} Statistics and recent queries
+   */
+  .get('/summary', async ({ user, set }: any) => {
+    try {
+      if (!user) {
+        set.status = 401;
+        return { success: false, error: 'Authentication required', code: 'UNAUTHORIZED' };
+      }
+      const { ThreatIntelService } = await import('../core/services/threat-intel.service');
+      const data = ThreatIntelService.getSummary();
+      return { success: true, data };
+    } catch (e: any) {
+      console.error('[ThreatIntel] Summary error:', e.message);
+      set.status = 500;
+      return { success: false, error: 'Failed to fetch summary', message: e.message };
+    }
+  })

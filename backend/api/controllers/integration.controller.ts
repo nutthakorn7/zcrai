@@ -7,6 +7,7 @@
 import { Elysia } from 'elysia'
 import { jwt } from '@elysiajs/jwt'
 import { IntegrationService } from '../core/services/integration.service'
+import { AuditService } from '../core/services/audit.service'
 import { withAuth } from '../middleware/auth'
 import { AddSentinelOneSchema, AddCrowdStrikeSchema, AddAISchema, UpdateIntegrationSchema, AddAWSSchema } from '../validators/integration.validator'
 
@@ -195,6 +196,17 @@ export const integrationController = new Elysia({ prefix: '/integrations' })
     try {
       if (!user?.tenantId) throw new Error('Unauthorized')
       const integration = await IntegrationService.addSentinelOne(user.tenantId as string, body)
+      
+      await AuditService.log({
+        tenantId: user.tenantId,
+        userId: user.userId || user.id,
+        action: 'CREATE_INTEGRATION',
+        resource: 'integration',
+        resourceId: integration.id,
+        details: { provider: 'sentinelone', url: body.url },
+        status: 'SUCCESS'
+      })
+
       set.status = 201
       return { message: 'SentinelOne integration added successfully', integration }
     } catch (e: any) {
@@ -215,6 +227,17 @@ export const integrationController = new Elysia({ prefix: '/integrations' })
     try {
       if (!user?.tenantId) throw new Error('Unauthorized')
       const integration = await IntegrationService.addCrowdStrike(user.tenantId as string, body)
+      
+      await AuditService.log({
+        tenantId: user.tenantId,
+        userId: user.userId || user.id,
+        action: 'CREATE_INTEGRATION',
+        resource: 'integration',
+        resourceId: integration.id,
+        details: { provider: 'crowdstrike', clientId: body.clientId },
+        status: 'SUCCESS'
+      })
+
       set.status = 201
       return { message: 'CrowdStrike integration added successfully', integration }
     } catch (e: any) {
@@ -239,12 +262,24 @@ export const integrationController = new Elysia({ prefix: '/integrations' })
       const { apiKey, model, baseUrl, label } = body as AddAIBody
       const provider = params.provider.toLowerCase()
       if (!apiKey) throw new Error('API Key is required')
-      return await IntegrationService.addAI(user.tenantId as string, provider, {
+      const result = await IntegrationService.addAI(user.tenantId as string, provider, {
         apiKey,
         model,
         baseUrl,
         label
       })
+      
+      await AuditService.log({
+        tenantId: user.tenantId,
+        userId: user.userId || user.id,
+        action: 'CREATE_INTEGRATION',
+        resource: 'integration',
+        resourceId: result.id,
+        details: { provider: `ai-${provider}`, model },
+        status: 'SUCCESS'
+      })
+      
+      return result
     } catch (e: any) {
       set.status = 400
       return { error: e.message }
@@ -265,6 +300,17 @@ export const integrationController = new Elysia({ prefix: '/integrations' })
       if (!user?.tenantId) throw new Error('Unauthorized')
       // @ts-ignore
       const integration = await IntegrationService.addAWS(user.tenantId as string, body)
+      
+      await AuditService.log({
+        tenantId: user.tenantId,
+        userId: user.userId || user.id,
+        action: 'CREATE_INTEGRATION',
+        resource: 'integration',
+        resourceId: integration.id,
+        details: { provider: 'aws', accessKeyId: body.accessKeyId?.substring(0, 4) + '...' },
+        status: 'SUCCESS'
+      })
+
       set.status = 201
       return { message: 'AWS integration added successfully', integration }
     } catch (e: any) {
@@ -312,20 +358,33 @@ export const integrationController = new Elysia({ prefix: '/integrations' })
         normalizedProvider = 'alienvault-otx'
       }
       
-      if (!['virustotal', 'abuseipdb', 'alienvault-otx'].includes(normalizedProvider)) {
-        throw new Error('Invalid enrichment provider. Must be virustotal, abuseipdb, or alienvault')
+      if (!['virustotal', 'abuseipdb', 'alienvault-otx', 'urlscan'].includes(normalizedProvider)) {
+        throw new Error('Invalid enrichment provider. Must be virustotal, abuseipdb, alienvault, or urlscan')
       }
 
       const defaultLabels: Record<string, string> = {
         'virustotal': 'VirusTotal',
         'abuseipdb': 'AbuseIPDB',
-        'alienvault-otx': 'AlienVault OTX'
+        'alienvault-otx': 'AlienVault OTX',
+        'urlscan': 'URLScan.io'
       }
 
-      return await IntegrationService.addEnrichment(user.tenantId as string, normalizedProvider, {
+      const result = await IntegrationService.addEnrichment(user.tenantId as string, normalizedProvider, {
         apiKey,
         label: label || defaultLabels[normalizedProvider] || normalizedProvider
       })
+      
+      await AuditService.log({
+        tenantId: user.tenantId,
+        userId: user.userId || user.id,
+        action: 'CREATE_INTEGRATION',
+        resource: 'integration',
+        resourceId: result.integration.id,
+        details: { provider: normalizedProvider, type: 'enrichment' },
+        status: 'SUCCESS'
+      })
+      
+      return result
     } catch (e: any) {
       console.error('[Enrichment Add Error]', e.message, e.stack)
       set.status = 400
@@ -397,6 +456,16 @@ export const integrationController = new Elysia({ prefix: '/integrations' })
         console.warn('[Integration Update] Failed to trigger Collector sync:', e)
       }
       
+      
+      await AuditService.log({
+        tenantId: user.tenantId,
+        userId: user.userId || user.id,
+        action: 'UPDATE_INTEGRATION',
+        resource: 'integration',
+        resourceId: params.id,
+        status: 'SUCCESS'
+      })
+
       return { message: 'Integration updated successfully', integration }
     } catch (e: any) {
       set.status = 400
@@ -426,6 +495,16 @@ export const integrationController = new Elysia({ prefix: '/integrations' })
         console.warn('Failed to notify collector about integration deletion:', e)
       }
       await IntegrationService.delete(params.id, user.tenantId as string)
+      
+      await AuditService.log({
+          tenantId: user.tenantId,
+          userId: user.userId || user.id,
+          action: 'DELETE_INTEGRATION',
+          resource: 'integration',
+          resourceId: params.id,
+          status: 'SUCCESS'
+      })
+
       return { message: 'Integration deleted successfully' }
     } catch (e: any) {
       set.status = 400
@@ -473,8 +552,67 @@ export const integrationController = new Elysia({ prefix: '/integrations' })
   .post('/:id/reset-circuit', async ({ params, user, set }: any) => {
     try {
       if (!user?.tenantId) throw new Error('Unauthorized')
-      await IntegrationService.resetCircuit(params.id, user.tenantId as string)
-      return { success: true, message: 'Circuit breaker reset successfully' }
+      const result = await IntegrationService.resetCircuit(params.id, user.tenantId as string)
+
+
+      
+      if (result.reconnected) {
+          await AuditService.log({
+            tenantId: user.tenantId,
+            userId: user.userId || user.id,
+            action: 'RESET_CIRCUIT',
+            resource: 'integration',
+            resourceId: params.id,
+            status: 'SUCCESS'
+          })
+      }
+
+      return { 
+        success: true, 
+        reconnected: result.reconnected,
+        message: result.reconnected ? '🔌 Reconnected successfully' : `Reconnect failed: ${result.message}`
+      }
+    } catch (e: any) {
+      set.status = 400
+      return { error: e.message }
+    }
+  })
+
+  /**
+   * Set token expiry date for an integration
+   * @route PUT /integrations/:id/token-expiry
+   * @access Protected - Admin only
+   * @body {string} expiresAt - ISO date string or null to clear
+   */
+  .put('/:id/token-expiry', async ({ params, body, user, set }: any) => {
+    try {
+      if (!user?.tenantId) throw new Error('Unauthorized')
+      const { expiresAt } = body as { expiresAt: string | null }
+      
+      const expiryDate = expiresAt ? new Date(expiresAt) : null
+      
+      // Validate date if provided
+      if (expiresAt && isNaN(expiryDate!.getTime())) {
+        throw new Error('Invalid date format')
+      }
+      
+      const updated = await IntegrationService.setTokenExpiry(params.id, user.tenantId as string, expiryDate)
+      
+      await AuditService.log({
+        tenantId: user.tenantId,
+        userId: user.userId || user.id,
+        action: 'UPDATE_TOKEN_EXPIRY',
+        resource: 'integration',
+        resourceId: params.id,
+        details: { expiresAt: expiryDate },
+        status: 'SUCCESS'
+      })
+
+      return { 
+        success: true, 
+        tokenExpiresAt: updated?.tokenExpiresAt,
+        message: expiresAt ? `Token expiry set to ${expiryDate!.toLocaleDateString()}` : 'Token expiry cleared'
+      }
     } catch (e: any) {
       set.status = 400
       return { error: e.message }

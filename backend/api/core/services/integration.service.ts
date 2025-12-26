@@ -1,6 +1,6 @@
 import { db } from '../../infra/db'
-import { apiKeys, collectorStates } from '../../infra/db/schema'
-import { eq, and } from 'drizzle-orm'
+import { apiKeys, collectorStates, users } from '../../infra/db/schema'
+import { eq, and, sql } from 'drizzle-orm'
 import { Encryption } from '../../utils/encryption'
 import { AWSCloudTrailProvider } from '../providers/aws-cloudtrail.provider'
 
@@ -18,6 +18,7 @@ export const IntegrationService = {
       lastSyncError: apiKeys.lastSyncError,
       lastSyncAt: apiKeys.lastSyncAt,
       createdAt: apiKeys.createdAt,
+      tokenExpiresAt: apiKeys.tokenExpiresAt,
     })
     .from(apiKeys)
     .where(eq(apiKeys.tenantId, tenantId))
@@ -57,6 +58,7 @@ export const IntegrationService = {
         hasApiKey: !!key.encryptedKey && key.encryptedKey.length > 0,
         fetchSettings,
         maskedUrl,
+        tokenExpiresAt: key.tokenExpiresAt,
       }
     })
 
@@ -75,6 +77,7 @@ export const IntegrationService = {
         hasApiKey: true,
         fetchSettings: null,
         maskedUrl: null,
+        tokenExpiresAt: null,
       })
     }
 
@@ -901,13 +904,70 @@ export const IntegrationService = {
 
   // ==================== UPDATE SYNC STATUS (สำหรับ Collector) ====================
   async updateSyncStatus(tenantId: string, provider: string, status: 'success' | 'error', error?: string) {
+    // 🔌 Get previous status to detect changes
+    const [existing] = await db.select({
+      id: apiKeys.id,
+      label: apiKeys.label,
+      lastSyncStatus: apiKeys.lastSyncStatus,
+    })
+    .from(apiKeys)
+    .where(and(eq(apiKeys.tenantId, tenantId), eq(apiKeys.provider, provider)))
+    .limit(1);
+    
+    const previousStatus = existing?.lastSyncStatus;
+    const integrationName = existing?.label || provider;
+    
+    // Update the status
     await db.update(apiKeys)
       .set({
         lastSyncStatus: status,
         lastSyncError: status === 'error' ? error?.slice(0, 500) : null, // จำกัด 500 chars
         lastSyncAt: new Date(),
       })
-      .where(and(eq(apiKeys.tenantId, tenantId), eq(apiKeys.provider, provider)))
+      .where(and(eq(apiKeys.tenantId, tenantId), eq(apiKeys.provider, provider)));
+    
+    // 📧 Send email alert on status change
+    if (previousStatus && previousStatus !== status) {
+      this.sendIntegrationAlertEmail(tenantId, integrationName, status, error);
+    }
+  },
+  
+  /**
+   * 📧 Helper: Send integration alert email to tenant admins (non-blocking)
+   */
+  async sendIntegrationAlertEmail(tenantId: string, integrationName: string, status: 'success' | 'error', errorMessage?: string) {
+    try {
+      // Import EmailService here to avoid circular dependency
+      const { EmailService } = await import('./email.service');
+      
+      // Get admin users for this tenant
+      const admins = await db.select({ email: users.email })
+        .from(users)
+        .where(and(
+          eq(users.tenantId, tenantId),
+          eq(users.role, 'admin'),
+          eq(users.status, 'active')
+        ));
+      
+      if (admins.length === 0) {
+        console.log(`[Integration Alert] No admin users found for tenant ${tenantId}`);
+        return;
+      }
+      
+      const alertStatus = status === 'error' ? 'disconnected' : 'reconnected';
+      
+      // Send email to all admins (in parallel, non-blocking)
+      for (const admin of admins) {
+        EmailService.sendIntegrationAlert(admin.email, integrationName, alertStatus, errorMessage)
+          .then(sent => {
+            if (sent) console.log(`[Integration Alert] Email sent to ${admin.email}: ${integrationName} ${alertStatus}`);
+          })
+          .catch(err => console.error(`[Integration Alert] Failed to send email:`, err));
+      }
+    } catch (e) {
+      console.error('[Integration Alert] Error sending alert:', e);
+      // Don't throw - this is non-critical
+    }
   },
 
   // ==================== TRIGGER COLLECTOR SYNC ====================
@@ -1035,16 +1095,29 @@ export const IntegrationService = {
 
   /**
    * Check health of all active integrations
-   * Designed to be called by Scheduler every 5-15 mins
+   * Designed to be called by Scheduler every 2 mins
    */
   async checkAllHealth() {
     const activeIntegrations = await db.select().from(apiKeys);
     
     for (const integration of activeIntegrations) {
-        // Skip if circuit is already open (don't spam failed endpoints)
+        // 🔧 Auto-reset circuit breaker after 2 minute cooldown
         if (integration.isCircuitOpen) {
-            console.log(`[HealthCheck] Skipping ${integration.provider} for tenant ${integration.tenantId} (Circuit Open)`);
-            continue;
+            const lastAttempt = integration.lastSyncAt?.getTime() || 0;
+            const cooldownMs = 2 * 60 * 1000; // 2 minutes cooldown
+            const now = Date.now();
+            
+            if (now - lastAttempt < cooldownMs) {
+                // Still in cooldown period
+                console.log(`[HealthCheck] Skipping ${integration.provider} - Circuit cooling down (${Math.round((cooldownMs - (now - lastAttempt)) / 1000)}s left)`);
+                continue;
+            }
+            
+            // Cooldown expired → Reset circuit and retry
+            console.log(`[HealthCheck] ⚡ Auto-resetting circuit for ${integration.provider} after cooldown`);
+            await db.update(apiKeys)
+                .set({ isCircuitOpen: false, failureCount: 0 })
+                .where(eq(apiKeys.id, integration.id));
         }
 
         try {
@@ -1095,7 +1168,7 @@ export const IntegrationService = {
   },
 
   /**
-   * Manually reset the circuit breaker
+   * Manually reset the circuit breaker and attempt reconnection
    */
   async resetCircuit(integrationId: string, tenantId: string) {
     const [updated] = await db.update(apiKeys)
@@ -1110,6 +1183,136 @@ export const IntegrationService = {
         .returning();
 
     if (!updated) throw new Error("Integration not found or unauthorized");
+    
+    // 🔌 Immediately test connection after reset
+    try {
+      await this.testExisting(integrationId, tenantId);
+      return { ...updated, reconnected: true, message: 'Reconnected successfully' };
+    } catch (error: any) {
+      // Test failed but circuit was reset, return status
+      return { ...updated, reconnected: false, message: error.message };
+    }
+  },
+
+  // ==================== TOKEN EXPIRY MONITORING ====================
+  
+  /**
+   * ⏰ Set Token Expiry Date for an integration
+   */
+  async setTokenExpiry(integrationId: string, tenantId: string, expiresAt: Date | null) {
+    const [updated] = await db.update(apiKeys)
+      .set({
+        tokenExpiresAt: expiresAt,
+        tokenExpiryAlertSent: false, // Reset alert flag when expiry changes
+      })
+      .where(and(eq(apiKeys.id, integrationId), eq(apiKeys.tenantId, tenantId)))
+      .returning();
+    
     return updated;
+  },
+
+  /**
+   * 🔍 Check for tokens expiring within N days and send alerts
+   * Called by scheduler cron job (daily)
+   */
+  async checkExpiringTokens(alertDaysThreshold: number = 7) {
+    try {
+      const { EmailService } = await import('./email.service');
+      
+      const now = new Date();
+      const thresholdDate = new Date(now.getTime() + alertDaysThreshold * 24 * 60 * 60 * 1000);
+      
+      // Find tokens expiring soon that haven't been alerted
+      const expiringTokens = await db.select({
+        id: apiKeys.id,
+        tenantId: apiKeys.tenantId,
+        provider: apiKeys.provider,
+        label: apiKeys.label,
+        tokenExpiresAt: apiKeys.tokenExpiresAt,
+      })
+      .from(apiKeys)
+      .where(and(
+        eq(apiKeys.tokenExpiryAlertSent, false),
+        sql`${apiKeys.tokenExpiresAt} IS NOT NULL`,
+        sql`${apiKeys.tokenExpiresAt} <= ${thresholdDate}`,
+        sql`${apiKeys.tokenExpiresAt} > ${now}` // Not yet expired
+      ));
+      
+      console.log(`[Token Expiry] Found ${expiringTokens.length} tokens expiring within ${alertDaysThreshold} days`);
+      
+      for (const token of expiringTokens) {
+        const expiresAt = new Date(token.tokenExpiresAt!);
+        const daysUntilExpiry = Math.ceil((expiresAt.getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
+        const integrationName = token.label || token.provider;
+        
+        // Get admin users for this tenant
+        const admins = await db.select({ email: users.email })
+          .from(users)
+          .where(and(
+            eq(users.tenantId, token.tenantId),
+            eq(users.role, 'admin'),
+            eq(users.status, 'active')
+          ));
+        
+        // Send alert to all admins
+        for (const admin of admins) {
+          EmailService.sendTokenExpiryAlert(admin.email, integrationName, daysUntilExpiry, expiresAt)
+            .then(sent => {
+              if (sent) console.log(`[Token Expiry] Alert sent to ${admin.email}: ${integrationName} expires in ${daysUntilExpiry} days`);
+            })
+            .catch(err => console.error(`[Token Expiry] Failed to send alert:`, err));
+        }
+        
+        // Mark as alerted (only for 7-day alert; 1-day is separate)
+        if (daysUntilExpiry > 1) {
+          await db.update(apiKeys)
+            .set({ tokenExpiryAlertSent: true })
+            .where(eq(apiKeys.id, token.id));
+        }
+      }
+      
+      // Also check for 1-day expiry (urgent alert even if already sent 7-day)
+      const urgentTokens = await db.select({
+        id: apiKeys.id,
+        tenantId: apiKeys.tenantId,
+        provider: apiKeys.provider,
+        label: apiKeys.label,
+        tokenExpiresAt: apiKeys.tokenExpiresAt,
+      })
+      .from(apiKeys)
+      .where(and(
+        sql`${apiKeys.tokenExpiresAt} IS NOT NULL`,
+        sql`${apiKeys.tokenExpiresAt} <= ${new Date(now.getTime() + 24 * 60 * 60 * 1000)}`,
+        sql`${apiKeys.tokenExpiresAt} > ${now}`
+      ));
+      
+      for (const token of urgentTokens) {
+        const expiresAt = new Date(token.tokenExpiresAt!);
+        const hoursUntilExpiry = Math.ceil((expiresAt.getTime() - now.getTime()) / (60 * 60 * 1000));
+        const integrationName = token.label || token.provider;
+        
+        // Get admin users
+        const admins = await db.select({ email: users.email })
+          .from(users)
+          .where(and(
+            eq(users.tenantId, token.tenantId),
+            eq(users.role, 'admin'),
+            eq(users.status, 'active')
+          ));
+        
+        for (const admin of admins) {
+          EmailService.sendTokenExpiryAlert(admin.email, integrationName, 1, expiresAt)
+            .then(sent => {
+              if (sent) console.log(`[Token Expiry] URGENT alert sent to ${admin.email}: ${integrationName} expires in ${hoursUntilExpiry}h`);
+            })
+            .catch(err => console.error(`[Token Expiry] Failed to send urgent alert:`, err));
+        }
+      }
+      
+      return { checked: expiringTokens.length + urgentTokens.length };
+    } catch (e) {
+      console.error('[Token Expiry] Error checking expiring tokens:', e);
+      return { error: (e as Error).message };
+    }
   }
 }

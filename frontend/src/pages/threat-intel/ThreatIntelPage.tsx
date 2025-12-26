@@ -149,7 +149,7 @@ export default function ThreatIntelPage() {
     queryKey: ['threat-intel-summary'],
     queryFn: async () => {
       const res = await api.get('/threat-intel/summary');
-      return res.data;
+      return res.data.data;
     },
     refetchInterval: 30000,
   });
@@ -159,7 +159,7 @@ export default function ThreatIntelPage() {
     queryKey: ['threat-intel-providers'],
     queryFn: async () => {
       const res = await api.get('/threat-intel/providers');
-      return res.data;
+      return res.data.data;
     },
   });
 
@@ -449,6 +449,11 @@ export default function ThreatIntelPage() {
                           <div className="flex justify-between">
                             <span className="text-default-500">Last Reported</span>
                             <span className="text-[10px]">{new Date(source.details.lastReportedAt).toLocaleDateString()}</span>
+                          </div>
+                        )}
+                        {source.details.note && (
+                          <div className="mt-2 p-2 bg-default-100 rounded text-[10px] text-default-500 font-mono break-all">
+                            ℹ️ {source.details.note}
                           </div>
                         )}
                         

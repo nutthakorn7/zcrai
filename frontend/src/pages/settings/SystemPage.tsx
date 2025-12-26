@@ -94,7 +94,12 @@ function BackupView() {
                                     <TableCell>{(file.size / 1024 / 1024).toFixed(2)} MB</TableCell>
                                     <TableCell>{new Date(file.createdAt).toLocaleString()}</TableCell>
                                     <TableCell>
-                                        <Button size="sm" variant="flat" isIconOnly>
+                                        <Button 
+                                          size="sm" 
+                                          variant="flat" 
+                                          isIconOnly
+                                          onPress={() => window.open(SystemAPI.getBackupDownloadUrl(file.name), '_blank')}
+                                        >
                                             <Icon.Download className="w-4 h-4"/>
                                         </Button>
                                     </TableCell>

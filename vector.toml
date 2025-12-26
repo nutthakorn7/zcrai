@@ -70,3 +70,56 @@ encoding.timestamp_format = "unix"
   max_events = 100
   timeout_secs = 5
 
+# ===========================================
+# Host Metrics Collection (CPU, Memory, etc.)
+# ===========================================
+
+[sources.host_metrics]
+type = "host_metrics"
+scrape_interval_secs = 15
+collectors = ["cpu", "memory", "disk", "network"]
+
+  [sources.host_metrics.disk]
+  devices.excludes = ["loop*", "dm-*"]
+
+[transforms.format_host_metrics]
+type = "remap"
+inputs = ["host_metrics"]
+source = '''
+# Convert Vector metrics to ClickHouse format
+.timestamp = now()
+.host = get_hostname() ?? "unknown"
+
+# Extract metric name from the metric structure
+.metric_name = .name
+
+# Get metric value (counter or gauge)
+if exists(.counter) {
+  .metric_value = .counter.value
+} else if exists(.gauge) {
+  .metric_value = .gauge.value
+} else {
+  .metric_value = 0.0
+}
+
+# Store tags as JSON labels
+.labels = encode_json(.tags) ?? "{}"
+'''
+
+[sinks.clickhouse_metrics]
+type = "clickhouse"
+inputs = ["format_host_metrics"]
+endpoint = "http://zcrai_clickhouse:8123"
+database = "zcrai"
+table = "host_metrics"
+encoding.timestamp_format = "unix"
+
+  [sinks.clickhouse_metrics.auth]
+  strategy = "basic"
+  user = "default"
+  password = ""
+
+  [sinks.clickhouse_metrics.batch]
+  max_events = 50
+  timeout_secs = 10
+

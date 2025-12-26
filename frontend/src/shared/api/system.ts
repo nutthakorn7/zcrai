@@ -33,5 +33,9 @@ export const SystemAPI = {
   updateLicense: async (key: string) => {
     const res = await api.post('/system/license', { key });
     return res.data;
+  },
+
+  getBackupDownloadUrl: (filename: string) => {
+    return `${api.defaults.baseURL}/system/backups/${filename}`;
   }
 };

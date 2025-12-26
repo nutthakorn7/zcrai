@@ -21,9 +21,15 @@ export function ConnectivityStatusCard({ integrations }: ConnectivityStatusCardP
     
     // Helper to map API data to status
     const getStatus = (provider: string): IntegrationStatus => {
-        const integration = integrations.find(i => i.provider === provider && i.status === 'active');
+        // API returns healthStatus: 'healthy' | 'down' | 'degraded'
+        const integration = integrations.find(i => i.provider === provider && i.healthStatus === 'healthy');
         if (integration) {
-            return { provider, status: 'active', lastSync: 'Now', name: integration.name };
+            return { provider, status: 'active', lastSync: 'Now', name: integration.label };
+        }
+        // Check if integration exists but is unhealthy
+        const unhealthyIntegration = integrations.find(i => i.provider === provider);
+        if (unhealthyIntegration) {
+            return { provider, status: 'error', lastSync: unhealthyIntegration.lastSyncError?.substring(0, 50), name: unhealthyIntegration.label };
         }
         return { provider, status: 'inactive' };
     };

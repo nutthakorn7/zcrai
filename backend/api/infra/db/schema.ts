@@ -143,6 +143,9 @@ export const apiKeys = pgTable('api_keys', {
   failureCount: integer('failure_count').default(0),
   lastHealthyAt: timestamp('last_healthy_at'),
   isCircuitOpen: boolean('is_circuit_open').default(false),
+  // Token Expiry Monitoring
+  tokenExpiresAt: timestamp('token_expires_at'), // When the API key/token expires
+  tokenExpiryAlertSent: boolean('token_expiry_alert_sent').default(false), // Prevent duplicate alerts
   createdAt: timestamp('created_at').defaultNow().notNull(),
 })
 

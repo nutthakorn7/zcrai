@@ -3,6 +3,7 @@ import { Card, CardBody, Button, Input, Modal, ModalContent, ModalHeader, ModalB
 import { api } from "@/shared/api";
 import { usePageContext } from "@/contexts/PageContext";
 import { Icon } from '../../shared/ui';
+import toast from 'react-hot-toast';
 
 // ⭐ Import Logos
 import SentinelOneLogo from '../../assets/logo/sentinelone.png';
@@ -262,6 +263,7 @@ interface Integration {
   keyId?: string | null;      // ⭐ CrowdStrike Client ID
   config?: CloudConfig;
   credentials?: CloudCredentials;
+  tokenExpiresAt?: string | null;  // ⏰ Token Expiry
 }
 
 export default function IntegrationPage() {
@@ -317,6 +319,9 @@ export default function IntegrationPage() {
   const [ticketingProjectKey, setTicketingProjectKey] = useState(''); // Jira Project Key
   const [autoSync, setAutoSync] = useState(false);
 
+  // ⏰ Token Expiry State
+  const [tokenExpiresAt, setTokenExpiresAt] = useState(''); // ISO Date string YYYY-MM-DD
+
   // Credential tracking states
   const [hasExistingToken, setHasExistingToken] = useState(false);
   const [hasExistingSecret, setHasExistingSecret] = useState(false);
@@ -343,6 +348,9 @@ export default function IntegrationPage() {
   // ⭐ Test Connection State
   const [testingId, setTestingId] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<Record<string, 'success' | 'error' | null>>({});
+  
+  // 🔌 Reconnect State
+  const [reconnectingId, setReconnectingId] = useState<string | null>(null);
 
   const fetchIntegrations = useCallback(async () => {
     try {
@@ -414,6 +422,47 @@ export default function IntegrationPage() {
     } finally {
       setTestingId(null);
       fetchIntegrations(); // Refresh to get updated sync status
+    }
+  };
+
+  // 🔌 Reconnect Handler - Reset circuit breaker and retry
+  const handleReconnect = async (integrationId: string) => {
+    setReconnectingId(integrationId);
+    
+    try {
+      const res = await api.post(`/integrations/${integrationId}/reset-circuit`);
+      const data = res.data as { reconnected?: boolean; message?: string };
+      
+      if (data.reconnected) {
+        toast.success('🔌 ' + (data.message || 'Reconnected successfully!'), {
+          duration: 5000,
+          style: {
+            borderRadius: '10px',
+            background: '#1A1D1F',
+            color: '#fff',
+            border: '1px solid rgba(34,197,94,0.5)'
+          },
+        });
+      } else {
+        toast.error('⚠️ ' + (data.message || 'Reconnect failed. Please check your credentials.'), {
+          duration: 6000,
+          style: {
+            borderRadius: '10px',
+            background: '#1A1D1F',
+            color: '#fff',
+            border: '1px solid rgba(239,68,68,0.5)'
+          },
+        });
+      }
+      
+      fetchIntegrations(); // Refresh to get updated status
+    } catch (error) {
+      const err = error as { response?: { data?: { error?: string } }; message?: string };
+      toast.error(`Reconnect Failed: ${err.response?.data?.error || err.message}`, {
+        duration: 6000,
+      });
+    } finally {
+      setReconnectingId(null);
     }
   };
 
@@ -533,6 +582,13 @@ export default function IntegrationPage() {
             setAiModel(data.model || '');
             setAiBaseUrl(data.baseUrl || '');
             setHasExistingKey(data.hasKey || false);
+          }
+          
+          // ⏰ Load Token Expiry
+          if (int.tokenExpiresAt) {
+            setTokenExpiresAt(new Date(int.tokenExpiresAt).toISOString().split('T')[0]);
+          } else {
+            setTokenExpiresAt('');
           }
       }
     } catch (e) {
@@ -661,6 +717,13 @@ export default function IntegrationPage() {
               baseUrl: aiBaseUrl || undefined,
             });
           }
+
+          // ⏰ Update Token Expiry if changed
+          if (tokenExpiresAt !== (selectedIntegration.tokenExpiresAt ? new Date(selectedIntegration.tokenExpiresAt).toISOString().split('T')[0] : '')) {
+             await api.put(`/integrations/${selectedIntegration.id}/token-expiry`, {
+                expiresAt: tokenExpiresAt ? new Date(tokenExpiresAt).toISOString() : null
+             });
+          }
         }
       }
 
@@ -730,7 +793,10 @@ export default function IntegrationPage() {
     
     setM365ClientId('');
     setM365ClientSecret('');
+    setM365ClientSecret('');
     setM365TenantId('');
+    
+    setTokenExpiresAt('');
   };
 
   return (
@@ -778,20 +844,24 @@ export default function IntegrationPage() {
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
                         <h3 className="font-semibold text-sm">{config.name}</h3>
-                        <div className="w-2 h-2 rounded-full bg-success animate-pulse shadow-[0_0_8px_rgba(74,222,128,0.5)]" />
+                        <div className={`w-2 h-2 rounded-full ${
+                          int.lastSyncStatus === 'error' ? 'bg-danger' : 
+                          int.lastSyncStatus === 'success' ? 'bg-success animate-pulse shadow-[0_0_8px_rgba(74,222,128,0.5)]' : 
+                          'bg-warning animate-pulse'
+                        }`} />
                       </div>
                       <p className="text-xs text-default-400 capitalize truncate">{int.label}</p>
                     </div>
                     <Chip 
                       size="sm" 
-                      color={int.lastSyncStatus === 'success' ? "success" : "warning"} 
+                      color={int.lastSyncStatus === 'error' ? "danger" : int.lastSyncStatus === 'success' ? "success" : "warning"} 
                       variant="dot" 
                       classNames={{ 
-                        base: `border-none ${config.iconBg}`, 
-                        content: `${config.iconColor} font-medium` 
+                        base: `border-none ${int.lastSyncStatus === 'error' ? 'bg-danger/10' : config.iconBg}`, 
+                        content: `${int.lastSyncStatus === 'error' ? 'text-danger' : config.iconColor} font-medium` 
                       }}
                     >
-                      {int.lastSyncStatus === 'success' ? 'Active' : 'Syncing'}
+                      {int.lastSyncStatus === 'error' ? 'Error' : int.lastSyncStatus === 'success' ? 'Active' : 'Syncing'}
                     </Chip>
                   </div>
                   
@@ -828,11 +898,70 @@ export default function IntegrationPage() {
                     </div>
                   )}
 
+                  {/* ⏰ Token Expiry Display */}
+                  {(() => {
+                    if (!int.tokenExpiresAt) {
+                        return (
+                           <div className="flex items-center gap-2 mb-3 px-2 py-1.5 bg-default-100/50 rounded-lg border border-default-200/50">
+                             <Icon.Calendar className="w-3.5 h-3.5 text-default-500" />
+                             <span className="text-xs text-default-500 font-medium">Token Expiry: Not monitored</span>
+                           </div>
+                        );
+                    }
+
+                    const expiryDate = new Date(int.tokenExpiresAt);
+                    const now = new Date();
+                    const daysRemaining = Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                    const isExpired = daysRemaining <= 0;
+                    const isExpiringSoon = daysRemaining > 0 && daysRemaining <= 7;
+                    const isWarning = daysRemaining > 7 && daysRemaining <= 30;
+                    
+                    return (
+                      <div className={`flex items-center gap-2 mb-3 px-2 py-1.5 rounded-lg ${
+                        isExpired ? 'bg-danger/20' :
+                        isExpiringSoon ? 'bg-warning/20' :
+                        isWarning ? 'bg-warning/10' : 'bg-default-100/50'
+                      }`}>
+                        <Icon.Calendar className={`w-3.5 h-3.5 ${
+                          isExpired ? 'text-danger' :
+                          isExpiringSoon ? 'text-warning animate-pulse' :
+                          isWarning ? 'text-warning' : 'text-default-400'
+                        }`} />
+                        <span className={`text-xs font-medium ${
+                          isExpired ? 'text-danger' :
+                          isExpiringSoon ? 'text-warning' :
+                          isWarning ? 'text-warning' : 'text-default-500'
+                        }`}>
+                          {isExpired ? (
+                            <>Token expired {Math.abs(daysRemaining)} days ago!</>
+                          ) : (
+                            <>Token expires: {expiryDate.toLocaleDateString()} ({daysRemaining} days)</>
+                          )}
+                        </span>
+                      </div>
+                    );
+                  })()}
+
                   <p className="text-xs text-default-600 mb-4 line-clamp-2 min-h-[20px]">
                     {config.description}
                   </p>
 
+
                   <div className="flex gap-2">
+                    {/* 🔌 Reconnect Button - Show only when error */}
+                    {int.lastSyncStatus === 'error' && (
+                      <Button 
+                        size="sm" 
+                        variant="flat" 
+                        className="bg-warning/20 hover:bg-warning/30 text-warning"
+                        isIconOnly
+                        isLoading={reconnectingId === int.id}
+                        onPress={() => handleReconnect(int.id)}
+                        title="Reset circuit and retry connection"
+                      >
+                        <Icon.Refresh className="w-4 h-4" />
+                      </Button>
+                    )}
                     {/* ⭐ Test Connection Button */}
                     <Button 
                       size="sm" 
@@ -1045,7 +1174,7 @@ export default function IntegrationPage() {
         </h2>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {['virustotal', 'abuseipdb', 'alienvault'].map(provider => {
+          {['virustotal', 'abuseipdb', 'alienvault', 'urlscan'].map(provider => {
              // Match alienvault or alienvault-otx from backend
              const int = integrations.find(i => 
                i.provider === provider || 
@@ -1182,11 +1311,17 @@ export default function IntegrationPage() {
                   <img src={PROVIDER_LOGOS[aiProvider] || OpenAILogo} alt="AI" className="w-8 h-8" />
                 )}
                 {modalType === 'enrichment' && (
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${aiProvider === 'virustotal' ? 'bg-blue-500/20' : 'bg-red-500/20'}`}>
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                    PROVIDER_CONFIG[aiProvider as keyof typeof PROVIDER_CONFIG]?.iconBg || 'bg-default-100'
+                  }`}>
                     {aiProvider === 'virustotal' ? (
-                      <Icon.Shield className={`w-5 h-5 ${aiProvider === 'virustotal' ? 'text-blue-500' : 'text-red-500'}`} />
+                      <Icon.Shield className={`w-5 h-5 ${PROVIDER_CONFIG.virustotal.iconColor}`} />
+                    ) : aiProvider === 'urlscan' ? (
+                      <Icon.Globe className={`w-5 h-5 ${PROVIDER_CONFIG.urlscan.iconColor}`} />
                     ) : (
-                      <Icon.Global className="w-5 h-5 text-red-500" />
+                      <Icon.Global className={`w-5 h-5 ${
+                        PROVIDER_CONFIG[aiProvider as keyof typeof PROVIDER_CONFIG]?.iconColor || 'text-default-400'
+                      }`} />
                     )}
                   </div>
                 )}
@@ -1201,10 +1336,9 @@ export default function IntegrationPage() {
                      modalType === 'aws' ? 'AWS CloudTrail' :
                      modalType === 'm365' ? 'Microsoft 365' :
                      modalType === 'enrichment' ? (
-                        aiProvider === 'virustotal' ? 'VirusTotal' : 
-                        aiProvider === 'alienvault' ? 'AlienVault OTX' : 'AbuseIPDB'
+                        PROVIDER_CONFIG[aiProvider as keyof typeof PROVIDER_CONFIG]?.name || 'Enrichment'
                      ) :
-                     PROVIDER_CONFIG[aiProvider]?.name || 'AI Provider'}
+                     PROVIDER_CONFIG[aiProvider as keyof typeof PROVIDER_CONFIG]?.name || 'AI Provider'}
                   </h3>
                   <p className="text-xs text-default-400 font-normal">
                     {modalType === 's1' ? 'AI-Powered Endpoint Security' : 
@@ -1697,22 +1831,25 @@ export default function IntegrationPage() {
                         <Icon.Info className="w-4 h-4 text-blue-400 mt-0.5" />
                         <div className="text-xs text-default-400">
                           <p className="font-medium text-blue-400 mb-1">
-                            {aiProvider === 'virustotal' ? 'VirusTotal API Key' : 
-                             aiProvider === 'alienvault' ? 'AlienVault OTX Key' : 'AbuseIPDB API Key'}
+                            {PROVIDER_CONFIG[aiProvider as keyof typeof PROVIDER_CONFIG]?.name || 'Enrichment'} API Key
                           </p>
                           <p className="mb-1">
                             {aiProvider === 'virustotal' 
                               ? 'Get your free API key from virustotal.com (4 requests/minute)'
                               : aiProvider === 'alienvault'
                                 ? 'Get your free API key from otx.alienvault.com'
-                                : 'Get your free API key from abuseipdb.com (1000 requests/day)'}
+                                : aiProvider === 'urlscan'
+                                  ? 'Get your free API key from urlscan.io'
+                                  : 'Get your free API key from abuseipdb.com (1000 requests/day)'}
                           </p>
                           <a 
                             href={aiProvider === 'virustotal' 
                               ? 'https://www.virustotal.com/gui/join-us' 
                               : aiProvider === 'alienvault'
                                 ? 'https://otx.alienvault.com/api'
-                                : 'https://www.abuseipdb.com/pricing'}
+                                : aiProvider === 'urlscan'
+                                  ? 'https://urlscan.io/about-api/'
+                                  : 'https://www.abuseipdb.com/pricing'}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-blue-400 hover:text-blue-300 underline"
@@ -1732,7 +1869,25 @@ export default function IntegrationPage() {
                       type="password"
                     />
                   </>
-                )}
+            )}
+            
+            {/* ⏰ Token Expiry Input - Available for all types in Edit Mode */}
+            {mode === 'edit' && (
+              <>
+                 <Divider className="my-2" />
+                 <Input
+                    type="date"
+                    label="Token Expiry Date (Optional)"
+                    placeholder="Select expiry date"
+                    value={tokenExpiresAt}
+                    onValueChange={setTokenExpiresAt}
+                    description="Set a reminder date for when this token expires."
+                    variant="bordered"
+                    startContent={<Icon.Calendar className="w-4 h-4 text-default-400" />}
+                 />
+              </>
+            )}
+
               </ModalBody>
 
               <ModalFooter className="gap-2">

@@ -43,7 +43,7 @@ export class AuditService {
      * List audit logs with advanced filtering and pagination
      */
     static async list(tenantId: string | null | undefined, filters: any = {}) {
-        const { userId, action, resource, startDate, endDate, limit = 50, offset = 0 } = filters;
+        const { userId, action, resource, resourceId, startDate, endDate, limit = 50, offset = 0 } = filters;
 
         const whereClauses = [];
         if (tenantId) {
@@ -53,6 +53,7 @@ export class AuditService {
         if (userId) whereClauses.push(eq(auditLogs.userId, userId));
         if (action) whereClauses.push(eq(auditLogs.action, action.toUpperCase()));
         if (resource) whereClauses.push(eq(auditLogs.resource, resource.toLowerCase()));
+        if (resourceId) whereClauses.push(eq(auditLogs.resourceId, resourceId));
         
         if (startDate) {
             whereClauses.push(gte(auditLogs.createdAt, new Date(startDate)));
@@ -77,7 +78,7 @@ export class AuditService {
      * Get total count of audit logs for pagination
      */
     static async count(tenantId: string | null | undefined, filters: any = {}) {
-        const { userId, action, resource, startDate, endDate } = filters;
+        const { userId, action, resource, resourceId, startDate, endDate } = filters;
 
         const whereClauses = [];
         if (tenantId) {
@@ -87,6 +88,7 @@ export class AuditService {
         if (userId) whereClauses.push(eq(auditLogs.userId, userId));
         if (action) whereClauses.push(eq(auditLogs.action, action.toUpperCase()));
         if (resource) whereClauses.push(eq(auditLogs.resource, resource.toLowerCase()));
+        if (resourceId) whereClauses.push(eq(auditLogs.resourceId, resourceId));
         
         if (startDate) {
             whereClauses.push(gte(auditLogs.createdAt, new Date(startDate)));

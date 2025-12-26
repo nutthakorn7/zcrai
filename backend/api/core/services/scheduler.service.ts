@@ -106,9 +106,9 @@ export const SchedulerService = {
     );
     this.jobs.push(integrationSyncJob);
 
-    // Integration Health Check (Every 5 minutes)
+    // Integration Health Check (Every 2 minutes - Fast Recovery)
     const healthCheckJob = new CronJob(
-        '*/5 * * * *', // Every 5 minutes
+        '*/2 * * * *', // Every 2 minutes
         async () => {
             console.log('💓 Running Integration Health Heartbeat...');
             try {
@@ -123,6 +123,26 @@ export const SchedulerService = {
         'Asia/Bangkok'
     );
     this.jobs.push(healthCheckJob);
+
+    // Token Expiry Check (Every 6 hours)
+    // Sends email alerts for tokens expiring within 7 days or 1 day (urgent)
+    const tokenExpiryJob = new CronJob(
+        '0 0 */6 * * *', // Every 6 hours
+        async () => {
+            console.log('⏰ Running Token Expiry Check...');
+            try {
+                const { IntegrationService } = await import('./integration.service');
+                const result = await IntegrationService.checkExpiringTokens(7);
+                console.log(`✅ Token Expiry Check completed:`, result);
+            } catch (error) {
+                console.error('❌ Token Expiry Job Failed:', error);
+            }
+        },
+        null,
+        true,
+        'Asia/Bangkok'
+    );
+    this.jobs.push(tokenExpiryJob);
 
     console.log(`✅ Scheduler started with ${this.jobs.length} jobs.`);
   },

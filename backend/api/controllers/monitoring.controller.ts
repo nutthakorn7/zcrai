@@ -1,8 +1,9 @@
-import { Elysia } from 'elysia'
+import { Elysia, t } from 'elysia'
 import client from 'prom-client'
 import { db } from '../infra/db'
 import { sql } from 'drizzle-orm'
 import { redis } from '../infra/cache/redis'
+import { query } from '../infra/clickhouse/client'
 
 // Initialize Prometheus Registry
 const register = new client.Registry()
@@ -73,3 +74,74 @@ export const monitoringController = new Elysia()
         set.headers['Content-Type'] = register.contentType
         return await register.metrics()
     })
+
+    /**
+     * Host Metrics (CPU, Memory, Disk, Network)
+     * @route GET /metrics/hosts
+     * @description Returns host metrics from ClickHouse
+     */
+    .get('/metrics/hosts', async ({ query: params }) => {
+        const timeRange = params.range || '1h'
+        const host = params.host || null
+        
+        // Parse time range
+        let intervalMinutes = 60
+        if (timeRange === '15m') intervalMinutes = 15
+        else if (timeRange === '1h') intervalMinutes = 60
+        else if (timeRange === '6h') intervalMinutes = 360
+        else if (timeRange === '24h') intervalMinutes = 1440
+
+        // Query aggregated metrics
+        const sql = `
+            SELECT
+                host,
+                metric_name,
+                toStartOfMinute(timestamp) AS time,
+                avg(metric_value) AS avg_value,
+                max(metric_value) AS max_value
+            FROM host_metrics
+            WHERE timestamp > now() - INTERVAL ${intervalMinutes} MINUTE
+                ${host ? `AND host = {host:String}` : ''}
+            GROUP BY host, metric_name, time
+            ORDER BY time DESC
+            LIMIT 1000
+        `
+        
+        try {
+            const rows = await query<{
+                host: string
+                metric_name: string
+                time: string
+                avg_value: number
+                max_value: number
+            }>(sql, host ? { host } : {})
+            
+            // Group by metric type for easier frontend consumption
+            const grouped = rows.reduce((acc, row) => {
+                const key = row.host
+                if (!acc[key]) acc[key] = { cpu: [], memory: [], disk: [], network: [] }
+                
+                if (row.metric_name.includes('cpu')) {
+                    acc[key].cpu.push(row)
+                } else if (row.metric_name.includes('memory')) {
+                    acc[key].memory.push(row)
+                } else if (row.metric_name.includes('disk')) {
+                    acc[key].disk.push(row)
+                } else if (row.metric_name.includes('network')) {
+                    acc[key].network.push(row)
+                }
+                
+                return acc
+            }, {} as Record<string, { cpu: any[], memory: any[], disk: any[], network: any[] }>)
+
+            return { hosts: grouped }
+        } catch (error: any) {
+            return { error: error.message, hosts: {} }
+        }
+    }, {
+        query: t.Object({
+            range: t.Optional(t.String()),
+            host: t.Optional(t.String())
+        })
+    })
+

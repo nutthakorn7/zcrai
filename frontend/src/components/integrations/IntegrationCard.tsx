@@ -1,5 +1,5 @@
 // IntegrationCard Component - Displays active or unconfigured integration cards
-import { Card, CardBody, Button, Chip } from "@heroui/react";
+import { Card, CardBody, Button, Chip, Tooltip } from "@heroui/react";
 import { Icon } from '../../shared/ui';
 import { Integration, PROVIDER_CONFIG, PROVIDER_LOGOS, getColorClasses } from './integration.types';
 
@@ -9,6 +9,8 @@ interface IntegrationCardProps {
   onEdit: (integration: Integration) => void;
   onDelete: (id: string, provider: string) => void;
   onAdd: (type: 's1' | 'cs' | 'ai' | 'enrichment' | 'aws' | 'm365', provider?: string) => void;
+  onReconnect?: (id: string) => void;
+  isReconnecting?: boolean;
 }
 
 const getModalType = (provider: string): 's1' | 'cs' | 'ai' | 'enrichment' | 'aws' | 'm365' => {
@@ -23,15 +25,16 @@ const getModalType = (provider: string): 's1' | 'cs' | 'ai' | 'enrichment' | 'aw
   }
 };
 
-export function IntegrationCard({ integration, provider, onEdit, onDelete, onAdd }: IntegrationCardProps) {
+export function IntegrationCard({ integration, provider, onEdit, onDelete, onAdd, onReconnect, isReconnecting }: IntegrationCardProps) {
   const config = PROVIDER_CONFIG[provider] || { name: provider, color: 'default', gradient: '', description: '' };
   const colors = getColorClasses(config.color);
   const logo = PROVIDER_LOGOS[provider];
+  const isError = integration?.lastSyncStatus === 'error';
 
   if (integration) {
     // Active Card
     return (
-      <Card className={`bg-gradient-to-br ${config.gradient} border transition-all duration-300 ${colors.border}`}>
+      <Card className={`bg-gradient-to-br ${config.gradient} border transition-all duration-300 ${isError ? 'border-danger/40' : colors.border}`}>
         <CardBody className="p-5">
           <div className="flex items-center gap-3 mb-3">
             <div className={`w-10 h-10 rounded-xl ${colors.bgLight} flex items-center justify-center`}>
@@ -44,28 +47,50 @@ export function IntegrationCard({ integration, provider, onEdit, onDelete, onAdd
             <div className="flex-1">
               <div className="flex items-center gap-2">
                 <h3 className="font-semibold text-sm">{config.name}</h3>
-                <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
+                <div className={`w-2 h-2 rounded-full ${isError ? 'bg-danger' : 'bg-success animate-pulse'}`} />
               </div>
               <p className="text-xs text-default-400 capitalize">{integration.label}</p>
             </div>
             <Chip 
               size="sm" 
-              color={integration.lastSyncStatus === 'success' ? "success" : "warning"} 
+              color={isError ? "danger" : integration.lastSyncStatus === 'success' ? "success" : "warning"} 
               variant="dot" 
               classNames={{ 
-                base: `border-none ${colors.bgLight}`, 
-                content: `${colors.text} font-medium` 
+                base: `border-none ${isError ? 'bg-danger/10' : colors.bgLight}`, 
+                content: `${isError ? 'text-danger' : colors.text} font-medium` 
               }}
             >
-              {integration.lastSyncStatus === 'success' ? 'Active' : 'Syncing'}
+              {isError ? 'Error' : integration.lastSyncStatus === 'success' ? 'Active' : 'Syncing'}
             </Chip>
           </div>
+          
+          {/* Error Message */}
+          {isError && integration.lastSyncError && (
+            <div className="mb-3 p-2 rounded-lg bg-danger/10 border border-danger/20">
+              <p className="text-xs text-danger line-clamp-2">{integration.lastSyncError}</p>
+            </div>
+          )}
           
           <p className="text-xs text-default-600 mb-4 line-clamp-2">
             {config.description}
           </p>
 
           <div className="flex gap-2">
+            {/* Reconnect Button - Show only when error */}
+            {isError && onReconnect && (
+              <Tooltip content="Reset circuit breaker and retry connection">
+                <Button 
+                  size="sm" 
+                  variant="flat" 
+                  className="bg-warning/20 hover:bg-warning/30 text-warning" 
+                  isIconOnly
+                  isLoading={isReconnecting}
+                  onPress={() => onReconnect(integration.id)}
+                >
+                  <Icon.Refresh className="w-4 h-4" />
+                </Button>
+              </Tooltip>
+            )}
             <Button 
               size="sm" 
               variant="flat" 
