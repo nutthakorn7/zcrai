@@ -7,6 +7,30 @@ import { IntegrationService } from './integration.service'
 import crypto from 'crypto'
 import dayjs from 'dayjs'
 
+// Threat Classification Categories
+export interface ThreatClassification {
+  Malware: number
+  Ransomware: number
+  Cryptominer: number
+  Packed: number
+  General: number
+  Exploit: number
+}
+
+// Helper: Map threat name to category based on keywords
+const classifyThreat = (threatName: string): keyof ThreatClassification => {
+  const name = threatName.toLowerCase()
+  
+  if (name.includes('ransom') || name.includes('crypt') || name.includes('lock') || name.includes('wannacry')) return 'Ransomware'
+  if (name.includes('miner') || name.includes('coin') || name.includes('xmrig') || name.includes('crypto')) return 'Cryptominer'
+  if (name.includes('pack') || name.includes('compress') || name.includes('obfus') || name.includes('upx')) return 'Packed'
+  if (name.includes('exploit') || name.includes('cve-') || name.includes('shell') || name.includes('overflow')) return 'Exploit'
+  if (name.includes('pua') || name.includes('adware') || name.includes('toolbar') || name.includes('bundler') || name.includes('generic')) return 'General'
+  
+  // Default fallback for Trojan, Virus, Backdoor, Worm, etc.
+  return 'Malware'
+}
+
 // Types for MDR Report data structure (matching PDF template)
 export interface MdrReportData {
   // Metadata
@@ -27,21 +51,24 @@ export interface MdrReportData {
     suspicious: number
     benign: number
     notMitigated: number
+    classification: ThreatClassification  // 🔥 New: Threat category breakdown
   }
   
   // Section 1.1: Top Endpoints & Threats
   topEndpoints: Array<{ name: string; count: number }>
   topThreats: Array<{ name: string; count: number }>
+  classifications: Array<{ name: string; count: number }>
   
   // Section 2: Incident Details
   incidents: Array<{
-    status: 'resolved' | 'pending' | 'mitigated'
+    status: 'mitigated' | 'not_mitigated' | 'benign' | 'pending'
     threatDetails: string
     confidenceLevel: string
     endpoint: string
     classification: string
     hash: string
     path: string
+    ipAddress: string
   }>
   
   // Section 2.2: Recommendation (AI Generated)
@@ -51,6 +78,11 @@ export interface MdrReportData {
   riskAssessment: {
     result: string            // AI Generated risk profile
     recommendation: string    // AI Generated strategic advice
+    riskyFiles: Array<{
+      endpoint: string
+      ipAddress: string
+      path: string
+    }>
   }
   
   // Section 4: Vulnerability Application
@@ -151,6 +183,48 @@ export const MdrReportService = {
     }
   },
   
+  // ==================== GET CLASSIFICATION STATS (PIE CHART) ====================
+  // Query threat_name and classify into categories: Malware, Ransomware, Cryptominer, Packed, General, Exploit
+  async getClassificationStats(tenantId: string, startDate: string, endDate: string, siteNames: string[] = []): Promise<ThreatClassification> {
+    const siteFilter = siteNames.length > 0 ? 'AND host_site_name IN {siteNames:Array(String)}' : ''
+    
+    // Query threat names from security_events
+    const sql = `
+      SELECT 
+        coalesce(nullIf(threat_name, ''), nullIf(title, ''), 'Unknown') as threat_name,
+        count() as count
+      FROM security_events
+      WHERE tenant_id = {tenantId:String}
+        AND toDate(timestamp) >= {startDate:String}
+        AND toDate(timestamp) <= {endDate:String}
+        AND severity IN ('critical', 'high')
+        ${siteFilter}
+      GROUP BY threat_name
+      ORDER BY count DESC
+    `
+    const rows = await query<{ threat_name: string; count: string }>(sql, { tenantId, startDate, endDate, siteNames })
+    console.log('📊 getClassificationStats raw threats:', rows.length, 'items')
+    
+    // Initialize classification stats
+    const classificationStats: ThreatClassification = {
+      Malware: 0,
+      Ransomware: 0,
+      Cryptominer: 0,
+      Packed: 0,
+      General: 0,
+      Exploit: 0
+    }
+    
+    // Classify each threat
+    rows.forEach(item => {
+      const category = classifyThreat(item.threat_name)
+      classificationStats[category] += parseInt(item.count) || 0
+    })
+    
+    console.log('📊 getClassificationStats result:', classificationStats)
+    return classificationStats
+  },
+
   // ==================== GET TOP ENDPOINTS ====================
   async getTopEndpoints(tenantId: string, startDate: string, endDate: string, limit: number = 10, siteNames: string[] = []) {
     const siteFilter = siteNames.length > 0 ? 'AND host_site_name IN {siteNames:Array(String)}' : ''
@@ -201,26 +275,49 @@ export const MdrReportService = {
     return rows.map(r => ({ name: r.name, count: parseInt(r.count) }))
   },
   
-  // ==================== GET INCIDENT DETAILS ====================
+  // ==================== GET INCIDENT DETAILS (SAFE VERSION) ====================
   async getIncidentDetails(tenantId: string, startDate: string, endDate: string, limit: number = 50, siteNames: string[] = []) {
     const siteFilter = siteNames.length > 0 ? 'AND host_site_name IN {siteNames:Array(String)}' : ''
 
     const sql = `
       SELECT 
-        CASE 
-          WHEN severity IN ('critical', 'high') THEN 'pending'
-          ELSE 'resolved'
-        END as status,
+        -- 1. Status Information (เท่าที่มี)
+        threat_mitigated,
+        analyst_verdict,
+        
+        -- 2. Threat Name (ลำดับความสำคัญ: Threat Name -> File -> Process -> Description -> Event Type)
         coalesce(
-          nullIf(file_name, ''),
+          nullIf(threat_name, ''), 
+          nullIf(file_name, ''), 
           nullIf(process_name, ''),
-          'Unknown Threat'
-        ) as threat_details,
-        severity as confidence_level,
-        host_name as endpoint,
-        event_type as classification,
-        coalesce(nullIf(file_hash, ''), 'N/A') as hash,
-        coalesce(nullIf(file_path, ''), 'N/A') as path
+          nullIf(description, ''), 
+          nullIf(title, ''), 
+          concat(event_type, ' detected')
+        ) as threat_name,
+
+        -- 3. Severity & Host
+        severity,
+        coalesce(nullIf(host_name, ''), 'Unknown Host') as host_name,
+
+        -- 4. Hash (ใช้คอลัมน์มาตรฐานเท่านั้น)
+        coalesce(
+          nullIf(file_sha256, ''), 
+          nullIf(file_hash, ''), 
+          nullIf(file_md5, ''), 
+          '-'
+        ) as file_hash,
+
+        -- 5. Path
+        coalesce(
+          nullIf(file_path, ''), 
+          nullIf(process_path, ''), 
+          '-'
+        ) as file_path,
+
+        coalesce(nullIf(host_ip, ''), nullIf(host_external_ip, ''), '-') as host_ip,
+        
+        -- 6. Confidence
+        confidence_level
       FROM security_events
       WHERE tenant_id = {tenantId:String}
         AND toDate(timestamp) >= {startDate:String}
@@ -230,23 +327,80 @@ export const MdrReportService = {
       ORDER BY timestamp DESC
       LIMIT {limit:UInt32}
     `
-    const rows = await query<{
-      status: string
-      threat_details: string
-      confidence_level: string
-      endpoint: string
-      classification: string
-      hash: string
-      path: string
-    }>(sql, { tenantId, startDate, endDate, limit, siteNames })
+    
+    const rows = await query<any>(sql, { tenantId, startDate, endDate, limit, siteNames })
+
+    return rows.map(r => {
+      let status: 'mitigated' | 'not_mitigated' | 'benign' | 'pending' = 'pending'
+      
+      const verdict = (r.analyst_verdict || '').toLowerCase()
+      
+      // 1. Check Benign
+      if (verdict.includes('benign') || verdict.includes('false')) {
+        status = 'benign'
+      } 
+      // 2. Check Mitigated
+      else if (
+        r.threat_mitigated === true || 
+        r.threat_mitigated === 1 || 
+        verdict.includes('mitigated') ||
+        verdict.includes('resolved')
+      ) {
+        status = 'mitigated'
+      } 
+      // 3. Check Not Mitigated
+      else if (verdict.includes('true') || verdict.includes('malicious')) {
+        status = 'not_mitigated'
+      }
+      
+      return {
+        status,
+        threatDetails: r.threat_name,
+        confidenceLevel: r.confidence_level || r.severity || 'High',
+        endpoint: r.host_name,
+        classification: classifyThreat(r.threat_name), 
+        hash: r.file_hash,
+        path: r.file_path,
+        ipAddress: r.host_ip
+      }
+    })
+  },
+
+  // ==================== GET RISKY FILES (SENSITIVE DATA) ====================
+  async getRiskyFiles(tenantId: string, startDate: string, endDate: string, limit: number = 15, siteNames: string[] = []) {
+    const siteFilter = siteNames.length > 0 ? 'AND host_site_name IN {siteNames:Array(String)}' : ''
+    
+    // Find events where file path contains sensitive keywords
+    const sql = `
+      SELECT DISTINCT
+        coalesce(nullIf(host_name, ''), 'Unknown') as endpoint,
+        coalesce(nullIf(host_ip, ''), nullIf(host_external_ip, ''), '-') as ip_address,
+        coalesce(nullIf(file_path, ''), nullIf(process_path, ''), '') as path
+      FROM security_events
+      WHERE tenant_id = {tenantId:String}
+        AND toDate(timestamp) >= {startDate:String}
+        AND toDate(timestamp) <= {endDate:String}
+        AND (
+          lower(file_path) LIKE '%password%' OR
+          lower(file_path) LIKE '%passport%' OR
+          lower(file_path) LIKE '%credential%' OR
+          lower(file_path) LIKE '%secret%' OR
+          lower(file_path) LIKE '%confidential%' OR
+          lower(file_path) LIKE '%private%' OR
+          lower(file_path) LIKE '%key%' OR
+          lower(file_path) LIKE '%.pem' OR
+          lower(file_path) LIKE '%.key' OR
+          lower(file_path) LIKE '%.pfx'
+        )
+        ${siteFilter}
+      LIMIT {limit:UInt32}
+    `
+    
+    const rows = await query<{ endpoint: string; ip_address: string; path: string }>(sql, { tenantId, startDate, endDate, limit, siteNames })
     
     return rows.map(r => ({
-      status: r.status as 'resolved' | 'pending' | 'mitigated',
-      threatDetails: r.threat_details,
-      confidenceLevel: r.confidence_level,
       endpoint: r.endpoint,
-      classification: r.classification,
-      hash: r.hash,
+      ipAddress: r.ip_address,
       path: r.path
     }))
   },
@@ -289,63 +443,189 @@ export const MdrReportService = {
     }>(sql, { tenantId, startDate, endDate, limit, siteNames })
   },
 
-  // ==================== GET VULNERABILITIES ====================
-  // Note: This would typically come from a vulnerability scanner integration
-  // For now, we'll mock this or extract from raw_data if available
+  // ==================== GET VULNERABILITIES (RAW DATA VERSION) ====================
   async getVulnerabilities(tenantId: string, startDate: string, endDate: string, siteNames: string[] = []) {
     const siteFilter = siteNames.length > 0 ? 'AND host_site_name IN {siteNames:Array(String)}' : ''
     
-    // Try to get vulnerability data from security_events if available
+    // 🔍 Query 1: Applications (ดึงชื่อดิบๆ มาเลย เดี๋ยวให้ AI จัดการ)
     const sql = `
       SELECT 
-        coalesce(nullIf(process_name, ''), 'Unknown App') as application,
+        coalesce(
+          nullIf(process_name, ''), 
+          nullIf(file_name, ''), 
+          nullIf(threat_name, ''),
+          'Unknown Application'
+        ) as application,
+        
         count() as cve_count,
-        'N/A' as top_cve,
+        any(threat_name) as top_cve, 
         max(severity) as highest_severity,
-        'Vulnerability detected' as description
+        concat('Security events detected associated with ', application) as description
+        
       FROM security_events
       WHERE tenant_id = {tenantId:String}
         AND toDate(timestamp) >= {startDate:String}
         AND toDate(timestamp) <= {endDate:String}
-        AND event_type = 'vulnerability'
+        AND severity IN ('critical', 'high') 
         ${siteFilter}
       GROUP BY application
       ORDER BY cve_count DESC
-      LIMIT 10
+      LIMIT 15
+    `
+    
+    // 🔍 Query 2: Endpoints (ดึงชื่อดิบเหมือนกัน)
+    const endpointSql = `
+        SELECT 
+            coalesce(
+              nullIf(process_name, ''), 
+              nullIf(file_name, ''), 
+              nullIf(threat_name, ''),
+              'Unknown Application'
+            ) as application,
+            max(severity) as highest_severity,
+            uniq(host_name) as endpoint_count,
+            arrayStringConcat(arraySlice(groupUniqArray(host_name), 1, 3), ', ') as top_endpoints
+        FROM security_events
+        WHERE tenant_id = {tenantId:String}
+            AND toDate(timestamp) >= {startDate:String}
+            AND toDate(timestamp) <= {endDate:String}
+            AND severity IN ('critical', 'high')
+            ${siteFilter}
+        GROUP BY application
+        ORDER BY endpoint_count DESC
+        LIMIT 15
     `
     
     try {
-      const rows = await query<{
-        application: string
-        cve_count: string
-        top_cve: string
-        highest_severity: string
-        description: string
-      }>(sql, { tenantId, startDate, endDate, siteNames })
+      const [appsData, endpointsData] = await Promise.all([
+          query<any>(sql, { tenantId, startDate, endDate, siteNames }),
+          query<any>(endpointSql, { tenantId, startDate, endDate, siteNames })
+      ])
       
       return {
-        appsByVulnerabilities: rows.map(r => ({
-          application: r.application,
+        appsByVulnerabilities: appsData.map((r: any) => ({
+          application: r.application, // ส่งชื่อดิบออกไป (เช่น winword.exe)
           cveCount: parseInt(r.cve_count),
-          topCve: r.top_cve || 'N/A',
-          highestSeverity: r.highest_severity,
-          description: r.description || 'No description available'
+          topCve: r.top_cve, 
+          highestSeverity: r.highest_severity || 'High',
+          description: r.description
         })),
+        endpointsByVulnerabilities: endpointsData.map((r: any) => ({
+          application: r.application,
+          highestSeverity: r.highest_severity || 'High',
+          endpointCount: parseInt(r.endpoint_count),
+          topEndpoints: r.top_endpoints
+        })),
+        recommendation: '' // AI จะเขียนทับทีหลัง
+      }
+    } catch (e) {
+      console.error('Vulnerability query failed:', e)
+      return {
+        appsByVulnerabilities: [],
         endpointsByVulnerabilities: [],
         recommendation: ''
       }
-    } catch (e) {
-      // Return Mock Data for Draft Report if real data is missing
-      return {
-        appsByVulnerabilities: [
-            { application: 'Chrome', cveCount: 5, topCve: 'CVE-2025-1001', highestSeverity: 'High', description: 'Remote Code Execution' },
-            { application: 'Zoom', cveCount: 2, topCve: 'CVE-2025-1002', highestSeverity: 'Medium', description: 'Information Disclosure' }
-        ],
-        endpointsByVulnerabilities: [
-            { application: 'Chrome', highestSeverity: 'High', endpointCount: 12, topEndpoints: 'DESKTOP-01, DESKTOP-05' }
-        ],
-        recommendation: 'พบช่องโหว่ที่มีความเสี่ยงสูงใน Chrome แนะนำให้อัพเดทเป็นเวอร์ชันล่าสุดทันที'
+    }
+  },
+
+  // ==================== AI HELPER: NORMALIZE APP NAMES (HYBRID VERSION) ====================
+  async normalizeAppNamesWithAI(rawApps: string[], tenantId: string): Promise<Record<string, string>> {
+    if (!rawApps || rawApps.length === 0) return {}
+
+    // 1. Clean & Unique List
+    const uniqueApps = [...new Set(rawApps)].filter(a => a && a !== 'Unknown Application')
+    if (uniqueApps.length === 0) return {}
+
+    // 🛡️ MANUAL OVERRIDE MAP (ของที่เจอบ่อยๆ )
+    const manualMap: Record<string, string> = {
+        'tvnserver.exe': 'TightVNC Server (Remote Access)',
+        'Utilman.exe': 'Windows Utility Manager (System)',
+        'setup.exe': 'Application Installer / Generic Setup',
+        'Adjprog.exe': 'Epson Adjustment Program (Riskware)',
+        'TunMirror.exe': 'Tunnel Mirroring Tool',
+        'TunMirror2.exe': 'Tunnel Mirroring Tool v2',
+        'OInstall.exe': 'Office KMS Activator (Pirated Software)',
+        'OInstallLite.exe': 'Office KMS Activator Lite',
+        'SppExtComObjHook.dll': 'KMS Licensing Hook (Pirated)',
+        'DriverPackNotifier.exe': 'DriverPack Solution (Adware)',
+        'UC232A_Windows_Setup_V1.0.082.exe': 'USB-Serial Driver Installer',
+        'tbMyAs.dll': 'Browser Toolbar Adware',
+        'ReSample.exe': 'Resample Tool',
+        'TXAE.exe': 'Trojan/Riskware Executable',
+        'winword.exe': 'Microsoft Word',
+        'excel.exe': 'Microsoft Excel',
+        'powerpnt.exe': 'Microsoft PowerPoint',
+        'outlook.exe': 'Microsoft Outlook',
+        'chrome.exe': 'Google Chrome',
+        'firefox.exe': 'Mozilla Firefox',
+        'msedge.exe': 'Microsoft Edge',
+        'notepad.exe': 'Windows Notepad',
+        'cmd.exe': 'Windows Command Prompt',
+        'powershell.exe': 'Windows PowerShell',
+        'explorer.exe': 'Windows Explorer',
+        'svchost.exe': 'Windows Service Host',
+        'autorun.exe': 'AutoRun Malware'
+    }
+
+    // แยกแยะว่าตัวไหนมีใน Manual Map แล้ว ตัวไหนยังไม่มี (ต้องถาม AI)
+    const knownApps: Record<string, string> = {}
+    const unknownApps: string[] = []
+
+    uniqueApps.forEach(app => {
+        // เช็คแบบ Case Insensitive
+        const key = Object.keys(manualMap).find(k => k.toLowerCase() === app.toLowerCase())
+        if (key) {
+            knownApps[app] = manualMap[key]
+        } else {
+            unknownApps.push(app)
+        }
+    })
+
+    // ถ้าไม่มีตัวที่ต้องถาม AI แล้ว ก็จบงานเลย
+    if (unknownApps.length === 0) {
+        return knownApps
+    }
+
+    console.log(`🤖 AI Normalizing ${unknownApps.length} apps... (Found ${Object.keys(knownApps).length} in manual map)`)
+
+    // 2. Ask AI for the rest
+    const prompt = `You are an IT Asset Management Expert.
+Map the following Process/File names to their official "Product Name" or "Application Name".
+
+Input List:
+${JSON.stringify(unknownApps)}
+
+Rules:
+1. Remove .exe, .dll extensions.
+2. Identify known malware/hacktools (e.g. "OInstall.exe" -> "Office Activator").
+3. Use official branding (e.g. "winword.exe" -> "Microsoft Word").
+4. Return ONLY valid JSON: { "filename.exe": "Pretty Name" }`
+
+    try {
+      const aiConfig = await IntegrationService.getAIConfig(tenantId)
+      if (!aiConfig || !aiConfig.apiKey) return knownApps // Fallback to manual map only
+      
+      const aiProvider = AIService.createProvider(aiConfig.provider, aiConfig.apiKey)
+      const jsonStr = await aiProvider.generateText(prompt)
+      
+      // 🛡️ Robust JSON Extraction (หาปีกกาเปิด-ปิด ป้องกัน Text ขยะ)
+      const firstBrace = jsonStr.indexOf('{')
+      const lastBrace = jsonStr.lastIndexOf('}')
+      
+      if (firstBrace !== -1 && lastBrace !== -1) {
+          const cleanJson = jsonStr.substring(firstBrace, lastBrace + 1)
+          const aiMapping = JSON.parse(cleanJson)
+          
+          // รวมผลลัพธ์ (Manual + AI)
+          return { ...knownApps, ...aiMapping }
+      } else {
+          console.warn('❌ AI did not return valid JSON, using manual map only.')
+          return knownApps
       }
+
+    } catch (e) {
+      console.error('❌ AI Normalization failed:', e)
+      return knownApps // อย่างน้อยก็ได้ตัวที่ Manual Map ไว้
     }
   },
   
@@ -482,170 +762,194 @@ Recommendations:
     const analysisText = analysisParts[0]?.replace(/Risk Level:.*?\n/i, '').replace(/Analysis:/i, '').trim() || riskAnalysis
     const recommendationsText = analysisParts[1]?.trim() || 'Continue monitoring and improving security posture.'
     
+    // ==================== VULNERABILITY RECOMMENDATION (AI Generated) ====================
+    const vulnData = partialData.vulnerabilities?.appsByVulnerabilities || []
+    const topApps = vulnData.slice(0, 5).map((v: any) => v.application).join(', ')
+
+    let vulnRecommendation = 'No high-risk applications detected. Continue regular security monitoring and patch management.'
+    
+    if (topApps) {
+      const vulnPrompt = `You are a Vulnerability Management Specialist.
+    
+Analyze the following detected application anomalies:
+Top Affected Applications: ${topApps}
+
+**Instructions:**
+Write a professional "Vulnerability Recommendation" section (approx 150-200 words).
+1. Summarize the risks associated with these applications (mention them by name).
+2. Explain potential security implications (RCE, Privilege Escalation, Data Theft).
+3. Provide 4-5 bullet points of STRONG recommendations (e.g., "Prioritize upgrading...", "Apply security patches...", "Remove unused components...").
+
+**Requirements:**
+- Write in professional English
+- Be specific and reference actual applications from the data
+- Focus on actionable steps
+- Keep it concise (maximum 200 words)
+
+Return plain text only, no JSON.`
+
+      try {
+        vulnRecommendation = await aiProvider.generateText(vulnPrompt)
+      } catch (e) {
+        console.error('Vulnerability recommendation generation failed:', e)
+        vulnRecommendation = 'High-risk applications detected. Investigate and restrict usage immediately.'
+      }
+    }
+    
     return {
       incidentRecommendation: incidentRecommendation.trim(),
       riskAssessment: {
         result: riskLevel,
         recommendation: recommendationsText
       },
-      vulnerabilityRecommendation: 'Update applications and patch vulnerabilities immediately as they are discovered.'
+      vulnerabilityRecommendation: vulnRecommendation.trim()
     }
   },
   
+  // ==================== GET TOP CLASSIFICATIONS (PIE CHART) ====================
+  // Uses 'classification' column which contains: Malware, General, Ransomware, Packed, Cryptominer, etc.
+  async getTopClassifications(tenantId: string, startDate: string, endDate: string, limit: number = 5, siteNames: string[] = []) {
+    const siteFilter = siteNames.length > 0 ? 'AND host_site_name IN {siteNames:Array(String)}' : ''
+
+    // Try classification first, fallback to event_type if classification is empty
+    const sql = `
+      SELECT 
+        coalesce(
+          nullIf(classification, ''),
+          nullIf(event_type, ''),
+          'Unknown'
+        ) as name,
+        count() as count
+      FROM security_events
+      WHERE tenant_id = {tenantId:String}
+        AND toDate(timestamp) >= {startDate:String}
+        AND toDate(timestamp) <= {endDate:String}
+        ${siteFilter}
+      GROUP BY name
+      ORDER BY count DESC
+      LIMIT {limit:UInt32}
+    `
+    const rows = await query<{ name: string; count: string }>(sql, { tenantId, startDate, endDate, limit, siteNames })
+    console.log('📊 getTopClassifications result:', rows)
+    return rows.map(r => ({ name: r.name, count: parseInt(r.count) }))
+  },
+
   // ==================== GENERATE REPORT DATA ====================
-  // Simplified method to generate complete report data with all 7 sections
+  // Method to generate complete report data with all 7 sections using REAL DATA ONLY
   async generateReportData(tenantId: string, monthYear: string): Promise<MdrReportData> {
-    // 1. Time Range
-    const startDate = dayjs(monthYear).startOf('month').format('YYYY-MM-DD HH:mm:ss')
-    const endDate = dayjs(monthYear).endOf('month').format('YYYY-MM-DD HH:mm:ss')
+    const dateRange = getMonthDateRange(monthYear)
+    const startDate = dateRange.start
+    const endDate = dateRange.end
 
-    console.log(`🧠 Generating Intelligence for ${tenantId} [${startDate} to ${endDate}]`)
+    console.log(`🧠 Generating Real Intelligence for ${tenantId} [${startDate} to ${endDate}]`)
 
-    try {
-      // 2. Query Data from ClickHouse (Real Data)
-      // Note: Adjust SQL queries to match your actual table structure
+    // Get tenant info
+    const [tenant] = await db.select().from(tenants).where(eq(tenants.id, tenantId))
+    if (!tenant) throw new Error('Tenant not found')
+
+    // Fetch ALL data from ClickHouse using existing helper methods (REAL DATA)
+    const [overview, classificationStats, topEndpoints, topThreats, incidents, classifications, vulnerabilitiesRaw, criticalSamples, dataLeaks, networkActivity, riskyFiles] = await Promise.all([
+      this.getIncidentOverview(tenantId, startDate, endDate),
+      this.getClassificationStats(tenantId, startDate, endDate),
+      this.getTopEndpoints(tenantId, startDate, endDate, 10),
+      this.getTopThreats(tenantId, startDate, endDate, 10),
+      this.getIncidentDetails(tenantId, startDate, endDate, 50),
+      this.getTopClassifications(tenantId, startDate, endDate, 5),
+      this.getVulnerabilities(tenantId, startDate, endDate), // 👈 ข้อมูลดิบ (Raw Names)
+      this.getCriticalEventsSample(tenantId, startDate, endDate, 10),
+      this.getDataLeaks(tenantId, startDate, endDate),
+      this.getNetworkActivity(tenantId, startDate, endDate),
+      this.getRiskyFiles(tenantId, startDate, endDate)
+    ])
+
+    // 🔥 AI ENRICHMENT STEP: Normalize app names with AI
+    const rawAppNames = [
+        ...vulnerabilitiesRaw.appsByVulnerabilities.map((v: any) => v.application),
+        ...vulnerabilitiesRaw.endpointsByVulnerabilities.map((v: any) => v.application)
+    ]
+    
+    // ส่งไปให้ AI แปลงร่าง
+    const appNameMapping = await this.normalizeAppNamesWithAI(rawAppNames, tenantId)
+    
+    // 🔥 APPLY MAPPING: เอาชื่อใหม่มาใส่แทนชื่อเก่า
+    const vulnerabilities = {
+        ...vulnerabilitiesRaw,
+        appsByVulnerabilities: vulnerabilitiesRaw.appsByVulnerabilities.map((v: any) => {
+            const prettyName = appNameMapping[v.application] || v.application
+            return {
+                ...v,
+                application: prettyName,
+                description: `Security events detected associated with ${prettyName}`
+            }
+        }),
+        endpointsByVulnerabilities: vulnerabilitiesRaw.endpointsByVulnerabilities.map((v: any) => ({
+            ...v,
+            application: appNameMapping[v.application] || v.application
+        }))
+    }
+
+    // Generate AI summaries using tenant's configured AI provider (REAL AI)
+    // ส่งข้อมูลที่แก้ชื่อแล้วไปให้ AI สรุป
+    const aiSummaries = await this.generateAISummaries(
+      { overview, topEndpoints, topThreats, criticalSamples, vulnerabilities } as any, 
+      tenantId
+    )
+
+    // Construct Final JSON with REAL DATA ONLY
+    return {
+      tenantId,
+      tenantName: tenant.name,
+      monthYear,
+      dateRange,
+      generatedAt: new Date().toISOString(),
       
-      // Define types for query results
-      type OverviewStats = {
-        total: string
-        critical: string
-        high: string
-        medium: string
-        low: string
-        mitigated: string
-        notMitigated: string
-      }
-      
-      type CountResult = { name: string; count: string }
-      
-      // Query 1: Overview
-      const overviewStatsResult = await clickhouse.query({
-        query: `
-          SELECT 
-            count() as total,
-            countIf(severity = 'critical') as critical,
-            countIf(severity = 'high') as high,
-            countIf(severity = 'medium') as medium,
-            countIf(severity = 'low') as low,
-            countIf(status = 'mitigated') as mitigated,
-            countIf(status = 'active') as notMitigated
-          FROM security_events
-          WHERE tenant_id = {tenantId:String}
-            AND timestamp BETWEEN toDateTime({startDate:String}) AND toDateTime({endDate:String})
-        `,
-        query_params: { tenantId, startDate, endDate },
-        format: 'JSONEachRow'
-      })
-      const overviewStatsArray = (await overviewStatsResult.json()) as OverviewStats[]
-      
-      const stats: OverviewStats = overviewStatsArray[0] || { 
-        total: '0', 
-        critical: '0', 
-        high: '0', 
-        medium: '0', 
-        low: '0', 
-        mitigated: '0', 
-        notMitigated: '0' 
-      }
+      // Section 1: Overview (Real ClickHouse Data + Classification Stats)
+      overview: {
+        ...overview,
+        classification: classificationStats  // 🔥 Threat category breakdown
+      },
+      topEndpoints,
+      topThreats,
+      classifications, // New Field
 
-      // Query 2: Top Endpoints
-      const topEndpointsResult = await clickhouse.query({
-        query: `
-          SELECT host_name as name, count() as count
-          FROM security_events
-          WHERE tenant_id = {tenantId:String} 
-            AND timestamp BETWEEN toDateTime({startDate:String}) AND toDateTime({endDate:String})
-          GROUP BY host_name ORDER BY count DESC LIMIT 5
-        `,
-        query_params: { tenantId, startDate, endDate },
-        format: 'JSONEachRow'
-      })
-      const topEndpointsRaw = (await topEndpointsResult.json()) as CountResult[]
+      // Section 2: Incidents (Real ClickHouse Data + Real AI)
+      incidents,
+      incidentRecommendation: aiSummaries.incidentRecommendation,
 
-      // Query 3: Top Threats
-      const topThreatsResult = await clickhouse.query({
-        query: `
-          SELECT 
-            coalesce(nullIf(file_name, ''), nullIf(process_name, ''), 'Unknown Threat') as name,
-            count() as count
-          FROM security_events
-          WHERE tenant_id = {tenantId:String}
-            AND timestamp BETWEEN toDateTime({startDate:String}) AND toDateTime({endDate:String})
-            AND severity IN ('critical', 'high', 'medium')
-          GROUP BY name ORDER BY count DESC LIMIT 10
-        `,
-        query_params: { tenantId, startDate, endDate },
-        format: 'JSONEachRow'
-      })
-      const topThreatsRaw = (await topThreatsResult.json()) as CountResult[]
+      // Section 3: Risk Assessment (Real AI + Risky Files)
+      riskAssessment: {
+        ...aiSummaries.riskAssessment,
+        riskyFiles
+      },
 
-      // Get tenant name
-      const [tenant] = await db.select().from(tenants).where(eq(tenants.id, tenantId))
+      // Section 4: Vulnerability (Real ClickHouse Data + Real AI)
+      vulnerabilities: {
+        ...vulnerabilities,
+        recommendation: aiSummaries.vulnerabilityRecommendation
+      },
 
-      // 3. Construct Final JSON (Mapping to English Report Structure)
-      return {
-        tenantId,
-        tenantName: tenant?.name || "Unknown Tenant",
-        monthYear,
-        dateRange: { start: startDate, end: endDate },
-        generatedAt: new Date().toISOString(),
-        
-        // Section 1: Overview
-        overview: {
-          threats: parseInt(stats.total) || 0,
-          mitigated: parseInt(stats.mitigated) || 0,
-          malicious: (parseInt(stats.critical) || 0) + (parseInt(stats.high) || 0),
-          suspicious: (parseInt(stats.medium) || 0) + (parseInt(stats.low) || 0),
-          benign: 0, // Mock if no data
-          notMitigated: parseInt(stats.notMitigated) || 0
-        },
-        topEndpoints: topEndpointsRaw.map(e => ({ name: e.name || '', count: parseInt(e.count) || 0 })),
-        topThreats: topThreatsRaw.map(t => ({ name: t.name || '', count: parseInt(t.count) || 0 })),
+      // Section 5: Data Leak (Real ClickHouse Data - empty if no data)
+      dataLeaks,
 
-        // Section 2: Incidents (Mockup for now if query is complex)
-        incidents: [], 
-        incidentRecommendation: "Based on the analysis, we recommend reviewing the high-severity incidents on endpoint 'NB-TD03'. Please update the antivirus signatures and scan for residual malware artifacts.",
+      // Section 6: Network Activity (Real ClickHouse Data - empty if no data)
+      networkActivity,
 
-        // Section 3: Risk Assessment
-        riskAssessment: {
-          result: "The overall risk score is MODERATE due to repeated malware attempts on specific endpoints.",
-          recommendation: "1. Enforce stricter USB policies.\n2. Update Windows Patch on Group A servers.\n3. Conduct user awareness training regarding Phishing emails."
-        },
-
-        // Section 4: Vulnerability (Mockup Structure - Critical to prevent crash)
-        vulnerabilities: {
-          appsByVulnerabilities: [
-            { application: "Google Chrome", cveCount: 12, topCve: "CVE-2025-1001", highestSeverity: "High", description: "Remote Code Execution vulnerability in V8 engine." },
-            { application: "Adobe Reader", cveCount: 5, topCve: "CVE-2024-9876", highestSeverity: "Medium", description: "Buffer overflow vulnerability." }
-          ],
-          endpointsByVulnerabilities: [],
-          recommendation: "Immediate patching is required for Google Chrome across the organization."
-        },
-
-        // Section 5: Data Leak (New Section)
-        dataLeaks: [], // Return empty array to show "No Data Leak" message
-
-        // Section 6: Network Activity (New Section)
-        networkActivity: {
-          inbound: "1.2 TB",
-          outbound: "450 GB",
-          topTalkers: [
-            { ip: "192.168.1.55", bandwidth: "120 GB" },
-            { ip: "10.0.0.5", bandwidth: "85 GB" }
-          ]
-        },
-
-        // Section 7: Appendix
-        glossary: [] // Use default in Frontend
-      }
-
-    } catch (error) {
-      console.error('❌ Data Generation Failed:', error)
-      // Fallback to prevent crash
-      throw new Error(`Failed to generate report data: ${error}`)
+      // Section 7: Appendix - Default glossary
+      glossary: [
+        { term: 'SQL Injection', definition: 'A code injection attack where malicious SQL statements are inserted into application input fields to manipulate or access the database.' },
+        { term: 'Ransomware', definition: 'Malicious software that encrypts victim files and demands payment (ransom) for the decryption key.' },
+        { term: 'Zero-Day Exploit', definition: 'An attack that exploits a previously unknown vulnerability for which no patch or fix is available.' },
+        { term: 'Phishing', definition: 'A social engineering attack using fraudulent emails or websites to trick users into revealing sensitive information.' },
+        { term: 'MITRE ATT&CK', definition: 'A globally-accessible knowledge base of adversary tactics and techniques based on real-world observations.' },
+        { term: 'APT (Advanced Persistent Threat)', definition: 'A prolonged and targeted cyberattack in which an intruder gains access to a network and remains undetected for an extended period.' },
+        { term: 'CVE (Common Vulnerabilities and Exposures)', definition: 'A standardized identifier for known security vulnerabilities in software and hardware products.' },
+        { term: 'EDR (Endpoint Detection and Response)', definition: 'A cybersecurity technology that continuously monitors end-user devices to detect and respond to cyber threats.' },
+        { term: 'IOC (Indicator of Compromise)', definition: 'Forensic evidence of potential intrusions on a host system or network, such as file hashes, IP addresses, or domain names.' },
+        { term: 'MDR (Managed Detection and Response)', definition: 'A cybersecurity service that combines advanced technology with human expertise to hunt, detect, and respond to threats.' }
+      ]
     }
   },
-  
+
   // ==================== CREATE FULL REPORT SNAPSHOT ====================
   async createSnapshot(tenantId: string, monthYear: string, createdById?: string, siteNames: string[] = []) {
     const dateRange = getMonthDateRange(monthYear)
@@ -655,20 +959,46 @@ Recommendations:
     if (!tenant) throw new Error('Tenant not found')
     
     // Aggregate all data
-    const [overview, topEndpoints, topThreats, incidents, vulnerabilities, criticalSamples, dataLeaks, networkActivity] = await Promise.all([
+    const [overview, classificationStats, topEndpoints, topThreats, incidents, classifications, vulnerabilitiesRaw, criticalSamples, dataLeaks, networkActivity, riskyFiles] = await Promise.all([
       this.getIncidentOverview(tenantId, dateRange.start, dateRange.end, siteNames),
+      this.getClassificationStats(tenantId, dateRange.start, dateRange.end, siteNames),
       this.getTopEndpoints(tenantId, dateRange.start, dateRange.end, 10, siteNames),
       this.getTopThreats(tenantId, dateRange.start, dateRange.end, 10, siteNames),
       this.getIncidentDetails(tenantId, dateRange.start, dateRange.end, 50, siteNames),
+      this.getTopClassifications(tenantId, dateRange.start, dateRange.end, 5, siteNames),
       this.getVulnerabilities(tenantId, dateRange.start, dateRange.end, siteNames),
       this.getCriticalEventsSample(tenantId, dateRange.start, dateRange.end, 10, siteNames),
       this.getDataLeaks(tenantId, dateRange.start, dateRange.end, siteNames),
-      this.getNetworkActivity(tenantId, dateRange.start, dateRange.end, siteNames)
+      this.getNetworkActivity(tenantId, dateRange.start, dateRange.end, siteNames),
+      this.getRiskyFiles(tenantId, dateRange.start, dateRange.end, 15, siteNames)
     ])
     
+    // 🔥 AI ENRICHMENT STEP: Normalize app names with AI
+    const rawAppNames = [
+        ...vulnerabilitiesRaw.appsByVulnerabilities.map((v: any) => v.application),
+        ...vulnerabilitiesRaw.endpointsByVulnerabilities.map((v: any) => v.application)
+    ]
+    const appNameMapping = await this.normalizeAppNamesWithAI(rawAppNames, tenantId)
+    
+    // 🔥 APPLY MAPPING
+    const vulnerabilities = {
+        ...vulnerabilitiesRaw,
+        appsByVulnerabilities: vulnerabilitiesRaw.appsByVulnerabilities.map((v: any) => {
+            const prettyName = appNameMapping[v.application] || v.application
+            return {
+                ...v,
+                application: prettyName,
+                description: `Security events detected associated with ${prettyName}`
+            }
+        }),
+        endpointsByVulnerabilities: vulnerabilitiesRaw.endpointsByVulnerabilities.map((v: any) => ({
+            ...v,
+            application: appNameMapping[v.application] || v.application
+        }))
+    }
+    
     // Generate AI summaries
-    // const partialData = { overview, topEndpoints, topThreats, criticalSamples } // Removed duplicate declaration
-    const aiSummaries = await this.generateAISummaries({ overview, topEndpoints, topThreats, criticalSamples } as any, tenantId)
+    const aiSummaries = await this.generateAISummaries({ overview, topEndpoints, topThreats, criticalSamples, vulnerabilities } as any, tenantId)
     
     // Build full report data
     const reportData: MdrReportData = {
@@ -678,13 +1008,20 @@ Recommendations:
       dateRange,
       generatedAt: new Date().toISOString(),
       
-      overview,
+      overview: {
+        ...overview,
+        classification: classificationStats  // 🔥 Threat category breakdown
+      },
       topEndpoints,
       topThreats,
+      classifications, // New Field
       incidents,
       incidentRecommendation: aiSummaries.incidentRecommendation,
       
-      riskAssessment: aiSummaries.riskAssessment,
+      riskAssessment: {
+        ...aiSummaries.riskAssessment,
+        riskyFiles
+      },
       
       dataLeaks,
       
@@ -831,10 +1168,14 @@ Recommendations:
       .orderBy(desc(mdrReportSnapshots.version))
       .limit(1)
     
+    if (!snapshot) {
+      throw new Error('Report snapshot not found. Try regenerating the report.')
+    }
+    
     return {
       report,
       snapshot,
-      data: snapshot?.data as MdrReportData
+      data: snapshot.data as MdrReportData
     }
   },
   

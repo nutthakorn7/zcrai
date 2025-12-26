@@ -141,7 +141,7 @@ source = '''
 # ==================== File Info ====================
 .file_name = .file.name || ""
 .file_path = .file.path || ""
-.file_hash = .file.hash || ""
+.file_hash = .file.sha256 || .file.hash || .file.md5 || ""
 .file_sha256 = .file.sha256 || ""
 .file_md5 = .file.md5 || ""
 .file_size = .file.size || 0
@@ -189,17 +189,22 @@ source = '''
   "source": .source,
   "event_type": .event_type,
   "severity": .severity,
+  "severity_score": .severity_score,
   "timestamp": .timestamp,
   "host_name": .host_name,
   "host_ip": .host_ip,
+  "host_external_ip": .host_external_ip,
   "user_name": .user_name,
   "user_domain": .user_domain,
   "process_name": .process_name,
   "process_path": .process_path,
   "process_cmdline": .process_cmdline,
+  "process_sha256": .process_sha256,
   "file_name": .file_name,
   "file_path": .file_path,
   "file_hash": .file_hash,
+  "file_sha256": .file_sha256,
+  "file_md5": .file_md5,
   "network_src_ip": .network_src_ip,
   "network_dst_ip": .network_dst_ip,
   "network_port": .network_port,
@@ -213,7 +218,14 @@ source = '''
   "host_site_id": .host_site_id,
   "host_site_name": .host_site_name,
   "host_group_id": .host_group_id,
-  "host_group_name": .host_group_name
+  "host_group_name": .host_group_name,
+  "threat_name": .threat_name,
+  "description": .description,
+  "title": .title,
+  "analyst_verdict": .analyst_verdict,
+  "threat_mitigated": .threat_mitigated,
+  "confidence_level": .confidence_level,
+  "classification": .classification
 }
 '''
 

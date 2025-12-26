@@ -12,4 +12,4 @@ export { MdrDataLeakSection } from './MdrDataLeakSection'
 export { MdrNetworkActivitySection } from './MdrNetworkActivitySection'
 export { MdrAppendixSection } from './MdrAppendixSection'
 export { MdrContactPage } from './MdrContactPage'
-
+export { MdrPageFooter } from './MdrPageFooter'

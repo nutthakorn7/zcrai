@@ -148,7 +148,7 @@ export default function ReportsPage() {
   const fetchSchedules = async () => {
       try {
           const res = await api.get('/reports/schedules');
-          setSchedules(res.data.data);
+          setSchedules(res.data.data || []); // กันเหนียว - ensure array
       } catch(e) {
           console.error(e);
       }
@@ -356,7 +356,7 @@ export default function ReportsPage() {
                         <TableColumn>STATUS</TableColumn>
                         <TableColumn>ACTIONS</TableColumn>
                     </TableHeader>
-                    <TableBody items={schedules} emptyContent="No schedules found.">
+                    <TableBody items={schedules || []} emptyContent="No schedules found.">
                         {(item: any) => (
                             <TableRow key={item.id}>
                                 <TableCell className="capitalize">{item.reportType}</TableCell>

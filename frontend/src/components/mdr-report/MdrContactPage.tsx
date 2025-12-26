@@ -18,9 +18,9 @@ export function MdrContactPage() {
             <div className="grid grid-cols-2 gap-12 items-start">
               {/* Left Column: Contact Information */}
               <div className="space-y-6">
-                {/* Company Logo Placeholder */}
-                <div className="w-32 h-32 bg-lime-100 rounded-full flex items-center justify-center mb-6">
-                  <span className="text-5xl">🛡️</span>
+                {/* Company Logo */}
+                <div className="w-32 h-32 bg-lime-100 rounded-full flex items-center justify-center mb-6 p-4">
+                  <img src="/src/assets/report/mc-logo.webp" alt="Monster Connect Logo" className="w-full h-full object-contain" />
                 </div>
                 
                 <div>

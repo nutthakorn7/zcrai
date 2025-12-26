@@ -96,23 +96,29 @@ a,
 
 /* ==================== MDR REPORT PRINT STYLES ==================== */
 
-/* MDR Report Print Container */
-.mdr-report-print {
+/* MDR Report Print Container - Initialize page counter */
+.mdr-report-print,
+.mdr-print-container {
   width: 297mm;
   background: white;
   color: #1f2937;
   font-family: "Roboto", "Noto Sans Thai", sans-serif;
+  counter-reset: mdr-page; /* Initialize page counter */
 }
 
 /* Each page is A4 landscape (297mm x 210mm) */
 .mdr-page {
   width: 297mm;
   min-height: 210mm;
+  height: 210mm;
   background: white;
   position: relative;
   page-break-after: always;
   page-break-inside: avoid;
   overflow: hidden;
+  counter-increment: mdr-page; /* Increment for each page */
+  display: flex;
+  flex-direction: column;
 }
 
 /* Cover page with fixed full height */
@@ -122,17 +128,105 @@ a,
   flex-direction: column;
 }
 
-/* Print media queries */
+/* Dynamic page number using CSS counter */
+.mdr-page-number::before {
+  content: "Page " counter(mdr-page);
+}
+
+/* ==================== FIX 1: Charts (SVG) not rendering in print ==================== */
+/* Force recharts to use explicit dimensions instead of ResponsiveContainer */
+.recharts-wrapper {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.recharts-surface {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Disable animations for PDF generation */
+.recharts-bar-rectangle,
+.recharts-cell {
+  animation: none !important;
+  transition: none !important;
+}
+
+/* ==================== FIX 2: Tables not breaking properly ==================== */
+/* Prevent table from breaking across pages */
+.mdr-page table {
+  page-break-inside: avoid;
+}
+
+.mdr-page thead {
+  display: table-header-group;
+}
+
+.mdr-page tbody {
+  page-break-inside: avoid;
+}
+
+.mdr-page tr {
+  page-break-inside: avoid;
+  page-break-after: auto;
+}
+
+/* ==================== FIX 3: Section headers styling ==================== */
+.mdr-section-header {
+  background: linear-gradient(135deg, #84cc16 0%, #65a30d 100%);
+  color: white;
+  padding: 1rem 2rem;
+  font-size: 1.5rem;
+  font-weight: bold;
+  border-radius: 0;
+  margin-bottom: 1.5rem;
+}
+
+/* Page content area */
+.mdr-page-content {
+  flex: 1;
+  padding: 2rem;
+  overflow: hidden;
+}
+
+/* ==================== Print media queries ==================== */
 @media print {
   @page {
     size: A4 landscape;
     margin: 0;
   }
 
+  /* Hide everything first */
+  body * {
+    visibility: hidden;
+  }
+
+  /* Show only the MDR print container and its contents */
+  .mdr-print-container,
+  .mdr-print-container *,
+  .mdr-report-print,
+  .mdr-report-print * {
+    visibility: visible;
+  }
+
+  .mdr-print-container,
+  .mdr-report-print {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    background: white !important;
+  }
+
   html,
   body {
     width: 297mm;
     height: 210mm;
+    margin: 0;
+    padding: 0;
+    background: white !important;
   }
 
   body {
@@ -141,15 +235,18 @@ a,
     color-adjust: exact !important;
   }
 
-  .mdr-report-print {
+  .mdr-report-print,
+  .mdr-print-container {
     width: 297mm;
   }
 
   .mdr-page {
     width: 297mm;
+    height: 210mm;
     min-height: 210mm;
     page-break-after: always;
     page-break-inside: avoid;
+    overflow: hidden;
   }
 
   /* Hide everything except report during print */
@@ -169,5 +266,21 @@ a,
   /* Prevent table rows from breaking */
   tr {
     page-break-inside: avoid;
+  }
+
+  /* Force SVG to render */
+  svg {
+    shape-rendering: geometricPrecision;
+  }
+
+  /* Recharts specific fixes */
+  .recharts-wrapper {
+    page-break-inside: avoid;
+  }
+
+  /* Explicit Page Break */
+  .page-break {
+    break-before: page !important;
+    page-break-before: always !important;
   }
 }

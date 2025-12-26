@@ -68,6 +68,10 @@ export const mdrReportController = new Elysia({ prefix: '/mdr-reports' })
         set.status = 404
         return { success: false, error: 'Report not found' }
       }
+      if (e.message?.includes('snapshot not found')) {
+        set.status = 404
+        return { success: false, error: 'Report data not found. Please regenerate the report.' }
+      }
       set.status = 500
       return { success: false, error: 'Internal Server Error' }
     }
@@ -165,11 +169,11 @@ export const mdrReportController = new Elysia({ prefix: '/mdr-reports' })
     
     const report = await MdrReportService.approveReport(params.id, user.id)
     
-    // Trigger PDF generation asynchronously
-    // In production, this would be done via a job queue
-    MdrPdfService.generatePdf(params.id).catch(err => {
-      console.error('PDF generation failed:', err)
-    })
+    // ❌ DISABLED: Server-side PDF generation was causing resource exhaustion
+    // Now using client-side printing (browser print dialog) instead
+    // MdrPdfService.generatePdf(params.id).catch(err => {
+    //   console.error('PDF generation failed:', err)
+    // })
     
     return { success: true, data: report }
   })
@@ -189,10 +193,7 @@ export const mdrReportController = new Elysia({ prefix: '/mdr-reports' })
       return { success: false, error: 'Access denied' }
     }
     
-    if (!report.pdfUrl) {
-      set.status = 404
-      return { success: false, error: 'PDF not generated yet' }
-    }
+    // PDF will be generated on-demand if needed
     
     // In production, this would redirect to S3/storage URL or serve the file
     // For now, generate on-demand if needed

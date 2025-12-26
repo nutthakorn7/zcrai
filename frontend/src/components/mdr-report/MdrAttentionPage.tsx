@@ -1,3 +1,5 @@
+import { MdrPageFooter } from './MdrPageFooter'
+
 /**
  * Attention Page - Confidentiality Notice
  */
@@ -60,9 +62,7 @@ export function MdrAttentionPage() {
         </div>
         
         {/* Footer */}
-        <div className="p-4 text-center text-sm text-gray-400 border-t">
-          Page 2
-        </div>
+        <MdrPageFooter />
       </div>
     </div>
   )

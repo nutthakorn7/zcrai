@@ -13,7 +13,8 @@ import {
   MdrDataLeakSection,
   MdrNetworkActivitySection,
   MdrAppendixSection,
-  MdrContactPage
+  MdrContactPage,
+  MdrPageFooter
 } from '../../components/mdr-report'
 
 // Report data type
@@ -33,19 +34,26 @@ interface MdrReportData {
   }
   topEndpoints: Array<{ name: string; count: number }>
   topThreats: Array<{ name: string; count: number }>
+  classifications: Array<{ name: string; count: number }>
   incidents: Array<{
-    status: 'resolved' | 'pending' | 'mitigated'
+    status: 'mitigated' | 'not_mitigated' | 'benign' | 'pending'
     threatDetails: string
     confidenceLevel: string
     endpoint: string
     classification: string
     hash: string
     path: string
+    ipAddress: string
   }>
   incidentRecommendation: string
   riskAssessment: {
     result: string
     recommendation: string
+    riskyFiles: Array<{
+      endpoint: string
+      ipAddress: string
+      path: string
+    }>
   }
   vulnerabilities: {
     appsByVulnerabilities: Array<{
@@ -108,6 +116,9 @@ export default function MdrReportPrintPage() {
         } else if (response.data?.reportData) {
           // Alternative structure: { reportData: {...} }
           setData(response.data.reportData)
+        } else if (response.data?.success === false) {
+          // API returned error
+          setError(response.data.error || 'Failed to load report data')
         } else if (response.data) {
           // Direct data structure
           setData(response.data)
@@ -115,9 +126,11 @@ export default function MdrReportPrintPage() {
           setError('Invalid report data format')
           console.error('Invalid API response:', response)
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error('Failed to load report:', err)
-        setError('Failed to load report data')
+        // Extract error message from API response if available
+        const apiError = err.response?.data?.error
+        setError(apiError || 'Failed to load report data')
       } finally {
         setLoading(false)
       }
@@ -125,6 +138,24 @@ export default function MdrReportPrintPage() {
 
     fetchReport()
   }, [id])
+
+  // 🔥 Auto-print when data is ready (triggered by ?autoprint=true)
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search)
+    const shouldAutoPrint = urlParams.get('autoprint') === 'true'
+    
+    if (data && !loading && shouldAutoPrint) {
+      const timer = setTimeout(() => {
+        // Set document title for the PDF filename
+        document.title = `MDR_Report_${data.monthYear}`
+        window.print()
+        // Optional: auto-close after print (commented out as user may cancel)
+        // window.close()
+      }, 2000) // Wait 2 seconds for charts to finish rendering
+
+      return () => clearTimeout(timer)
+    }
+  }, [data, loading])
   
   // Loading state
   if (loading) {
@@ -179,121 +210,50 @@ export default function MdrReportPrintPage() {
         tenantName={data.tenantName}
         monthYear={data.monthYear}
         dateRange={data.dateRange}
-        // companyLogo="/logo/provider.png" // Example: Add logic to fetch real logo if available
-        // customerLogo="/logo/customer.png" 
       />
       
-      {/* Page 2: Table of Contents & Overview */}
-      <div className="mdr-page relative flex flex-col bg-white text-gray-900">
-          {/* Header */}
-          <div className="absolute top-8 right-8 text-right">
-             <div className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Confidential</div>
-             <div className="text-[10px] text-gray-300">MDR Monthly Report</div>
-          </div>
-
-          <div className="p-16 pt-20 flex-1">
-            <MdrTableOfContents />
-            
-            <div className="mt-12">
-               <h2 className="text-2xl font-bold text-gray-800 mb-6 border-b-2 border-lime-500 inline-block pb-2">
-                 1. Executive Overview
-               </h2>
-               <MdrOverviewSection 
-                  overview={data.overview}
-                  topEndpoints={data.topEndpoints}
-                  topThreats={data.topThreats}
-                />
-            </div>
-          </div>
-      </div>
+      {/* Page 2: Table of Contents */}
+      <MdrTableOfContents data={data} />
       
-      {/* Page 3: Incident Detail */}
-      <div className="mdr-page relative flex flex-col bg-white text-gray-900">
-          {/* Header */}
-          <div className="absolute top-8 right-8 text-right">
-             <div className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Confidential</div>
-          </div>
-
-          <div className="p-16 pt-20 flex-1">
-            <h2 className="text-2xl font-bold text-gray-800 mb-6 border-b-2 border-lime-500 inline-block pb-2">
-                 2. Incident Details
-            </h2>
-            <MdrIncidentDetailSection 
-              incidents={data.incidents}
-              recommendation={data.incidentRecommendation}
-            />
-          </div>
-      </div>
+      {/* Page 3-4: Overview Section (has its own pages) */}
+      <MdrOverviewSection 
+        overview={data.overview}
+        topEndpoints={data.topEndpoints}
+        topThreats={data.topThreats}
+        classifications={data.classifications || []}
+      />
       
-      {/* Page 4: Risk Assessment & Vulnerability */}
-      <div className="mdr-page relative flex flex-col bg-white text-gray-900">
-          {/* Header */}
-          <div className="absolute top-8 right-8 text-right">
-             <div className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Confidential</div>
-          </div>
-
-          <div className="p-16 pt-20 flex-1 space-y-12">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-800 mb-6 border-b-2 border-lime-500 inline-block pb-2">
-                  3. Risk Assessment
-              </h2>
-              <MdrRiskAssessmentSection 
-                result={data.riskAssessment.result}
-                recommendation={data.riskAssessment.recommendation}
-              />
-            </div>
-
-            <div>
-              <h2 className="text-2xl font-bold text-gray-800 mb-6 border-b-2 border-lime-500 inline-block pb-2">
-                  4. Vulnerability Application
-              </h2>
-              <MdrVulnerabilitySection 
-                appsByVulnerabilities={data.vulnerabilities.appsByVulnerabilities}
-                endpointsByVulnerabilities={data.vulnerabilities.endpointsByVulnerabilities}
-                recommendation={data.vulnerabilities.recommendation}
-              />
-            </div>
-          </div>
-      </div>
-            
-      {/* Page 4.5: Data Leak */}
-      <div className="mdr-page relative flex flex-col bg-white text-gray-900">
-          <div className="absolute top-8 right-8 text-right">
-             <div className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Confidential</div>
-          </div>
-
-          <div className="p-16 pt-20 flex-1">
-            <h2 className="text-2xl font-bold text-gray-800 mb-6 border-b-2 border-lime-500 inline-block pb-2">
-                4. Data Leak Detection
-            </h2>
-            <MdrDataLeakSection dataLeaks={data.dataLeaks} />
-          </div>
-      </div>
+      {/* Page 5+: Incident Details (has its own pages) */}
+      <MdrIncidentDetailSection 
+        incidents={data.incidents}
+        recommendation={data.incidentRecommendation}
+      />
       
-      {/* Page 5: Network Activity */}
-      <div className="mdr-page relative flex flex-col bg-white text-gray-900">
-          <div className="absolute top-8 right-8 text-right">
-             <div className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Confidential</div>
-          </div>
-
-          <div className="p-16 pt-20 flex-1">
-            <h2 className="text-2xl font-bold text-gray-800 mb-6 border-b-2 border-lime-500 inline-block pb-2">
-                5. Network Activity
-            </h2>
-            <MdrNetworkActivitySection networkActivity={data.networkActivity} />
-          </div>
-      </div>
-      {/* Page 6: Appendix */}
-      <div className="mdr-page relative flex flex-col bg-white text-gray-900">
-          <div className="p-16 pt-20 flex-1">
-             <MdrAppendixSection 
-                glossary={data.glossary}
-              />
-              <div className="mt-12">
-                 <MdrContactPage />
-              </div>
-          </div>
-      </div>
+      {/* Page: Risk Assessment */}
+      <MdrRiskAssessmentSection 
+        result={data.riskAssessment.result}
+        recommendation={data.riskAssessment.recommendation}
+        riskyFiles={data.riskAssessment.riskyFiles || []}
+      />
+      
+      {/* Page: Vulnerability (has multiple pages) */}
+      <MdrVulnerabilitySection 
+        appsByVulnerabilities={data.vulnerabilities.appsByVulnerabilities}
+        endpointsByVulnerabilities={data.vulnerabilities.endpointsByVulnerabilities}
+        recommendation={data.vulnerabilities.recommendation}
+      />
+      
+      {/* Page: Data Leak */}
+      <MdrDataLeakSection dataLeaks={data.dataLeaks} />
+      
+      {/* Page: Network Activity */}
+      <MdrNetworkActivitySection networkActivity={data.networkActivity} />
+      
+      {/* Page: Appendix */}
+      <MdrAppendixSection glossary={data.glossary} />
+      
+      {/* Page: Contact */}
+      <MdrContactPage />
     </div>
   )
 }

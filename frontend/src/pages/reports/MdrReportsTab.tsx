@@ -221,19 +221,16 @@ export function MdrReportsTab() {
     window.open(`/report-print/${reportId}`, '_blank')
   }
 
-  const handleDownload = async (reportId: string, monthYear: string) => {
-    try {
-      const res = await api.get(`/mdr-reports/${reportId}/pdf`, { responseType: 'blob' })
-      const blob = new Blob([res.data], { type: 'application/pdf' })
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `MDR_Report_${monthYear}.pdf`
-      a.click()
-      window.URL.revokeObjectURL(url)
-    } catch (err) {
-      console.error('Failed to download PDF', err)
-      alert('Failed to download PDF')
+  const handleDownload = (reportId: string, _monthYear: string) => {
+    // Open Report Print page in new tab with autoprint signal
+    const printWindow = window.open(
+      `/report-print/${reportId}?autoprint=true`, 
+      '_blank', 
+      'noopener,noreferrer'
+    );
+
+    if (!printWindow) {
+      alert('Please allow popups for this website');
     }
   }
 
@@ -368,7 +365,10 @@ export function MdrReportsTab() {
                       </Chip>
                     </TableCell>
                     <TableCell>
-                      {new Date(report.createdAt).toLocaleDateString()}
+                      {report.createdAt && !isNaN(new Date(report.createdAt).getTime())
+                        ? new Date(report.createdAt).toLocaleDateString()
+                        : <span className="text-default-400">Invalid Date</span>
+                      }
                     </TableCell>
                     <TableCell>
                       {report.approvedAt 
@@ -423,13 +423,16 @@ export function MdrReportsTab() {
                             <Icon.Delete className="w-4 h-4" />
                         </Button>
 
-                        {/* Download (only for approved/sent) */}
-                        {(report.status === 'approved' || report.status === 'sent') && report.pdfUrl && (
+                        {/* Download (only for approved/sent) - Uses native <a> tag to avoid popup blockers */}
+                        {(report.status === 'approved' || report.status === 'sent') && (
                           <Button
+                            as="a"
+                            href={`/report-print/${report.id}?autoprint=true`}
+                            target="_blank"
+                            rel="noopener noreferrer"
                             size="sm"
                             color="primary"
                             variant="flat"
-                            onPress={() => handleDownload(report.id, report.monthYear)}
                             startContent={<Icon.Download className="w-4 h-4" />}
                           >
                             Download

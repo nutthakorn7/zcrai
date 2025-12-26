@@ -11,11 +11,14 @@ async function getBrowser(): Promise<Browser> {
   if (!browser) {
     browser = await chromium.launch({
       headless: true,
+      timeout: 60000, // เพิ่ม timeout (ปกติ 30s)
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
-        '--disable-gpu'
+        '--disable-gpu', // สำคัญสำหรับ Windows บางเครื่อง
+        '--disable-software-rasterizer', // เพิ่มตัวนี้
+        '--run-all-compositor-stages-before-draw' // ช่วยเรื่อง render PDF
       ]
     })
   }

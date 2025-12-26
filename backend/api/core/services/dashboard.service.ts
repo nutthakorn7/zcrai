@@ -182,7 +182,6 @@ export const DashboardService = {
   },
 
   // ==================== MITRE HEATMAP ====================
-  // ==================== MITRE HEATMAP ====================
   async getMitreHeatmap(tenantId: string, startDate: string, endDate: string, sources?: string[], mode: 'detection' | 'coverage' = 'detection') {
     
     // MODE: COVERAGE (Query Rules from Postgres)

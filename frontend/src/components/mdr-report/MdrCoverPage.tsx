@@ -1,5 +1,5 @@
-// Note: Replace with actual Monster Connect logo when available
-// import monsterConnectLogo from '../../assets/logo/mc-logo.png'
+// Monster Connect Logo
+import mcLogo from '../../assets/report/mc-logo.webp'
 
 import { formatMonthYear, formatDateRange } from '../../shared/lib/date'
 
@@ -16,6 +16,8 @@ interface MdrCoverPageProps {
  * Matches the Monster Connect branding with Lime Green accent
  */
 export function MdrCoverPage({ tenantName, monthYear, dateRange, companyLogo, customerLogo }: MdrCoverPageProps) {
+  // Use MC logo as default company logo
+  const logoSrc = companyLogo || mcLogo
   
   return (
     <div className="mdr-page mdr-cover-page">
@@ -31,13 +33,7 @@ export function MdrCoverPage({ tenantName, monthYear, dateRange, companyLogo, cu
         <div className="flex justify-between items-start p-8">
           {/* Left: Company (Provider) Logo */}
           <div className="flex items-center gap-3">
-             {companyLogo ? (
-                <img src={companyLogo} alt="Company Logo" className="h-12 w-auto object-contain" />
-             ) : (
-                <div className="w-12 h-12 bg-lime-500 rounded-lg flex items-center justify-center">
-                  <span className="text-2xl text-white font-bold">MC</span>
-                </div>
-             )}
+             <img src={logoSrc} alt="Monster Connect Logo" className="h-12 w-auto object-contain" />
             <div>
               <p className="font-bold text-lime-600">MONSTER CONNECT</p>
               <p className="text-xs text-gray-500">Managed Security Services</p>

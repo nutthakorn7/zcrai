@@ -1,3 +1,5 @@
+import { MdrPageFooter } from './MdrPageFooter'
+
 interface GlossaryItem {
   term: string
   definition: string
@@ -32,32 +34,30 @@ export function MdrAppendixSection({ glossary }: MdrAppendixSectionProps) {
       <div className="h-full flex flex-col">
         {/* Header */}
         <div className="bg-lime-500 text-white py-4 px-8">
-          <h1 className="text-2xl font-bold">5. Appendix</h1>
+          <h1 className="text-2xl font-bold">7. Appendix</h1>
         </div>
         
         {/* Content */}
-        <div className="flex-1 p-8">
-          <h3 className="text-lg font-semibold text-gray-800 mb-6">
-            5.1 Glossary of Terms
+        <div className="flex-1 p-6 flex flex-col overflow-hidden">
+          <h3 className="text-md font-semibold text-gray-800 mb-4 h-shrink-0">
+            7.1 Glossary of Terms
           </h3>
           
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-3 overflow-hidden">
             {items.map((item, index) => (
               <div 
                 key={index}
-                className="bg-gray-50 rounded-lg p-4 border border-gray-200"
+                className="bg-gray-50 rounded-lg p-3 border border-gray-200"
               >
-                <h4 className="font-semibold text-lime-700 mb-2">{item.term}</h4>
-                <p className="text-sm text-gray-600">{item.definition}</p>
+                <h4 className="font-semibold text-lime-700 mb-1 text-sm">{item.term}</h4>
+                <p className="text-xs text-gray-600 leading-tight">{item.definition}</p>
               </div>
             ))}
           </div>
         </div>
         
         {/* Footer */}
-        <div className="p-4 text-center text-sm text-gray-400 border-t">
-          Page 11
-        </div>
+        <MdrPageFooter />
       </div>
     </div>
   )

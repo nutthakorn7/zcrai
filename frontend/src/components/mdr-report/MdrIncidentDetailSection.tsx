@@ -1,11 +1,14 @@
+import { MdrPageFooter } from './MdrPageFooter'
+
 interface Incident {
-  status: 'resolved' | 'pending' | 'mitigated'
+  status: 'mitigated' | 'not_mitigated' | 'benign' | 'pending'
   threatDetails: string
   confidenceLevel: string
   endpoint: string
   classification: string
   hash: string
   path: string
+  ipAddress: string
 }
 
 interface MdrIncidentDetailSectionProps {
@@ -21,10 +24,12 @@ export function MdrIncidentDetailSection({ incidents, recommendation }: MdrIncid
   // Status badge styling
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'resolved':
-        return 'bg-green-100 text-green-800'
       case 'mitigated':
         return 'bg-lime-100 text-lime-800'
+      case 'not_mitigated':
+        return 'bg-red-100 text-red-800'
+      case 'benign':
+        return 'bg-blue-100 text-blue-800'
       case 'pending':
         return 'bg-yellow-100 text-yellow-800'
       default:
@@ -32,8 +37,19 @@ export function MdrIncidentDetailSection({ incidents, recommendation }: MdrIncid
     }
   }
   
-  // Chunk incidents into pages (max 8 per page)
-  const incidentsPerPage = 8
+  // Format status for display
+  const formatStatus = (status: string) => {
+    switch (status) {
+      case 'mitigated': return 'Mitigated'
+      case 'not_mitigated': return 'Not Mitigated'
+      case 'benign': return 'Benign'
+      case 'pending': return 'Pending'
+      default: return status
+    }
+  }
+  
+  // Chunk incidents into pages (max 10 per page - reduced for full data display)
+  const incidentsPerPage = 9
   const pages: Incident[][] = []
   for (let i = 0; i < incidents.length; i += incidentsPerPage) {
     pages.push(incidents.slice(i, i + incidentsPerPage))
@@ -60,52 +76,71 @@ export function MdrIncidentDetailSection({ incidents, recommendation }: MdrIncid
             {/* Content */}
             <div className="flex-1 p-6 overflow-hidden">
               <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-gray-800 text-white">
-                    <th className="py-2 px-3 text-left">Status</th>
-                    <th className="py-2 px-3 text-left">Threat Details</th>
-                    <th className="py-2 px-3 text-left">Confidence</th>
-                    <th className="py-2 px-3 text-left">Endpoint</th>
-                    <th className="py-2 px-3 text-left">Classification</th>
-                    <th className="py-2 px-3 text-left">Hash</th>
-                    <th className="py-2 px-3 text-left">Path</th>
+                <thead className="bg-gray-800 text-white text-xs">
+                  <tr>
+                    <th className="py-2 px-2 text-left w-[10%]">Status</th>
+                    <th className="py-2 px-2 text-left w-[15%]">Threat Details</th>
+                    <th className="py-2 px-2 text-center w-[8%]">Confidence</th>
+                    <th className="py-2 px-2 text-left w-[10%]">Endpoint</th>
+                    <th className="py-2 px-2 text-left w-[10%]">IP Address</th>
+                    <th className="py-2 px-2 text-left w-[10%]">Class.</th>
+                    <th className="py-2 px-2 text-left w-[17%]">Hash</th>
+                    <th className="py-2 px-2 text-left w-[20%]">Path</th>
                   </tr>
                 </thead>
                 <tbody>
                   {pageIncidents.map((incident, index) => (
                     <tr 
                       key={index} 
-                      className="border-b border-gray-200 hover:bg-gray-50"
+                      className="border-b border-gray-200"
                       style={{ breakInside: 'avoid' }}
                     >
-                      <td className="py-2 px-3">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusBadge(incident.status)}`}>
-                          {incident.status}
+                      {/* 1. Status */}
+                      <td className="py-2 px-2 align-top">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${getStatusBadge(incident.status)}`}>
+                          {formatStatus(incident.status)}
                         </span>
                       </td>
-                      <td className="py-2 px-3 max-w-[150px] truncate" title={incident.threatDetails}>
+                      
+                      {/* 2. Threat Details: Allow wrap */}
+                      <td className="py-2 px-2 text-xs text-gray-700 align-top whitespace-normal break-words max-w-[150px]">
                         {incident.threatDetails}
                       </td>
-                      <td className="py-2 px-3">
+                      
+                      {/* 3. Confidence */}
+                      <td className="py-2 px-2 text-xs text-center align-top uppercase">
                         {incident.confidenceLevel}
                       </td>
-                      <td className="py-2 px-3 font-mono text-xs max-w-[120px] truncate">
+                      
+                      {/* 4. Endpoint: Allow wrap */}
+                      <td className="py-2 px-2 text-xs text-gray-700 align-top break-words max-w-[100px] font-mono">
                         {incident.endpoint}
                       </td>
-                      <td className="py-2 px-3">
+                      
+                      {/* 5. IP Address */}
+                      <td className="py-2 px-2 text-xs text-gray-600 align-top break-all max-w-[90px] font-mono">
+                        {incident.ipAddress}
+                      </td>
+                      
+                      {/* 6. Classification */}
+                      <td className="py-2 px-2 text-xs text-gray-600 align-top">
                         {incident.classification}
                       </td>
-                      <td className="py-2 px-3 font-mono text-xs max-w-[100px] truncate" title={incident.hash}>
-                        {incident.hash?.substring(0, 12)}...
+                      
+                      {/* 7. Hash: Compact display */}
+                      <td className="py-2 px-1 text-[9px] leading-3 text-gray-500 align-top font-mono break-all">
+                        {incident.hash}
                       </td>
-                      <td className="py-2 px-3 font-mono text-xs max-w-[150px] truncate" title={incident.path}>
+                      
+                      {/* 8. Path: Compact display */}
+                      <td className="py-2 px-1 text-[9px] leading-3 text-gray-500 align-top break-all">
                         {incident.path}
                       </td>
                     </tr>
                   ))}
                   {pageIncidents.length === 0 && (
                     <tr>
-                      <td colSpan={7} className="py-8 text-center text-gray-400">
+                      <td colSpan={8} className="py-8 text-center text-gray-400">
                         No incidents recorded for this period
                       </td>
                     </tr>
@@ -115,9 +150,7 @@ export function MdrIncidentDetailSection({ incidents, recommendation }: MdrIncid
             </div>
             
             {/* Footer */}
-            <div className="p-4 text-center text-sm text-gray-400 border-t">
-              Page {6 + pageIndex}
-            </div>
+            <MdrPageFooter />
           </div>
         </div>
       ))}
@@ -143,9 +176,7 @@ export function MdrIncidentDetailSection({ incidents, recommendation }: MdrIncid
           </div>
           
           {/* Footer */}
-          <div className="p-4 text-center text-sm text-gray-400 border-t">
-            Page {6 + pages.length}
-          </div>
+          <MdrPageFooter />
         </div>
       </div>
     </>
