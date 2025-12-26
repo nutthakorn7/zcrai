@@ -1,5 +1,5 @@
 import { db } from '../infra/db';
-import { alerts, cases } from '../infra/db/schema';
+import { alerts, cases, observables } from '../infra/db/schema';
 import { sql, eq, and, gte, lte, desc } from 'drizzle-orm';
 import { query } from '../infra/clickhouse/client';
 
@@ -131,6 +131,17 @@ export class AnalyticsService {
         case: true
       }
     });
+
+    // --- NEW: Enrichment Stats ---
+    const [iocStats] = await db.select({
+      total: sql<number>`count(*)`,
+      enriched: sql<number>`count(*) filter (where enrichment_data IS NOT NULL)`
+    })
+    .from(observables)
+    .where(and(
+      eq(observables.tenantId, tenantId),
+      gte(observables.createdAt, startDate)
+    ));
 
     // Node & Link Management
     const nodes: SankeyNode[] = [];
@@ -313,7 +324,12 @@ export class AnalyticsService {
         totalAlerts: alertsData.length,
         totalLogs,
         determinationBreakdown,
-        sourceBreakdown
+        sourceBreakdown,
+        iocStats: {
+          total: Number(iocStats?.total || 0),
+          enriched: Number(iocStats?.enriched || 0),
+          rate: (iocStats?.total || 0) > 0 ? Math.round((Number(iocStats.enriched) / Number(iocStats.total)) * 100) : 0
+        }
       }
     };
 

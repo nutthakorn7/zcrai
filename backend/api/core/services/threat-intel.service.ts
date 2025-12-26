@@ -7,6 +7,7 @@
 import { VirusTotalProvider } from '../enrichment-providers/virustotal';
 import { AbuseIPDBProvider } from '../enrichment-providers/abuseipdb';
 import { AlienVaultOTXProvider } from '../enrichment-providers/alienvault-otx';
+import { URLScanProvider } from '../enrichment-providers/urlscan';
 import { db } from '../../infra/db';
 import { apiKeys } from '../../infra/db/schema';
 import { eq } from 'drizzle-orm';
@@ -52,6 +53,7 @@ export const ThreatIntelService = {
   virustotal: new VirusTotalProvider(),
   abuseipdb: new AbuseIPDBProvider(),
   otx: new AlienVaultOTXProvider(),
+  urlscan: new URLScanProvider(),
 
   /**
    * Get API key from DB or env var
@@ -127,6 +129,7 @@ export const ThreatIntelService = {
       case 'virustotal': return process.env.VIRUSTOTAL_API_KEY;
       case 'abuseipdb': return process.env.ABUSEIPDB_API_KEY;
       case 'alienvault-otx': return process.env.OTX_API_KEY;
+      case 'urlscan': return process.env.URLSCAN_API_KEY;
       default: return undefined;
     }
   },
@@ -262,6 +265,34 @@ export const ThreatIntelService = {
       });
     }
 
+    // Query URLScan (URL and Domain only)
+    if (type === 'url' || type === 'domain') {
+      try {
+        const urlscanResult = await this.urlscan.checkURL(indicator);
+        if (urlscanResult) {
+          sources.push({
+            name: 'URLScan.io',
+            found: urlscanResult.isMalicious,
+            risk: urlscanResult.isMalicious ? 'malicious' : 'clean',
+            details: {
+              score: urlscanResult.score,
+              tags: urlscanResult.tags,
+              urlscanUrl: urlscanResult.details.urlscanUrl,
+            }
+          });
+          if (urlscanResult.isMalicious) maliciousCount++;
+          allTags.push(...urlscanResult.tags);
+        }
+      } catch (e: any) {
+        sources.push({
+          name: 'URLScan.io',
+          found: false,
+          risk: 'error',
+          details: { error: e.message }
+        });
+      }
+    }
+
     // Calculate verdict
     let verdict: 'clean' | 'suspicious' | 'malicious';
     let confidenceScore: number;
@@ -369,6 +400,7 @@ export const ThreatIntelService = {
       { name: 'VirusTotal', provider: 'virustotal', envKey: 'VIRUSTOTAL_API_KEY' },
       { name: 'AbuseIPDB', provider: 'abuseipdb', envKey: 'ABUSEIPDB_API_KEY' },
       { name: 'AlienVault OTX', provider: 'alienvault-otx', envKey: 'OTX_API_KEY' },
+      { name: 'URLScan.io', provider: 'urlscan', envKey: 'URLSCAN_API_KEY' },
     ];
 
     const results = [];

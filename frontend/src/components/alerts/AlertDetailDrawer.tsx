@@ -15,6 +15,8 @@ import { Icon } from '../../shared/ui';
 import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Textarea, useDisclosure, RadioGroup, Radio } from "@heroui/react";
 import { InvestigationGraphWidget } from '../../pages/dashboard/widgets/InvestigationGraphWidget';
 import { AlertTimelineWidget } from '../../pages/dashboard/widgets/AlertTimelineWidget';
+import { ObservablesAPI, Observable } from '../../shared/api/observables';
+import { Zap, RefreshCw, ExternalLink, Copy } from 'lucide-react';
 
 interface AlertDetailDrawerProps {
   alert: Alert | null;
@@ -47,6 +49,8 @@ export function AlertDetailDrawer({ alert, isOpen, onClose }: AlertDetailDrawerP
   const [isLoadingCorrelations, setIsLoadingCorrelations] = useState(false);
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  const [observables, setObservables] = useState<Observable[]>([]);
+  const [isLoadingObservables, setIsLoadingObservables] = useState(false);
   
   // Feedback State
   const {isOpen: isFeedbackOpen, onOpen: onFeedbackOpen, onOpenChange: onFeedbackOpenChange, onClose: onFeedbackClose} = useDisclosure();
@@ -61,6 +65,7 @@ export function AlertDetailDrawer({ alert, isOpen, onClose }: AlertDetailDrawerP
         setSuggestions([]); 
         loadCorrelations();
         loadSuggestions();
+        loadObservables();
     }
   }, [alert, isOpen]);
 
@@ -92,6 +97,29 @@ export function AlertDetailDrawer({ alert, isOpen, onClose }: AlertDetailDrawerP
         console.warn('Failed to load playbook suggestions', error);
     } finally {
         setIsLoadingSuggestions(false);
+    }
+  };
+
+  const loadObservables = async () => {
+    if (!alert) return;
+    try {
+      setIsLoadingObservables(true);
+      const data = await ObservablesAPI.list({ alertId: alert.id });
+      setObservables(data);
+    } catch (error) {
+      console.error('Failed to load observables:', error);
+    } finally {
+      setIsLoadingObservables(false);
+    }
+  };
+
+  const handleEnrich = async (obsId: string) => {
+    try {
+      await ObservablesAPI.enrich(obsId);
+      // Wait a bit or re-poll? For now just refresh
+      setTimeout(loadObservables, 1000);
+    } catch (error) {
+      console.error('Failed to trigger enrichment:', error);
     }
   };
 
@@ -446,7 +474,135 @@ export function AlertDetailDrawer({ alert, isOpen, onClose }: AlertDetailDrawerP
                         </div>
                      )}
 
-                     {/* Observables (Placeholder for now, assuming rawData might have it) */}
+                    {/* Observables & Enrichment */}
+                    <div>
+                         <h3 className="text-sm font-semibold mb-3 flex items-center gap-2 text-primary">
+                            <Zap className="w-4 h-4" /> 
+                            Observables & Enrichment
+                            {observables.length > 0 && <Chip size="sm" variant="flat" color="primary" className="ml-auto">{observables.length}</Chip>}
+                        </h3>
+                        
+                        {isLoadingObservables ? (
+                            <div className="flex justify-center py-6">
+                                <Spinner size="sm" color="primary" />
+                            </div>
+                        ) : observables.length > 0 ? (
+                            <div className="space-y-3">
+                                {observables.map((obs) => {
+                                    const enrichment = obs.enrichmentData || {};
+                                    const vt = enrichment.virustotal;
+                                    const abuse = enrichment.abuseipdb;
+                                    const otx = enrichment.alienvault;
+                                    const urlscan = enrichment.urlscan;
+
+                                    return (
+                                        <Card key={obs.id} className="bg-content2/30 border border-white/5 hover:border-primary/20 transition-all">
+                                            <CardBody className="p-3">
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <div className="flex items-center gap-2">
+                                                        <Chip size="sm" variant="flat" className="capitalize text-[10px] h-5">{obs.type}</Chip>
+                                                        <span className="text-sm font-mono text-foreground/90">{obs.value}</span>
+                                                        <Button 
+                                                            isIconOnly 
+                                                            size="sm" 
+                                                            variant="light" 
+                                                            className="min-w-6 w-6 h-6 text-foreground/40"
+                                                            onPress={() => {
+                                                                navigator.clipboard.writeText(obs.value);
+                                                            }}
+                                                        >
+                                                            <Copy className="w-3 h-3" />
+                                                        </Button>
+                                                    </div>
+                                                    <div className="flex items-center gap-1">
+                                                        {obs.isMalicious && (
+                                                            <Chip size="sm" color="danger" variant="flat" className="h-5 text-[10px]">Malicious</Chip>
+                                                        )}
+                                                        <Button 
+                                                            isIconOnly 
+                                                            size="sm" 
+                                                            variant="light" 
+                                                            className="min-w-6 w-6 h-6 text-foreground/40 hover:text-primary"
+                                                            onPress={() => handleEnrich(obs.id)}
+                                                        >
+                                                            <RefreshCw className="w-3 h-3" />
+                                                        </Button>
+                                                    </div>
+                                                </div>
+
+                                                <div className="grid grid-cols-2 gap-2 mt-2">
+                                                    {/* VT */}
+                                                    <div className={`text-[10px] p-1.5 rounded border border-white/5 ${vt ? (vt.malicious_count > 0 ? 'bg-danger/5 border-danger/10' : 'bg-success/5 border-success/10') : 'bg-white/5 opacity-50'}`}>
+                                                        <div className="flex items-center justify-between">
+                                                            <span className="text-foreground/50">VirusTotal</span>
+                                                            {vt ? (
+                                                                <span className={vt.malicious_count > 0 ? 'text-danger font-bold' : 'text-success'}>
+                                                                    {vt.malicious_count}/{vt.total_engines || 0}
+                                                                </span>
+                                                            ) : 'PENDING'}
+                                                        </div>
+                                                    </div>
+
+                                                    {/* AbuseIPDB */}
+                                                    {obs.type === 'ip' && (
+                                                        <div className={`text-[10px] p-1.5 rounded border border-white/5 ${abuse ? (abuse.abuseConfidenceScore > 50 ? 'bg-danger/5 border-danger/10' : 'bg-success/5 border-success/10') : 'bg-white/5 opacity-50'}`}>
+                                                            <div className="flex items-center justify-between">
+                                                                <span className="text-foreground/50">AbuseIPDB</span>
+                                                                {abuse ? (
+                                                                    <span className={abuse.abuseConfidenceScore > 50 ? 'text-danger font-bold' : 'text-success'}>
+                                                                        Score: {abuse.abuseConfidenceScore}%
+                                                                    </span>
+                                                                ) : 'PENDING'}
+                                                            </div>
+                                                        </div>
+                                                    )}
+
+                                                    {/* OTX */}
+                                                    <div className={`text-[10px] p-1.5 rounded border border-white/5 ${otx ? (otx.details?.pulseCount > 0 ? 'bg-warning/5 border-warning/10' : 'bg-success/5 border-success/10') : 'bg-white/5 opacity-50'}`}>
+                                                        <div className="flex items-center justify-between">
+                                                            <span className="text-foreground/50">AlienVault OTX</span>
+                                                            {otx ? (
+                                                                <span className={otx.details?.pulseCount > 0 ? 'text-warning font-bold' : 'text-success'}>
+                                                                    {otx.details?.pulseCount || 0} Pulses
+                                                                </span>
+                                                            ) : 'PENDING'}
+                                                        </div>
+                                                    </div>
+
+                                                    {/* URLScan */}
+                                                    {(obs.type === 'url' || obs.type === 'domain') && (
+                                                        <div className={`text-[10px] p-1.5 rounded border border-white/5 ${urlscan ? (urlscan.isMalicious ? 'bg-danger/5 border-danger/10' : 'bg-success/5 border-success/10') : 'bg-white/5 opacity-50'}`}>
+                                                            <div className="flex items-center justify-between">
+                                                                <span className="text-foreground/50">URLScan.io</span>
+                                                                {urlscan ? (
+                                                                    <div className="flex items-center gap-1">
+                                                                        <span className={urlscan.isMalicious ? 'text-danger font-bold' : 'text-success'}>
+                                                                            Score: {urlscan.score}
+                                                                        </span>
+                                                                        {urlscan.details?.urlscanUrl && (
+                                                                            <a href={urlscan.details.urlscanUrl} target="_blank" rel="noreferrer" className="text-primary hover:underline">
+                                                                                <ExternalLink className="w-2 h-2" />
+                                                                            </a>
+                                                                        )}
+                                                                    </div>
+                                                                ) : 'PENDING'}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </CardBody>
+                                        </Card>
+                                    );
+                                })}
+                            </div>
+                        ) : (
+                            <div className="text-center py-6 bg-content2/20 rounded-lg border border-white/5 border-dashed">
+                                <p className="text-xs text-foreground/50">No observables found for this alert</p>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Raw Data (Moved to bottom) */}
                     {alert.rawData && (
                         <div>
                              <h3 className="text-sm font-semibold mb-2 flex items-center gap-2">

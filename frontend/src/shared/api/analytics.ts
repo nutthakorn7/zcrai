@@ -21,6 +21,11 @@ export interface SankeyData {
     timeSavedHours: number;
     timeSavedMinutes: number;
     totalAlerts: number;
+    iocStats: {
+      total: number;
+      enriched: number;
+      rate: number;
+    };
   };
 }
 

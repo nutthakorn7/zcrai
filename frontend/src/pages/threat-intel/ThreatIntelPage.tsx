@@ -246,6 +246,7 @@ export default function ThreatIntelPage() {
                 <Chip startContent={<CheckCircleIcon className="w-4 h-4" />} color="success" variant="flat">VirusTotal</Chip>
                 <Chip startContent={<CheckCircleIcon className="w-4 h-4" />} color="success" variant="flat">AbuseIPDB</Chip>
                 <Chip startContent={<CheckCircleIcon className="w-4 h-4" />} color="success" variant="flat">AlienVault OTX</Chip>
+                <Chip startContent={<CheckCircleIcon className="w-4 h-4" />} color="success" variant="flat">URLScan.io</Chip>
               </>
             )}
           </div>
@@ -501,6 +502,26 @@ export default function ThreatIntelPage() {
                           <div className="text-danger text-[10px] mt-1">
                             ⚠️ {source.details.error}
                           </div>
+                        )}
+                        
+                        {/* URLScan.io specific */}
+                        {source.details.score !== undefined && source.name === 'URLScan.io' && (
+                          <div className="flex justify-between">
+                            <span className="text-default-500">Score</span>
+                            <span className={source.details.score > 50 ? 'text-danger font-bold' : ''}>
+                              {source.details.score}
+                            </span>
+                          </div>
+                        )}
+                        {source.details.urlscanUrl && (
+                          <a 
+                            href={source.details.urlscanUrl} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            className="text-primary text-[10px] hover:underline flex items-center gap-1 mt-1"
+                          >
+                            View Full Report ↗
+                          </a>
                         )}
                       </div>
                     </CardBody>

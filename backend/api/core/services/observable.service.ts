@@ -231,6 +231,14 @@ export class ObservableService {
     return result;
   }
 
+  // Get all observables for an alert
+  static async getByAlertId(alertId: string, tenantId: string) {
+    return await db
+      .select()
+      .from(observables)
+      .where(and(eq(observables.alertId, alertId), eq(observables.tenantId, tenantId)));
+  }
+
   // Get by ID
   static async getById(id: string, tenantId: string) {
     const [observable] = await db
@@ -334,11 +342,11 @@ export class ObservableService {
     const providers: string[] = [];
 
     if (type === 'ip') {
-      providers.push('virustotal', 'abuseipdb');
+      providers.push('virustotal', 'abuseipdb', 'alienvault');
     } else if (type === 'domain' || type === 'url') {
-      providers.push('virustotal');
+      providers.push('virustotal', 'alienvault', 'urlscan');
     } else if (type === 'hash') {
-      providers.push('virustotal');
+      providers.push('virustotal', 'alienvault', 'urlscan');
     }
 
     for (const provider of providers) {

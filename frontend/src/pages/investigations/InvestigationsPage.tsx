@@ -31,7 +31,8 @@ export default function InvestigationsPage() {
       sourceBreakdown: {},
       timeSavedHours: 0,
       timeSavedMinutes: 0,
-      totalAlerts: 0
+      totalAlerts: 0,
+      iocStats: { total: 0, enriched: 0, rate: 0 }
     } 
   };
 
@@ -130,6 +131,17 @@ export default function InvestigationsPage() {
               <div className="text-xs text-white/40 uppercase tracking-wider mb-2">Estimated Time Saved</div>
               <div className="text-4xl font-bold font-display text-success">
                 {stats?.timeSavedHours || 0}h {stats?.timeSavedMinutes || 0}m
+              </div>
+            </CardBody>
+          </Card>
+
+          {/* IOC Enrichment */}
+          <Card className="bg-content1/50 border border-white/5 backdrop-blur-md">
+            <CardBody className="p-6">
+              <div className="text-xs text-white/40 uppercase tracking-wider mb-2">Auto-Enrichment</div>
+              <div className="text-4xl font-bold font-display text-primary">{stats?.iocStats?.rate || 0}%</div>
+              <div className="text-xs text-white/40 mt-1">
+                {stats?.iocStats?.enriched || 0} / {stats?.iocStats?.total || 0} IOCs processed
               </div>
             </CardBody>
           </Card>

@@ -92,6 +92,7 @@ export class AlertService {
       duplicateCount: 1,
       firstSeenAt: new Date(),
       lastSeenAt: new Date(),
+      aiTriageStatus: 'pending' // Initial status
     }).returning();
 
     // Auto-extract IOCs from description + rawData
@@ -115,15 +116,24 @@ export class AlertService {
     }
 
     // Auto-Triage (AI SOC Phase 1)
-    // Fire-and-forget: Analyze alert immediately
-    import('./ai-triage.service').then(({ AITriageService }) => {
-        AITriageService.analyze(alert.id, { 
-            ...data, 
-            tenantId: data.tenantId, 
-            rawData: data.rawData,
-            observables: extractedIOCs 
-        });
-    }).catch(err => console.error('Failed to trigger AI Triage', err));
+    // If we have observables, they might need enrichment. 
+    // We'll set status to 'enriching' and let the EnrichmentWorker trigger the AI once done.
+    if (extractedIOCs && extractedIOCs.length > 0) {
+        await db.update(alerts)
+            .set({ aiTriageStatus: 'enriching' })
+            .where(eq(alerts.id, alert.id));
+        console.log(`[AlertService] Alert ${alert.id} set to 'enriching' status. Waiting for IOC enrichment...`);
+    } else {
+        // Fire-and-forget: Analyze alert immediately if no IOCs
+        import('./ai-triage.service').then(({ AITriageService }) => {
+            AITriageService.analyze(alert.id, { 
+                ...data, 
+                tenantId: data.tenantId, 
+                rawData: data.rawData,
+                observables: extractedIOCs 
+            });
+        }).catch(err => console.error('Failed to trigger AI Triage', err));
+    }
 
     // Emit real-time event
     import('./socket.service').then(({ SocketService }) => {

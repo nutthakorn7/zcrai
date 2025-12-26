@@ -49,9 +49,51 @@ export class AITriageService {
         }
 
         // 1. Prepare Prompt
-        const observablesContext = alertData.observables?.map((o: any) => 
-            `- ${o.type}: ${o.value} (Malicious: ${o.isMalicious}, Tags: ${o.tags?.join(',') || 'None'})`
-        ).join('\n') || 'None';
+        // --- NEW: Fetch Fresh Observables with Enrichment Data ---
+        let observablesContext = 'None';
+        try {
+            const { ObservableService } = await import('./observable.service');
+            const freshObservables = await ObservableService.getByAlertId(alertId, alertData.tenantId);
+            
+            if (freshObservables.length > 0) {
+                observablesContext = freshObservables.map((o: any) => {
+                    const enrichment = o.enrichmentData as any;
+                    let detailLine = `- ${o.type.toUpperCase()}: ${o.value} (Malicious: ${o.isMalicious}, Tags: ${o.tags?.join(',') || 'None'})`;
+                    
+                    if (enrichment) {
+                        const vt = enrichment.virustotal;
+                        const abuse = enrichment.abuseipdb;
+                        const otx = enrichment.alienvault;
+                        const urlscan = enrichment.urlscan;
+                        const enrichmentDetails = [];
+                        
+                        if (vt) {
+                            enrichmentDetails.push(`VT: ${vt.malicious_count || 0} hits`);
+                        }
+                        if (abuse) {
+                            enrichmentDetails.push(`AbuseIPDB Score: ${abuse.abuseConfidenceScore || 0}%`);
+                        }
+                        if (otx) {
+                            enrichmentDetails.push(`OTX: ${otx.details?.pulseCount || 0} pulses`);
+                        }
+                        if (urlscan) {
+                             enrichmentDetails.push(`URLScan Score: ${urlscan.score || 0}`);
+                        }
+                        
+                        if (enrichmentDetails.length > 0) {
+                            detailLine += ` | Enrichment: [${enrichmentDetails.join(', ')}]`;
+                        }
+                    }
+                    return detailLine;
+                }).join('\n');
+            }
+        } catch (e) {
+            console.warn("[AITriage] Failed to fetch fresh observables:", e);
+            // Fallback to what was passed in
+            observablesContext = alertData.observables?.map((o: any) => 
+                `- ${o.type}: ${o.value} (Malicious: ${o.isMalicious}, Tags: ${o.tags?.join(',') || 'None'})`
+            ).join('\n') || 'None';
+        }
 
         // --- NEW: Fetch Correlation Context (Related Events) ---
         let correlationContext = "";

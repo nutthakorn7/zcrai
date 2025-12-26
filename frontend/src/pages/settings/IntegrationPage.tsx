@@ -145,6 +145,16 @@ const PROVIDER_CONFIG: Record<string, ProviderConfigItem> = {
     description: 'Open Threat Exchange Intelligence',
     category: 'Enrichment'
   },
+  urlscan: {
+    name: 'URLScan.io',
+    color: 'warning',
+    gradient: 'from-yellow-500/10 via-orange-500/5 to-transparent',
+    border: 'border-yellow-500/20 group-hover:border-yellow-500/50',
+    iconBg: 'bg-yellow-500/10',
+    iconColor: 'text-yellow-400',
+    description: 'URL & Domain Scanning',
+    category: 'Enrichment'
+  },
   azure: {
     name: 'Microsoft Azure',
     color: 'primary',
@@ -429,7 +439,8 @@ export default function IntegrationPage() {
     } else if (type === 'enrichment' && providerOverride) {
       setLabel(
         providerOverride === 'virustotal' ? 'VirusTotal' : 
-        providerOverride === 'alienvault' ? 'AlienVault OTX' : 'AbuseIPDB'
+        providerOverride === 'alienvault' ? 'AlienVault OTX' :
+        providerOverride === 'urlscan' ? 'URLScan.io' : 'AbuseIPDB'
       );
       setAiProvider(providerOverride);
     } else if (type === 'ticketing' && providerOverride) {
@@ -564,7 +575,8 @@ export default function IntegrationPage() {
             apiKey: aiKey,
             label: label || (
                 aiProvider === 'virustotal' ? 'VirusTotal' : 
-                aiProvider === 'alienvault' ? 'AlienVault OTX' : 'AbuseIPDB'
+                aiProvider === 'alienvault' ? 'AlienVault OTX' :
+                aiProvider === 'urlscan' ? 'URLScan.io' : 'AbuseIPDB'
             ),
           });
         } else if (modalType === 'aws') {
