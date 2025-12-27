@@ -14,12 +14,26 @@ address = "0.0.0.0:8088"
 path = "/events"
 encoding = "ndjson"
 
+# รับ events จาก Syslog (UDP/TCP) - NEW
+[sources.syslog_events]
+type = "syslog"
+address = "0.0.0.0:9090"
+mode = "udp"
+
 # ==================== TRANSFORMS ====================
+
+# รวม events จากหลาย source
+[transforms.all_events]
+type = "remap"
+inputs = ["collector_events", "syslog_events"]
+source = '''
+. = .
+'''
 
 # Deduplicate events based on ID
 [transforms.dedupe_events]
 type = "dedupe"
-inputs = ["collector_events"]
+inputs = ["all_events"]
 fields.match = ["id"]
 cache.num_events = 5000
 
@@ -33,8 +47,13 @@ if !exists(.collected_at) {
 }
 
 # Parse timestamps first (Collector sends RFC3339 string)
-.timestamp = parse_timestamp!(.timestamp, format: "%+")
-.collected_at = parse_timestamp!(.collected_at, format: "%+")
+if exists(.timestamp) {
+    .timestamp = parse_timestamp(.timestamp, format: "%+") ?? now()
+} else {
+    .timestamp = now()
+}
+
+.collected_at = parse_timestamp(.collected_at, format: "%+") ?? now()
 
 # Format for ClickHouse DateTime (no milliseconds)
 .timestamp = format_timestamp!(.timestamp, format: "%Y-%m-%d %H:%M:%S")
@@ -217,7 +236,7 @@ source = '''
 }
 '''
 
-# ส่งไป ClickHouse
+# ส่งไป ClickHouse (Resilient)
 [sinks.clickhouse]
 type = "clickhouse"
 inputs = ["clickhouse_compatible"]
@@ -227,10 +246,16 @@ table = "security_events"
 compression = "gzip"
 skip_unknown_fields = true
 
+# Disk Buffers for Resilience
+[sinks.clickhouse.buffer]
+type = "disk"
+max_size = 536870912 # 512MB
+when_full = "block"
+
 [sinks.clickhouse.auth]
 strategy = "basic"
-user = "default"
-password = "clickhouse"
+user = "${CLICKHOUSE_USER}"
+password = "${CLICKHOUSE_PASSWORD}"
 
 # Batch settings
 [sinks.clickhouse.batch]
@@ -240,16 +265,17 @@ timeout_secs = 5
 
 # Retry settings
 [sinks.clickhouse.request]
-retry_attempts = 5
+retry_attempts = 10
 retry_initial_backoff_secs = 1
-retry_max_duration_secs = 60
+retry_max_duration_secs = 300
 
-# Console output for debugging (disable in production)
-# [sinks.console_debug]
-# type = "console"
-# inputs = ["clickhouse_compatible"]
-# target = "stdout"
-# 
-# [sinks.console_debug.encoding]
-# codec = "json"
+# Dead Letter Queue (DLQ) for failed events
+[sinks.dlq_file]
+type = "file"
+inputs = ["clickhouse_compatible"]
+path = "/var/lib/vector/archive.json"
+encoding.codec = "json"
 
+[sinks.dlq_file.buffer]
+type = "disk"
+max_size = 104857600 # 100MB

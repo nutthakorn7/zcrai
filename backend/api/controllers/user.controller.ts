@@ -1,6 +1,7 @@
-import { Elysia } from 'elysia'
+import { Elysia, t } from 'elysia'
 import { withAuth } from '../middleware/auth'
 import { UserService } from '../core/services/user.service'
+import { AuditService } from '../core/services/audit.service'
 import { Errors } from '../middleware/error'
 import { HTTP_STATUS } from '../config/constants'
 import { InviteUserSchema, UpdateUserSchema } from '../validators/user.validator'
@@ -17,6 +18,12 @@ export const userController = new Elysia({ prefix: '/users' })
   .get('/', async ({ user }: any) => {
     const users = await UserService.list(user.tenantId)
     return { success: true, data: users }
+  }, {
+    detail: {
+        tags: ['Users'],
+        summary: 'List Users',
+        description: 'Get all users in the current tenant.'
+    }
   })
 
   /**
@@ -46,7 +53,14 @@ export const userController = new Elysia({ prefix: '/users' })
     const result = await UserService.invite(user.tenantId, body)
     set.status = HTTP_STATUS.CREATED
     return { message: 'User invited successfully', user: result.user }
-  }, { body: InviteUserSchema })
+  }, { 
+    body: InviteUserSchema,
+    detail: {
+        tags: ['Users'],
+        summary: 'Invite User',
+        description: 'Invite a new user to the tenant.'
+    }
+  })
 
   /**
    * Get detailed information about a specific user
@@ -58,6 +72,12 @@ export const userController = new Elysia({ prefix: '/users' })
   .get('/:id', async ({ user, params: { id } }: any) => {
     const targetUser = await UserService.getById(user.tenantId, id)
     return { success: true, data: targetUser }
+  }, {
+    params: t.Object({ id: t.String() }),
+    detail: {
+        tags: ['Users'],
+        summary: 'Get User Details'
+    }
   })
 
   /**
@@ -72,8 +92,29 @@ export const userController = new Elysia({ prefix: '/users' })
    */
   .put('/:id', async ({ user, params: { id }, body }: any) => {
     const updated = await UserService.update(user.tenantId, id, body)
+
+    // Audit Log for Role Change
+    if (body.role) {
+      await AuditService.log({
+        tenantId: user.tenantId,
+        userId: user.id,
+        action: 'UPDATE_USER_ROLE',
+        resource: 'user',
+        resourceId: id,
+        details: { newRole: body.role },
+        status: 'SUCCESS'
+      })
+    }
+
     return { success: true, data: updated }
-  }, { body: UpdateUserSchema })
+  }, { 
+    body: UpdateUserSchema,
+    params: t.Object({ id: t.String() }),
+    detail: {
+        tags: ['Users'],
+        summary: 'Update User'
+    }
+  })
 
   /**
    * Delete/deactivate a user account

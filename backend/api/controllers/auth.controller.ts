@@ -1,4 +1,5 @@
 import { Elysia } from 'elysia'
+import { rateLimit } from 'elysia-rate-limit'
 import { jwt } from '@elysiajs/jwt'
 import { AuthService } from '../core/services/auth.service'
 import { MFAService } from '../core/services/mfa.service'
@@ -22,6 +23,11 @@ export const authController = new Elysia({ prefix: '/auth' })
       exp: process.env.JWT_ACCESS_EXPIRY || '7d'
     })
   )
+  .use(rateLimit({
+    duration: 60000,
+    max: 10,
+    errorResponse: Errors.TooManyRequests('Too many login attempts, please try again later.')
+  }))
 
   /**
    * Register a new user account
@@ -37,7 +43,17 @@ export const authController = new Elysia({ prefix: '/auth' })
     const result = await AuthService.register(body)
     set.status = 201
     return { message: 'User registered successfully', user: result.user }
-  }, { body: RegisterSchema })
+  }, { 
+    body: RegisterSchema,
+    detail: {
+        tags: ['Auth'],
+        summary: 'Register a new user',
+        responses: {
+            201: { description: 'User created successfully' },
+            400: { description: 'Email already exists' }
+        }
+    }
+  })
 
   /**
    * Login with email and password (with optional MFA)
@@ -129,7 +145,19 @@ export const authController = new Elysia({ prefix: '/auth' })
       }
       throw error
     }
-  }, { body: LoginSchema })
+  }, { 
+    body: LoginSchema,
+    detail: {
+        tags: ['Auth'],
+        summary: 'Login with email/password',
+        description: 'Authenticates user and sets HttpOnly cookies (access_token, refresh_token). Supports MFA.',
+        responses: {
+            200: { description: 'Login successful' },
+            401: { description: 'Invalid credentials' },
+            429: { description: 'Account locked' }
+        }
+    }
+  })
 
   /**
    * Get current user profile
@@ -137,6 +165,7 @@ export const authController = new Elysia({ prefix: '/auth' })
    * @access Protected
    * @returns {Object} Current user details
    */
+
   .get('/me', async ({ jwt, cookie: { access_token }, set }) => {
     try {
       if (!access_token.value) {
@@ -183,6 +212,12 @@ export const authController = new Elysia({ prefix: '/auth' })
   .post('/logout', async ({ cookie: { access_token, refresh_token } }) => {
     clearAuthCookies(access_token, refresh_token)
     return { success: true, message: 'Logged out successfully' }
+  }, {
+    detail: {
+        tags: ['Auth'],
+        summary: 'Logout',
+        description: 'Clears authentication cookies.'
+    }
   })
 
   /**
@@ -225,6 +260,16 @@ export const authController = new Elysia({ prefix: '/auth' })
     setAccessTokenCookie(access_token, newAccessToken)
 
     return { success: true, message: 'Token refreshed' }
+  }, {
+    detail: {
+        tags: ['Auth'],
+        summary: 'Refresh Access Token',
+        description: 'Uses HttpOnly refresh_token cookie to issue a new access_token.',
+        responses: {
+            200: { description: 'Token refreshed' },
+            401: { description: 'Invalid or missing refresh token' }
+        }
+    }
   })
 
   /**

@@ -175,5 +175,129 @@ export const EmailService = {
     
     const subject = `${emoji} [zcrAI] ${urgencyText}${integrationName} token expires in ${daysUntilExpiry} day${daysUntilExpiry === 1 ? '' : 's'}`;
     return this.sendEmail({ to, subject, html });
+  },
+  /**
+   * 📧 Send User Invitation Email
+   */
+  async sendInvite(to: string, tempPassword: string, name?: string) {
+    const loginUrl = 'https://app.zcr.ai/login';
+    const html = `
+      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; background: #18181b; padding: 30px; border-radius: 12px;">
+        <div style="text-align: center; margin-bottom: 20px;">
+          <span style="font-size: 48px;">👋</span>
+        </div>
+        <h2 style="color: #fff; text-align: center; margin: 0 0 10px;">
+          Welcome to zcrAI${name ? `, ${name}` : ''}!
+        </h2>
+        <p style="color: #a1a1aa; text-align: center; font-size: 16px;">
+          You have been invited to join the platform.
+        </p>
+
+        <div style="background: #27272a; padding: 20px; border-radius: 8px; border-left: 4px solid #3b82f6; margin: 25px 0;">
+          <p style="color: #a1a1aa; margin: 0 0 8px; font-size: 14px;">Your Temporary Credentials</p>
+          
+          <div style="margin-bottom: 15px;">
+            <span style="color: #71717a; font-size: 12px; display: block; margin-bottom: 4px;">Email</span>
+            <span style="color: #fff; font-family: monospace; font-size: 16px;">${to}</span>
+          </div>
+          
+          <div>
+            <span style="color: #71717a; font-size: 12px; display: block; margin-bottom: 4px;">Temporary Password</span>
+            <span style="color: #fff; font-family: monospace; font-size: 18px; background: #000; padding: 4px 8px; border-radius: 4px;">${tempPassword}</span>
+          </div>
+        </div>
+
+        <div style="text-align: center; margin-top: 30px;">
+          <a href="${loginUrl}" 
+             style="background: #3b82f6; color: #fff; padding: 14px 32px; border-radius: 6px; text-decoration: none; font-weight: bold; display: inline-block;">
+            Login & Set Password
+          </a>
+        </div>
+        
+        <p style="color: #71717a; font-size: 12px; text-align: center; margin-top: 25px;">
+          Please change your password immediately after logging in.
+        </p>
+      </div>
+    `;
+
+    return this.sendEmail({ 
+      to, 
+      subject: 'Welcome to zcrAI - Your Login Credentials', 
+      html 
+    });
+  },
+  /**
+   * 📊 Send Weekly Smart Digest
+   */
+  async sendSmartDigest(
+    to: string, 
+    data: {
+      alertCount: number;
+      criticalCount: number;
+      roiTimeSaved: number;
+      topThreats: Array<{ name: string; count: number }>;
+      periodStart: Date;
+      periodEnd: Date;
+    }
+  ) {
+    const formatTime = (minutes: number) => {
+        if (minutes < 60) return `${minutes}m`;
+        return `${(minutes / 60).toFixed(1)}h`;
+    };
+
+    const html = `
+      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; background: #18181b; padding: 30px; border-radius: 12px; border: 1px solid #27272a;">
+        <div style="text-align: center; margin-bottom: 25px;">
+           <h2 style="color: #fff; margin: 0;">🛡️ Weekly Security Brief</h2>
+           <p style="color: #a1a1aa; font-size: 14px; margin-top: 5px;">
+             ${data.periodStart.toLocaleDateString()} - ${data.periodEnd.toLocaleDateString()}
+           </p>
+        </div>
+
+        <!-- KPI Cards -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px;">
+            <div style="background: #27272a; padding: 15px; border-radius: 8px; text-align: center;">
+                <div style="color: #a1a1aa; font-size: 12px; text-transform: uppercase;">Total Alerts</div>
+                <div style="color: #fff; font-size: 24px; font-weight: bold;">${data.alertCount}</div>
+            </div>
+            <div style="background: #27272a; padding: 15px; border-radius: 8px; text-align: center;">
+                <div style="color: #ef4444; font-size: 12px; text-transform: uppercase;">Critical Blocking</div>
+                <div style="color: #ef4444; font-size: 24px; font-weight: bold;">${data.criticalCount}</div>
+            </div>
+        </div>
+
+        <!-- ROI Section -->
+        <div style="background: linear-gradient(45deg, #3b82f61a, #8b5cf61a); border: 1px solid #3b82f633; padding: 20px; border-radius: 8px; margin-bottom: 25px; text-align: center;">
+            <div style="color: #60a5fa; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">AI Value Generated</div>
+            <div style="color: #fff; font-size: 32px; font-weight: bold; margin: 10px 0;">${formatTime(data.roiTimeSaved)}</div>
+            <div style="color: #a1a1aa; font-size: 12px;">Engineering time saved via automation this week.</div>
+        </div>
+
+        <!-- Top Threats -->
+        <div style="margin-bottom: 25px;">
+            <h3 style="color: #d4d4d8; font-size: 16px; border-bottom: 1px solid #3f3f46; padding-bottom: 10px;">Top Detected Threats</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+                ${data.topThreats.map(threat => `
+                    <tr>
+                        <td style="padding: 10px 0; color: #a1a1aa; font-size: 14px; border-bottom: 1px solid #27272a;">${threat.name}</td>
+                        <td style="padding: 10px 0; color: #fff; font-weight: bold; font-size: 14px; text-align: right; border-bottom: 1px solid #27272a;">${threat.count}</td>
+                    </tr>
+                `).join('')}
+                ${data.topThreats.length === 0 ? '<tr><td colspan="2" style="padding: 20px 0; text-align: center; color: #52525b; font-style: italic;">No significant threats detected.</td></tr>' : ''}
+            </table>
+        </div>
+
+        <div style="text-align: center; margin-top: 30px;">
+           <a href="https://app.zcr.ai/dashboard" style="background: #fff; color: #000; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 14px;">View Full Report</a>
+        </div>
+      </div>
+    `;
+
+    return this.sendEmail({ 
+        to, 
+        subject: `🛡️ Security Brief: ${formatTime(data.roiTimeSaved)} Saved`, 
+        html 
+    });
   }
 };
+

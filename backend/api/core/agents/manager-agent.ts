@@ -7,9 +7,6 @@ import { alerts } from '../../infra/db/schema';
 import { db } from '../../infra/db';
 import { eq } from 'drizzle-orm';
 
-const apiKey = process.env.GEMINI_API_KEY;
-const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
-
 export class ManagerAgent extends BaseAgent {
     private networkAgent = new NetworkAgent();
     private fileAgent = new FileAgent();
@@ -31,11 +28,17 @@ export class ManagerAgent extends BaseAgent {
         const tasks: Promise<AgentResult>[] = [];
 
         // 1. Initial Plan (Quick Analysis)
-        this.log("Phase 1: Delegating Tasks...");
+        this.log("Phase 1: Delegating Tasks & Retrieving Context...");
 
         // Extract Entities
         const entities = this.extractEntities(alert);
         
+        // RAG: Retrieve Historical Context
+        const historicalContext = await this.findHistoricalContext(entities, alert.tenantId);
+        if (historicalContext.length > 0) {
+            this.log(`📚 Found ${historicalContext.length} related past cases.`);
+        }
+
         // Assign Network Tasks
         if (entities.ip) {
             tasks.push(this.networkAgent.process({ type: 'check_ip', params: { ip: entities.ip }, priority: 'high' }));
@@ -69,7 +72,7 @@ export class ManagerAgent extends BaseAgent {
 
         // 3. Synthesize & Respond
         this.log("Phase 3: Synthesizing Report...");
-        const report = await this.generateFinalReport(alert, findings);
+        const report = await this.generateFinalReport(alert, findings, historicalContext);
         
         // Save Everything
         await this.saveResults(alert.id, findings, report);
@@ -88,12 +91,66 @@ export class ManagerAgent extends BaseAgent {
         };
     }
 
-    private async generateFinalReport(alert: any, findings: AgentResult[]) {
-        if (!genAI) return "AI Service Unavailable. See raw findings.";
+    // RAG: Deterministic Context Retrieval
+    private async findHistoricalContext(entities: any, tenantId: string) {
+        // Collect all values to search
+        const values = [entities.ip, entities.username, entities.hash].filter(v => v);
+        
+        if (values.length === 0) return [];
 
+        // Find past resolved cases containing these observables
+        // This is a simplified "Knowledge Graph" traversal: Alert -> Observables -> Past Cases
+        // Note: We use raw SQL or query builder. Drizzle query builder is safer.
+        
+        // Since we can't easily do complex joins in one go without 'inArray', let's find observables first
+        const { observables, cases } = await import('../../infra/db/schema');
+        const { inArray, and, eq, isNotNull, ne } = await import('drizzle-orm');
+
+        const relatedObservables = await db.select({ caseId: observables.caseId })
+            .from(observables)
+            .where(and(
+                inArray(observables.value, values),
+                eq(observables.tenantId, tenantId),
+                isNotNull(observables.caseId)
+            ))
+            .limit(10); // Limit traversal
+
+        const uniqueCaseIds = [...new Set(relatedObservables.map(o => o.caseId).filter(id => id !== null))] as string[];
+
+        if (uniqueCaseIds.length === 0) return [];
+
+        // Fetch Case Details
+        const relatedCases = await db.query.cases.findMany({
+            where: and(
+                inArray(cases.id, uniqueCaseIds),
+                isNotNull(cases.resolvedAt) // Only "Lesson Learned" cases
+            ),
+            with: {
+                attachments: true // Maybe contains reports?
+            },
+            limit: 3 // Top 3 most relevant
+        });
+
+        return relatedCases.map(c => ({
+            title: c.title,
+            description: c.description,
+            resolution: c.status, // or add a 'resolution_notes' field in future
+            tags: c.tags,
+            date: c.createdAt
+        }));
+    }
+
+    private async generateFinalReport(alert: any, findings: AgentResult[], history: any[]) {
+        const apiKey = process.env.GEMINI_API_KEY;
+        if (!apiKey) return "AI Service Unavailable. See raw findings.";
+
+        const genAI = new GoogleGenerativeAI(apiKey);
         const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
         
         const findingsText = findings.map(f => `[${f.agent}] ${f.summary}`).join('\n');
+        const historyText = history.length > 0 
+            ? history.map(h => `- [Past Case] "${h.title}" (${h.date}): ${h.description}`).join('\n')
+            : "No relevant historical cases found.";
         
         const prompt = `
             You are the Lead Security Investigator (Manager Agent).
@@ -104,6 +161,9 @@ export class ManagerAgent extends BaseAgent {
 
             Team Findings:
             ${findingsText}
+
+            **Historical Context (RAG)**:
+            ${historyText}
 
             **Instructions**:
             1. Generate a concise Executive Summary and final verdict (True/False Positive).
@@ -132,7 +192,7 @@ export class ManagerAgent extends BaseAgent {
 
         await db.update(alerts).set({
             aiAnalysis: {
-                ...currentAnalysis,
+                ...currentAnalysis as any,
                 investigationReport: report,
                 swarmFindings: findings,
                 investigationStatus: 'completed',

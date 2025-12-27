@@ -1,6 +1,6 @@
 import { db } from '../../infra/db'
-import { tenants, users, apiKeys } from '../../infra/db/schema'
-import { eq, count, desc, sql } from 'drizzle-orm'
+import { tenants, users, apiKeys, collectorStates } from '../../infra/db/schema'
+import { eq, count, desc, sql, gt } from 'drizzle-orm'
 import { query } from '../../infra/clickhouse/client'
 
 export const AdminService = {
@@ -236,7 +236,37 @@ export const AdminService = {
     }
 
     // Check Redis
-    health.redis = 'connected' 
+    health.redis = 'connected'
+
+    // Check Collector
+    try {
+      const [integrationCount] = await db.select({ count: count() }).from(apiKeys)
+      
+      if (integrationCount.count === 0) {
+        // No integrations configured, collector is effectively in standby
+        // @ts-ignore
+        health.collector = 'standby' 
+      } else {
+        // Check for any activity in the last 5 minutes
+        const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000)
+        const [recentActivity] = await db.select({ count: count() })
+          .from(collectorStates)
+          .where(gt(collectorStates.updatedAt, fiveMinutesAgo))
+        
+        if (recentActivity.count > 0) {
+          // @ts-ignore
+          health.collector = 'connected'
+        } else {
+           // We have active integrations but no recent collector check-ins
+           // @ts-ignore
+           health.collector = 'disconnected'
+           health.status = 'degraded'
+        }
+      }
+    } catch (e) {
+      // @ts-ignore
+      health.collector = 'unknown'
+    }
 
     return health
   },

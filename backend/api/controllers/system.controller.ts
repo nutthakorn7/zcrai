@@ -143,7 +143,8 @@ export const systemController = new Elysia({ prefix: '/system' })
 
     const { licenseKey } = body
     
-    // TODO: Implement actual license verification
+    // Mock license verification for MVP/Demo
+    // In production, this would validate against a license server
     const mockLicense = {
       type: 'enterprise',
       maxUsers: 999,

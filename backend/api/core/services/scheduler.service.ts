@@ -19,11 +19,12 @@ export const SchedulerService = {
     const weeklyReportJob = new CronJob(
       '0 0 9 * * 1', // 9:00:00 AM every Monday
       async () => {
-        console.log('🤖 Running Weekly Executive Report Job...');
+        console.log('🤖 Running Weekly Smart Digest Job...');
         try {
-          await this.generateAndSendWeeklyReport();
+          const { digestJob } = await import('../scheduler/jobs/digest.job');
+          await digestJob();
         } catch (error) {
-          console.error('❌ Weekly Report Job Failed:', error);
+          console.error('❌ Weekly Digest Job Failed:', error);
         }
       },
       null,
@@ -184,7 +185,7 @@ export const SchedulerService = {
 
     // 4. Send Email
     // Hardcoded to admin for MVP. In real app, fetch admins from DB.
-    const recipient = 'admin@zcr.ai'; // Todo: fetch superadmin email or use env
+    const recipient = process.env.ADMIN_EMAIL || 'admin@zcr.ai';
     
     await EmailService.sendEmail({
       to: recipient,

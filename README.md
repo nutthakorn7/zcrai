@@ -41,6 +41,12 @@
 - **Scheduled Dispatcher**: Automatically email PDF reports to C-suite executives or technical teams.
 - **Global IOC Hunt**: Search for Indicators of Compromise across all tenants in milliseconds using ClickHouse Bloom Filters.
 
+### 🛡️ Enterprise Governance & Security
+- **Role-Based Access Control (RBAC)**: Granular permissions for Admins, Analysts, and Viewers with custom role support.
+- **Audit Logging**: Immutable logs for all critical actions (User changes, Quota updates, Integration edits) for compliance.
+- **Tenant Management**: Enforce strict quotas on Users, API Usage, and Storage per tenant.
+- **Security Hardening**: Built-in rate limiting (300 req/min) and strict Helmet headers (HSTS, CSP).
+
 ### 📊 Optimized Data Architecture
 - **5-Tier Materialized Views**: High-speed analytics powered by 15+ MVs, transforming 10M+ raw events into actionable metrics.
 - **Tier 1 (Core)**: Mitre Enrichment & Real-time Timeline.
@@ -60,6 +66,7 @@
 | **Collector CPU** | 168% | 0.02% | ⬇️ 99.99% |
 | **ClickHouse CPU** | 320% | 9.7% | ⬇️ 97% |
 | **URL Query** | 100s | 0.01s | ⬇️ 10,000x faster |
+| **User Profile Load** | 120ms | <5ms | ⚡️ cached (Redis) |
 
 ### Key Optimizations
 
@@ -81,6 +88,12 @@
 4. **Disk Management**
    - Automatic cleanup when disk > 80%
    - TTL-based data expiration (90 days)
+
+5. **Advanced Caching (New)**
+   - **Database Indexing**: Optimized `cases`, `users`, and `observables` tables for instant filtering.
+   - **Redis Cache-Aside**:
+     - User Profiles: 5 min TTL (Invalidate on Update).
+     - Tenant Configs: 10 min TTL (Invalidate on Change).
 
 ---
 

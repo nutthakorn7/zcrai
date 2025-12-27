@@ -1,9 +1,69 @@
 import puppeteer from 'puppeteer';
 import { db } from '../../infra/db';
-import { users, alerts } from '../../infra/db/schema';
-import { eq, desc } from 'drizzle-orm';
+import { users, alerts, playbookExecutions, playbookExecutionSteps } from '../../infra/db/schema';
+import { eq, desc, sql, and, gt } from 'drizzle-orm';
 
 export class ReportService {
+
+    static async getWeeklyStats(tenantId: string) {
+        const now = new Date();
+        const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+        // 1. Alert Counts
+        const [alertStats] = await db
+            .select({
+                count: sql<number>`count(*)`,
+                criticalCount: sql<number>`count(*) filter (where severity = 'critical')`
+            })
+            .from(alerts)
+            .where(
+                and(
+                    eq(alerts.tenantId, tenantId),
+                    gt(alerts.createdAt, sevenDaysAgo)
+                )
+            );
+
+        // 2. Playbook ROI (Time Saved)
+        const [roiStats] = await db
+            .select({
+                automatedActions: sql<number>`count(*)`
+            })
+            .from(playbookExecutionSteps)
+            .where(
+                 and(
+                     eq(playbookExecutionSteps.status, 'completed'),
+                     gt(playbookExecutionSteps.completedAt, sevenDaysAgo)
+                 )
+            );
+        
+        const timeSavedMinutes = (Number(roiStats?.automatedActions || 0)) * 15;
+
+        // 3. Top Threats
+        const topThreats = await db
+            .select({
+                name: alerts.title,
+                count: sql<number>`count(*)`
+            })
+            .from(alerts)
+            .where(
+                and(
+                    eq(alerts.tenantId, tenantId),
+                    gt(alerts.createdAt, sevenDaysAgo)
+                )
+            )
+            .groupBy(alerts.title)
+            .orderBy(desc(sql`count(*)`))
+            .limit(5);
+
+        return {
+            alertCount: Number(alertStats?.count || 0),
+            criticalCount: Number(alertStats?.criticalCount || 0),
+            roiTimeSaved: timeSavedMinutes,
+            topThreats: topThreats.map(t => ({ name: t.name, count: Number(t.count) })),
+            periodStart: sevenDaysAgo,
+            periodEnd: now
+        };
+    }
 
     static async generateReport(tenantId: string, type: 'SOC2' | 'ISO27001' | 'NIST' | 'PDPA' | 'AI_ACCURACY'): Promise<Buffer> {
         // 1. Fetch Data

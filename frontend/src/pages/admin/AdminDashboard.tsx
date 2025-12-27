@@ -16,6 +16,10 @@ interface Tenant {
   integrationCount: number
   eventCount: number
   createdAt: string
+  // Quotas (optional as they may not be in list view but are in details)
+  maxUsers?: number
+  maxEvents?: number
+  maxStorage?: number
 }
 
 interface SystemSummary {
@@ -30,6 +34,7 @@ interface HealthStatus {
   clickhouse: string
   redis: string
   status: string
+  collector?: string
 }
 
 interface User {
@@ -47,28 +52,62 @@ interface UsageData {
 export default function AdminDashboard() {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
+  const [licenseData, setLicenseData] = useState<any>(null)
+  const isLicenseModalOpen = useDisclosure()
+  const [licenseKey, setLicenseKey] = useState('')
+  const [updatingLicense, setUpdatingLicense] = useState(false)
+
+  // Tenant Data State
   const [tenants, setTenants] = useState<Tenant[]>([])
   const [summary, setSummary] = useState<SystemSummary | null>(null)
   const [health, setHealth] = useState<HealthStatus | null>(null)
-  const [search, setSearch] = useState("")
+  const [search, setSearch] = useState('')
+  
+  // Tenant Details Modal
+  const { isOpen, onOpen, onOpenChange } = useDisclosure()
   const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null)
   const [tenantUsers, setTenantUsers] = useState<User[]>([])
-  const [usageData, setUsageData] = useState<UsageData[]>([])
   const [loadingUsers, setLoadingUsers] = useState(false)
-  const { isOpen, onOpen, onOpenChange } = useDisclosure()
+  const [usageData, setUsageData] = useState<UsageData[]>([])
+
+  // Quota Editing
+  const { isOpen: isQuotaOpen, onOpen: onQuotaOpen, onOpenChange: onQuotaOpenChange } = useDisclosure()
+  const [quotas, setQuotas] = useState({ maxUsers: 0, maxEvents: 0, maxStorage: 0 })
+  const [isUpdatingQuota, setIsUpdatingQuota] = useState(false)
+
+  const handleUpdateQuota = async (onClose: () => void) => {
+    if (!selectedTenant) return
+    setIsUpdatingQuota(true)
+    try {
+        await api.put(`/admin/tenants/${selectedTenant.id}`, quotas)
+        // Refresh tenants list to see changes
+        const res = await api.get('/admin/tenants')
+        setTenants(res.data)
+        // Also update selected tenant so UI refreshes immediately if needed
+        setSelectedTenant(prev => prev ? ({ ...prev, ...quotas }) : null)
+        onClose()
+    } catch (e) {
+        console.error('Failed to update quotas', e)
+        alert('Failed to update quotas')
+    } finally {
+        setIsUpdatingQuota(false)
+    }
+  }
 
   useEffect(() => {
     const loadData = async () => {
       setLoading(true)
       try {
-        const [tenantsRes, summaryRes, healthRes] = await Promise.all([
+        const [tenantsRes, summaryRes, healthRes, licenseRes] = await Promise.all([
           api.get('/admin/tenants'),
           api.get('/admin/summary'),
-          api.get('/admin/health')
+          api.get('/admin/health'),
+          api.get('/admin/license').catch(() => ({ data: { data: null } }))
         ])
         setTenants(tenantsRes.data)
         setSummary(summaryRes.data)
         setHealth(healthRes.data)
+        setLicenseData(licenseRes.data.data)
       } catch (e: any) {
         if (e.response?.status === 403) {
           navigate('/dashboard')
@@ -80,6 +119,23 @@ export default function AdminDashboard() {
     }
     loadData()
   }, [navigate])
+
+  const handleUpdateLicense = async () => {
+    if (!licenseKey) return
+    setUpdatingLicense(true)
+    try {
+      await api.post('/admin/license', { key: licenseKey })
+      // Refresh license data
+      const res = await api.get('/admin/license')
+      setLicenseData(res.data.data)
+      isLicenseModalOpen.onClose()
+      setLicenseKey('')
+    } catch (e) {
+      console.error('Failed to update license', e)
+    } finally {
+      setUpdatingLicense(false)
+    }
+  }
 
   const handleViewTenant = async (tenant: Tenant) => {
     try {
@@ -129,13 +185,32 @@ export default function AdminDashboard() {
           <h1 className="text-3xl font-bold font-display tracking-tight text-foreground">Super Admin Dashboard</h1>
           <p className="text-foreground/60 text-sm mt-1">System-wide overview and tenant management</p>
         </div>
-        {health && (
-          <div className="flex gap-3">
-            <Chip color={health.database === 'connected' ? 'success' : 'danger'} variant="flat" size="sm">DB: {health.database}</Chip>
-            <Chip color={health.clickhouse === 'connected' ? 'success' : 'danger'} variant="flat" size="sm">CH: {health.clickhouse}</Chip>
-            <Chip color={health.redis === 'connected' ? 'success' : 'danger'} variant="flat" size="sm">Redis: {health.redis}</Chip>
-          </div>
-        )}
+        <div className="flex items-center gap-4">
+          {health && (
+            <div className="flex gap-3">
+              <Chip color={health.database === 'connected' ? 'success' : 'danger'} variant="flat" size="sm">DB: {health.database}</Chip>
+              <Chip color={health.clickhouse === 'connected' ? 'success' : 'danger'} variant="flat" size="sm">CH: {health.clickhouse}</Chip>
+              <Chip color={health.redis === 'connected' ? 'success' : 'danger'} variant="flat" size="sm">Redis: {health.redis}</Chip>
+              {health.collector && (
+                <Chip 
+                  color={health.collector === 'connected' ? 'success' : health.collector === 'standby' ? 'warning' : 'danger'} 
+                  variant="flat" 
+                  size="sm"
+                >
+                  Collector: {health.collector}
+                </Chip>
+              )}
+            </div>
+          )}
+          <Button 
+            color="primary" 
+            variant="flat" 
+            size="sm"
+            onPress={isLicenseModalOpen.onOpen}
+          >
+            Manage License
+          </Button>
+        </div>
       </div>
 
       {/* Summary Cards */}
@@ -357,12 +432,140 @@ export default function AdminDashboard() {
               <ModalFooter>
                 <Button variant="flat" onPress={onClose}>Close</Button>
                 <Button 
+                    color="warning" 
+                    variant="flat"
+                    onPress={() => {
+                        setQuotas({
+                            maxUsers: selectedTenant?.maxUsers || 5, // Default or fetch real
+                            maxEvents: selectedTenant?.maxEvents || 10000,
+                            maxStorage: selectedTenant?.maxStorage || 1
+                        })
+                        onQuotaOpen()
+                    }}
+                >
+                    Edit Quotas
+                </Button>
+                <Button 
                   color="primary" 
                   onPress={() => {
                     if (selectedTenant) handleViewTenant(selectedTenant)
                   }}
                 >
                   View As This Tenant
+                </Button>
+              </ModalFooter>
+            </>
+          )}
+        </ModalContent>
+      </Modal>
+
+      {/* Edit Quota Modal */}
+      <Modal isOpen={isQuotaOpen} onOpenChange={onQuotaOpenChange}>
+          <ModalContent>
+              {(onClose) => (
+                  <>
+                      <ModalHeader>Update Tenant Quotas</ModalHeader>
+                      <ModalBody>
+                        <p className="text-sm text-foreground/60 mb-4">
+                            Adjust limits for <span className="font-bold text-foreground">{selectedTenant?.name}</span>.
+                        </p>
+                        <Input 
+                            label="Max Users" 
+                            type="number" 
+                            value={String(quotas.maxUsers)} 
+                            onValueChange={(v) => setQuotas(prev => ({ ...prev, maxUsers: parseInt(v) || 0 }))}
+                        />
+                        <Input 
+                            label="Max Events (per month)" 
+                            type="number" 
+                            value={String(quotas.maxEvents)} 
+                            onValueChange={(v) => setQuotas(prev => ({ ...prev, maxEvents: parseInt(v) || 0 }))}
+                        />
+                        <Input 
+                            label="Max Storage (GB)" 
+                            type="number" 
+                            value={String(quotas.maxStorage)} 
+                            onValueChange={(v) => setQuotas(prev => ({ ...prev, maxStorage: parseInt(v) || 0 }))}
+                        />
+                      </ModalBody>
+                      <ModalFooter>
+                          <Button variant="light" onPress={onClose}>Cancel</Button>
+                          <Button color="primary" onPress={() => handleUpdateQuota(onClose)} isLoading={isUpdatingQuota}>
+                              Save Quotas
+                          </Button>
+                      </ModalFooter>
+                  </>
+              )}
+          </ModalContent>
+      </Modal>
+
+      {/* License Modal */}
+      <Modal isOpen={isLicenseModalOpen.isOpen} onOpenChange={isLicenseModalOpen.onOpenChange} size="md">
+        <ModalContent>
+          {(onClose) => (
+            <>
+              <ModalHeader>
+                Enterprise License Management
+              </ModalHeader>
+              <ModalBody>
+                {licenseData ? (
+                  <div className="space-y-4">
+                    <div className="p-4 bg-primary/10 rounded-lg border border-primary/20">
+                      <div className="flex justify-between items-center">
+                        <span className="font-semibold text-primary">{licenseData.plan} Edition</span>
+                        <Chip size="sm" color="success" variant="flat">Active</Chip>
+                      </div>
+                      <p className="text-xs text-foreground/60 mt-1">Version {licenseData.version}</p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="p-3 bg-content2 rounded-lg">
+                        <p className="text-xs text-foreground/50">Max Tenants</p>
+                        <p className="text-lg font-bold">{licenseData.maxTenants}</p>
+                      </div>
+                      <div className="p-3 bg-content2 rounded-lg">
+                        <p className="text-xs text-foreground/50">Max Users</p>
+                        <p className="text-lg font-bold">{licenseData.maxUsers}</p>
+                      </div>
+                    </div>
+
+                    <div>
+                      <p className="text-sm font-medium mb-1">Expires At</p>
+                      <p className="text-sm text-foreground/70">
+                        {new Date(licenseData.expiresAt).toLocaleDateString(undefined, {
+                          weekday: 'long',
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric'
+                        })}
+                      </p>
+                    </div>
+
+                    <div className="border-t border-white/10 pt-4 mt-2">
+                        <p className="text-sm font-medium mb-2">Update License Key</p>
+                        <textarea
+                            className="w-full bg-content2 rounded-lg p-3 text-xs font-mono border border-white/5 focus:outline-none focus:border-primary/50 text-foreground/80 h-24 resize-none"
+                            placeholder="Paste new license key here..."
+                            value={licenseKey}
+                            onChange={(e) => setLicenseKey(e.target.value)}
+                        />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="py-8 flex justify-center">
+                    <Spinner />
+                  </div>
+                )}
+              </ModalBody>
+              <ModalFooter>
+                <Button variant="flat" onPress={onClose}>Close</Button>
+                <Button 
+                  color="primary" 
+                  isDisabled={!licenseKey || updatingLicense}
+                  isLoading={updatingLicense}
+                  onPress={handleUpdateLicense}
+                >
+                  Update License
                 </Button>
               </ModalFooter>
             </>

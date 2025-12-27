@@ -114,5 +114,8 @@ export const Errors = {
     createError(message, HTTP_STATUS.FORBIDDEN, ERROR_CODES.UPGRADE_REQUIRED),
   
   TokenExpired: () => 
-    createError('Token expired', HTTP_STATUS.UNAUTHORIZED, ERROR_CODES.TOKEN_EXPIRED)
+    createError('Token expired', HTTP_STATUS.UNAUTHORIZED, ERROR_CODES.TOKEN_EXPIRED),
+
+  TooManyRequests: (message = 'Too many requests') =>
+    createError(message, 429, 'RATE_LIMIT_EXCEEDED')
 }

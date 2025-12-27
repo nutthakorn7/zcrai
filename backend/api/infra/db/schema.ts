@@ -47,6 +47,11 @@ export const users = pgTable('users', {
   ssoId: text('sso_id'), // Provider's User ID
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => {
+  return {
+    tenantIdx: index('users_tenant_idx').on(table.tenantId),
+    roleIdx: index('users_role_idx').on(table.role),
+  }
 })
 
 // ... relations ...
@@ -184,6 +189,13 @@ export const cases = pgTable('cases', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
   acknowledgedAt: timestamp('acknowledged_at'),
   resolvedAt: timestamp('resolved_at'),
+}, (table) => {
+  return {
+    tenantIdx: index('cases_tenant_idx').on(table.tenantId),
+    statusIdx: index('cases_status_idx').on(table.status),
+    assigneeIdx: index('cases_assignee_idx').on(table.assigneeId),
+    createdIdx: index('cases_created_idx').on(table.createdAt),
+  }
 })
 
 // Case Comments
@@ -250,6 +262,12 @@ export const notifications = pgTable('notifications', {
   metadata: jsonb('metadata'), // { caseId, severity, etc. }
   isRead: boolean('is_read').default(false).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => {
+  return {
+    tenantIdx: index('notifications_tenant_idx').on(table.tenantId),
+    userIdIdx: index('notifications_user_id_idx').on(table.userId),
+    isReadIdx: index('notifications_is_read_idx').on(table.isRead),
+  }
 })
 
 export const notificationsRelations = relations(notifications, ({ one }) => ({
@@ -409,6 +427,14 @@ export const observables = pgTable('observables', {
   enrichedAt: timestamp('enriched_at'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => {
+  return {
+    tenantIdx: index('observables_tenant_idx').on(table.tenantId),
+    caseIdx: index('observables_case_idx').on(table.caseId),
+    alertIdx: index('observables_alert_idx').on(table.alertId),
+    typeIdx: index('observables_type_idx').on(table.type),
+    valueIdx: index('observables_value_idx').on(table.value),
+  }
 })
 
 export const observablesRelations = relations(observables, ({ one }) => ({
@@ -474,9 +500,16 @@ export const playbookExecutions = pgTable('playbook_executions', {
   playbookId: uuid('playbook_id').references(() => playbooks.id).notNull(),
   caseId: uuid('case_id').references(() => cases.id, { onDelete: 'cascade' }).notNull(),
   status: text('status').default('running').notNull(), // 'running', 'completed', 'failed', 'cancelled'
+  mode: text('mode').default('run').notNull(), // 'run', 'dry_run'
   startedBy: uuid('started_by').references(() => users.id),
   startedAt: timestamp('started_at').defaultNow().notNull(),
   completedAt: timestamp('completed_at'),
+}, (table) => {
+  return {
+    tenantIdx: index('playbook_executions_tenant_idx').on(table.tenantId),
+    caseIdx: index('playbook_executions_case_idx').on(table.caseId),
+    statusIdx: index('playbook_executions_status_idx').on(table.status),
+  }
 })
 
 export const playbookExecutionSteps = pgTable('playbook_execution_steps', {

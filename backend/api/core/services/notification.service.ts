@@ -25,7 +25,13 @@ export const NotificationService = {
       isRead: false
     }).returning()
 
-    // 2. Check user's notification rules
+    // 2. Broadcast via WebSocket (Real-time Toast)
+    // Import dynamically to avoid circular dependency issues if any, or standard import if safe.
+    // Assuming standard import is fine or using the global one.
+    const { SocketService } = await import('./socket.service');
+    SocketService.broadcast(`user:${data.userId}`, 'new_notification', notification);
+
+    // 3. Check user's notification rules
     const rules = await db.select()
       .from(notificationRules)
       .where(and(
@@ -34,14 +40,14 @@ export const NotificationService = {
         eq(notificationRules.enabled, true)
       ))
 
-    // 3. Send via configured channels
+    // 4. Send via configured channels
     for (const rule of rules) {
       if (rule.channel === 'email') {
         await this.sendEmail(data.userId, data.title, data.message, data.metadata)
       }
     }
 
-    // 4. Send to external channels (Slack, Teams, etc.) - NEW
+    // 5. Send to external channels (Slack, Teams, etc.)
     try {
       await NotificationChannelService.send(data.tenantId, {
         type: data.type as any,

@@ -4,6 +4,36 @@ import { eq, and, lte } from 'drizzle-orm';
 import { query } from '../../infra/clickhouse/client';
 import { AlertService } from './alert.service';
 
+const extractObservables = (text: string) => {
+    const observables: { type: string; value: string }[] = [];
+    
+    // IPv4
+    const ipRegex = /\b(?:\d{1,3}\.){3}\d{1,3}\b/g;
+    const ips = text.match(ipRegex) || [];
+    ips.forEach(ip => observables.push({ type: 'ip', value: ip }));
+
+    // Domains (Simplified)
+    const domainRegex = /\b((?!-)[A-Za-z0-9-]{1,63}(?<!-)\.)+[A-Za-z]{2,6}\b/g;
+    const domains = text.match(domainRegex) || [];
+    // Filter out common false positives if needed (e.g. .exe, .png in filenames might look like domains but context matters)
+    domains.forEach(d => {
+        if (!d.match(/^\d+(\.\d+)+$/)) // Avoid IP-like strings
+            observables.push({ type: 'domain', value: d });
+    });
+
+    // Hashes (MD5, SHA256)
+    const md5Regex = /\b[a-fA-F0-9]{32}\b/g;
+    const sha256Regex = /\b[a-fA-F0-9]{64}\b/g;
+    
+    (text.match(md5Regex) || []).forEach(h => observables.push({ type: 'md5', value: h }));
+    (text.match(sha256Regex) || []).forEach(h => observables.push({ type: 'sha256', value: h }));
+
+    // Dedup
+    const unique = new Map();
+    observables.forEach(o => unique.set(`${o.type}:${o.value}`, o));
+    return Array.from(unique.values());
+};
+
 export const DetectionService = {
   // Run all active rules that are due
   async runAllDueRules() {
@@ -99,7 +129,7 @@ export const DetectionService = {
                             group_key: groupKey,
                             samples: groupHits // Store all hits or subset
                         },
-                        observables: [] // Todo: extract from all hits?
+                        observables: extractObservables(JSON.stringify(groupHits))
                     });
 
                     // Auto-Action: Create Case (Per Group)
@@ -129,7 +159,7 @@ export const DetectionService = {
                         title: `[Detection] ${rule.name}`,
                         description: `Rule "${rule.name}" triggered.\n\nEvent: ${hit.title || 'Unknown Event'}\nDescription: ${hit.description || ''}\nTimestamp: ${hit.timestamp}`,
                         rawData: hit,
-                        observables: [] // Todo: extract from hit
+                        observables: extractObservables(JSON.stringify(hit))
                     });
 
                     // Auto-Action: Create Case

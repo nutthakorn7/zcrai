@@ -1,8 +1,8 @@
-
 export interface ActionDefinition {
     id: string;
     name: string;
     description: string;
+    riskLevel?: 'low' | 'medium' | 'high' | 'critical'; // For mandatory approval checks
     execute: (context: ActionContext) => Promise<ActionResult>;
 }
 
@@ -13,6 +13,7 @@ export interface ActionContext {
     executionStepId?: string; // Added for granular logging
     userId?: string;
     inputs: Record<string, any>;
+    mode?: 'run' | 'dry_run'; // Execution Mode
 }
 
 export interface ActionResult {
@@ -36,7 +37,8 @@ export class ActionRegistry {
         return Array.from(this.actions.values()).map(a => ({
             id: a.id,
             name: a.name,
-            description: a.description
+            description: a.description,
+            riskLevel: a.riskLevel || 'low' // Default to low
         }));
     }
 
@@ -45,6 +47,20 @@ export class ActionRegistry {
         if (!action) {
             throw new Error(`Action ${id} not found`);
         }
+
+        // DRY RUN INTERCEPTION
+        if (context.mode === 'dry_run') {
+            console.log(`[DryRun] Skipping execution of action '${id}' (Risk: ${action.riskLevel || 'low'})`);
+            return {
+                success: true,
+                data: {
+                    dryRun: true,
+                    simulated: true,
+                    message: `[Dry Run] Action '${action.name}' would have executed with inputs: ${JSON.stringify(context.inputs)}`
+                }
+            };
+        }
+
         return await action.execute(context);
     }
 }

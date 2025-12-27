@@ -1131,14 +1131,24 @@ export const IntegrationService = {
             if (updated?.healthStatus === 'down') {
                 try {
                     const { NotificationService } = await import('./notification.service');
-                    await NotificationService.create({
-                        tenantId: integration.tenantId,
-                        userId: 'system', // System-level event 
-                        type: 'system_error',
-                        title: `Integration Down: ${integration.label}`,
-                        message: `The integration with ${integration.provider} is currently unreachable. Error: ${error.message}. Circuit breaker engaged.`,
-                        metadata: { severity: 'critical', integrationId: integration.id }
-                    });
+                    
+                    // Fetch tenant admins to notify
+                    const admins = await db.select().from(users).where(and(
+                        eq(users.tenantId, integration.tenantId),
+                        eq(users.role, 'admin'),
+                        eq(users.status, 'active')
+                    ));
+
+                    for (const admin of admins) {
+                        await NotificationService.create({
+                            tenantId: integration.tenantId,
+                            userId: admin.id,
+                            type: 'system_error',
+                            title: `Integration Down: ${integration.label || integration.provider}`,
+                            message: `The integration with ${integration.provider} is currently unreachable. Error: ${error.message}. Circuit breaker engaged.`,
+                            metadata: { severity: 'critical', integrationId: integration.id }
+                        });
+                    }
                 } catch (e) {
                     console.error("Failed to send health notification", e);
                 }

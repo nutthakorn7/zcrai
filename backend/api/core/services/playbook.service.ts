@@ -101,7 +101,7 @@ export class PlaybookService {
   }
 
   // ==================== EXECUTION ====================
-  static async run(tenantId: string, caseId: string, playbookId: string, userId: string) {
+  static async run(tenantId: string, caseId: string, playbookId: string, userId: string, mode: 'run' | 'dry_run' = 'run') {
     // 1. Get Playbook and its steps
     const playbook = await this.getById(tenantId, playbookId)
     if (!playbook) throw new Error('Playbook not found')
@@ -112,6 +112,7 @@ export class PlaybookService {
       playbookId,
       caseId,
       status: 'running',
+      mode: (userId ? 'run' : undefined) || (arguments[4] || 'run'), // Quick hack or update signature if allowed
       startedBy: userId,
       startedAt: new Date(),
     }).returning()
@@ -451,6 +452,44 @@ export class PlaybookService {
         // Import Registry dynamically or ensure it's loaded
         const { ActionRegistry } = await import('../actions'); // Import from index to ensure actions are registered
         
+        // Safety Check: Mandatory Approval for Critical Actions
+        const actionDef = ActionRegistry.get(actionId);
+        const executionMode = (step.execution as any).mode || 'run';
+
+        if (actionDef?.riskLevel === 'critical' && executionMode !== 'dry_run') {
+             // Treat as Approval Step
+             const existingApproval = await db.query.approvals.findFirst({
+                where: and(eq(approvals.stepId, stepId), eq(approvals.executionId, executionId))
+             });
+
+             if (!existingApproval) {
+                 await db.insert(approvals).values({
+                    tenantId,
+                    executionId,
+                    stepId,
+                    status: 'pending',
+                    comments: `[System] Mandatory approval for critical action: ${actionDef.name}`
+                 });
+                 
+                 await this.updateStepStatus(tenantId, executionId, stepId, 'waiting_for_approval');
+                 
+                 // Notify
+                 if (step.execution.startedBy) {
+                    await NotificationService.create({
+                        tenantId,
+                        userId: step.execution.startedBy,
+                        type: 'approval_requested',
+                        title: 'Critical Action Approval',
+                        message: `Critical action '${actionDef.name}' requires manual approval.`,
+                        metadata: { executionId, stepId, caseId: step.execution.caseId }
+                    });
+                 }
+                 return { success: true, status: 'waiting_for_approval', message: 'Mandatory approval requested for critical action' };
+             } else {
+                 return { success: true, status: 'waiting_for_approval', message: 'Approval already requested' };
+             }
+        }
+
         // 5. Execute
         const result = await ActionRegistry.execute(actionId, {
             tenantId,
@@ -458,7 +497,8 @@ export class PlaybookService {
             executionId,
             executionStepId: stepId,
             userId: step.execution.startedBy || undefined,
-            inputs: config || {}
+            inputs: config || {},
+            mode: executionMode
         });
 
         // 6. Save Result & Update Status

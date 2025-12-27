@@ -59,6 +59,9 @@ services:
     ports:
       - "8686:8686" # API
       - "9090:9090" # Source
+    environment:
+      - CLICKHOUSE_USER=default
+      - CLICKHOUSE_PASSWORD=zcrAI1234
     volumes:
       - ./vector.toml:/etc/vector/vector.toml
       - vector_data:/var/lib/vector

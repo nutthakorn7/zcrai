@@ -19,6 +19,8 @@ export default function UserPage() {
   const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
+  const { isOpen: isEditOpen, onOpen: onEditOpen, onOpenChange: onEditOpenChange } = useDisclosure();
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   
   // Invite Form
@@ -65,6 +67,27 @@ export default function UserPage() {
       fetchUsers();
     } catch (error) {
       alert('Failed to update status');
+    }
+  };
+
+  const openEditModal = (user: User) => {
+    setSelectedUser(user);
+    setRole(user.role);
+    onEditOpen();
+  };
+
+  const handleUpdateRole = async (onClose: () => void) => {
+    if (!selectedUser) return;
+    setIsLoading(true);
+    try {
+      await api.put(`/users/${selectedUser.id}`, { role });
+      fetchUsers();
+      onClose();
+    } catch (error) {
+       console.error(error);
+       alert('Failed to update role');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -118,6 +141,7 @@ export default function UserPage() {
                         <Button size="sm" variant="light">Options</Button>
                       </DropdownTrigger>
                       <DropdownMenu aria-label="User Actions">
+                        <DropdownItem key="edit" onPress={() => openEditModal(user)}>Edit Role</DropdownItem>
                         <DropdownItem key="activate" onPress={() => handleStatusChange(user.id, 'active')}>Activate</DropdownItem>
                         <DropdownItem key="suspend" onPress={() => handleStatusChange(user.id, 'suspended')} className="text-danger" color="danger">Suspend</DropdownItem>
                       </DropdownMenu>
@@ -162,6 +186,44 @@ export default function UserPage() {
               <ModalFooter>
                 <Button color="danger" variant="light" onPress={onClose}>Cancel</Button>
                 <Button color="primary" onPress={() => handleInvite(onClose)} isLoading={isLoading}>Invite</Button>
+              </ModalFooter>
+            </>
+          )}
+        </ModalContent>
+      </Modal>
+
+      {/* Edit Role Modal */}
+      <Modal isOpen={isEditOpen} onOpenChange={onEditOpenChange}>
+        <ModalContent>
+          {(onClose) => (
+            <>
+              <ModalHeader>Edit User Role</ModalHeader>
+              <ModalBody>
+                <p className="text-sm text-default-500 mb-2">
+                  Updating role for <span className="font-semibold text-foreground">{selectedUser?.email}</span>
+                </p>
+                <Select 
+                  label="Role" 
+                  selectedKeys={[role]} 
+                  onChange={(e) => setRole(e.target.value)}
+                >
+                  {[
+                    { key: "soc_analyst", label: "SOC Analyst" },
+                    { key: "tenant_admin", label: "Tenant Admin" },
+                    { key: "customer", label: "Customer (Read-only)" },
+                    ...(currentUser?.role === 'superadmin' ? [{ key: "superadmin", label: "Super Admin (System-wide)", className: "text-danger" }] : [])
+                  ].map((item) => (
+                    <SelectItem key={item.key} className={item.className || ""}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </Select>
+              </ModalBody>
+              <ModalFooter>
+                <Button variant="light" onPress={onClose}>Cancel</Button>
+                <Button color="primary" onPress={() => handleUpdateRole(onClose)} isLoading={isLoading}>
+                  Update Role
+                </Button>
               </ModalFooter>
             </>
           )}

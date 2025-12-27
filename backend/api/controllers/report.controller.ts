@@ -1,5 +1,6 @@
 import { Elysia, t } from 'elysia'
 import { ReportService } from '../core/services/report.service'
+import { ReportSchedulerService } from '../core/services/report-scheduler.service'
 import { socAnalystOnly, superAdminOnly } from '../middlewares/auth.middleware'
 import { db } from '../infra/db'
 import { tenants } from '../infra/db/schema'
@@ -33,6 +34,59 @@ export const reportController = new Elysia({ prefix: '/reports' })
     body: t.Object({
         type: t.Union([t.Literal('SOC2'), t.Literal('ISO27001'), t.Literal('NIST'), t.Literal('PDPA'), t.Literal('AI_ACCURACY')])
     })
+  })
+
+  /**
+   * Get Weekly Stats (ROI & Threats) for Dashboard
+   * @route GET /reports/stats
+   */
+  .get('/stats', async ({ user }: any) => {
+    try {
+        const stats = await ReportService.getWeeklyStats(user.tenantId);
+        return { success: true, data: stats };
+    } catch (e: any) {
+        return { success: false, error: e.message };
+    }
+  })
+
+  // ==================== SCHEDULES ====================
+
+  /**
+   * List Schedules
+   * @route GET /reports/schedules
+   */
+  .get('/schedules', async ({ user }: any) => {
+    return await ReportSchedulerService.listSchedules(user.tenantId);
+  })
+
+  /**
+   * Create Schedule
+   * @route POST /reports/schedules
+   */
+  .post('/schedules', async ({ user, body }: any) => {
+    return await ReportSchedulerService.createSchedule({
+        ...body,
+        tenantId: user.tenantId,
+        lastRunAt: null,
+        nextRunAt: new Date(), // Logic in service will overwrite this or we let service handle
+        isEnabled: true,
+        createdBy: user.id
+    });
+  }, {
+    body: t.Object({
+        reportType: t.String(),
+        frequency: t.Union([t.Literal('daily'), t.Literal('weekly'), t.Literal('monthly')]),
+        recipients: t.Array(t.String()) // JSONB array of emails
+    })
+  })
+
+  /**
+   * Delete Schedule
+   * @route DELETE /reports/schedules/:id
+   */
+  .delete('/schedules/:id', async ({ user, params }: any) => {
+    await ReportSchedulerService.deleteSchedule(params.id, user.tenantId);
+    return { success: true };
   })
 
   /**

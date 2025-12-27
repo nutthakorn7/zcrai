@@ -28,6 +28,8 @@ const ApprovalsPage = lazy(() => import("./pages/approvals/ApprovalsPage"));
 const InputsPage = lazy(() => import("./pages/approvals/InputsPage"));
 const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
 
+const NotificationsPage = lazy(() => import("./pages/notifications/NotificationsPage"));
+
 // Settings Pages
 const SettingsLayout = lazy(() => import("./layouts/SettingsLayout"));
 const SSOPage = lazy(() => import("./pages/settings/SSOPage"));
@@ -111,6 +113,7 @@ export const AppRoutes = () => (
       <Route path="/reports" element={<ProtectedRoute><ReportsPage /></ProtectedRoute>} />
       <Route path="/approvals" element={<ProtectedRoute><ApprovalsPage /></ProtectedRoute>} />
       <Route path="/approvals/inputs" element={<ProtectedRoute><InputsPage /></ProtectedRoute>} />
+      <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
       <Route path="/hunting" element={<Navigate to="/logs" replace />} />
       <Route path="/admin" element={<SuperAdminRoute><AdminDashboard /></SuperAdminRoute>} />
 
@@ -131,6 +134,7 @@ export const AppRoutes = () => (
         <Route path="audit-logs" element={<AuditLogsPage />} />
         <Route path="subscription" element={<SubscriptionPage />} />
       </Route>
+
     </Routes>
   </Suspense>
 );

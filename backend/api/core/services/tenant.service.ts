@@ -1,5 +1,6 @@
 import { db } from '../../infra/db'
 import { tenants, users } from '../../infra/db/schema'
+import { redis } from '../../infra/cache/redis'
 import { eq, like, and, sql } from 'drizzle-orm'
 
 export const TenantService = {
@@ -43,9 +44,24 @@ export const TenantService = {
   },
 
   // ==================== GET TENANT BY ID ====================
+  // ==================== GET TENANT BY ID ====================
   async getById(id: string) {
+    // Check Cache
+    const cached = await redis.get(`tenant:${id}`)
+    if (cached) {
+      try {
+        return JSON.parse(cached)
+      } catch (e) {
+        // ignore invalid cache
+      }
+    }
+
     const [tenant] = await db.select().from(tenants).where(eq(tenants.id, id))
     if (!tenant) throw new Error('Tenant not found')
+    
+    // Cache result (10 mins)
+    await redis.setex(`tenant:${id}`, 600, JSON.stringify(tenant))
+
     return tenant
   },
 
@@ -68,6 +84,9 @@ export const TenantService = {
   // ==================== UPDATE TENANT ====================
   async update(id: string, data: { name?: string; status?: string }) {
     const tenant = await this.getById(id)
+    
+    // Invalidate Cache
+    await redis.del(`tenant:${id}`)
 
     // เช็คชื่อซ้ำ (ถ้าเปลี่ยนชื่อ)
     if (data.name && data.name !== tenant.name) {
@@ -91,6 +110,9 @@ export const TenantService = {
   // ==================== DELETE TENANT (Soft Delete) ====================
   async delete(id: string) {
     await this.getById(id) // เช็คว่ามี tenant นี้หรือไม่
+
+    // Invalidate Cache
+    await redis.del(`tenant:${id}`)
 
     // Soft delete โดยเปลี่ยน status เป็น suspended
     const [deleted] = await db.update(tenants)

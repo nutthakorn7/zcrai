@@ -109,8 +109,45 @@ async function seedSuperAdmin() {
   }
 }
 
+// Auto-seed System User (Bot) for automated actions
+async function seedSystemUser() {
+  const email = 'system@zcr.ai'
+  const password = process.env.SYSTEM_USER_PASSWORD || 'SystemBot@Secured!' // Should verify complex pwd
+  
+  try {
+    const passwordHash = await hashPassword(password)
+    
+    // 1. Get System Tenant
+    const [systemTenant] = await db.select().from(tenants).where(eq(tenants.name, 'System Admin'))
+    if (!systemTenant) {
+      console.warn('⚠️ System Tenant not found during System User seed')
+      return
+    }
+
+    // 2. Check/Create System User
+    const [existing] = await db.select().from(users).where(eq(users.email, email))
+    
+    if (!existing) {
+      await db.insert(users).values({
+        email,
+        passwordHash,
+        role: 'superadmin', // Gives it permission to do anything
+        name: 'System Bot',
+        tenantId: systemTenant.id,
+        status: 'active',
+        bio: 'Automated System User for internal actions',
+      })
+      console.log('🤖 System User (Bot) created:', email)
+    } else {
+        console.log('🤖 System User exists:', email)
+    }
+  } catch (e: any) {
+    console.error('❌ System User seed error:', e.message)
+  }
+}
+
 // Initialize
-export { seedSuperAdmin }
+export { seedSuperAdmin, seedSystemUser }
 
 // Don't start background workers during tests (they create Redis connections too early)
 import { approvalsController } from './controllers/approvals.controller'
@@ -150,7 +187,22 @@ const app = new Elysia()
     allowedHeaders: ['Content-Type', 'Authorization'],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   }))
-  .use(helmet())
+  .use(helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'", "'unsafe-inline'"],
+          styleSrc: ["'self'", "'unsafe-inline'"],
+          imgSrc: ["'self'", "data:", "https:"],
+          connectSrc: ["'self'", "ws:", "wss:"],
+        }
+      },
+      hsts: {
+        maxAge: 31536000,
+        includeSubDomains: true,
+        preload: true
+      }
+  }))
   .derive(({ cookie, request }) => {
     const url = new URL(request.url);
     if (!url.pathname.includes('health') && !url.pathname.includes('/monitoring')) {
@@ -162,7 +214,8 @@ const app = new Elysia()
   .use(timingMiddleware) // Request timing logs
   .use(rateLimit({
      duration: 60000, // 1 minute
-     max: 100 // 100 requests per minute
+     max: 300, // Relaxed global limit (API heavy usage)
+     // responseMessage not supported in some versions, using default
   }))
   .use(monitoringController) // Public Monitoring Endpoints
   .use(authController)
@@ -210,7 +263,8 @@ const app = new Elysia()
   // .get('/health', () => ({ status: 'ok', timestamp: new Date().toISOString() })) // Moved to monitoringController
 
 if (import.meta.main) {
-  seedSuperAdmin()
+  await seedSuperAdmin()
+  await seedSystemUser()
   const server = app.listen(process.env.PORT || 8000)
   
   // Register SocketService

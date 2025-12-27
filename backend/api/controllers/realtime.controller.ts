@@ -101,21 +101,27 @@ export const realtimeController = new Elysia({ prefix: '/realtime' })
     }
   })
   /**
-   * WebSocket endpoint for global/tenant notifications (alerts, health)
+   * WebSocket endpoint for global/tenant/user notifications
    * @route WS /realtime/alerts
    * @query {string} tenantId - Tenant ID for data isolation
+   * @query {string} userId - User ID for personal notifications
    */
   .ws('/alerts', {
     query: t.Object({
         tenantId: t.String(),
+        userId: t.Optional(t.String()),
         token: t.Optional(t.String())
     }),
     open(ws) {
-        const { tenantId } = ws.data.query;
-        console.log(`[WS] Tenant ${tenantId} connected to alerts channel`);
+        const { tenantId, userId } = ws.data.query;
+        console.log(`[WS] Tenant ${tenantId} ${userId ? `(User: ${userId}) ` : ''}connected to alerts channel`);
         
         ws.subscribe(tenantId); // Join tenant-specific room
         ws.subscribe('global');   // Join global announcements room
+
+        if (userId) {
+            ws.subscribe(`user:${userId}`); // Join user-specific room
+        }
         
         ws.send(JSON.stringify({
             type: 'connection_established',
@@ -123,9 +129,12 @@ export const realtimeController = new Elysia({ prefix: '/realtime' })
         }));
     },
     close(ws) {
-        const { tenantId } = ws.data.query;
-        console.log(`[WS] Tenant ${tenantId} disconnected from alerts channel`);
+        const { tenantId, userId } = ws.data.query;
+        console.log(`[WS] Tenant ${tenantId} ${userId ? `(User: ${userId}) ` : ''}disconnected from alerts channel`);
         ws.unsubscribe(tenantId);
         ws.unsubscribe('global');
+        if (userId) {
+            ws.unsubscribe(`user:${userId}`);
+        }
     }
   });
