@@ -12,10 +12,20 @@
     },
     {
       "name": "access_token",
-      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIxZTlmZTRlOS1lZDVkLTQwYTItYTAwNS01NzIyOTJmNjQ5YWIiLCJpZCI6IjFlOWZlNGU5LWVkNWQtNDBhMi1hMDA1LTU3MjI5MmY2NDlhYiIsImVtYWlsIjoic3VwZXJhZG1pbkB6Y3IuYWkiLCJyb2xlIjoic3VwZXJhZG1pbiIsInRlbmFudElkIjoiMDNjNzAzYTItNjczMS00MzA2LTlhMzktZTY4MDcwNDE1MDY5IiwiZXhwIjoxNzY2NjM3OTIwLCJpYXQiOjE3NjY1NTE1MjB9.S7_KgBjyxVEXvHHvvblhvKwZw9iY8aXsLt8madXm9Nw",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIxZTlmZTRlOS1lZDVkLTQwYTItYTAwNS01NzIyOTJmNjQ5YWIiLCJpZCI6IjFlOWZlNGU5LWVkNWQtNDBhMi1hMDA1LTU3MjI5MmY2NDlhYiIsImVtYWlsIjoic3VwZXJhZG1pbkB6Y3IuYWkiLCJyb2xlIjoic3VwZXJhZG1pbiIsInRlbmFudElkIjoiMDNjNzAzYTItNjczMS00MzA2LTlhMzktZTY4MDcwNDE1MDY5IiwiZXhwIjoxNzY2ODk4NjA3LCJpYXQiOjE3NjY4MTIyMDd9._uhSG4t5zmRRxwlP69TI2FPcShVyWIhtU9mE3iJ-H0I",
       "domain": "app.zcr.ai",
       "path": "/",
-      "expires": 1801111520.532049,
+      "expires": 1801372207.203146,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "refresh_token",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjFlOWZlNGU5LWVkNWQtNDBhMi1hMDA1LTU3MjI5MmY2NDlhYiIsInR5cGUiOiJyZWZyZXNoIiwiZXhwIjoxNzY5NDA0MjA3LCJpYXQiOjE3NjY4MTIyMDd9.QgnefhPbyz1hKntCra01Jx-tmBYHyvZYCOTOIGuMNdc",
+      "domain": "app.zcr.ai",
+      "path": "/",
+      "expires": 1801372207.203201,
       "httpOnly": true,
       "secure": true,
       "sameSite": "Lax"
