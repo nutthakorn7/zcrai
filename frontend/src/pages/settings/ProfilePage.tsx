@@ -5,7 +5,7 @@ import {
 } from "@heroui/react";
 import { api } from "@/shared/api";
 import { useAuth } from "../../shared/store/useAuth";
-import { Icon } from "@/shared/ui";
+import { Icon, ConfirmDialog } from "@/shared/ui";
 
 interface Session {
   id: string;
@@ -57,6 +57,10 @@ export default function ProfilePage() {
   // API Usage
   const [apiUsage, setApiUsage] = useState(0);
   const [apiLimit, setApiLimit] = useState(10000);
+  
+  // Confirmation State
+  const [sessionToRevoke, setSessionToRevoke] = useState<string | null>(null);
+  const [revoking, setRevoking] = useState(false);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -148,14 +152,19 @@ export default function ProfilePage() {
     }
   };
 
-  const handleRevokeSession = async (sessionId: string) => {
-    if (!confirm('Are you sure you want to revoke this session?')) return;
+  const confirmRevokeSession = async () => {
+    if (!sessionToRevoke) return;
+    setRevoking(true);
     try {
-        await api.delete(`/profile/sessions/${sessionId}`);
-        setSessions(sessions.filter(s => s.id !== sessionId));
+        await api.delete(`/profile/sessions/${sessionToRevoke}`);
+        setSessions(sessions.filter(s => s.id !== sessionToRevoke));
+        alert('Session revoked successfully');
     } catch (e) {
         console.error('Failed to revoke session', e);
         alert('Failed to revoke session');
+    } finally {
+        setRevoking(false);
+        setSessionToRevoke(null);
     }
   };
 
@@ -283,7 +292,7 @@ export default function ProfilePage() {
                                           </div>
                                       </div>
                                   </div>
-                                  <Button size="sm" color="danger" variant="light" className="opacity-0 group-hover:opacity-100" onPress={() => handleRevokeSession(session.id)}>Revoke</Button>
+                                  <Button size="sm" color="danger" variant="light" className="opacity-0 group-hover:opacity-100" onPress={() => setSessionToRevoke(session.id)}>Revoke</Button>
                               </div>
                           ))}
                           {sessions.length === 0 && <div className="text-center text-foreground/60 py-4">No active sessions found.</div>}
@@ -336,8 +345,19 @@ export default function ProfilePage() {
                       <Button fullWidth variant="flat" color="primary">Upgrade Plan</Button>
                   </CardBody>
               </Card>
-          </div>
       </div>
+    </div>
+      
+      <ConfirmDialog 
+        isOpen={!!sessionToRevoke}
+        onClose={() => setSessionToRevoke(null)}
+        onConfirm={confirmRevokeSession}
+        title="Revoke Session"
+        description="Are you sure you want to revoke this session? The user will be logged out from that device."
+        confirmLabel="Revoke"
+        confirmColor="danger"
+        isLoading={revoking}
+      />
     </div>
   );
 }

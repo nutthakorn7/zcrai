@@ -37,6 +37,29 @@ export const reportController = new Elysia({ prefix: '/reports' })
   })
 
   /**
+   * Generate Formal Investigation Report (AI-powered PDF)
+   * @route GET /reports/investigation/:id
+   */
+  .get('/investigation/:id', async ({ user, params, set }: any) => {
+    try {
+        const pdfBuffer = await ReportService.generateInvestigationReportPDF(user.tenantId, params.id);
+
+        return new Response(pdfBuffer, {
+            headers: {
+                'Content-Type': 'application/pdf',
+                'Content-Disposition': `attachment; filename="Investigation_Report_${params.id.slice(0, 8)}.pdf"`,
+                'Content-Length': pdfBuffer.length.toString()
+            }
+        });
+
+    } catch (error: any) {
+        console.error("Investigation Report Generation Failed:", error);
+        set.status = 500;
+        return { success: false, message: "Failed to generate investigation report", error: error.message };
+    }
+  })
+
+  /**
    * Get Weekly Stats (ROI & Threats) for Dashboard
    * @route GET /reports/stats
    */

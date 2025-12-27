@@ -15,4 +15,6 @@ export const DashboardAPI = {
   getAIMetrics: () => api.get<any>('/dashboard/ai-metrics'),
 
   getPerformanceMetrics: () => api.get<{ mtti: number; mttr: number; escalationRate: number; totalCases: number }>('/dashboard/performance'),
+
+  getMitigationStats: (days: number = 7) => api.get<{ mitigated: number; not_mitigated: number; unknown: number }>('/dashboard/mitigation', { params: { days } }),
 };

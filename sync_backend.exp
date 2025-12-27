@@ -11,6 +11,8 @@ spawn scp -o StrictHostKeyChecking=no -r \
     /Users/pop7/Code/zcrAI/backend/api/middleware \
     /Users/pop7/Code/zcrAI/backend/api/infra \
     /Users/pop7/Code/zcrAI/backend/api/utils \
+    /Users/pop7/Code/zcrAI/backend/api/workers \
+    /Users/pop7/Code/zcrAI/backend/api/scripts \
     /Users/pop7/Code/zcrAI/backend/api/index.ts \
     /Users/pop7/Code/zcrAI/backend/api/package.json \
     /Users/pop7/Code/zcrAI/backend/api/drizzle \
@@ -21,12 +23,8 @@ expect {
     eof
 }
 
-# Sync Config
-spawn scp -o StrictHostKeyChecking=no /Users/pop7/Code/zcrAI/backend/api/ecosystem.config.cjs $host:/root/zcrAI/backend/api/
-expect {
-    "password:" { send "$pass\r"; exp_continue }
-    eof
-}
+# NOTE: ecosystem.config.cjs is NOT synced to preserve API keys on server
+# If you need to update it, do it manually on the server
 
 # Restart PM2
 spawn ssh -o StrictHostKeyChecking=no $host "cd /root/zcrAI/backend/api && pm2 delete zcrai-api || true && pm2 start ecosystem.config.cjs"

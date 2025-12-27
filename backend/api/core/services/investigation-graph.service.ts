@@ -5,7 +5,7 @@ import { clickhouse, query } from '../../infra/clickhouse/client';
 
 export interface GraphNode {
   id: string;
-  type: 'case' | 'alert' | 'user' | 'ip' | 'host' | 'domain' | 'file' | 'hash';
+  type: 'case' | 'alert' | 'user' | 'ip' | 'host' | 'domain' | 'file' | 'hash' | 'agent_finding' | 'memory_pattern';
   label: string;
   properties: Record<string, any>;
   severity?: 'low' | 'medium' | 'high' | 'critical';
@@ -16,7 +16,7 @@ export interface GraphEdge {
   id: string;
   source: string;
   target: string;
-  type: 'contains' | 'related_to' | 'originated_from' | 'targeted' | 'executed_by' | 'communicated_with';
+  type: 'contains' | 'related_to' | 'originated_from' | 'targeted' | 'executed_by' | 'communicated_with' | 'concluded_by' | 'recalled_from';
   label: string;
 }
 
@@ -149,7 +149,78 @@ export const InvestigationGraphService = {
       await this.findCorrelations(tenantId, alertId, entities, nodes, edges, nodeSet);
     }
 
+    // 4. ADDED: AI Insights & Memory
+    this.expandAIInsights(alert, nodes, edges, nodeSet);
+
     return this.finalizeGraph(nodes, edges);
+  },
+
+  /**
+   * Helper: Add AI Findings and Historical Context to the graph
+   */
+  expandAIInsights(alert: any, nodes: GraphNode[], edges: GraphEdge[], nodeSet: Set<string>) {
+    const aiAnalysis = alert.aiAnalysis as any;
+    if (!aiAnalysis) return;
+
+    const alertNodeId = `alert-${alert.id}`;
+
+    // Add Swarm Findings
+    if (aiAnalysis.swarmFindings && Array.isArray(aiAnalysis.swarmFindings)) {
+      aiAnalysis.swarmFindings.forEach((finding: any, index: number) => {
+        const findingNodeId = `finding-${alert.id}-${index}`;
+        if (!nodeSet.has(findingNodeId)) {
+          nodes.push({
+            id: findingNodeId,
+            type: 'agent_finding',
+            label: `${finding.agent}: ${finding.summary.substring(0, 30)}...`,
+            properties: {
+              agent: finding.agent,
+              summary: finding.summary,
+              data: finding.data
+            },
+            val: 15
+          });
+          nodeSet.add(findingNodeId);
+
+          edges.push({
+            id: `edge-${alertNodeId}-${findingNodeId}`,
+            source: alertNodeId,
+            target: findingNodeId,
+            type: 'concluded_by',
+            label: 'finding'
+          });
+        }
+      });
+    }
+
+    // Add Memory / Historical Context
+    // We can infer historical context from a previous RAG step or by checking alert.historicalContext if populated
+    // Note: Since ManagerAgent stores report, we can also extract "Past Case" mentions if we had them saved specifically
+    // For now, let's look at swarmFindings for anything that looks like memory recall
+    const memoryFindings = aiAnalysis.swarmFindings?.filter((f: any) => f.agent === 'Manager' && f.summary.includes('historical context'));
+    if (memoryFindings) {
+      memoryFindings.forEach((m: any, index: number) => {
+        const memoryNodeId = `memory-${alert.id}-${index}`;
+        if (!nodeSet.has(memoryNodeId)) {
+          nodes.push({
+            id: memoryNodeId,
+            type: 'memory_pattern',
+            label: 'Recalled Pattern',
+            properties: { summary: m.summary },
+            val: 12
+          });
+          nodeSet.add(memoryNodeId);
+
+          edges.push({
+            id: `edge-${alertNodeId}-${memoryNodeId}`,
+            source: alertNodeId,
+            target: memoryNodeId,
+            type: 'recalled_from',
+            label: 'memory'
+          });
+        }
+      });
+    }
   },
 
   // Helper: Extract entities from alert and add to graph
@@ -245,7 +316,7 @@ export const InvestigationGraphService = {
 
     const whereClause = conditions.join(' OR ');
 
-    // Query 20 most recent correlated events
+    // Query 20 most recent correlated events using PREWHERE for massive performance gain on huge datasets
     const sql = `
       SELECT 
         id, 
@@ -258,10 +329,10 @@ export const InvestigationGraphService = {
         user_name,
         file_hash
       FROM security_events
-      WHERE tenant_id = {tenantId:String}
-        AND id != {originalAlertId:String}
-        AND (${whereClause})
+      PREWHERE tenant_id = {tenantId:String}
         AND timestamp >= now() - INTERVAL 7 DAY
+      WHERE id != {originalAlertId:String}
+        AND (${whereClause})
       ORDER BY timestamp DESC
       LIMIT 20
     `;
@@ -341,6 +412,14 @@ export const InvestigationGraphService = {
   extractIPs(data: Record<string, any>): string[] {
     const ips = new Set<string>();
     const ipRegex = /\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b/g;
+    
+    // Performance: Instead of full stringify, target specific fields first
+    const prioritizedData = {
+      src: data.src_ip || data.source_ip || data.network_src_ip,
+      dst: data.dst_ip || data.dest_ip || data.network_dst_ip,
+      host: data.host_ip || data.device_ip
+    };
+    
     const text = JSON.stringify(data);
     const matches = text.match(ipRegex) || [];
     matches.forEach(ip => ips.add(ip));

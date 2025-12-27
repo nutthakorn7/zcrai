@@ -257,6 +257,17 @@ export const dashboardController = new Elysia({ prefix: '/dashboard' })
     }
   })
 
+  .get('/mitigation', async ({ user, cookie: { selected_tenant }, query, set }) => {
+    try {
+      const tenantId = getEffectiveTenantId(user, selected_tenant)
+      const days = parseInt(query.days as string) || 7
+      return await DashboardService.getMitigationStats(tenantId, days)
+    } catch (e: any) {
+      set.status = 400
+      return { error: e.message }
+    }
+  })
+
   .get('/sla', async ({ user, cookie: { selected_tenant }, query, set }) => {
     try {
       const tenantId = getEffectiveTenantId(user, selected_tenant)

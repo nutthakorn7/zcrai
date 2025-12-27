@@ -375,7 +375,7 @@ export const alerts = pgTable('alerts', {
   }
 })
 
-export const alertsRelations = relations(alerts, ({ one }) => ({
+export const alertsRelations = relations(alerts, ({ one, many }) => ({
   tenant: one(tenants, {
     fields: [alerts.tenantId],
     references: [tenants.id],
@@ -384,6 +384,10 @@ export const alertsRelations = relations(alerts, ({ one }) => ({
     fields: [alerts.caseId],
     references: [cases.id],
   }),
+  observables: many(observables),
+  soarActions: many(soarActions),
+  aiFeedback: many(aiFeedback),
+  embeddings: many(alertEmbeddings),
 }))
 
 // Alert Correlations
@@ -904,5 +908,65 @@ export const soarActionsRelations = relations(soarActions, ({ one }) => ({
   user: one(users, {
     fields: [soarActions.userId],
     references: [users.id],
+  }),
+}))
+
+// ==================== SOAR SECRETS ====================
+
+export const integrationSecrets = pgTable('integration_secrets', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  tenantId: uuid('tenant_id').references(() => tenants.id).notNull(),
+  provider: text('provider').notNull(), // 'crowdstrike', 'sentinelone', 'fortigate', etc.
+  credentials: text('credentials').notNull(), // Encrypted JSON string (AES-256-GCM)
+  isActive: boolean('is_active').default(true).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => {
+  return {
+    tenantIdx: index('integration_secrets_tenant_idx').on(table.tenantId),
+    providerIdx: index('integration_secrets_provider_idx').on(table.provider),
+  }
+})
+
+export const integrationSecretsRelations = relations(integrationSecrets, ({ one }) => ({
+  tenant: one(tenants, {
+    fields: [integrationSecrets.tenantId],
+    references: [tenants.id],
+  }),
+}))
+
+// ==================== AI OBSERVABILITY & TRACING ====================
+
+export const aiAgentTraces = pgTable('ai_agent_traces', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  tenantId: uuid('tenant_id').references(() => tenants.id).notNull(),
+  alertId: uuid('alert_id').references(() => alerts.id),
+  caseId: uuid('case_id').references(() => cases.id),
+  agentName: text('agent_name').notNull(), // 'ManagerAgent', 'ThreatHuntingAgent', etc.
+  thought: text('thought'), // The "reasoning" or "plan"
+  action: jsonb('action'), // The tool call details
+  observation: jsonb('observation'), // The tool result details
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => {
+  return {
+    tenantIdx: index('ai_agent_traces_tenant_idx').on(table.tenantId),
+    alertIdx: index('ai_agent_traces_alert_idx').on(table.alertId),
+    caseIdx: index('ai_agent_traces_case_idx').on(table.caseId),
+    agentIdx: index('ai_agent_traces_agent_idx').on(table.agentName),
+  }
+})
+
+export const aiAgentTracesRelations = relations(aiAgentTraces, ({ one }) => ({
+  tenant: one(tenants, {
+    fields: [aiAgentTraces.tenantId],
+    references: [tenants.id],
+  }),
+  alert: one(alerts, {
+    fields: [aiAgentTraces.alertId],
+    references: [alerts.id],
+  }),
+  case: one(cases, {
+    fields: [aiAgentTraces.caseId],
+    references: [cases.id],
   }),
 }))

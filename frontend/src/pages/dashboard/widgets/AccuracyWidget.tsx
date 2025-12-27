@@ -59,10 +59,10 @@ export function AccuracyWidget() {
                         <p className="text-sm text-default-600 font-medium uppercase tracking-wider">AI Accuracy</p>
                         <div className="flex items-baseline gap-2 mt-1">
                              <h3 className="text-3xl font-bold text-foreground">
-                                {metrics.accuracy}%
+                                {metrics?.accuracy ?? 0}%
                             </h3>
                             <span className="text-xs text-foreground/50 font-mono">
-                                ({metrics.correct}/{metrics.total})
+                                ({metrics?.correct ?? 0}/{metrics?.total ?? 0})
                             </span>
                         </div>
                     </div>
@@ -92,11 +92,11 @@ export function AccuracyWidget() {
                      <div className="flex flex-col gap-1">
                          <div className="flex items-center gap-2 text-xs">
                              <div className="w-2 h-2 rounded-full bg-green-500" />
-                             <span className="text-foreground/70">Correct ({metrics.correct})</span>
+                             <span className="text-foreground/70">Correct ({metrics?.correct ?? 0})</span>
                          </div>
                          <div className="flex items-center gap-2 text-xs">
                              <div className="w-2 h-2 rounded-full bg-red-500" />
-                             <span className="text-foreground/70">Incorrect ({metrics.incorrect})</span>
+                             <span className="text-foreground/70">Incorrect ({metrics?.incorrect ?? 0})</span>
                          </div>
                      </div>
                 </div>

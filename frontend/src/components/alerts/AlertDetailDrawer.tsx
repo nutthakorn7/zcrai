@@ -10,13 +10,16 @@ import {
 } from '@heroui/react';
 import { Alert, AlertCorrelation, AlertsAPI } from '../../shared/api';
 import { CorrelationCard } from './CorrelationCard';
-import { AlertTriangle, CheckCircle, Activity, ShieldCheck, BookOpen, ThumbsUp, ThumbsDown, Share2 } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Activity, ShieldCheck, BookOpen, ThumbsUp, ThumbsDown, Share2, FileText, BrainCircuit } from 'lucide-react';
 import { Icon } from '../../shared/ui';
 import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Textarea, useDisclosure, RadioGroup, Radio } from "@heroui/react";
 import { InvestigationGraphWidget } from '../../pages/dashboard/widgets/InvestigationGraphWidget';
 import { AlertTimelineWidget } from '../../pages/dashboard/widgets/AlertTimelineWidget';
+import { AgentTraceTimeline } from './AgentTraceTimeline';
 import { ObservablesAPI, Observable } from '../../shared/api/observables';
-import { Zap, RefreshCw, ExternalLink, Copy } from 'lucide-react';
+import { Zap, RefreshCw, ExternalLink, Copy, Shield, ShieldAlert, Lock, Terminal as TerminalIcon } from 'lucide-react';
+import { SOARAPI } from '../../shared/api';
+import toast from 'react-hot-toast';
 
 interface AlertDetailDrawerProps {
   alert: Alert | null;
@@ -58,6 +61,8 @@ export function AlertDetailDrawer({ alert, isOpen, onClose }: AlertDetailDrawerP
   const [feedbackReason, setFeedbackReason] = useState('');
   const [shouldReopen, setShouldReopen] = useState(true);
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [isExecutingAction, setIsExecutingAction] = useState<string | null>(null);
 
   useEffect(() => {
     if (alert && isOpen) {
@@ -149,15 +154,53 @@ export function AlertDetailDrawer({ alert, isOpen, onClose }: AlertDetailDrawerP
               reason: reason,
               shouldReopen: reopen
           });
-          // Optimistic update or reload? Let's just reload.
-          // In a real app we might update local state.
           onFeedbackClose();
-          // Ideally fetch alert again to show feedback status, but for now just close.
       } catch (error) {
           console.error('Failed to submit feedback:', error);
       } finally {
           setIsSubmittingFeedback(false);
       }
+  };
+
+  const handleExportReport = async () => {
+    if (!alert) return;
+    try {
+      setIsExporting(true);
+      const blob = await AlertsAPI.exportReport(alert.id);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Investigation_Report_${alert.id.substring(0, 8)}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Failed to export report:', error);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleExecuteSOARAction = async (actionType: any, provider: string, target: string) => {
+    try {
+      setIsExecutingAction(actionType);
+      const res = await SOARAPI.executeAction({
+        alertId: alert?.id,
+        actionType,
+        provider,
+        target
+      });
+      if (res.success) {
+        toast.success(`Action ${actionType} initiated on ${target}`);
+      } else {
+        toast.error(`Action failed: ${res.error}`);
+      }
+    } catch (error) {
+      toast.error('Failed to execute SOAR action');
+    } finally {
+      setIsExecutingAction(null);
+    }
   };
 
   // Drawer Animation Classes
@@ -453,11 +496,24 @@ export function AlertDetailDrawer({ alert, isOpen, onClose }: AlertDetailDrawerP
                     {/* AI Investigation */}
                      {alert.aiAnalysis?.investigationReport && (
                         <div>
-                            <h3 className="text-sm font-semibold mb-2 flex items-center gap-2 text-purple-400">
-                                <Icon.Cpu className="w-4 h-4" /> 
-                                <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent font-bold">
-                                    AI Investigation Report
-                                </span>
+                            <h3 className="text-sm font-semibold mb-2 flex items-center justify-between">
+                                <div className="flex items-center gap-2 text-purple-400">
+                                    <Icon.Cpu className="w-4 h-4" /> 
+                                    <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent font-bold">
+                                        AI Investigation Report
+                                    </span>
+                                </div>
+                                <Button 
+                                    size="sm" 
+                                    variant="flat" 
+                                    color="secondary" 
+                                    className="h-7 text-[10px] font-bold"
+                                    startContent={<FileText className="w-3 h-3" />}
+                                    onPress={handleExportReport}
+                                    isLoading={isExporting}
+                                >
+                                    Export PDF
+                                </Button>
                             </h3>
                             <Card className="bg-purple-900/10 border border-purple-500/20">
                                 <CardBody className="p-4">
@@ -473,6 +529,69 @@ export function AlertDetailDrawer({ alert, isOpen, onClose }: AlertDetailDrawerP
                             </Card>
                         </div>
                      )}
+
+                    {/* Response Actions (SOAR) */}
+                    <div>
+                        <h3 className="text-sm font-semibold mb-3 flex items-center gap-2 text-danger uppercase tracking-wider">
+                            <Shield className="w-4 h-4" /> 
+                            Active Response Actions
+                        </h3>
+                        <Card className="bg-danger/5 border border-danger/20 shadow-lg shadow-danger/5">
+                            <CardBody className="p-4">
+                                <p className="text-[10px] text-foreground/40 uppercase font-black tracking-widest mb-3">Available Remediation</p>
+                                <div className="flex flex-wrap gap-2">
+                                    <Button 
+                                        size="sm" 
+                                        color="danger" 
+                                        variant="flat"
+                                        startContent={<ShieldAlert className="w-3 h-3" />}
+                                        onPress={() => handleExecuteSOARAction('ISOLATE_HOST', 'sentinelone', 'host-zcr-01')}
+                                        isLoading={isExecutingAction === 'ISOLATE_HOST'}
+                                        className="font-bold h-8"
+                                    >
+                                        Isolate Host
+                                    </Button>
+                                    <Button 
+                                        size="sm" 
+                                        color="warning" 
+                                        variant="flat"
+                                        startContent={<Lock className="w-3 h-3" />}
+                                        onPress={() => handleExecuteSOARAction('BLOCK_IP', 'fortigate', '185.220.101.5')}
+                                        isLoading={isExecutingAction === 'BLOCK_IP'}
+                                        className="font-bold h-8"
+                                    >
+                                        Block IP
+                                    </Button>
+                                    <Button 
+                                        size="sm" 
+                                        color="secondary" 
+                                        variant="flat"
+                                        startContent={<TerminalIcon className="w-3 h-3" />}
+                                        onPress={() => handleExecuteSOARAction('KILL_PROCESS', 'crowdstrike', 'powershell.exe')}
+                                        isLoading={isExecutingAction === 'KILL_PROCESS'}
+                                        className="font-bold h-8"
+                                    >
+                                        Kill Process
+                                    </Button>
+                                </div>
+                                <div className="mt-4 p-3 bg-black/40 rounded-lg border border-white/5 flex items-start gap-2">
+                                    <TerminalIcon className="w-3 h-3 text-foreground/30 mt-0.5" />
+                                    <p className="text-[9px] text-foreground/50 leading-relaxed font-mono">
+                                        Commands are dispatched to the <span className="text-primary hover:underline cursor-pointer">Secrets Vault</span> service. All actions require SOC Level 1+ permissions and are logged for immutable audit.
+                                    </p>
+                                </div>
+                            </CardBody>
+                        </Card>
+                    </div>
+
+                    {/* AI Reasoning Trace */}
+                    <div>
+                        <h3 className="text-sm font-semibold mb-4 flex items-center gap-2 text-indigo-400 uppercase tracking-wider">
+                            <BrainCircuit className="w-4 h-4" /> 
+                            AI Investigation Trace
+                        </h3>
+                        <AgentTraceTimeline alertId={alert.id} />
+                    </div>
 
                     {/* Observables & Enrichment */}
                     <div>

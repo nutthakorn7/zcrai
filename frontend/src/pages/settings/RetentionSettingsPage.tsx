@@ -2,12 +2,14 @@ import { useState, useEffect } from 'react';
 import { Card, CardBody, Button, Input, Divider } from "@heroui/react";
 import { toast } from 'react-hot-toast';
 import { api } from '../../shared/api';
+import { ConfirmDialog } from '../../shared/ui/ConfirmDialog';
 import { Loader2, Trash2 } from 'lucide-react';
 
 export default function RetentionSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [triggering, setTriggering] = useState(false);
+  const [confirmCleanup, setConfirmCleanup] = useState(false);
   
   const [settings, setSettings] = useState({
     auditLogDays: 90,
@@ -47,9 +49,7 @@ export default function RetentionSettingsPage() {
     }
   };
 
-  const handleTriggerCleanup = async () => {
-    if (!confirm('Are you sure you want to run cleanup now? This is irreversible.')) return;
-    
+  const onConfirmCleanup = async () => {
     try {
       setTriggering(true);
       await api.post('/admin/settings/retention/trigger', {});
@@ -58,6 +58,7 @@ export default function RetentionSettingsPage() {
       toast.error('Failed to trigger cleanup');
     } finally {
       setTriggering(false);
+      setConfirmCleanup(false);
     }
   };
 
@@ -80,7 +81,7 @@ export default function RetentionSettingsPage() {
               color="danger"
               variant="flat"
               startContent={triggering ? <Loader2 className="animate-spin" /> : <Trash2 size={18} />}
-              onPress={handleTriggerCleanup}
+              onPress={() => setConfirmCleanup(true)}
               disabled={triggering}
             >
               {triggering ? 'Running...' : 'Run Cleanup Now'}
@@ -149,6 +150,17 @@ export default function RetentionSettingsPage() {
           </div>
         </CardBody>
       </Card>
+
+      <ConfirmDialog 
+        isOpen={confirmCleanup}
+        onClose={() => setConfirmCleanup(false)}
+        onConfirm={onConfirmCleanup}
+        title="Run Data Cleanup"
+        description="Are you sure you want to run cleanup now? This is irreversible and will permanently delete data older than the configured retention period."
+        confirmLabel="Run Cleanup"
+        confirmColor="danger"
+        isLoading={triggering}
+      />
     </div>
   );
 }

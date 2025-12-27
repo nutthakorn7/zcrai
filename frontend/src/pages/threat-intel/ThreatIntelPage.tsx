@@ -34,6 +34,7 @@ import {
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { api, ThreatIntelAPI } from '../../shared/api';
 import { StatCard } from '../../shared/ui/StatCard';
+import { PageHeader } from '../../shared/ui';
 
 interface Source {
   name: string;
@@ -202,14 +203,9 @@ export default function ThreatIntelPage() {
   return (
     <div className="p-6 min-h-screen bg-background space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold font-display flex items-center gap-3 tracking-tight text-foreground">
-            <ShieldCheckIcon className="w-8 h-8 text-primary" />
-            Threat Intelligence
-          </h1>
-          <p className="text-sm mt-1 text-foreground/60">Query indicators against multiple threat intel sources</p>
-        </div>
+      <div className="flex items-center gap-3">
+        <ShieldCheckIcon className="w-8 h-8 text-primary" />
+        <PageHeader title="Threat Intelligence" description="Query indicators against multiple threat intel sources" />
       </div>
  
       <Tabs 
@@ -313,7 +309,7 @@ export default function ThreatIntelPage() {
             <Card>
               <CardBody className="py-12 text-center">
                 <Spinner size="lg" />
-                <p className="mt-4 text-default-500">Querying threat intel sources...</p>
+                <p className="mt-4 text-foreground/50">Querying threat intel sources...</p>
               </CardBody>
             </Card>
           )}
@@ -331,7 +327,7 @@ export default function ThreatIntelPage() {
                 )}
                 <div>
                   <h3 className="font-mono text-lg">{result.indicator}</h3>
-                  <p className="text-sm text-default-500">Type: {result.type.toUpperCase()}</p>
+                  <p className="text-sm text-foreground/50">Type: {result.type.toUpperCase()}</p>
                 </div>
               </div>
               <Chip
@@ -385,13 +381,13 @@ export default function ThreatIntelPage() {
                         {/* VirusTotal specific */}
                         {source.details.detectionRatio && (
                           <div className="flex justify-between">
-                            <span className="text-default-500">Detection</span>
+                            <span className="text-foreground/50">Detection</span>
                             <span className="font-mono">{source.details.detectionRatio}</span>
                           </div>
                         )}
                         {source.details.reputation !== undefined && (
                           <div className="flex justify-between">
-                            <span className="text-default-500">Reputation</span>
+                            <span className="text-foreground/50">Reputation</span>
                             <span className={source.details.reputation < 0 ? 'text-danger' : 'text-success'}>
                               {source.details.reputation}
                             </span>
@@ -399,19 +395,19 @@ export default function ThreatIntelPage() {
                         )}
                         {source.details.country && (
                           <div className="flex justify-between">
-                            <span className="text-default-500">Country</span>
+                            <span className="text-foreground/50">Country</span>
                             <span>{source.details.country}</span>
                           </div>
                         )}
                         {source.details.asn && (
                           <div className="flex justify-between">
-                            <span className="text-default-500">ASN</span>
+                            <span className="text-foreground/50">ASN</span>
                             <span className="font-mono text-[10px]">AS{source.details.asn}</span>
                           </div>
                         )}
                         {source.details.lastAnalysisDate && (
                           <div className="flex justify-between">
-                            <span className="text-default-500">Last Scan</span>
+                            <span className="text-foreground/50">Last Scan</span>
                             <span className="text-[10px]">{new Date(source.details.lastAnalysisDate).toLocaleDateString()}</span>
                           </div>
                         )}
@@ -419,7 +415,7 @@ export default function ThreatIntelPage() {
                         {/* AbuseIPDB specific */}
                         {source.details.abuseConfidenceScore !== undefined && (
                           <div className="flex justify-between">
-                            <span className="text-default-500">Abuse Score</span>
+                            <span className="text-foreground/50">Abuse Score</span>
                             <span className={source.details.abuseConfidenceScore > 50 ? 'text-danger font-bold' : ''}>
                               {source.details.abuseConfidenceScore}%
                             </span>
@@ -427,19 +423,19 @@ export default function ThreatIntelPage() {
                         )}
                         {source.details.totalReports !== undefined && (
                           <div className="flex justify-between">
-                            <span className="text-default-500">Total Reports</span>
+                            <span className="text-foreground/50">Total Reports</span>
                             <span>{source.details.totalReports}</span>
                           </div>
                         )}
                         {source.details.countryCode && (
                           <div className="flex justify-between">
-                            <span className="text-default-500">Country</span>
+                            <span className="text-foreground/50">Country</span>
                             <span>{source.details.countryCode}</span>
                           </div>
                         )}
                         {source.details.isWhitelisted !== undefined && (
                           <div className="flex justify-between">
-                            <span className="text-default-500">Whitelisted</span>
+                            <span className="text-foreground/50">Whitelisted</span>
                             <span className={source.details.isWhitelisted ? 'text-success' : 'text-default-400'}>
                               {source.details.isWhitelisted ? 'Yes' : 'No'}
                             </span>
@@ -447,12 +443,12 @@ export default function ThreatIntelPage() {
                         )}
                         {source.details.lastReportedAt && (
                           <div className="flex justify-between">
-                            <span className="text-default-500">Last Reported</span>
+                            <span className="text-foreground/50">Last Reported</span>
                             <span className="text-[10px]">{new Date(source.details.lastReportedAt).toLocaleDateString()}</span>
                           </div>
                         )}
                         {source.details.note && (
-                          <div className="mt-2 p-2 bg-default-100 rounded text-[10px] text-default-500 font-mono break-all">
+                          <div className="mt-2 p-2 bg-default-100 rounded text-[10px] text-foreground/50 font-mono break-all">
                             ℹ️ {source.details.note}
                           </div>
                         )}
@@ -460,7 +456,7 @@ export default function ThreatIntelPage() {
                         {/* AlienVault OTX specific */}
                         {source.details.pulseCount !== undefined && (
                           <div className="flex justify-between">
-                            <span className="text-default-500">Pulses</span>
+                            <span className="text-foreground/50">Pulses</span>
                             <span className={source.details.pulseCount > 0 ? 'text-warning font-bold' : ''}>
                               {source.details.pulseCount}
                             </span>
@@ -468,7 +464,7 @@ export default function ThreatIntelPage() {
                         )}
                         {source.details.risk && source.name.includes('AlienVault') && (
                           <div className="flex justify-between">
-                            <span className="text-default-500">Risk Level</span>
+                            <span className="text-foreground/50">Risk Level</span>
                             <span className={
                               source.details.risk === 'critical' || source.details.risk === 'high' ? 'text-danger' :
                               source.details.risk === 'medium' ? 'text-warning' : 'text-success'
@@ -479,7 +475,7 @@ export default function ThreatIntelPage() {
                         )}
                         {source.details.tags && source.details.tags.length > 0 && (
                           <div className="mt-2">
-                            <span className="text-default-500 block mb-1">Tags</span>
+                            <span className="text-foreground/50 block mb-1">Tags</span>
                             <div className="flex flex-wrap gap-1">
                               {source.details.tags.slice(0, 5).map((tag: string) => (
                                 <Chip key={tag} size="sm" variant="flat" className="text-[10px] h-5">
@@ -491,7 +487,7 @@ export default function ThreatIntelPage() {
                         )}
                         {source.details.malwareFamilies && source.details.malwareFamilies.length > 0 && (
                           <div className="mt-2">
-                            <span className="text-default-500 block mb-1">Malware</span>
+                            <span className="text-foreground/50 block mb-1">Malware</span>
                             <div className="flex flex-wrap gap-1">
                               {source.details.malwareFamilies.slice(0, 3).map((m: string) => (
                                 <Chip key={m} size="sm" color="danger" variant="flat" className="text-[10px] h-5">
@@ -512,7 +508,7 @@ export default function ThreatIntelPage() {
                         {/* URLScan.io specific */}
                         {source.details.score !== undefined && source.name === 'URLScan.io' && (
                           <div className="flex justify-between">
-                            <span className="text-default-500">Score</span>
+                            <span className="text-foreground/50">Score</span>
                             <span className={source.details.score > 50 ? 'text-danger font-bold' : ''}>
                               {source.details.score}
                             </span>
@@ -576,7 +572,7 @@ export default function ThreatIntelPage() {
                 <Card>
                     <CardBody className="py-12 text-center">
                         <Spinner size="lg" />
-                        <p className="mt-4 text-default-500">Searching through historical data in ClickHouse...</p>
+                        <p className="mt-4 text-foreground/50">Searching through historical data in ClickHouse...</p>
                     </CardBody>
                 </Card>
             )}
@@ -586,7 +582,7 @@ export default function ThreatIntelPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <Card className={`border-l-4 ${retroResult.found ? 'border-l-danger bg-danger/5' : 'border-l-success bg-success/5'}`}>
                             <CardBody className="py-4">
-                                <p className="text-xs text-default-500 uppercase tracking-wider font-semibold">Security Status</p>
+                                <p className="text-xs text-foreground/50 uppercase tracking-wider font-semibold">Security Status</p>
                                 <p className={`text-2xl font-bold ${retroResult.found ? 'text-danger' : 'text-success'}`}>
                                     {retroResult.found ? 'THREAT IDENTIFIED' : 'NO MATCHES FOUND'}
                                 </p>
@@ -594,7 +590,7 @@ export default function ThreatIntelPage() {
                         </Card>
                         <Card className="bg-content1">
                             <CardBody className="py-4">
-                                <p className="text-xs text-default-500 uppercase tracking-wider font-semibold">Total Occurrences</p>
+                                <p className="text-xs text-foreground/50 uppercase tracking-wider font-semibold">Total Occurrences</p>
                                 <p className="text-2xl font-bold">{retroResult.count}</p>
                             </CardBody>
                         </Card>
@@ -630,7 +626,7 @@ export default function ThreatIntelPage() {
                                                     <Chip size="sm" variant="flat" className="bg-default-100">{match.source}</Chip>
                                                 </TableCell>
                                                 <TableCell>
-                                                    <div className="text-xs font-mono max-w-md truncate text-default-500" title={
+                                                    <div className="text-xs font-mono max-w-md truncate text-foreground/50" title={
                                                         type === 'hash' ? (match.file_hash || match.process_sha256) : 
                                                         type === 'domain' ? (match.host_domain || match.user_domain) :
                                                         (match.network_src_ip || match.network_dst_ip)
@@ -702,7 +698,7 @@ export default function ThreatIntelPage() {
                     )}
                     <div>
                       <p className="font-mono text-sm">{query.indicator}</p>
-                      <p className="text-xs text-default-500">{new Date(query.queriedAt).toLocaleString()}</p>
+                      <p className="text-xs text-foreground/50">{new Date(query.queriedAt).toLocaleString()}</p>
                     </div>
                   </div>
                   <Chip size="sm" color={verdictColors[query.verdict]} variant="flat">

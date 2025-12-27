@@ -304,7 +304,7 @@ export default function CaseBoardPage() {
       case "priority":
         return <Chip size="sm" variant="flat">{caseItem.priority}</Chip>;
       case "sla":
-        if (caseItem.status === 'resolved' || caseItem.status === 'closed') return <span className="text-gray-500">-</span>;
+        if (caseItem.status === 'resolved' || caseItem.status === 'closed') return <span className="text-foreground/50">-</span>;
         const { hoursLeft, isOverdue } = getTimeRemaining(caseItem.createdAt, caseItem.severity);
         return (
             <Chip 
@@ -321,7 +321,7 @@ export default function CaseBoardPage() {
         const today = new Date();
         const isToday = date.toDateString() === today.toDateString();
         return (
-          <span className="text-sm text-gray-400">
+          <span className="text-sm text-foreground/60">
             {isToday 
               ? `Today ${date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`
               : date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
@@ -452,7 +452,7 @@ export default function CaseBoardPage() {
       {viewMode === 'kanban' && (
         <>
           <div className="flex justify-between items-center mb-4">
-            <p className="text-sm text-gray-400">
+            <p className="text-sm text-foreground/60">
               {showClosed ? 'Showing all statuses' : 'Hiding closed cases'}
             </p>
             <Button
@@ -467,7 +467,7 @@ export default function CaseBoardPage() {
           <div className="flex gap-4 h-full overflow-x-auto pb-4">
             {Object.entries(showClosed ? ALL_COLS : COLS).map(([status, label]) => (
               <div key={status} className="min-w-[300px] bg-content2/50 rounded-xl p-4 flex flex-col gap-4 border border-white/5">
-                <h3 className="font-semibold text-gray-300 flex justify-between items-center">
+                <h3 className="font-semibold text-foreground/70 flex justify-between items-center">
                   <div className="flex items-center gap-2">
                     <span>{STATUS_ICONS[status as keyof typeof COLS] || '•'}</span>
                     {label}
@@ -477,7 +477,7 @@ export default function CaseBoardPage() {
                 
                 <div className="flex flex-col gap-3 overflow-y-auto min-h-0 custom-scrollbar pr-1">
                   {cases.filter(c => c.status === status).length === 0 ? (
-                      <div className="h-32 flex flex-col items-center justify-center text-gray-500 border border-dashed border-white/10 rounded-xl bg-content1/20">
+                      <div className="h-32 flex flex-col items-center justify-center text-foreground/50 border border-dashed border-white/10 rounded-xl bg-content1/20">
                           <Icon.Briefcase className="w-8 h-8 mb-2 opacity-50" />
                           <p className="text-xs">No cases</p>
                       </div>
@@ -627,7 +627,7 @@ export default function CaseBoardPage() {
                 <div className="flex flex-col h-full">
                      {/* Timeline Header */}
                      <div className="flex items-center mb-4 pb-4 border-b border-white/5 overflow-x-auto custom-scrollbar">
-                         <div className="min-w-[200px] sticky left-0 bg-content1 z-10 p-2 font-semibold text-gray-400">Case</div>
+                         <div className="min-w-[200px] sticky left-0 bg-content1 z-10 p-2 font-semibold text-foreground/60">Case</div>
                          {/* Dynamic Date Header */}
                          {(() => {
                              const dates = cases.map(c => new Date(c.createdAt));
@@ -636,7 +636,7 @@ export default function CaseBoardPage() {
                              const days = eachDayOfInterval({ start: minDate, end: maxDate });
                              
                              return days.map(day => (
-                                 <div key={day.toISOString()} className="min-w-[100px] text-center text-xs text-gray-500 border-l border-white/5">
+                                 <div key={day.toISOString()} className="min-w-[100px] text-center text-xs text-foreground/50 border-l border-white/5">
                                      {format(day, 'MMM dd')}
                                  </div>
                              ));

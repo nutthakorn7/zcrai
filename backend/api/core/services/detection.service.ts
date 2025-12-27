@@ -155,7 +155,7 @@ export const DetectionService = {
                     const alert = await AlertService.create({
                         tenantId: rule.tenantId,
                         source: 'detection_engine',
-                        severity: rule.severity,
+                        severity: hit.severity ? hit.severity.toLowerCase() : rule.severity,
                         title: `[Detection] ${rule.name}`,
                         description: `Rule "${rule.name}" triggered.\n\nEvent: ${hit.title || 'Unknown Event'}\nDescription: ${hit.description || ''}\nTimestamp: ${hit.timestamp}`,
                         rawData: hit,

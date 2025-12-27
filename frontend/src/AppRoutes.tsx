@@ -46,6 +46,7 @@ const ProfilePage = lazy(() => import("./pages/settings/ProfilePage"));
 const DetectionRulesPage = lazy(() => import("./pages/settings/DetectionRulesPage"));
 const SystemPage = lazy(() => import("./pages/settings/SystemPage"));
 const SubscriptionPage = lazy(() => import("./pages/settings/SubscriptionPage"));
+const SecretsVaultPage = lazy(() => import("./pages/settings/SecretsVaultPage"));
 
 function ProtectedRoute({ children }: { children: JSX.Element }) {
   const { isAuthenticated, isLoading, user } = useAuth();
@@ -129,6 +130,7 @@ export const AppRoutes = () => (
         <Route path="retention" element={<RetentionSettingsPage />} />
         <Route path="parsers" element={<ParsersPage />} />
         <Route path="edr-actions" element={<EDRActionsPage />} />
+        <Route path="secrets-vault" element={<SecretsVaultPage />} />
         <Route path="system" element={<SystemPage />} />
         <Route path="threat-intel" element={<Suspense fallback={<LoadingState />}><ThreatIntelPage /></Suspense>} />
         <Route path="audit-logs" element={<AuditLogsPage />} />

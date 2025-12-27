@@ -150,9 +150,17 @@ export class AlertService {
     severity?: string[];
     source?: string[];
     aiStatus?: string[]; // 'verified', 'blocked', 'pending'
+    technique?: string;
     limit?: number;
     offset?: number;
+    fields?: string[]; // Selective fields like 'id', 'title', etc.
   }) {
+    // Check Cache
+    const cacheKey = `alerts:list:${filters.tenantId || 'all'}:${JSON.stringify(filters)}`;
+    const { redis } = await import('../../infra/cache/redis');
+    const cached = await redis.get(cacheKey);
+    if (cached) return JSON.parse(cached);
+
     const conditions = [];
     
     // Only filter by tenantId if provided (non-superadmin users)
@@ -196,9 +204,28 @@ export class AlertService {
         }
     }
 
-    const query = db
-      .select()
-      .from(alerts)
+    if (filters.technique && filters.technique !== 'all') {
+        conditions.push(or(
+            sql`alerts.raw_data->>'mitre_technique' = ${filters.technique}`,
+            sql`alerts.raw_data->>'technique' = ${filters.technique}`
+        ));
+    }
+
+    // Selective Field Selection
+    let query;
+    if (filters.fields && filters.fields.length > 0) {
+      const selection: Record<string, any> = {};
+      filters.fields.forEach(f => {
+        if ((alerts as any)[f]) {
+          selection[f] = (alerts as any)[f];
+        }
+      });
+      query = db.select(selection).from(alerts);
+    } else {
+      query = db.select().from(alerts);
+    }
+
+    query = query
       .orderBy(desc(alerts.createdAt))
       .limit(filters.limit || 100)
       .offset(filters.offset || 0);
@@ -208,11 +235,20 @@ export class AlertService {
       ? await query.where(and(...conditions))
       : await query;
 
+    // Cache result (60s - relatively fresh)
+    await redis.setex(cacheKey, 60, JSON.stringify(result));
+
     return result;
   }
 
   // Get alert by ID
   static async getById(id: string, tenantId: string) {
+    // Check Cache
+    const cacheKey = `alert:${id}:${tenantId}`;
+    const { redis } = await import('../../infra/cache/redis');
+    const cached = await redis.get(cacheKey);
+    if (cached) return JSON.parse(cached);
+
     const [alert] = await db
       .select()
       .from(alerts)
@@ -226,7 +262,12 @@ export class AlertService {
       .from(alertCorrelations)
       .where(eq(alertCorrelations.primaryAlertId, id));
 
-    return { ...alert, correlations };
+    const result = { ...alert, correlations };
+    
+    // Cache result (5 mins)
+    await redis.setex(cacheKey, 300, JSON.stringify(result));
+
+    return result;
   }
 
   // Update alert status

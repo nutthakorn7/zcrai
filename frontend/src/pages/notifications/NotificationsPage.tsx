@@ -88,15 +88,15 @@ export default function NotificationsPage() {
       if (type.includes('assigned')) return <Icon.User className="w-5 h-5 text-primary" />;
       if (type.includes('success')) return <Icon.CheckCircle className="w-5 h-5 text-success" />;
       if (type.includes('error') || type.includes('fail')) return <Icon.Alert className="w-5 h-5 text-danger" />;
-      return <Icon.Bell className="w-5 h-5 text-gray-400" />;
+      return <Icon.Bell className="w-5 h-5 text-foreground/60" />;
   };
 
   return (
     <div className="p-8 max-w-5xl mx-auto min-h-screen">
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h1 className="text-3xl font-bold font-display tracking-tight">Notifications</h1>
-          <p className="text-gray-400 mt-1">Manage your alerts and activity history</p>
+          <h1 className="text-3xl font-bold font-display tracking-tight text-foreground">Notifications</h1>
+          <p className="text-foreground/60 mt-1">Manage your alerts and activity history</p>
         </div>
         <Button 
             variant="flat" 
@@ -127,7 +127,7 @@ export default function NotificationsPage() {
                 <Spinner size="lg" />
             </div>
         ) : notifications.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-gray-500">
+            <div className="flex flex-col items-center justify-center py-20 text-foreground/50">
                 <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mb-4">
                     <Icon.Bell className="w-8 h-8 opacity-50" />
                 </div>
@@ -156,14 +156,14 @@ export default function NotificationsPage() {
                                     </div>
                                     <div className="flex-1 text-left">
                                         <div className="flex justify-between items-start">
-                                            <p className={`font-medium ${notification.isRead ? 'text-gray-300' : 'text-white'}`}>
+                                            <p className={`font-medium ${notification.isRead ? 'text-foreground/70' : 'text-foreground'}`}>
                                                 {notification.title}
                                             </p>
-                                            <span className="text-xs text-gray-500 whitespace-nowrap ml-4">
+                                            <span className="text-xs text-foreground/50 whitespace-nowrap ml-4">
                                                 {new Date(notification.createdAt).toLocaleString()}
                                             </span>
                                         </div>
-                                        <p className="text-sm text-gray-400 mt-1 line-clamp-1">
+                                        <p className="text-sm text-foreground/60 mt-1 line-clamp-1">
                                             {notification.message}
                                         </p>
                                     </div>

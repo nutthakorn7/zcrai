@@ -71,6 +71,7 @@ export const logsController = new Elysia({ prefix: '/logs' })
       integrationId: query.integration_id as string | undefined,
       accountName: query.account_name as string | undefined,
       siteName: query.site_name as string | undefined,
+      technique: query.technique as string | undefined,
     }
 
     const pagination = {
@@ -105,6 +106,7 @@ export const logsController = new Elysia({ prefix: '/logs' })
       integrationId: query.integration_id as string | undefined,
       accountName: query.account_name as string | undefined,
       siteName: query.site_name as string | undefined,
+      technique: query.technique as string | undefined,
     }
     const intervalSeconds = parseInt(query.interval as string) || 3600
     

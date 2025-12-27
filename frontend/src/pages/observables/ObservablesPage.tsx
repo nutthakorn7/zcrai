@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { Button, Chip, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Input, Card, CardBody, Progress, Pagination } from "@heroui/react";
-import { Icon } from '../../shared/ui';
+import { Icon, ConfirmDialog } from '../../shared/ui';
 import { ObservablesAPI, Observable } from '../../shared/api';
 import { ObservableDetailModal } from '../../components/ObservableDetailModal';
 import { AddObservableModal } from '../../components/observables/AddObservableModal';
@@ -39,6 +39,9 @@ export default function ObservablesPage() {
   const [selectedObservable, setSelectedObservable] = useState<Observable | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  
+  // Delete Confirm State
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
 
   // Pagination State
@@ -139,9 +142,11 @@ export default function ObservablesPage() {
       }
   };
 
-  const handleBulkDelete = async () => {
-    if (!confirm(`Are you sure you want to delete ${selectedKeys.size} observables?`)) return;
-    
+  const handleBulkDeleteClick = () => {
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleBulkDeleteConfirm = async () => {
     try {
         const promises = Array.from(selectedKeys).map(id => ObservablesAPI.delete(id));
         await Promise.all(promises);
@@ -149,6 +154,8 @@ export default function ObservablesPage() {
         fetchObservables();
     } catch(e) {
         console.error("Bulk delete failed", e);
+    } finally {
+        setDeleteConfirmOpen(false);
     }
   };
 
@@ -248,7 +255,7 @@ export default function ObservablesPage() {
         const today = new Date();
         const isToday = date.toDateString() === today.toDateString();
         return (
-          <span className="text-sm text-gray-400">
+          <span className="text-sm text-foreground/60">
             {isToday 
               ? `Today ${date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`
               : date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
@@ -303,7 +310,7 @@ export default function ObservablesPage() {
                         variant="light" 
                         isIconOnly 
                         className="h-7 w-7"
-                        onPress={handleBulkDelete}
+                        onPress={handleBulkDeleteClick}
                      >
                         <Icon.Delete className="w-4 h-4"/>
                      </Button>
@@ -556,6 +563,16 @@ export default function ObservablesPage() {
             setIsAddModalOpen(false);
             fetchObservables();
         }}
+      />
+
+      <ConfirmDialog
+        isOpen={deleteConfirmOpen}
+        onClose={() => setDeleteConfirmOpen(false)}
+        onConfirm={handleBulkDeleteConfirm}
+        title="Delete Observables"
+        description={`Are you sure you want to delete ${selectedKeys.size} observables?`}
+        confirmLabel="Delete"
+        confirmColor="danger"
       />
     </div>
   );

@@ -12,3 +12,4 @@ export * from './playbooks';
 export * from './system';
 export * from './threat-intel';
 export * from './analytics';
+export * from './soar';

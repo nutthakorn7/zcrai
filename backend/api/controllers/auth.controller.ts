@@ -25,7 +25,12 @@ export const authController = new Elysia({ prefix: '/auth' })
   )
   .use(rateLimit({
     duration: 60000,
-    max: 10,
+    max: 500,
+    generator: (request, server) => {
+      const xForwardedFor = request.headers.get('x-forwarded-for')
+      if (xForwardedFor) return xForwardedFor.split(',')[0].trim()
+      return server?.requestIP(request)?.address || 'unknown'
+    },
     errorResponse: Errors.TooManyRequests('Too many login attempts, please try again later.')
   }))
 

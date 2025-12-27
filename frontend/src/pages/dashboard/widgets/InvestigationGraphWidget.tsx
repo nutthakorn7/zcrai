@@ -123,15 +123,15 @@ export function InvestigationGraphWidget({ alertId, className }: InvestigationGr
         const { api } = await import('../../../shared/api');
         const res = await api.get(`/graph/alert/${alertId}`);
         if(res.data.success) {
-            const { nodes, edges } = res.data.data;
+            const { nodes, edges } = res.data.data || { nodes: [], edges: [] };
             const formattedData = {
-                nodes: nodes.map((n: any) => ({
+                nodes: (nodes || []).map((n: any) => ({
                     ...n,
                     val: n.val || (n.type === 'alert' ? 20 : 10),
-                    color: getEntityColor(n.type),
-                    icon: getEntityIcon(n.type)
+                    color: getEntityColor(n.type || 'unknown'),
+                    icon: getEntityIcon(n.type || 'unknown')
                 })),
-                links: edges.map((e: any) => ({
+                links: (edges || []).map((e: any) => ({
                     source: e.source,
                     target: e.target,
                     label: e.label,

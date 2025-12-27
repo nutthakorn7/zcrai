@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardBody, Button, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Chip, Input, Pagination, Spinner, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure } from "@heroui/react";
 import { api } from "@/shared/api";
+import { PageHeader } from '../../shared/ui';
 
 
 interface AuditLog {
@@ -69,15 +70,11 @@ export default function AuditLogsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold font-display tracking-tight text-foreground">Audit Logs</h1>
-          <p className="text-sm mt-1 text-foreground/60">Track all user activities and system changes.</p>
-        </div>
+      <PageHeader title="Audit Logs" description="Track all user activities and system changes.">
         <Button color="primary" variant="flat" onPress={fetchLogs}>
           Refresh
         </Button>
-      </div>
+      </PageHeader>
 
       <Card>
         <CardBody className="gap-4">

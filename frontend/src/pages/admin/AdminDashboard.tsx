@@ -328,11 +328,11 @@ export default function AdminDashboard() {
                 {selectedTenant && (
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <p className="text-sm text-default-500">Tenant ID</p>
+                      <p className="text-sm text-foreground/50">Tenant ID</p>
                       <p className="font-mono text-xs">{selectedTenant.id}</p>
                     </div>
                     <div>
-                      <p className="text-sm text-default-500">Status</p>
+                      <p className="text-sm text-foreground/50">Status</p>
                       <Chip 
                         size="sm" 
                         color={selectedTenant.status === 'active' ? 'success' : 'danger'}
@@ -341,19 +341,19 @@ export default function AdminDashboard() {
                       </Chip>
                     </div>
                     <div>
-                      <p className="text-sm text-default-500">Users</p>
+                      <p className="text-sm text-foreground/50">Users</p>
                       <p className="text-2xl font-bold">{selectedTenant.userCount}</p>
                     </div>
                     <div>
-                      <p className="text-sm text-default-500">Integrations</p>
+                      <p className="text-sm text-foreground/50">Integrations</p>
                       <p className="text-2xl font-bold">{selectedTenant.integrationCount}</p>
                     </div>
                     <div>
-                      <p className="text-sm text-default-500">Total Events</p>
+                      <p className="text-sm text-foreground/50">Total Events</p>
                       <p className="text-2xl font-bold">{selectedTenant.eventCount.toLocaleString()}</p>
                     </div>
                     <div>
-                      <p className="text-sm text-default-500">Created</p>
+                      <p className="text-sm text-foreground/50">Created</p>
                       <p>{new Date(selectedTenant.createdAt).toLocaleString()}</p>
                     </div>
                   </div>
@@ -425,7 +425,7 @@ export default function AdminDashboard() {
                       </BarChart>
                     </ResponsiveContainer>
                   ) : (
-                    <p className="text-default-500 text-sm">No usage data available</p>
+                    <p className="text-foreground/50 text-sm">No usage data available</p>
                   )}
                 </div>
               </ModalBody>

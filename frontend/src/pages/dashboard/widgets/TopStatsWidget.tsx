@@ -63,7 +63,7 @@ export function TopStatsWidget({ topHosts, topUsers }: TopStatsWidgetProps) {
                 ) : (
                     <ScrollShadow className="h-full p-4">
                         <div className="space-y-3">
-                            {(selectedTab === 'hosts' ? topHosts : topUsers).map((item, i) => (
+                            {(selectedTab === 'hosts' ? (topHosts || []) : (topUsers || [])).map((item, i) => (
                                 <div 
                                     key={i} 
                                     onClick={() => handleRowClick(item)}
@@ -75,21 +75,21 @@ export function TopStatsWidget({ topHosts, topUsers }: TopStatsWidgetProps) {
                                         </div>
                                         <div>
                                             <span className="text-sm font-medium text-foreground block truncate max-w-[150px]">
-                                                {selectedTab === 'hosts' ? item.host_name : item.user_name}
+                                                {selectedTab === 'hosts' ? (item?.host_name || item?.host_ip || 'Unknown') : (item?.user_name || 'Unknown')}
                                             </span>
                                             <span className="text-[10px] text-default-400 font-mono">
-                                                {item.count} Alerts
+                                                {item?.count ?? 0} Alerts
                                             </span>
                                         </div>
                                     </div>
-                                    {parseInt(item.critical) > 0 && (
+                                    {parseInt(item?.critical || '0') > 0 && (
                                         <Chip size="sm" color="danger" variant="flat" className="h-5 text-[10px] px-1">
-                                            {item.critical} Crit
+                                            {item?.critical} Crit
                                         </Chip>
                                     )}
                                 </div>
                             ))}
-                             {(selectedTab === 'hosts' ? topHosts : topUsers).length === 0 && (
+                             {(selectedTab === 'hosts' ? (topHosts || []) : (topUsers || [])).length === 0 && (
                                 <div className="flex flex-col items-center justify-center h-40 text-default-400 gap-2">
                                     <p className="text-xs">No data available</p>
                                 </div>

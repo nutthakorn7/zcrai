@@ -17,8 +17,15 @@ expect {
     eof
 }
 
-# 2. Deploy to web root
+# 2. Deploy to host web root (backup)
 spawn ssh -o StrictHostKeyChecking=no $host "rm -rf /var/www/zcrai/* && cp -r /root/temp_dist/* /var/www/zcrai/ && chown -R www-data:www-data /var/www/zcrai"
+expect {
+    "password:" { send "$pass\r"; exp_continue }
+    eof
+}
+
+# 3. Deploy to Docker container (main)
+spawn ssh -o StrictHostKeyChecking=no $host "docker exec zcrai_frontend rm -rf /usr/share/nginx/html/assets && for f in /var/www/zcrai/*; do docker cp \"\$f\" zcrai_frontend:/usr/share/nginx/html/; done && echo 'Docker frontend updated'"
 expect {
     "password:" { send "$pass\r"; exp_continue }
     eof

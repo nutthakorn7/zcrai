@@ -9,6 +9,11 @@ export const TenantService = {
     const { search, status, page = 1, limit = 20 } = options || {}
     const offset = (page - 1) * limit
 
+    // Check Cache
+    const cacheKey = `tenants:list:${search || ''}:${status || ''}:${page}:${limit}`
+    const cached = await redis.get(cacheKey)
+    if (cached) return JSON.parse(cached)
+
     let query = db.select().from(tenants)
 
     // Build where conditions
@@ -32,7 +37,7 @@ export const TenantService = {
       .from(tenants)
       .where(conditions.length > 0 ? and(...conditions) : undefined)
 
-    return {
+    const result = {
       data,
       pagination: {
         page,
@@ -41,9 +46,13 @@ export const TenantService = {
         totalPages: Math.ceil(Number(count) / limit),
       },
     }
+
+    // Cache list (5 mins)
+    await redis.setex(cacheKey, 300, JSON.stringify(result))
+
+    return result
   },
 
-  // ==================== GET TENANT BY ID ====================
   // ==================== GET TENANT BY ID ====================
   async getById(id: string) {
     // Check Cache
@@ -73,6 +82,10 @@ export const TenantService = {
       throw new Error('Tenant name already exists')
     }
 
+    // Invalidate List Cache
+    const keys = await redis.keys('tenants:list:*')
+    if (keys.length > 0) await redis.del(...keys)
+
     const [tenant] = await db.insert(tenants).values({
       name: data.name,
       status: 'active',
@@ -87,6 +100,8 @@ export const TenantService = {
     
     // Invalidate Cache
     await redis.del(`tenant:${id}`)
+    const keys = await redis.keys('tenants:list:*')
+    if (keys.length > 0) await redis.del(...keys)
 
     // เช็คชื่อซ้ำ (ถ้าเปลี่ยนชื่อ)
     if (data.name && data.name !== tenant.name) {
@@ -113,6 +128,8 @@ export const TenantService = {
 
     // Invalidate Cache
     await redis.del(`tenant:${id}`)
+    const keys = await redis.keys('tenants:list:*')
+    if (keys.length > 0) await redis.del(...keys)
 
     // Soft delete โดยเปลี่ยน status เป็น suspended
     const [deleted] = await db.update(tenants)
@@ -128,6 +145,11 @@ export const TenantService = {
 
   // ==================== GET TENANT STATS ====================
   async getStats(id: string) {
+    // Check Cache
+    const cacheKey = `tenant:stats:${id}`
+    const cached = await redis.get(cacheKey)
+    if (cached) return JSON.parse(cached)
+
     const tenant = await this.getById(id)
 
     // นับจำนวน users ใน tenant
@@ -136,9 +158,14 @@ export const TenantService = {
       .from(users)
       .where(eq(users.tenantId, id))
 
-    return {
+    const stats = {
       ...tenant,
       userCount: Number(userCount),
     }
+
+    // Cache stats (15 mins - slow data)
+    await redis.setex(cacheKey, 900, JSON.stringify(stats))
+
+    return stats
   },
 }

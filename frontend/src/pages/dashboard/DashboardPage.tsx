@@ -35,6 +35,7 @@ import { InvestigationGraphWidget } from './widgets/InvestigationGraphWidget';
 import { AIMetricsWidget } from './widgets/AIMetricsWidget';
 import { AccuracyWidget } from './widgets/AccuracyWidget';
 import { PerformanceMetricsWidget } from './widgets/PerformanceMetricsWidget';
+import { MitigationStatusWidget } from './widgets/MitigationStatusWidget';
 
 // Import logos
 import sentineloneLogo from '../../assets/logo/sentinelone.png';
@@ -202,7 +203,7 @@ export default function DashboardPage() {
     let dateParams = `startDate=${start}&endDate=${end}`;
     
     try {
-      // 1. Fetch Active Integrations
+      // 1. Fetch Active EDR Integrations
       const activeIntRes = await api.get('/integrations');
       const activeIntegrations = activeIntRes.data || [];
       
@@ -213,6 +214,27 @@ export default function DashboardPage() {
         healthStatus: i.lastSyncStatus === 'success' ? 'healthy' : (i.lastSyncStatus === 'error' ? 'down' : 'degraded'),
         status: i.lastSyncStatus === 'success' ? 'active' : 'inactive' // Keep legacy status for filter buttons
       }));
+      
+      // 2. Fetch Threat Intel providers status (VirusTotal, AbuseIPDB, etc.)
+      try {
+        const threatIntelRes = await api.get('/threat-intel/providers');
+        const threatIntelProviders = threatIntelRes.data || [];
+        
+        // Map Threat Intel providers to integration format
+        const threatIntelMapped = threatIntelProviders.map((p: any) => ({
+          id: `ti-${p.name.toLowerCase().replace(/\s/g, '-')}`,
+          provider: p.name.toLowerCase().replace(/\s/g, '-'),
+          label: p.name,
+          healthStatus: p.configured ? 'healthy' : 'down',
+          lastSyncAt: null,
+          source: p.source // 'env', 'database', or 'none'
+        }));
+        
+        // Merge: EDR + Threat Intel
+        mappedIntegrations.push(...threatIntelMapped);
+      } catch (e) {
+        console.warn('[Dashboard] Failed to fetch threat intel providers:', e);
+      }
       
       const activeProviders = mappedIntegrations
         .filter((i: any) => i.healthStatus === 'healthy')
@@ -308,17 +330,6 @@ export default function DashboardPage() {
       const summaryData = { ...summaryRes.data };
       const prevSummaryData = prevSummaryRes.data;
       
-      // Validate total = critical + high + medium + low + info
-      if (summaryData?.critical !== undefined) {
-        // Fix: Include info in calculation
-        const calculatedTotal = (summaryData.critical || 0) + (summaryData.high || 0) + (summaryData.medium || 0) + (summaryData.low || 0) + (summaryData.info || 0);
-        if (summaryData.total !== calculatedTotal) {
-          // console.warn(`❌ Data Mismatch...`);
-          // Correct it
-          summaryData.total = calculatedTotal;
-        }
-      }
-      
       setSummary(summaryData);
       setPreviousSummary(prevSummaryData);
       
@@ -401,7 +412,7 @@ export default function DashboardPage() {
     }
     
     // 2. Merge actual data from backend
-    timeline.forEach(t => {
+    (timeline || []).forEach(t => {
       const formattedTime = new Date(t.time).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
       const src = t.source?.toLowerCase() || 'unknown';
       
@@ -409,12 +420,12 @@ export default function DashboardPage() {
         dateMap[formattedTime] = { time: formattedTime };
       }
       
-      // Add source-specific data
-      dateMap[formattedTime][`${src}_total`] = (dateMap[formattedTime][`${src}_total`] || 0) + parseInt(t.count);
-      dateMap[formattedTime][`${src}_critical`] = (dateMap[formattedTime][`${src}_critical`] || 0) + parseInt(t.critical);
-      dateMap[formattedTime][`${src}_high`] = (dateMap[formattedTime][`${src}_high`] || 0) + parseInt(t.high);
-      dateMap[formattedTime][`${src}_medium`] = (dateMap[formattedTime][`${src}_medium`] || 0) + parseInt(t.medium);
-      dateMap[formattedTime][`${src}_low`] = (dateMap[formattedTime][`${src}_low`] || 0) + parseInt(t.low);
+      // Add source-specific data with safe parseInt
+      dateMap[formattedTime][`${src}_total`] = (dateMap[formattedTime][`${src}_total`] || 0) + (parseInt(t.count || '0') || 0);
+      dateMap[formattedTime][`${src}_critical`] = (dateMap[formattedTime][`${src}_critical`] || 0) + (parseInt(t.critical || '0') || 0);
+      dateMap[formattedTime][`${src}_high`] = (dateMap[formattedTime][`${src}_high`] || 0) + (parseInt(t.high || '0') || 0);
+      dateMap[formattedTime][`${src}_medium`] = (dateMap[formattedTime][`${src}_medium`] || 0) + (parseInt(t.medium || '0') || 0);
+      dateMap[formattedTime][`${src}_low`] = (dateMap[formattedTime][`${src}_low`] || 0) + (parseInt(t.low || '0') || 0);
     });
     
     return Object.values(dateMap);
@@ -511,7 +522,7 @@ export default function DashboardPage() {
                              {icon}
                          </div>
                          <div>
-                            <p className="text-xs text-default-500 font-bold font-display uppercase tracking-widest leading-none">{title}</p>
+                            <p className="text-xs text-foreground/50 font-bold font-display uppercase tracking-widest leading-none">{title}</p>
                             <h3 className="text-4xl font-bold font-display mt-1 tracking-tight" style={{ color: color === 'var(--color-primary)' ? undefined : color }}>
                               <AnimatedCounter value={count || 0} />
                             </h3>
@@ -550,6 +561,9 @@ export default function DashboardPage() {
       </div>
     );
   }
+
+  // Wrap render in try-catch
+  try {
 
   return (
     <div className="p-6 min-h-screen bg-background">
@@ -626,7 +640,16 @@ export default function DashboardPage() {
           <div className="flex gap-2">
             <Button
               size="sm"
-              variant={startDate && (Date.now() - startDate.getTime()) < 8 * 24 * 60 * 60 * 1000 ? 'solid' : 'flat'}
+              variant={startDate && Math.round((Date.now() - startDate.getTime()) / (24 * 60 * 60 * 1000)) === 1 ? 'solid' : 'flat'}
+              color="primary"
+              className="text-xs"
+              onPress={() => setDatePreset(1)}
+            >
+              Last 1d
+            </Button>
+            <Button
+              size="sm"
+              variant={startDate && Math.round((Date.now() - startDate.getTime()) / (24 * 60 * 60 * 1000)) === 7 ? 'solid' : 'flat'}
               color="primary"
               className="text-xs"
               onPress={() => setDatePreset(7)}
@@ -635,7 +658,7 @@ export default function DashboardPage() {
             </Button>
             <Button
               size="sm"
-              variant={startDate && (Date.now() - startDate.getTime()) > 8 * 24 * 60 * 60 * 1000 && (Date.now() - startDate.getTime()) < 31 * 24 * 60 * 60 * 1000 ? 'solid' : 'flat'}
+              variant={startDate && Math.round((Date.now() - startDate.getTime()) / (24 * 60 * 60 * 1000)) === 30 ? 'solid' : 'flat'}
               color="primary"
               className="text-xs"
               onPress={() => setDatePreset(30)}
@@ -644,7 +667,7 @@ export default function DashboardPage() {
             </Button>
             <Button
               size="sm"
-              variant={startDate && (Date.now() - startDate.getTime()) > 85 * 24 * 60 * 60 * 1000 ? 'solid' : 'flat'}
+              variant={startDate && Math.round((Date.now() - startDate.getTime()) / (24 * 60 * 60 * 1000)) === 90 ? 'solid' : 'flat'}
               color="primary"
               className="text-xs"
               onPress={() => setDatePreset(90)}
@@ -915,12 +938,15 @@ export default function DashboardPage() {
       <div className="mb-4">
           <PerformanceMetricsWidget />
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-8 animate-fade-in">
-        <div className="md:col-span-2">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-3 mb-8 animate-fade-in">
+        <div className="lg:col-span-2">
             <AIMetricsWidget />
         </div>
         <div>
             <AccuracyWidget />
+        </div>
+        <div>
+            <MitigationStatusWidget />
         </div>
       </div>
 
@@ -939,14 +965,14 @@ export default function DashboardPage() {
             </div>
             <div className="flex flex-col">
               <p className="text-md font-bold text-foreground">Recent Detections</p>
-              <p className="text-small text-default-500">Latest security events</p>
+              <p className="text-xs text-foreground/50 font-medium">Latest security events</p>
             </div>
           </CardHeader>
           <CardBody className="px-5 pb-5">
             <div className="space-y-2 overflow-y-auto scrollbar-thin h-full pr-2">
               {recentDetections.length > 0 ? (
                 recentDetections.map((detection) => {
-                  const severityColor = severityColors[detection.severity.toLowerCase() as keyof typeof severityColors] || severityColors.low;
+                  const severityColor = severityColors[((detection.severity || 'low').toLowerCase()) as keyof typeof severityColors] || severityColors.low;
                   const source = detection.source?.toLowerCase() || '';
                   const sourceColor = sourceColors[source] || '#6B7280';
                   const sourceLogo = providerLogos[source] || null;
@@ -988,7 +1014,7 @@ export default function DashboardPage() {
                             >
                               {detection.severity}
                             </Chip>
-                            <span className="text-xs text-default-400">
+                            <span className="text-xs text-foreground/40 font-mono">
                               {new Date(detection.timestamp).toLocaleTimeString([], { hour: '2-digit', minute:'2-digit' })}
                             </span>
                           </div>
@@ -1003,7 +1029,7 @@ export default function DashboardPage() {
               ) : (
                 <div className="flex flex-col items-center justify-center h-full text-default-400 gap-2">
                   <Icon.Shield className="w-8 h-8 opacity-20" />
-                  <p className="text-xs">No recent detections</p>
+                  <p className="text-xs text-foreground/40">No recent detections</p>
                 </div>
               )}
             </div>
@@ -1026,7 +1052,7 @@ export default function DashboardPage() {
             </div>
             <div className="flex flex-col">
               <p className="text-md font-bold text-foreground">Integrations</p>
-              <p className="text-small text-default-500">Connected data sources</p>
+              <p className="text-xs text-foreground/50 font-medium">Connected data sources</p>
             </div>
           </CardHeader>
           <CardBody className="px-5 pb-5">
@@ -1046,7 +1072,7 @@ export default function DashboardPage() {
                     </div>
                     <div>
                       <span className="text-sm font-medium text-foreground block capitalize">{int.source}</span>
-                      <p className="text-xs text-default-400 mt-0.5">{int.integration_name || int.integration_id.slice(0, 8)}</p>
+                      <p className="text-xs text-foreground/40 mt-0.5 font-mono">{int.integration_name || int.integration_id.slice(0, 8)}</p>
                     </div>
                   </div>
                   <Chip 
@@ -1078,7 +1104,7 @@ export default function DashboardPage() {
             </div>
             <div className="flex flex-col">
               <p className="text-md font-bold text-foreground">Protected Sites</p>
-              <p className="text-small text-default-500">Monitored locations</p>
+              <p className="text-xs text-foreground/50 font-medium">Monitored locations</p>
             </div>
           </CardHeader>
           <CardBody className="px-5 pb-5">
@@ -1093,17 +1119,17 @@ export default function DashboardPage() {
                       <Icon.Building className="w-5 h-5" />
                     </div>
                     <div>
-                      <span className="text-sm font-medium text-foreground block">{site.host_site_name}</span>
-                      <p className="text-xs text-default-400 mt-0.5">{parseInt(site.count).toLocaleString()} alerts</p>
+                      <span className="text-sm font-medium text-foreground block">{site.host_site_name || 'Unknown Site'}</span>
+                      <p className="text-xs text-default-400 mt-0.5">{(parseInt(site.count || '0') || 0).toLocaleString()} alerts</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    {parseInt(site.critical) > 0 && (
+                    {(parseInt(site.critical || '0') || 0) > 0 && (
                       <Chip size="sm" color="danger" variant="flat" className="h-6">
                         {site.critical}
                       </Chip>
                     )}
-                    {(parseInt(site.high) > 0 && parseInt(site.critical) === 0) && (
+                    {((parseInt(site.high || '0') || 0) > 0 && (parseInt(site.critical || '0') || 0) === 0) && (
                       <Chip size="sm" color="warning" variant="flat" className="h-6">
                         {site.high}
                       </Chip>
@@ -1114,7 +1140,7 @@ export default function DashboardPage() {
               {sites.length === 0 && (
                 <div className="flex flex-col items-center justify-center h-full text-default-400 gap-2">
                    <Icon.Building className="w-8 h-8 opacity-20" />
-                   <p className="text-xs">No sites found</p>
+                   <p className="text-xs text-foreground/40">No sites found</p>
                 </div>
               )}
             </div>
@@ -1124,7 +1150,7 @@ export default function DashboardPage() {
 
       <div className="bg-content1 border border-white/5 rounded-xl p-5 mb-6">
         <h2 className="text-base font-semibold mb-3 text-foreground">MITRE ATT&CK Matrix</h2>
-        <p className="text-xs text-default-500 mb-4">Heatmap visualization of adversary tactics and techniques mapped from detected events.</p>
+        <p className="text-xs text-foreground/50 mb-4">Heatmap visualization of adversary tactics and techniques mapped from detected events.</p>
         
         {mitreData.length > 0 ? (
           <MitreHeatmapWidget data={mitreData} />
@@ -1141,7 +1167,7 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between mb-4">
             <div>
                  <h2 className="text-base font-semibold text-foreground">Live Investigation: Patient Zero Analysis</h2>
-                 <p className="text-xs text-default-500">Visualizing threat relationships and lateral movement paths.</p>
+                 <p className="text-xs text-foreground/50">Visualizing threat relationships and lateral movement paths.</p>
             </div>
              <Chip size="sm" color="danger" variant="flat" className="animate-pulse">Live Scenario</Chip>
           </div>
@@ -1150,4 +1176,17 @@ export default function DashboardPage() {
 
     </div>
   );
+  } catch (e: any) {
+    console.error('Dashboard render error:', e);
+    return (
+      <div className="p-8 bg-danger/10 m-8 rounded-xl border border-danger">
+        <h2 className="text-xl font-bold text-danger mb-4">Dashboard Render Error (Caught)</h2>
+        <pre className="text-sm text-danger bg-black p-4 rounded overflow-auto max-h-96">
+          {e?.message || 'Unknown error'}
+          {"\n\n"}
+          {e?.stack || 'No stack trace available'}
+        </pre>
+      </div>
+    );
+  }
 }

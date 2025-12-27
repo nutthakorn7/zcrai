@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardBody, Button, Chip, Spinner, Tabs, Tab, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Input, Select, SelectItem } from "@heroui/react";
 import { FileText, Download, ShieldCheck, Lock, Trash2, Plus, Mail } from 'lucide-react';
 import { api } from '../../shared/api';
+import { ConfirmDialog } from '../../shared/ui/ConfirmDialog';
 import toast from 'react-hot-toast';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
@@ -42,6 +43,10 @@ export default function ReportsPage() {
         recipients: '' // comma separated string for input
     });
     const [creating, setCreating] = useState(false);
+    
+    // Delete Confirmation
+    const [scheduleToDelete, setScheduleToDelete] = useState<string | null>(null);
+    const [deleting, setDeleting] = useState(false);
 
     useEffect(() => {
         if (activeTab === 'scheduled') {
@@ -103,15 +108,19 @@ export default function ReportsPage() {
         }
     };
 
-    const handleDeleteSchedule = async (id: string) => {
-        if (!confirm("Are you sure you want to delete this schedule?")) return;
+    const confirmDeleteSchedule = async () => {
+        if (!scheduleToDelete) return;
+        setDeleting(true);
         try {
-            await api.delete(`/reports/schedules/${id}`);
+            await api.delete(`/reports/schedules/${scheduleToDelete}`);
             toast.success("Schedule deleted");
-            setSchedules(prev => prev.filter(s => s.id !== id));
+            setSchedules(prev => prev.filter(s => s.id !== scheduleToDelete));
         } catch (e) {
             console.error(e);
             toast.error("Failed to delete schedule");
+        } finally {
+            setDeleting(false);
+            setScheduleToDelete(null); // Close dialog
         }
     };
 
@@ -313,7 +322,7 @@ export default function ReportsPage() {
                         </div>
                         <div>
                             <h3 className="text-xl font-bold">AI Accuracy & ROI Report</h3>
-                            <p className="text-gray-400 text-sm mt-1">
+                            <p className="text-foreground/60 text-sm mt-1">
                                 Performance analysis of AI Triage. Includes Agreement Rate, Verdict breakdown, and estimated cost savings.
                             </p>
                         </div>
@@ -389,7 +398,7 @@ export default function ReportsPage() {
                                                 <TableCell>
                                                     <Button 
                                                         isIconOnly size="sm" color="danger" variant="light" 
-                                                        onPress={() => handleDeleteSchedule(schedule.id)}
+                                                        onPress={() => setScheduleToDelete(schedule.id)}
                                                     >
                                                         <Trash2 size={16} />
                                                     </Button>
@@ -455,6 +464,17 @@ export default function ReportsPage() {
             <div className="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg text-yellow-200 text-sm">
                 <strong>Note:</strong> Reports are generated in real-time based on current system data. Large datasets may take a few seconds to process.
             </div>
+
+            <ConfirmDialog 
+                isOpen={!!scheduleToDelete}
+                onClose={() => setScheduleToDelete(null)}
+                onConfirm={confirmDeleteSchedule}
+                title="Delete Schedule"
+                description="Are you sure you want to delete this report schedule? This action cannot be undone."
+                confirmLabel="Delete"
+                confirmColor="danger"
+                isLoading={deleting}
+            />
         </div>
     );
 }

@@ -118,6 +118,29 @@ export class ReportService {
         return this.generateReport(tenantId, 'AI_ACCURACY'); 
     }
 
+    static async generateInvestigationReportPDF(tenantId: string, alertId: string): Promise<Buffer> {
+        const { AIReportSynthesisService } = await import('./ai-report-synthesis.service');
+        const reportData = await AIReportSynthesisService.synthesizeFormalReport(tenantId, alertId);
+        
+        const html = this.getTemplate('INVESTIGATION_REPORT', reportData);
+
+        const browser = await puppeteer.launch({
+            headless: true,
+            args: ['--no-sandbox', '--disable-setuid-sandbox']
+        });
+        const page = await browser.newPage();
+        await page.setContent(html, { waitUntil: 'networkidle0' });
+        
+        const pdfBuffer = await page.pdf({
+            format: 'A4',
+            printBackground: true,
+            margin: { top: '30px', right: '30px', bottom: '30px', left: '30px' }
+        });
+
+        await browser.close();
+        return Buffer.from(pdfBuffer);
+    }
+
     static async generateDashboardPDF(tenantId: string, options?: any): Promise<Buffer> {
         return this.generateReport(tenantId, 'SOC2'); 
     }
@@ -149,6 +172,17 @@ export class ReportService {
                 .metric-box { display: inline-block; width: 45%; background: #f3f4f6; padding: 15px; margin: 10px 2%; border-radius: 8px; text-align: center; }
                 .metric-val { font-size: 24px; font-weight: bold; color: #4F46E5; }
                 .metric-label { font-size: 12px; color: #6b7280; text-transform: uppercase; }
+                
+                /* Investigation Report specific */
+                .verdict-banner { padding: 15px; text-align: center; font-weight: bold; font-size: 18px; border-radius: 8px; margin: 20px 0; }
+                .verdict-true_positive { background: #fee2e2; color: #991b1b; border: 2px solid #ef4444; }
+                .verdict-false_positive { background: #dcfce7; color: #166534; border: 2px solid #22c55e; }
+                .verdict-benign_positive { background: #fef9c3; color: #854d0e; border: 2px solid #eab308; }
+                .summary-box { background: #f8fafc; border: 1px solid #e2e8f0; padding: 20px; border-radius: 8px; font-size: 14px; white-space: pre-wrap; }
+                .status-malicious { background: #ef4444!important; color: white!important; }
+                .status-suspicious { background: #f59e0b!important; color: white!important; }
+                .status-benign { background: #10b981!important; color: white!important; }
+                .timeline-table td { font-size: 11px; }
             </style>
         `;
 
@@ -286,6 +320,68 @@ export class ReportService {
                         `).join('')}
                     </tbody>
                 </table>
+            `;
+        } else if (type === 'INVESTIGATION_REPORT') {
+            const r = data;
+            content = `
+                <div class="header">
+                    <div class="logo">zcrAI Incident Response</div>
+                    <h1>${r.title}</h1>
+                    <p>Alert ID: ${data.alertId || 'N/A'}</p>
+                    <p>Generated: ${new Date(r.generatedAt).toLocaleString('th-TH')}</p>
+                </div>
+
+                <div class="verdict-banner verdict-${r.verdict.classification.toLowerCase()}">
+                    VERDICT: ${r.verdict.classification} (${r.verdict.confidence}%)
+                </div>
+
+                <h2>1. Executive Summary</h2>
+                <div class="summary-box">
+                    ${r.executiveSummary}
+                </div>
+
+                <h2>2. Incident Timeline</h2>
+                <table class="timeline-table">
+                    <thead><tr><th>Time</th><th>Activity</th></tr></thead>
+                    <tbody>
+                        ${r.incidentTimeline.map((t: any) => `
+                            <tr><td style="width:150px">${t.time}</td><td>${t.event}</td></tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+
+                <h2>3. Evidence Analysis</h2>
+                <table>
+                    <thead><tr><th>Entity</th><th>Analysis</th><th>Status</th></tr></thead>
+                    <tbody>
+                        ${r.evidenceAnalysis.map((e: any) => `
+                            <tr>
+                                <td><strong>${e.component}</strong></td>
+                                <td>${e.detail}</td>
+                                <td><span class="badge status-${e.status.toLowerCase()}">${e.status}</span></td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+
+                <h2>4. MITRE ATT&CK® Mapping</h2>
+                <div style="display:flex; flex-wrap:wrap; gap:10px; margin-top:15px;">
+                    ${r.mitreMapping.map((m: any) => `
+                        <div style="flex:1; min-width:200px; border:1px solid #e5e7eb; padding:10px; border-radius:5px; background:#f9fafb">
+                            <div style="font-weight:700; color:#4F46E5; font-size:10px;">${m.tactic}</div>
+                            <div style="font-size:12px; font-weight:700; margin:4px 0;">${m.technique}</div>
+                            <div style="font-size:11px; color:#6b7280;">${m.description}</div>
+                        </div>
+                    `).join('')}
+                </div>
+
+                <h2>5. Detailed Reasoning</h2>
+                <p>${r.verdict.reasoning}</p>
+
+                <h2>6. Recommended Actions</h2>
+                <ul style="font-size:14px;">
+                    ${r.recommendations.map((rec: string) => `<li>${rec}</li>`).join('')}
+                </ul>
             `;
         } else {
              content = `

@@ -52,21 +52,42 @@ export function AIMetricsWidget() {
     );
   }
 
-  if (error || !metrics) {
+  if (error) {
     return (
       <Card className="bg-content1/50 border border-white/5">
-        <CardBody className="p-4 text-center text-default-500">
+        <CardBody className="p-4 text-center text-foreground/50">
           <Icon.Alert className="w-6 h-6 mx-auto mb-2 text-warning" />
-          <p className="text-sm">{error || 'No AI metrics available'}</p>
+          <p className="text-sm">{error}</p>
         </CardBody>
       </Card>
     );
   }
 
+  // Guard against incomplete metrics data
+  if (!metrics || typeof metrics !== 'object') {
+    return (
+      <Card className="bg-content1/50 border border-white/5">
+        <CardBody className="p-4 text-center text-foreground/50">
+          <Icon.Cpu className="w-6 h-6 mx-auto mb-2 text-primary/50" />
+          <p className="text-sm">No AI metrics available</p>
+        </CardBody>
+      </Card>
+    );
+  }
+
+  // Safe extraction with fallbacks
+  const safeMetrics = {
+    autoCloseRate: Number(metrics.autoCloseRate) || 0,
+    autoBlockCount: Number(metrics.autoBlockCount) || 0,
+    avgConfidence: Number(metrics.avgConfidence) || 0,
+    truePositiveRate: Number(metrics.truePositiveRate) || 0,
+    totalAnalyzed: Number(metrics.totalAnalyzed) || 0,
+  };
+
   const metricCards = [
     {
       label: 'Auto-Close Rate',
-      value: `${metrics.autoCloseRate}%`,
+      value: `${safeMetrics.autoCloseRate}%`,
       icon: <Icon.Check className="w-5 h-5" />,
       color: 'from-emerald-500/20 to-emerald-500/5',
       textColor: 'text-emerald-500',
@@ -74,7 +95,7 @@ export function AIMetricsWidget() {
     },
     {
       label: 'Auto-Blocked',
-      value: metrics.autoBlockCount.toString(),
+      value: String(safeMetrics.autoBlockCount),
       icon: <Icon.Shield className="w-5 h-5" />,
       color: 'from-red-500/20 to-red-500/5',
       textColor: 'text-red-500',
@@ -82,7 +103,7 @@ export function AIMetricsWidget() {
     },
     {
       label: 'Avg Confidence',
-      value: `${metrics.avgConfidence}%`,
+      value: `${safeMetrics.avgConfidence}%`,
       icon: <Icon.Chart className="w-5 h-5" />,
       color: 'from-blue-500/20 to-blue-500/5',
       textColor: 'text-blue-500',
@@ -90,7 +111,7 @@ export function AIMetricsWidget() {
     },
     {
       label: 'True Positive Rate',
-      value: `${metrics.truePositiveRate}%`,
+      value: `${safeMetrics.truePositiveRate}%`,
       icon: <Icon.Alert className="w-5 h-5" />,
       color: 'from-orange-500/20 to-orange-500/5',
       textColor: 'text-orange-500',
@@ -108,8 +129,8 @@ export function AIMetricsWidget() {
             </div>
             <div>
               <h3 className="text-sm font-semibold text-foreground">AI SOC Performance</h3>
-              <p className="text-xs text-default-500">
-                {metrics.totalAnalyzed} alerts analyzed
+              <p className="text-xs text-foreground/50">
+                {metrics?.totalAnalyzed ?? 0} alerts analyzed
               </p>
             </div>
           </div>
@@ -126,7 +147,7 @@ export function AIMetricsWidget() {
             >
               <div className="flex items-center gap-2 mb-2">
                 <div className={`${metric.textColor}`}>{metric.icon}</div>
-                <span className="text-xs text-default-500 font-medium">{metric.label}</span>
+                <span className="text-xs text-foreground/50 font-medium">{metric.label}</span>
               </div>
               <p className={`text-2xl font-bold ${metric.textColor}`}>{metric.value}</p>
               <p className="text-[10px] text-default-400 mt-1">{metric.description}</p>

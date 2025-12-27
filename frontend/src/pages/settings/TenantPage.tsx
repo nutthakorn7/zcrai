@@ -4,6 +4,7 @@ import {
   Chip, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure 
 } from "@heroui/react";
 import { api } from "@/shared/api";
+import { ConfirmDialog } from "@/shared/ui";
 
 interface Tenant {
   id: string;
@@ -17,6 +18,8 @@ export default function TenantPage() {
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
   const [isLoading, setIsLoading] = useState(false);
   const [name, setName] = useState('');
+  const [tenantToSuspend, setTenantToSuspend] = useState<string | null>(null);
+  const [suspending, setSuspending] = useState(false);
 
   const fetchTenants = async () => {
     try {
@@ -46,13 +49,17 @@ export default function TenantPage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to suspend this tenant?')) return;
+  const confirmSuspend = async () => {
+    if (!tenantToSuspend) return;
+    setSuspending(true);
     try {
-      await api.delete(`/tenants/${id}`);
+      await api.delete(`/tenants/${tenantToSuspend}`);
       fetchTenants();
     } catch (error) {
       alert('Failed to suspend tenant');
+    } finally {
+      setSuspending(false);
+      setTenantToSuspend(null);
     }
   };
 
@@ -81,7 +88,7 @@ export default function TenantPage() {
                     </Chip>
                   </TableCell>
                   <TableCell>
-                    <Button size="sm" color="danger" variant="light" onPress={() => handleDelete(tenant.id)}>
+                    <Button size="sm" color="danger" variant="light" onPress={() => setTenantToSuspend(tenant.id)}>
                       Suspend
                     </Button>
                   </TableCell>
@@ -113,6 +120,17 @@ export default function TenantPage() {
           )}
         </ModalContent>
       </Modal>
+
+      <ConfirmDialog 
+        isOpen={!!tenantToSuspend}
+        onClose={() => setTenantToSuspend(null)}
+        onConfirm={confirmSuspend}
+        title="Suspend Tenant"
+        description="Are you sure you want to suspend this tenant? They will lose access immediately."
+        confirmLabel="Suspend"
+        confirmColor="danger"
+        isLoading={suspending}
+      />
     </div>
   );
 }

@@ -152,4 +152,11 @@ export const AlertsAPI = {
     const response = await api.get('/alerts/stats/summary');
     return response.data.data;
   },
+
+  exportReport: async (id: string) => {
+    const response = await api.get(`/reports/investigation/${id}`, {
+      responseType: 'blob'
+    });
+    return response.data;
+  }
 };

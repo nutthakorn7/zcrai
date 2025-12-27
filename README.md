@@ -42,7 +42,7 @@
 - **Global IOC Hunt**: Search for Indicators of Compromise across all tenants in milliseconds using ClickHouse Bloom Filters.
 
 ### 🛡️ Enterprise Governance & Security
-- **Role-Based Access Control (RBAC)**: Granular permissions for Admins, Analysts, and Viewers with custom role support.
+- **Role-Based Access Control (RBAC)**: Granular permissions for Admins, Analysts, and Viewers via [Permission System](docs/ACCESS_CONTROL.md).
 - **Audit Logging**: Immutable logs for all critical actions (User changes, Quota updates, Integration edits) for compliance.
 - **Tenant Management**: Enforce strict quotas on Users, API Usage, and Storage per tenant.
 - **Security Hardening**: Built-in rate limiting (300 req/min) and strict Helmet headers (HSTS, CSP).

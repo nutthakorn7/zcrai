@@ -78,14 +78,14 @@ export function MitreHeatmapWidget({ data }: MitreHeatmapProps) {
 
   // 2. Heatmap Color Logic
   const getColor = (count: number) => {
-    if (count > 50) return 'bg-[#EF4444] text-white hover:bg-[#DC2626]'; // Critical (Red)
-    if (count > 20) return 'bg-[#F97316] text-white hover:bg-[#EA580C]'; // High (Orange)
-    if (count > 5) return 'bg-[#EAB308] text-black hover:bg-[#CA8A04]'; // Medium (Yellow)
-    return 'bg-[#3F3F46] text-white hover:bg-[#52525B]'; // Low (Zinc/Gray)
+    if (count > 50) return 'bg-red-500 text-white hover:bg-red-600 shadow-lg shadow-red-500/20'; // Critical
+    if (count > 20) return 'bg-orange-500 text-white hover:bg-orange-600 shadow-md shadow-orange-500/10'; // High
+    if (count > 5) return 'bg-yellow-500 text-black hover:bg-yellow-600 shadow-sm shadow-yellow-500/5'; // Medium
+    return 'bg-zinc-700/50 text-foreground/70 hover:bg-zinc-600 hover:text-foreground'; // Low
   };
 
   return (
-    <Card className="bg-content1/50 border border-white/5 w-full overflow-hidden">
+    <Card className="bg-content1/30 border border-white/5 w-full overflow-hidden backdrop-blur-sm">
         <CardBody className="p-0">
             <div className="w-full">
                 <div className="grid divide-x divide-white/5" style={{ gridTemplateColumns: 'repeat(14, minmax(0, 1fr))' }}>
@@ -97,11 +97,11 @@ export function MitreHeatmapWidget({ data }: MitreHeatmapProps) {
                         return (
                             <div key={tactic} className="w-full flex flex-col items-center min-h-[350px]">
                                 {/* Header */}
-                                <div className={`w-full py-2 px-1 text-center border-b border-white/5 ${hasCurrentThreats ? 'bg-white/5' : ''}`}>
-                                    <h3 className={`text-[9px] font-bold uppercase tracking-tight leading-tight mb-1 break-words h-8 flex items-center justify-center ${hasCurrentThreats ? 'text-foreground' : 'text-default-400'}`}>
+                                <div className={`w-full py-2 px-1 text-center border-b border-white/5 ${hasCurrentThreats ? 'bg-primary/5' : ''}`}>
+                                    <h3 className={`text-[9px] font-bold uppercase tracking-tight leading-tight mb-1 break-words h-8 flex items-center justify-center ${hasCurrentThreats ? 'text-primary' : 'text-foreground/40'}`}>
                                         {tactic}
                                     </h3>
-                                    <div className={`text-[9px] font-mono ${hasCurrentThreats ? 'text-primary' : 'text-default-500'}`}>
+                                    <div className={`text-[9px] font-mono ${hasCurrentThreats ? 'text-primary' : 'text-foreground/30'}`}>
                                         {totalCount}
                                     </div>
                                 </div>
@@ -114,27 +114,28 @@ export function MitreHeatmapWidget({ data }: MitreHeatmapProps) {
                                                 key={idx} 
                                                 content={
                                                     <div className="px-1 py-1">
-                                                        <div className="font-bold">{item.mitre_technique}</div>
-                                                        <div className="text-xs text-default-400">Attempts: {item.count}</div>
+                                                        <div className="font-bold text-sm text-foreground">{item.mitre_technique || 'Unknown Technique'}</div>
+                                                        <div className="text-xs text-foreground/50">Attempts: {item.count || 0}</div>
+                                                        <div className="text-[10px] text-primary mt-1">Click to view alerts</div>
                                                     </div>
                                                 }
-                                                className="bg-content1 border border-white/10"
+                                                className="bg-content2 border border-white/10"
                                             >
                                                 <div 
-                                                    onClick={() => navigate(`/detections?technique=${encodeURIComponent(item.mitre_technique)}`)}
+                                                    onClick={() => navigate(`/alerts?technique=${encodeURIComponent(item.mitre_technique || '')}`)}
                                                     className={`
-                                                        w-full p-1.5 rounded text-[9px] leading-tight font-medium transition-all cursor-pointer truncate
-                                                        ${getColor(parseInt(item.count))}
-                                                        border border-black/10 shadow-sm
+                                                        w-full p-1.5 rounded text-[9px] leading-tight font-bold transition-all cursor-pointer truncate
+                                                        ${getColor(parseInt(item.count || '0') || 0)}
+                                                        border border-white/5
                                                     `}
                                                 >
-                                                    {item.mitre_technique}
+                                                    {item.mitre_technique || 'Unknown'}
                                                 </div>
                                             </Tooltip>
                                         ))
                                     ) : (
-                                        <div className="h-full flex items-center justify-center opacity-5">
-                                            <div className="w-0.5 h-0.5 rounded-full bg-current" />
+                                        <div className="h-full flex items-center justify-center opacity-10">
+                                            <div className="w-0.5 h-0.5 rounded-full bg-foreground" />
                                         </div>
                                     )}
                                 </div>

@@ -65,17 +65,20 @@ describe('SubscriptionPage', () => {
             expect(screen.getByText('Pro')).toBeInTheDocument();
         });
 
-        // Find Upgrade button for Pro (PlanCard button)
-        // Since we have multiple buttons, we can look for specific text or role within the Pro card
-        // Simplified: The Pro card has price $499/mo. We can look for the button relative to that.
-        // Or cleaner: get all "Upgrade" buttons. Index 1 should be Pro (Free, Pro, Enterprise)
-        // But Free is current, so it says "Current Plan". So there are only 2 upgrade buttons.
-        
+        // Click Upgrade Button
         const upgradeButtons = screen.getAllByText('Upgrade');
-        fireEvent.click(upgradeButtons[0]); // First upgrade button (Pro)
+        fireEvent.click(upgradeButtons[0]); // Pro Plan
 
-        expect(mockConfirm).toHaveBeenCalledWith(expect.stringContaining('PRO'));
-        
+        // Expect ConfirmDialog to appear
+        await waitFor(() => {
+            expect(screen.getByText('Change Subscription Plan')).toBeInTheDocument();
+            expect(screen.getByText(/Are you sure you want to switch to the PRO plan/i)).toBeInTheDocument();
+        });
+
+        // Click Confirm inside the dialog
+        // Assuming ConfirmDialog renders a button with "Confirm Change"
+        fireEvent.click(screen.getByText('Confirm Change'));
+
         await waitFor(() => {
             expect(BillingAPI.subscribe).toHaveBeenCalledWith('pro');
             expect(mockAlert).toHaveBeenCalledWith('Subscription updated successfully!');

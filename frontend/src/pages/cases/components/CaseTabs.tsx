@@ -5,6 +5,7 @@ import { Icon } from '../../../shared/ui';
 import { ActivityTimeline } from '../../../components/cases/ActivityTimeline';
 import { EvidenceTab } from '../../../components/EvidenceTab';
 import { ForensicsTab } from '../../../components/ForensicsTab';
+import { AgentTraceTimeline } from '../../../components/alerts/AgentTraceTimeline';
 
 interface CaseTabsProps {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -51,7 +52,7 @@ export const CaseTabs = ({
                 <div className="flex flex-col gap-6 mt-4">
                     <Card className="p-5 bg-content1 border border-white/5">
                         <h3 className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em] mb-3">Description</h3>
-                        <p className="text-gray-300 whitespace-pre-wrap">{caseItem.description || 'No description provided.'}</p>
+                        <p className="text-foreground/70 whitespace-pre-wrap">{caseItem.description || 'No description provided.'}</p>
                     </Card>
 
                     {/* Comments */}
@@ -103,7 +104,7 @@ export const CaseTabs = ({
                         <TableBody>
                             {caseItem.history?.map((h: any) => (
                                 <TableRow key={h.id}>
-                                    <TableCell className="whitespace-nowrap text-gray-400">
+                                    <TableCell className="whitespace-nowrap text-foreground/60">
                                         {new Date(h.createdAt).toLocaleString()}
                                     </TableCell>
                                     <TableCell>
@@ -119,7 +120,7 @@ export const CaseTabs = ({
                         </TableBody>
                         </Table>
                         {(!caseItem.history || caseItem.history.length === 0) && (
-                        <div className="text-center p-8 text-gray-500">No audit logs available.</div>
+                        <div className="text-center p-8 text-foreground/50">No audit logs available.</div>
                         )}
                 </div>
             </Tab>
@@ -219,6 +220,18 @@ export const CaseTabs = ({
                             <Icon.ArrowUpRight className="w-4 h-4" />
                         </Button>
                     </div>
+                </div>
+            </Tab>
+
+            <Tab key="traces" title="🔎 AI Traces">
+                <div className="mt-4">
+                    <Card className="p-6 bg-content1/50 border border-white/5">
+                        <div className="mb-6">
+                            <h3 className="text-lg font-bold font-display text-foreground/90">Agent Trace Log</h3>
+                            <p className="text-sm text-foreground/50 mt-1">Real-time "Chain of Thought" for the case investigation.</p>
+                        </div>
+                        <AgentTraceTimeline caseId={caseItem.id} />
+                    </Card>
                 </div>
             </Tab>
         </Tabs>

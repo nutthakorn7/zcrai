@@ -1,6 +1,6 @@
 import { Elysia, t } from 'elysia'
 import { ThreatHuntService } from '../core/services/threat-hunt.service'
-import { withAuth } from '../middleware/auth'
+import { withAuth, withPermission } from '../middleware/auth'
 import { GeminiService } from '../core/ai/gemini.provider'
 
 export const huntingController = new Elysia({ prefix: '/hunting' })
@@ -11,14 +11,10 @@ export const huntingController = new Elysia({ prefix: '/hunting' })
    * @route POST /hunting/query
    */
   .post('/query', async ({ user, body }: any) => {
-      // Role check: Only Analyst+ (TODO: Implement granular Permissions)
-      if (user.role === 'customer') {
-          throw new Error('Unauthorized: Hunting requires analyst privileges')
-      }
-
       const results = await ThreatHuntService.runQuery(user.tenantId, body.query)
       return { success: true, data: results }
   }, {
+      beforeHandle: [withPermission('hunting.run_query') as any],
       body: t.Object({
           query: t.String()
       })
@@ -29,9 +25,6 @@ export const huntingController = new Elysia({ prefix: '/hunting' })
    * @route POST /hunting/sigma
    */
   .post('/sigma', async ({ user, body }: any) => {
-       if (user.role === 'customer') {
-          throw new Error('Unauthorized: Hunting requires analyst privileges')
-      }
 
       const { sql, rule } = await ThreatHuntService.parseSigma(user.tenantId, body.yaml)
       
@@ -49,6 +42,7 @@ export const huntingController = new Elysia({ prefix: '/hunting' })
           }
       }
   }, {
+      beforeHandle: [withPermission('hunting.run_query') as any],
       body: t.Object({
           yaml: t.String(),
           execute: t.Optional(t.Boolean())
@@ -60,10 +54,6 @@ export const huntingController = new Elysia({ prefix: '/hunting' })
    * @route POST /hunting/natural
    */
   .post('/natural', async ({ user, body }: any) => {
-      if (user.role === 'customer') {
-          throw new Error('Unauthorized: Hunting requires analyst privileges')
-      }
-
       const { question, execute } = body;
 
       // Build prompt for Gemini with ACTUAL column names from ClickHouse
@@ -121,6 +111,7 @@ SQL Query:`;
           throw new Error(`AI Query Generation Failed: ${error.message}`);
       }
   }, {
+      beforeHandle: [withPermission('hunting.run_query') as any],
       body: t.Object({
           question: t.String(),
           execute: t.Optional(t.Boolean())
@@ -132,10 +123,6 @@ SQL Query:`;
    * @route POST /hunting/suggestions
    */
   .post('/suggestions', async ({ user, body }: any) => {
-      if (user.role === 'customer') {
-          throw new Error('Unauthorized: Hunting requires analyst privileges')
-      }
-
       const { originalQuestion, resultSummary, topValues } = body;
 
       const prompt = `You are a security analyst assistant. Based on the user's original question and query results, suggest 3-5 relevant follow-up questions for deeper investigation.
@@ -187,6 +174,7 @@ Follow-up questions:`;
           };
       }
   }, {
+      beforeHandle: [withPermission('hunting.view_results') as any],
       body: t.Object({
           originalQuestion: t.String(),
           resultSummary: t.String(),

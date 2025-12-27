@@ -30,14 +30,14 @@ export class EmbeddingService {
         const vector = await this.embed(content);
         if (vector.length === 0) return;
 
+        // Delete existing (Manual Upsert)
+        await db.delete(alertEmbeddings).where(eq(alertEmbeddings.alertId, alertId));
+
         await db.insert(alertEmbeddings).values({
             alertId,
             tenantId,
             content,
             vector
-        }).onConflictDoUpdate({
-            target: alertEmbeddings.alertId,
-            set: { content, vector }
         });
     }
 

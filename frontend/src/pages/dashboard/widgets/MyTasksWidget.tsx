@@ -39,7 +39,7 @@ export function MyTasksWidget() {
   }, [user]);
 
   const getSeverityColor = (severity: string) => {
-    switch (severity.toLowerCase()) {
+    switch ((severity || '').toLowerCase()) {
       case 'critical': return 'text-danger';
       case 'high': return 'text-warning';
       case 'medium': return 'text-primary';
@@ -49,7 +49,7 @@ export function MyTasksWidget() {
   };
 
     const getSeverityBg = (severity: string) => {
-    switch (severity.toLowerCase()) {
+    switch ((severity || '').toLowerCase()) {
       case 'critical': return 'bg-danger/10 border-danger/20';
       case 'high': return 'bg-warning/10 border-warning/20';
       case 'medium': return 'bg-primary/10 border-primary/20';
@@ -106,11 +106,11 @@ export function MyTasksWidget() {
                             onClick={() => navigate(`/detections?id=${task.id}`)}
                         >
                             <div className="flex justify-between items-start mb-1">
-                                <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border ${getSeverityBg(task.severity)} ${getSeverityColor(task.severity)}`}>
-                                    {task.severity}
+                                <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border ${getSeverityBg(task.severity || 'low')} ${getSeverityColor(task.severity || 'low')}`}>
+                                    {task.severity || 'low'}
                                 </span>
                                 <span className="text-xs text-foreground/50 font-mono">
-                                    {new Date(task.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                    {new Date(task.createdAt || Date.now()).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                                 </span>
                             </div>
                             <h3 className="font-medium text-foreground group-hover:text-primary transition-colors line-clamp-1 mb-1">
@@ -131,10 +131,10 @@ export function MyTasksWidget() {
                         >
                             <div className="flex justify-between items-start mb-1">
                                 <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border ${getSeverityBg(c.priority === 'P1' ? 'critical' : c.priority === 'P2' ? 'high' : 'medium')} ${getSeverityColor(c.priority === 'P1' ? 'critical' : c.priority === 'P2' ? 'high' : 'medium')}`}>
-                                    {c.priority}
+                                    {c.priority || 'P3'}
                                 </span>
                                 <span className="text-xs text-foreground/50 font-mono">
-                                    {new Date(c.updatedAt).toLocaleDateString()}
+                                    {new Date(c.updatedAt || Date.now()).toLocaleDateString()}
                                 </span>
                             </div>
                             <h3 className="font-medium text-foreground group-hover:text-warning transition-colors line-clamp-1 mb-1">

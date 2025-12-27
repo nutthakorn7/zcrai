@@ -50,6 +50,8 @@ import { threatIntelController } from './controllers/threat-intel.controller'
 import { systemController } from './controllers/system.controller'
 import { billingController } from './controllers/billing.controller'
 import { detectionRuleController } from './controllers/detection-rule.controller'
+import { soarController } from './controllers/soar.controller'
+import { aiTraceController } from './controllers/ai-trace.controller'
 import { SchedulerService } from './core/services/scheduler.service'
 
 
@@ -215,7 +217,11 @@ const app = new Elysia()
   .use(rateLimit({
      duration: 60000, // 1 minute
      max: 300, // Relaxed global limit (API heavy usage)
-     // responseMessage not supported in some versions, using default
+     generator: (request, server) => {
+       const xForwardedFor = request.headers.get('x-forwarded-for')
+       if (xForwardedFor) return xForwardedFor.split(',')[0].trim()
+       return server?.requestIP(request)?.address || 'unknown'
+     },
   }))
   .use(monitoringController) // Public Monitoring Endpoints
   .use(authController)
@@ -260,6 +266,8 @@ const app = new Elysia()
   .use(msspController) // MSSP Global Views
   .use(automationController) // AI Autopilot & Autonomous Actions
   .use(simulationController) // Attack Simulation for AI SOC Verification
+  .use(soarController) // SOAR readiness & mock actions
+  .use(aiTraceController) // AI Trace & Observability
   // .get('/health', () => ({ status: 'ok', timestamp: new Date().toISOString() })) // Moved to monitoringController
 
 if (import.meta.main) {

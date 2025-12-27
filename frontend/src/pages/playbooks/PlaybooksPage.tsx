@@ -5,7 +5,7 @@ import {
   Textarea, ScrollShadow,
   Spinner
 } from "@heroui/react";
-import { Icon } from '../../shared/ui';
+import { Icon, PageHeader, ConfirmDialog } from '../../shared/ui';
 import { PlaybooksAPI, Playbook } from '@/shared/api';
 import PlaybookEditor from './PlaybookEditor';
 
@@ -30,6 +30,9 @@ export default function PlaybooksPage() {
 
   // Selected Playbook for Editing
   const [selectedPlaybook, setSelectedPlaybook] = useState<Playbook | null>(null);
+  
+  // Delete confirm state
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   
   useEffect(() => {
     loadPlaybooks();
@@ -86,10 +89,13 @@ export default function PlaybooksPage() {
       setSelectedPlaybook(updated);
   };
 
-  const handleDelete = async () => {
+  const handleDeleteClick = () => {
       if (!selectedPlaybook) return;
-      if (!confirm('Are you sure you want to delete this playbook?')) return;
-      
+      setDeleteConfirmOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+      if (!selectedPlaybook) return;
       try {
           await PlaybooksAPI.delete(selectedPlaybook.id);
           setPlaybooks(playbooks.filter(p => p.id !== selectedPlaybook.id));
@@ -97,24 +103,24 @@ export default function PlaybooksPage() {
       } catch (e) {
           console.error(e);
           alert('Failed to delete playbook');
+      } finally {
+          setDeleteConfirmOpen(false);
       }
   };
 
   return (
     <div className="h-screen bg-background flex flex-col overflow-hidden animate-fade-in">
        {/* Page Header */}
-       <div className="p-6 border-b border-white/5 flex justify-between items-center">
-         <div>
-           <h1 className="text-3xl font-bold font-display tracking-tight text-foreground">Automation Playbooks</h1>
-           <p className="text-sm mt-1 text-foreground/60">Design and manage security automation workflows</p>
-         </div>
-         <Button 
-           color="primary" 
-           onPress={handleOpenCreate}
-           startContent={<Icon.Add className="w-4 h-4" />}
-         >
-           New Playbook
-         </Button>
+       <div className="p-6 border-b border-white/5">
+         <PageHeader title="Automation Playbooks" description="Design and manage security automation workflows">
+           <Button 
+             color="primary" 
+             onPress={handleOpenCreate}
+             startContent={<Icon.Add className="w-4 h-4" />}
+           >
+             New Playbook
+           </Button>
+         </PageHeader>
        </div>
 
        {/* Main Content */}
@@ -196,7 +202,7 @@ export default function PlaybooksPage() {
             playbook={selectedPlaybook}
             onClose={() => setSelectedPlaybook(null)}
             onUpdate={handleUpdate}
-            onDelete={handleDelete}
+            onDelete={handleDeleteClick}
            />
        ) : (
            <div className="flex-1 flex flex-col items-center justify-center text-foreground/60 pt-16">
@@ -245,6 +251,16 @@ export default function PlaybooksPage() {
           )}
         </ModalContent>
       </Modal>
+
+      <ConfirmDialog
+        isOpen={deleteConfirmOpen}
+        onClose={() => setDeleteConfirmOpen(false)}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Playbook"
+        description="Are you sure you want to delete this playbook?"
+        confirmLabel="Delete"
+        confirmColor="danger"
+      />
     </div>
   );
 }

@@ -1,184 +1,122 @@
-import { db } from '../../infra/db'
-import { soarActions, alerts } from '../../infra/db/schema'
-import { eq, desc, and } from 'drizzle-orm'
+import { db } from '../../infra/db';
+import { integrationSecrets, soarActions } from '../../infra/db/schema';
+import { eq, and, desc } from 'drizzle-orm';
+import { EncryptionUtil } from '../utils/encryption.util';
 
-export type SoarActionType = 'BLOCK_IP' | 'ISOLATE_HOST' | 'QUARANTINE_FILE' | 'KILL_PROCESS' | 'DUMP_MEMORY'
-
-export interface SoarActionParams {
-  tenantId: string
-  caseId?: string
-  alertId?: string
-  actionType: SoarActionType
-  provider: string
-  target: string
-  triggeredBy?: 'ai' | 'user' | 'playbook'
-  userId?: string
+export interface SOARActionRequest {
+  alertId?: string;
+  caseId?: string;
+  actionType: 'BLOCK_IP' | 'ISOLATE_HOST' | 'RESCIND_EMAIL' | 'KILL_PROCESS';
+  provider: string;
+  target: string;
+  userId: string;
 }
 
-export class SoarService {
+/**
+ * SOARService manages third-party integrations and active response actions.
+ * In this phase, actions are mocked to ensure safety during development.
+ */
+export const SOARService = {
   /**
-   * Execute a security action and log it
+   * Save or update integration credentials (encrypted)
    */
-  static async execute(params: SoarActionParams): Promise<any> {
-    console.log(`[SoarService] Executing action: ${params.actionType} on ${params.target} via ${params.provider}`);
+  async saveCredentials(tenantId: string, provider: string, data: any) {
+    const encrypted = EncryptionUtil.encrypt(JSON.stringify(data));
+    
+    const existing = await db.select().from(integrationSecrets)
+        .where(and(eq(integrationSecrets.tenantId, tenantId), eq(integrationSecrets.provider, provider)))
+        .limit(1);
 
-    // 1. Create Initial Log Entry
-    const [actionLog] = await db.insert(soarActions).values({
-      tenantId: params.tenantId,
-      caseId: params.caseId,
-      alertId: params.alertId,
-      actionType: params.actionType,
-      provider: params.provider,
-      target: params.target,
+    if (existing.length > 0) {
+        return await db.update(integrationSecrets)
+            .set({ credentials: encrypted, updatedAt: new Date() })
+            .where(eq(integrationSecrets.id, existing[0].id));
+    }
+
+    return await db.insert(integrationSecrets).values({
+      tenantId,
+      provider,
+      credentials: encrypted,
+    });
+  },
+
+  /**
+   * List configured integrations for a tenant (redacted credentials)
+   */
+  async listIntegrations(tenantId: string) {
+    const secrets = await db.select().from(integrationSecrets)
+        .where(eq(integrationSecrets.tenantId, tenantId));
+    
+    return secrets.map(s => ({
+        id: s.id,
+        provider: s.provider,
+        isActive: s.isActive,
+        createdAt: s.createdAt,
+        updatedAt: s.updatedAt
+    }));
+  },
+
+  /**
+   * Execute an active response action.
+   * Performs mock execution with an artificial delay.
+   */
+  async executeAction(tenantId: string, req: SOARActionRequest) {
+    // 1. Log the initiation of the action
+    const [action] = await db.insert(soarActions).values({
+      tenantId,
+      alertId: req.alertId,
+      caseId: req.caseId,
+      actionType: req.actionType,
+      provider: req.provider,
+      target: req.target,
       status: 'in_progress',
-      triggeredBy: params.triggeredBy || 'ai',
-      userId: params.userId,
+      triggeredBy: 'user',
+      userId: req.userId,
     }).returning();
 
-    try {
-      let result: any;
-
-      // 2. Dispatch to Provider-specific Logic
-      // In a real implementation, this would call actual provider APIs (S1, CS, Firewall)
-      // For Phase 14, we will use our existing service placeholders or simulated responses
-      switch (params.actionType) {
-        case 'BLOCK_IP':
-          result = await this.blockIp(params);
-          break;
-        case 'ISOLATE_HOST':
-          result = await this.isolateHost(params);
-          break;
-        case 'QUARANTINE_FILE':
-          result = await this.quarantineFile(params);
-          break;
-        case 'KILL_PROCESS':
-          result = await this.killProcess(params);
-          break;
-        default:
-          throw new Error(`Action type ${params.actionType} not implemented yet`);
-      }
-
-      // 3. Update Status to Completed
-      await db.update(soarActions)
-        .set({ 
-          status: 'completed', 
-          result,
-          updatedAt: new Date() 
-        })
-        .where(eq(soarActions.id, actionLog.id));
-
-      return result;
-    } catch (error: any) {
-      console.error(`[SoarService] Action Failed:`, error);
-      
-      // 4. Update Status to Failed
-      await db.update(soarActions)
-        .set({ 
-          status: 'failed', 
-          error: error.message,
-          updatedAt: new Date() 
-        })
-        .where(eq(soarActions.id, actionLog.id));
-
-      throw error;
-    }
-  }
-
-  // --- Provider Mapping Placeholder Methods ---
-
-  private static async blockIp(params: SoarActionParams) {
-    // Logic to call Fortigate, Cisco, or EDR firewall
-    // For now, simulate success
-    return {
-      status: 'success',
-      provider_response: `IP ${params.target} blocked on ${params.provider} firewall`,
-      timestamp: new Date().toISOString()
-    };
-  }
-
-  private static async isolateHost(params: SoarActionParams) {
-    // Logic to call S1 or CS isolation API
-    const sensorId = params.target;
+    // 2. Mock execution with delay to simulate API latency
+    console.log(`[SOAR] Executing ${req.actionType} on ${req.target} via ${req.provider}...`);
     
-    // Simulate API call
-    return {
-      status: 'success',
-      provider_response: `Host ${sensorId} network isolated via ${params.provider}`,
-      isolation_token: `iso-${Math.random().toString(36).substr(2, 9)}`,
-      timestamp: new Date().toISOString()
-    };
-  }
+    return new Promise((resolve) => {
+        setTimeout(async () => {
+            const result = {
+                message: `Action ${req.actionType} executed successfully on ${req.target}`,
+                mocked: true,
+                providerResponse: { 
+                    status: 'mock_success', 
+                    taskId: Math.random().toString(36).substring(7),
+                    timestamp: new Date().toISOString()
+                }
+            };
 
-  private static async quarantineFile(params: SoarActionParams) {
-    // Logic to call EDR file quarantine API
-    return {
-      status: 'success',
-      provider_response: `File ${params.target} quarantined on host via ${params.provider}`,
-      timestamp: new Date().toISOString()
-    };
-  }
+            await db.update(soarActions)
+                .set({
+                    status: 'completed',
+                    result,
+                    updatedAt: new Date()
+                })
+                .where(eq(soarActions.id, action.id));
 
-  private static async killProcess(params: SoarActionParams) {
-    // Logic to call EDR process termination API
-    return {
-      status: 'success',
-      provider_response: `Process ${params.target} terminated on host via ${params.provider}`,
-      timestamp: new Date().toISOString()
-    };
-  }
-
-  /**
-   * List recent actions for a tenant
-   */
-  static async listActions(tenantId: string, limit = 50) {
-    return await db.query.soarActions.findMany({
-      where: eq(soarActions.tenantId, tenantId),
-      orderBy: (actions, { desc }) => [desc(actions.createdAt)],
-      limit
+            resolve({ success: true, actionId: action.id, result });
+        }, 1500);
     });
-  }
+  },
 
   /**
-   * Get actions joined with alert data for the Autopilot feed
+   * Retrieve audit logs of SOAR actions for a tenant
    */
-  static async getRecentAutopilotActions(tenantId: string, limit = 20) {
-    const results = await db.select({
-      id: soarActions.id,
-      actionType: soarActions.actionType,
-      target: soarActions.target,
-      status: soarActions.status,
-      triggeredBy: soarActions.triggeredBy,
-      createdAt: soarActions.createdAt,
-      alertTitle: alerts.title,
-      alertSeverity: alerts.severity,
-      aiAnalysis: alerts.aiAnalysis,
-      result: soarActions.result,
-      error: soarActions.error
-    })
-    .from(soarActions)
-    .leftJoin(alerts, eq(soarActions.alertId, alerts.id))
-    .where(eq(soarActions.tenantId, tenantId))
-    .orderBy(desc(soarActions.createdAt))
-    .limit(limit);
-
-    return results;
-  }
+  async getActionLogs(tenantId: string, limit = 20) {
+      return await db.select().from(soarActions)
+          .where(eq(soarActions.tenantId, tenantId))
+          .orderBy(desc(soarActions.createdAt))
+          .limit(limit);
+  },
 
   /**
-   * Calculate Autopilot ROI Stats
+   * Delete integration credentials
    */
-  static async getAutopilotStats(tenantId: string) {
-    const actions = await db.select()
-      .from(soarActions)
-      .where(and(eq(soarActions.tenantId, tenantId), eq(soarActions.status, 'completed')));
-    
-    const totalRemediations = actions.length;
-    const timeSavedMinutes = totalRemediations * 15; // Assumption: 15 mins saved per automated action
-    
-    return {
-      totalRemediations,
-      timeSavedMinutes,
-      threatsBlocked: actions.filter(a => a.actionType === 'BLOCK_IP' || a.actionType === 'ISOLATE_HOST').length
-    };
+  async deleteIntegration(tenantId: string, id: string) {
+      return await db.delete(integrationSecrets)
+          .where(and(eq(integrationSecrets.id, id), eq(integrationSecrets.tenantId, tenantId)));
   }
-}
+};

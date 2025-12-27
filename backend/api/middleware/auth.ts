@@ -12,6 +12,11 @@ import { jwt } from '@elysiajs/jwt';
 export { authGuard, tenantGuard, auditLogger, protectedRoute } from '../middlewares/auth.middleware';
 export { requireRole, superAdminOnly, tenantAdminOnly, socAnalystOnly, anyAuthenticated } from '../middlewares/auth.middleware';
 
+import { hasRolePermission, PERMISSIONS } from '../core/access/access-control';
+import type { Permission } from '../core/access/access-control';
+export { hasRolePermission, PERMISSIONS };
+export type { Permission };
+
 // User payload type from JWT
 export interface JWTUserPayload {
   userId: string;
@@ -73,10 +78,43 @@ export const withAuth = (app: Elysia) => app
       return { user: null };
     }
   })
-  .onBeforeHandle(({ user, set }: any) => {
+  .onBeforeHandle(async ({ user, set }: any) => {
     if (!user) {
       set.status = 401;
       throw new Error('Unauthorized: Valid authentication token required');
+    }
+
+    // Tenant-aware Rate Limiting
+    try {
+      const { TenantRateLimitService } = await import('../core/services/tenant-rate-limit.service');
+      
+      // Map user roles to usage tiers
+      let tier: 'free' | 'pro' | 'enterprise' = 'free';
+      if (user.role === 'admin' || user.role === 'soc_analyst') tier = 'pro';
+      if (user.role === 'superadmin' || user.tenantId === 'system') tier = 'enterprise';
+
+      const status = await TenantRateLimitService.checkLimit(user.tenantId, tier);
+      
+      if (!status.allowed) {
+        set.status = 429;
+        set.headers['Retry-After'] = Math.ceil((status.reset - Date.now()) / 1000).toString();
+        set.headers['X-RateLimit-Limit'] = status.total.toString();
+        set.headers['X-RateLimit-Remaining'] = '0';
+        set.headers['X-RateLimit-Reset'] = status.reset.toString();
+        
+        return { 
+          error: 'Too Many Requests', 
+          message: 'Tenant API rate limit exceeded. Please try again later or upgrade your plan.',
+          resetAt: new Date(status.reset).toISOString()
+        };
+      }
+
+      // Add rate limit headers to response
+      set.headers['X-RateLimit-Limit'] = status.total.toString();
+      set.headers['X-RateLimit-Remaining'] = status.remaining.toString();
+      set.headers['X-RateLimit-Reset'] = status.reset.toString();
+    } catch (e) {
+      console.error('[Auth] Rate limiting check failed (failing open):', e);
     }
   });
 
@@ -123,5 +161,22 @@ export const withOptionalAuth = new Elysia({ name: 'optional-auth-middleware' })
       return { user: payload as JWTUserPayload | null };
     } catch {
       return { user: null };
+    }
+  });
+
+/**
+ * Permission-based authorization middleware
+ */
+export const withPermission = (permission: Permission) => (app: Elysia) => app
+  .use(withAuth)
+  .onBeforeHandle(({ user, set }: any) => {
+    if (!user) {
+      set.status = 401;
+      throw new Error('Unauthorized: Valid authentication token required');
+    }
+
+    if (!hasRolePermission(user.role, permission)) {
+      set.status = 403;
+      throw new Error(`Forbidden: Missing permission '${permission}'`);
     }
   });

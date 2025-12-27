@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { Card, CardBody, Button, Input, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure, Chip, Select, SelectItem, Switch, Divider } from "@heroui/react";
 import { api } from "@/shared/api";
 import { usePageContext } from "@/contexts/PageContext";
-import { Icon } from '../../shared/ui';
+import { Icon, ConfirmDialog } from '../../shared/ui';
 import toast from 'react-hot-toast';
 
 // ⭐ Import Logos
@@ -399,6 +399,10 @@ export default function IntegrationPage() {
   
   // 🔌 Reconnect State
   const [reconnectingId, setReconnectingId] = useState<string | null>(null);
+
+  // Delete Confirm State
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [integrationToDelete, setIntegrationToDelete] = useState<{ id: string; provider: string } | null>(null);
 
   const fetchIntegrations = useCallback(async () => {
     try {
@@ -826,17 +830,25 @@ export default function IntegrationPage() {
     }
   };
 
-  const handleDelete = async (id: string, provider: string) => {
-    if (!confirm('Are you sure you want to delete this integration?')) return;
+  const handleDeleteClick = (id: string, provider: string) => {
+    setIntegrationToDelete({ id, provider });
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!integrationToDelete) return;
     try {
-      if (provider === 'aws' || provider === 'm365') {
-          await api.delete(`/cloud/integrations/${id}`);
+      if (integrationToDelete.provider === 'aws' || integrationToDelete.provider === 'm365') {
+          await api.delete(`/cloud/integrations/${integrationToDelete.id}`);
       } else {
-          await api.delete(`/integrations/${id}`);
+          await api.delete(`/integrations/${integrationToDelete.id}`);
       }
       fetchIntegrations();
     } catch (error) {
       alert('Failed to delete integration');
+    } finally {
+      setDeleteConfirmOpen(false);
+      setIntegrationToDelete(null);
     }
   };
 
@@ -1078,7 +1090,7 @@ export default function IntegrationPage() {
                       variant="flat" 
                       className="bg-danger/10 hover:bg-danger/20 text-danger" 
                       isIconOnly 
-                      onPress={() => handleDelete(int.id, int.provider)}
+                      onPress={() => handleDeleteClick(int.id, int.provider)}
                     >
                       <Icon.Delete className="w-4 h-4" />
                     </Button>
@@ -1201,7 +1213,7 @@ export default function IntegrationPage() {
                       variant="flat" 
                       className="bg-danger/10 hover:bg-danger/20 text-danger" 
                       isIconOnly 
-                      onPress={() => handleDelete(int.id, int.provider)}
+                      onPress={() => handleDeleteClick(int.id, int.provider)}
                     >
                       <Icon.Delete className="w-4 h-4" />
                     </Button>
@@ -1328,7 +1340,7 @@ export default function IntegrationPage() {
                        variant="flat" 
                        className="bg-danger/10 hover:bg-danger/20 text-danger" 
                        isIconOnly 
-                       onPress={() => handleDelete(int.id, int.provider)}
+                       onPress={() => handleDeleteClick(int.id, int.provider)}
                      >
                        <Icon.Delete className="w-4 h-4" />
                      </Button>
@@ -2110,6 +2122,16 @@ export default function IntegrationPage() {
           )}
         </ModalContent>
       </Modal>
+
+      <ConfirmDialog
+        isOpen={deleteConfirmOpen}
+        onClose={() => setDeleteConfirmOpen(false)}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Integration"
+        description="Are you sure you want to delete this integration?"
+        confirmLabel="Delete"
+        confirmColor="danger"
+      />
     </div>
   );
 }

@@ -88,7 +88,7 @@ export function IntegrationHealthWidget({ integrations, loading }: IntegrationHe
           </div>
           <div className="text-right">
              <span className="text-2xl font-bold font-display">{healthScore}%</span>
-             <p className="text-[10px] text-default-500 uppercase tracking-wider">Uptime</p>
+             <p className="text-[10px] text-foreground/50 uppercase tracking-wider">Uptime</p>
           </div>
         </div>
 
@@ -96,15 +96,15 @@ export function IntegrationHealthWidget({ integrations, loading }: IntegrationHe
         <div className="grid grid-cols-3 gap-2 mb-6">
            <div className="p-2 rounded-xl bg-default-100/50 border border-white/5 text-center">
               <span className="text-lg font-bold text-success">{healthy}</span>
-              <p className="text-[10px] text-default-500">Active</p>
+              <p className="text-[10px] text-foreground/50">Active</p>
            </div>
            <div className="p-2 rounded-xl bg-default-100/50 border border-white/5 text-center">
               <span className={`text-lg font-bold ${degraded > 0 ? 'text-warning' : 'text-default-400'}`}>{degraded}</span>
-              <p className="text-[10px] text-default-500">Degraded</p>
+              <p className="text-[10px] text-foreground/50">Degraded</p>
            </div>
            <div className="p-2 rounded-xl bg-default-100/50 border border-white/5 text-center">
               <span className={`text-lg font-bold ${down > 0 ? 'text-danger' : 'text-default-400'}`}>{down}</span>
-              <p className="text-[10px] text-default-500">Down</p>
+              <p className="text-[10px] text-foreground/50">Down</p>
            </div>
         </div>
 
@@ -113,7 +113,7 @@ export function IntegrationHealthWidget({ integrations, loading }: IntegrationHe
            {(down === 0 && degraded === 0 && expiring.length === 0) ? (
               <div className="h-full flex flex-col items-center justify-center text-center p-4 border border-dashed border-white/10 rounded-xl">
                  <Icon.Shield className="w-8 h-8 text-success/20 mb-2" />
-                 <p className="text-xs text-default-500">All systems operational</p>
+                 <p className="text-xs text-foreground/50">All systems operational</p>
               </div>
            ) : (
               <>

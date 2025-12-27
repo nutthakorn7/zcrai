@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { Card, CardBody, Button, Input, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure, Chip, Select, SelectItem, Divider } from "@heroui/react";
 import { api } from "@/shared/api";
 import { usePageContext } from "../../contexts/PageContext";
-import { Icon } from '../../shared/ui';
+import { Icon, PageHeader, ConfirmDialog } from '../../shared/ui';
 import { Plus, Check, Zap } from 'lucide-react';
 
 // SVG Logos replaced by inline components
@@ -37,6 +37,10 @@ export default function NotificationChannelsPage() {
   
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  
+  // Delete Confirm State
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [channelToDelete, setChannelToDelete] = useState<string | null>(null);
 
   const fetchChannels = useCallback(async () => {
     try {
@@ -139,10 +143,17 @@ export default function NotificationChannelsPage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Delete this channel?')) return;
-    await api.delete(`/notifications/channels/${id}`);
+  const handleDeleteClick = (id: string) => {
+    setChannelToDelete(id);
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!channelToDelete) return;
+    await api.delete(`/notifications/channels/${channelToDelete}`);
     fetchChannels();
+    setDeleteConfirmOpen(false);
+    setChannelToDelete(null);
   };
 
   const getLogo = (t: string) => {
@@ -170,17 +181,11 @@ export default function NotificationChannelsPage() {
 
   return (
     <div className="space-y-8 w-full p-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold font-display tracking-tight text-foreground">
-            Notification Channels
-          </h1>
-          <p className="text-foreground/60 text-sm mt-1">Configure real-time alerts for Slack and Microsoft Teams</p>
-        </div>
+      <PageHeader title="Notification Channels" description="Configure real-time alerts for Slack and Microsoft Teams">
         <Button color="primary" startContent={<Plus className="w-4 h-4" />} onPress={handleOpenAdd}>
             Add Channel
         </Button>
-      </div>
+      </PageHeader>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {channels.map(channel => (
@@ -218,7 +223,7 @@ export default function NotificationChannelsPage() {
                  <Button size="sm" variant="flat" className="flex-1" onPress={() => handleOpenEdit(channel)}>
                     <Icon.Settings className="w-4 h-4 mr-2" /> Configure
                  </Button>
-                 <Button size="sm" color="danger" variant="light" isIconOnly onPress={() => handleDelete(channel.id)}>
+                 <Button size="sm" color="danger" variant="light" isIconOnly onPress={() => handleDeleteClick(channel.id)}>
                     <Icon.Delete className="w-4 h-4" />
                  </Button>
               </div>
@@ -346,6 +351,16 @@ export default function NotificationChannelsPage() {
           )}
         </ModalContent>
       </Modal>
+
+      <ConfirmDialog
+        isOpen={deleteConfirmOpen}
+        onClose={() => setDeleteConfirmOpen(false)}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Channel"
+        description="Are you sure you want to delete this notification channel?"
+        confirmLabel="Delete"
+        confirmColor="danger"
+      />
     </div>
   );
 }

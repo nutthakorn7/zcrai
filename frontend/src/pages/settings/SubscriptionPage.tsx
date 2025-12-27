@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Card, CardBody, CardHeader, Button, Progress, Chip } from "@heroui/react";
-import { Icon } from '../../shared/ui';
+import { Icon, ConfirmDialog } from '../../shared/ui';
 import { BillingAPI } from '@/shared/api';
 
 interface SubscriptionData {
@@ -24,6 +24,8 @@ export default function SubscriptionPage() {
     const [data, setData] = useState<SubscriptionData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [upgradeTier, setUpgradeTier] = useState<'free' | 'pro' | 'enterprise' | null>(null);
+    const [upgrading, setUpgrading] = useState(false);
 
     const fetchData = async () => {
         try {
@@ -42,17 +44,18 @@ export default function SubscriptionPage() {
         fetchData();
     }, []);
 
-    const handleUpgrade = async (tier: 'free' | 'pro' | 'enterprise') => {
-        if (!confirm(`Are you sure you want to switch to ${tier.toUpperCase()}?`)) return;
+    const confirmUpgrade = async () => {
+        if (!upgradeTier) return;
         try {
-            setLoading(true);
-            await BillingAPI.subscribe(tier);
+            setUpgrading(true);
+            await BillingAPI.subscribe(upgradeTier);
             await fetchData();
             alert('Subscription updated successfully!');
         } catch (e) {
             alert('Failed to update subscription');
         } finally {
-            setLoading(false);
+            setUpgrading(false);
+            setUpgradeTier(null);
         }
     };
 
@@ -156,7 +159,7 @@ export default function SubscriptionPage() {
                     price="$0/mo" 
                     features={['5 Users', '7 Days Retention', '5 GB/Month Data']}
                     current={subscription.tier === 'free'}
-                    onSelect={() => handleUpgrade('free')}
+                    onSelect={() => setUpgradeTier('free')}
                 />
                  {/* PRO */}
                  <PlanCard 
@@ -165,7 +168,7 @@ export default function SubscriptionPage() {
                     features={['50 Users', '90 Days Retention', '100 GB/Month Data', 'Priority Support']}
                     featured
                     current={subscription.tier === 'pro'}
-                    onSelect={() => handleUpgrade('pro')}
+                    onSelect={() => setUpgradeTier('pro')}
                 />
                  {/* ENTERPRISE */}
                  <PlanCard 
@@ -173,9 +176,20 @@ export default function SubscriptionPage() {
                     price="Contact Sales" 
                     features={['Unlimited Users', '1 Year Retention', '1 TB/Month Data', 'Dedicated Success Manager']}
                     current={subscription.tier === 'enterprise'}
-                    onSelect={() => handleUpgrade('enterprise')}
+                    onSelect={() => setUpgradeTier('enterprise')}
                 />
             </div>
+            
+            <ConfirmDialog 
+                isOpen={!!upgradeTier}
+                onClose={() => setUpgradeTier(null)}
+                onConfirm={confirmUpgrade}
+                title="Change Subscription Plan"
+                description={`Are you sure you want to switch to the ${upgradeTier?.toUpperCase()} plan?`}
+                confirmLabel="Confirm Change"
+                confirmColor="primary"
+                isLoading={upgrading}
+            />
         </div>
     );
 }

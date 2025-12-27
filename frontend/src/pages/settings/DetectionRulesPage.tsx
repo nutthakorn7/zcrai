@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Chip, Button, Switch, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Input, Select, SelectItem, Textarea, Tabs, Tab, Popover, PopoverTrigger, PopoverContent } from "@heroui/react";
-import { Icon } from '../../shared/ui';
+import { Icon, PageHeader } from '../../shared/ui';
 import { DetectionRulesAPI, DetectionRule, PlaybooksAPI, Playbook } from '@/shared/api';
 import { MitreHeatmap } from '../../components/MitreHeatmap';
 
@@ -227,11 +227,7 @@ export default function DetectionRulesPage() {
 
   return (
     <div className="p-6 min-h-screen bg-background space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-3xl font-bold font-display tracking-tight text-foreground">Detection Rules</h2>
-          <p className="text-foreground/60 text-sm mt-1">Manage SIGMA-based detection logic and automation</p>
-        </div>
+      <PageHeader title="Detection Rules" description="Manage SIGMA-based detection logic and automation">
         <div className="flex gap-4 items-center">
              <Input 
                 className="w-64" 
@@ -275,7 +271,7 @@ export default function DetectionRulesPage() {
                 </div>
             )}
         </div>
-      </div>
+      </PageHeader>
 
       {activeTab === 'manage' ? (
           <Table aria-label="Detection Rules Table">

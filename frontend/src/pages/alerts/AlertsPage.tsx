@@ -7,7 +7,7 @@ import { Icon } from '../../shared/ui';
 import sentineloneLogo from '../../assets/logo/sentinelone.png';
 import crowdstrikeLogo from '../../assets/logo/crowdstrike.png';
 import { Copy, AlertTriangle, FileText } from 'lucide-react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 
 // Severity color mapping
 const severityColors = {
@@ -92,6 +92,7 @@ interface Summary {
 
 export default function AlertsPage() {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'incidents' | 'logs'>('incidents');
   const [alerts, setAlerts] = useState<PageAlert[]>([]);
@@ -120,8 +121,10 @@ export default function AlertsPage() {
   const [availableProviders, setAvailableProviders] = useState<string[]>([]);
   const [queueFilter, setQueueFilter] = useState<'all' | 'unassigned' | 'my_queue'>('unassigned'); 
   const [aiStatus, setAiStatus] = useState<string>('all'); // 'all' | 'verified' | 'blocked' | 'pending'
-  const [severityFilter] = useState<string>(searchParams.get('severity') || 'all');
-  const [techniqueFilter] = useState<string>(searchParams.get('technique') || 'all');
+  
+  // Use searchParams directly for these to ensure reactivity
+  const severityFilter = searchParams.get('severity') || 'all';
+  const techniqueFilter = searchParams.get('technique') || 'all';
 
   // Drawer State
   const [selectedAlert, setSelectedAlert] = useState<PageAlert | null>(null);
@@ -177,7 +180,7 @@ export default function AlertsPage() {
     } finally {
       setLoading(false);
     }
-  }, [startDate, endDate, selectedProvider, aiStatus, viewMode, queueFilter]);
+  }, [startDate, endDate, selectedProvider, aiStatus, viewMode, queueFilter, severityFilter, techniqueFilter]);
 
   useEffect(() => {
     loadData();
@@ -407,11 +410,24 @@ export default function AlertsPage() {
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-3">
             <h1 className="text-3xl font-bold font-display tracking-tight text-foreground">
-              Detections
+              Security Alerts
             </h1>
-            <span className="text-sm text-foreground/60 border-l border-white/10 pl-3">
-              {viewMode === 'incidents' ? 'Review Active Incidents' : 'Explore Raw Telemetry'}
-            </span>
+            <div className="flex items-center gap-2 border-l border-white/10 pl-3">
+              <span className="text-sm text-foreground/60">
+                {viewMode === 'incidents' ? 'Active Incidents' : 'Raw Telemetry'}
+              </span>
+              {techniqueFilter !== 'all' && (
+                <Chip 
+                  size="sm" 
+                  color="primary" 
+                  variant="flat" 
+                  onClose={() => navigate('/alerts')}
+                  className="animate-in fade-in zoom-in duration-300"
+                >
+                  Technique: {techniqueFilter}
+                </Chip>
+              )}
+            </div>
           </div>
           
           <Tabs 

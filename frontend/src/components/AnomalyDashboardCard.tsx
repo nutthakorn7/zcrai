@@ -121,7 +121,7 @@ export function AnomalyDashboardCard() {
     const metric = anomaly.metric.toLowerCase();
     
     if (metric.includes('alert')) {
-      navigate('/detections');
+      navigate('/alerts');
     } else if (metric.includes('login')) {
       navigate(`/hunting?query=${encodeURIComponent("SELECT * FROM security_events WHERE event_type LIKE '%login%' OR title LIKE '%login%' ORDER BY timestamp DESC LIMIT 50")}`);
     } else if (metric.includes('traffic') || metric.includes('network')) {
@@ -282,7 +282,7 @@ export function AnomalyDashboardCard() {
 
         <Divider />
 
-        {/* Anomaly List */}
+        {/* Anomaly Grid */}
         <div className="space-y-3">
           <div className="flex justify-between items-center">
             <h3 className="font-medium text-sm">Monitored Metrics</h3>
@@ -297,7 +297,8 @@ export function AnomalyDashboardCard() {
             )}
           </div>
 
-          {displayAnomalies.map((anomaly, idx) => (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {displayAnomalies.map((anomaly, idx) => (
             <HerouiTooltip 
               key={idx}
               content={
@@ -367,6 +368,7 @@ export function AnomalyDashboardCard() {
               </div>
             </HerouiTooltip>
           ))}
+          </div>
         </div>
 
         {/* Summary */}

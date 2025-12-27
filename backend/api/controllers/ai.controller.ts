@@ -25,6 +25,13 @@ export const aiController = new Elysia({ prefix: '/ai' })
     const tenantId = user?.tenantId;
     if (!tenantId) throw Errors.Unauthorized('Missing tenant context');
 
+    // Budget Guard
+    const { AICostControlService } = await import('../core/services/ai-cost-control.service');
+    const budget = await AICostControlService.checkBudget(tenantId);
+    if (!budget.allowed) {
+      throw Errors.Forbidden(`AI budget exceeded for this tenant (${budget.usage}/${budget.limit}). Please contact support.`);
+    }
+
     const result = await AIService.generateQuery(prompt);
     return { success: true, data: result };
   })
@@ -63,6 +70,14 @@ export const aiController = new Elysia({ prefix: '/ai' })
     if (!tenantId) {
        console.error('[AI Chat] Error: No TenantId found for user', user.email)
        return { success: false, message: 'Tenant context required' }
+    }
+
+    // Budget Guard
+    const { AICostControlService } = await import('../core/services/ai-cost-control.service');
+    const budget = await AICostControlService.checkBudget(tenantId);
+    if (!budget.allowed) {
+      set.status = 403;
+      return { success: false, message: `AI budget exceeded (${budget.usage}/${budget.limit}). Contact admin.` };
     }
 
     console.log(`[AI Chat] Request from Tenant: ${tenantId} (User: ${user.email || user.id})`)

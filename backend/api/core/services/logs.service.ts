@@ -12,6 +12,7 @@ export interface LogFilters {
   integrationId?: string
   accountName?: string
   siteName?: string
+  technique?: string
 }
 
 export interface PaginationParams {
@@ -75,6 +76,10 @@ export const LogsService = {
     if (filters.siteName) {
       conditions.push('host_site_name = {siteName:String}')
       params.siteName = filters.siteName
+    }
+    if (filters.technique) {
+      conditions.push('mitre_technique = {technique:String}')
+      params.technique = filters.technique
     }
 
     const whereClause = conditions.join(' AND ')
@@ -241,6 +246,10 @@ export const LogsService = {
     if (filters.siteName) {
       conditions.push('host_site_name = {siteName:String}')
       params.siteName = filters.siteName
+    }
+    if (filters.technique) {
+      conditions.push('mitre_technique = {technique:String}')
+      params.technique = filters.technique
     }
 
     const whereClause = conditions.join(' AND ')

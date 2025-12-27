@@ -66,7 +66,7 @@ export const CaseSidebar = ({
                         {/* Verdict Badge */}
                         <div className="flex justify-between items-center p-3 rounded-lg border border-white/10 bg-white/5">
                             <div>
-                                <div className="text-xs text-gray-400">Verdict</div>
+                                <div className="text-xs text-foreground/60">Verdict</div>
                                 <div className={`font-bold ${
                                     (aiResult.verdict || '').toLowerCase().includes('true') ? 'text-danger' : 
                                     (aiResult.verdict || '').toLowerCase().includes('false') ? 'text-success' : 'text-warning'
@@ -75,21 +75,21 @@ export const CaseSidebar = ({
                                 </div>
                             </div>
                             <div className="text-right">
-                                <div className="text-xs text-gray-400">Confidence</div>
+                                <div className="text-xs text-foreground/60">Confidence</div>
                                 <div className="font-bold">{aiResult.confidence}%</div>
                             </div>
                         </div>
 
                         {/* Summary */}
                         <div className="prose prose-invert prose-sm max-w-none max-h-60 overflow-y-auto">
-                             <h3 className="text-sm font-semibold text-gray-300 m-0 mb-2">Executive Summary</h3>
+                             <h3 className="text-sm font-semibold text-foreground/70 m-0 mb-2">Executive Summary</h3>
                              <Markdown remarkPlugins={[remarkGfm]}>{aiResult.summary}</Markdown>
                         </div>
 
                          {/* Evidence Analysis */}
                         {aiResult.evidence_analysis && (
                             <div className="prose prose-invert prose-sm max-w-none max-h-60 overflow-y-auto border-t border-white/10 pt-2">
-                                <h3 className="text-sm font-semibold text-gray-300 m-0 mb-2">Evidence Analysis</h3>
+                                <h3 className="text-sm font-semibold text-foreground/70 m-0 mb-2">Evidence Analysis</h3>
                                 <Markdown remarkPlugins={[remarkGfm]}>{aiResult.evidence_analysis}</Markdown>
                             </div>
                         )}
@@ -103,14 +103,14 @@ export const CaseSidebar = ({
                 {aiSuggestion && (
                     <div className="mt-4 border-t border-white/10 pt-4">
                         <div className="flex items-center gap-2 mb-2">
-                             <h3 className="text-sm font-semibold text-gray-300">Recommended Action</h3>
+                             <h3 className="text-sm font-semibold text-foreground/70">Recommended Action</h3>
                              <Chip size="sm" color="warning" variant="flat">{aiSuggestion.confidence}% Confidence</Chip>
                         </div>
                         <div className="bg-white/5 p-3 rounded-lg border border-white/10">
                             <div className="flex justify-between items-start mb-2">
                                 <span className="font-bold text-primary text-sm block mb-1">{aiSuggestion.playbookTitle || 'Unknown Playbook'}</span>
                             </div>
-                            <p className="text-xs text-gray-400 mb-3">{aiSuggestion.reasoning}</p>
+                            <p className="text-xs text-foreground/60 mb-3">{aiSuggestion.reasoning}</p>
                             
                             {aiSuggestion.playbookId ? (
                                 <Button 
@@ -123,7 +123,7 @@ export const CaseSidebar = ({
                                     Run Playbook
                                 </Button>
                             ) : (
-                                <p className="text-xs text-center text-gray-500 italic">No specific playbook matched.</p>
+                                <p className="text-xs text-center text-foreground/50 italic">No specific playbook matched.</p>
                             )}
                         </div>
                     </div>
@@ -145,15 +145,15 @@ export const CaseSidebar = ({
             <Card className="p-4 flex flex-col gap-4">
                 <h3 className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em] border-b border-white/5 pb-2">Case Info</h3>
                 <div className="flex justify-between text-sm">
-                    <span className="text-gray-400">Priority</span>
+                    <span className="text-foreground/60">Priority</span>
                     <span>{caseItem.priority}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                    <span className="text-gray-400">Assignee</span>
+                    <span className="text-foreground/60">Assignee</span>
                     <span>{caseItem.assigneeName || 'Unassigned'}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                    <span className="text-gray-400">Reporter</span>
+                    <span className="text-foreground/60">Reporter</span>
                     <span>{user?.email || 'Unknown'}</span>
                 </div>
             </Card>
@@ -197,7 +197,7 @@ export const CaseSidebar = ({
                             </a>
                         </div>
                     ))}
-                    {caseItem.attachments?.length === 0 && <p className="text-gray-500 text-xs text-center py-2">No files yet.</p>}
+                    {caseItem.attachments?.length === 0 && <p className="text-foreground/50 text-xs text-center py-2">No files yet.</p>}
                 </div>
             </Card>
         </div>

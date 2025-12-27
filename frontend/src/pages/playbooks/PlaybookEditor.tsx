@@ -6,7 +6,7 @@ import {
   Spinner, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell,
   Popover, PopoverTrigger, PopoverContent
 } from "@heroui/react";
-import { Icon } from '../../shared/ui';
+import { Icon, ConfirmDialog } from '../../shared/ui';
 import { Playbook, PlaybookStep, PlaybooksAPI, Action, PlaybookExecution, CasesAPI, Case } from '@/shared/api';
 import { WorkflowCanvas } from './components/WorkflowCanvas';
 
@@ -39,6 +39,10 @@ export default function PlaybookEditor({ playbook, onClose, onUpdate, onDelete }
     const [newStepActionId, setNewStepActionId] = useState('');
     const [newStepConfig, setNewStepConfig] = useState('');
     const [editingStepIndex, setEditingStepIndex] = useState<number | null>(null);
+
+    // Confirmation State
+    const [stepToDelete, setStepToDelete] = useState<string | null>(null);
+    const [confirmPlaybookDelete, setConfirmPlaybookDelete] = useState(false);
 
     useEffect(() => {
         PlaybooksAPI.getActions().then(setAvailableActions).catch(console.error);
@@ -148,15 +152,20 @@ export default function PlaybookEditor({ playbook, onClose, onUpdate, onDelete }
     };
 
     const removeStepById = (id: string) => {
-        const index = id.startsWith('step-') 
-            ? parseInt(id.replace('step-', '')) - 1 
-            : localPlaybook.steps?.findIndex(s => s.id === id);
+        setStepToDelete(id);
+    };
+
+    const confirmDeleteStep = () => {
+        if (!stepToDelete) return;
+
+        const index = stepToDelete.startsWith('step-') 
+            ? parseInt(stepToDelete.replace('step-', '')) - 1 
+            : localPlaybook.steps?.findIndex(s => s.id === stepToDelete);
             
         if (index !== undefined && index !== -1) {
-            if (confirm('Are you sure you want to delete this step?')) {
-                removeStep(index);
-            }
+            removeStep(index);
         }
+        setStepToDelete(null);
     };
 
     const handleNodePositionChange = (id: string, x: number, y: number) => {
@@ -674,9 +683,7 @@ export default function PlaybookEditor({ playbook, onClose, onUpdate, onDelete }
                             </Card>
 
                             <div className="flex justify-end gap-2">
-                                    <Button variant="flat" color="danger" onPress={() => {
-                                        if (confirm('Are you sure?')) onDelete();
-                                    }}>Delete Playbook</Button>
+                                    <Button variant="flat" color="danger" onPress={() => setConfirmPlaybookDelete(true)}>Delete Playbook</Button>
                                     <Button color="primary" onPress={handleSave} isLoading={isSaving}>Save Changes</Button>
                             </div>
                         </div>
@@ -717,6 +724,27 @@ export default function PlaybookEditor({ playbook, onClose, onUpdate, onDelete }
                 )}
             </ModalContent>
         </Modal>
+
+        {/* Confirm Dialogs */}
+        <ConfirmDialog 
+            isOpen={!!stepToDelete}
+            onClose={() => setStepToDelete(null)}
+            onConfirm={confirmDeleteStep}
+            title="Delete Step"
+            description="Are you sure you want to delete this step? This action cannot be undone."
+            confirmLabel="Delete"
+            confirmColor="danger"
+        />
+
+        <ConfirmDialog 
+            isOpen={confirmPlaybookDelete}
+            onClose={() => setConfirmPlaybookDelete(false)}
+            onConfirm={onDelete}
+            title="Delete Playbook"
+            description="Are you sure you want to delete this playbook? All execution history will effectively be archived."
+            confirmLabel="Delete Playbook"
+            confirmColor="danger"
+        />
         </div>
     );
 }

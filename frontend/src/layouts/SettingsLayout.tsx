@@ -76,6 +76,15 @@ export default function SettingsLayout() {
                 </NavLink>
 
                 <NavLink 
+                  to="/settings/secrets-vault"
+                  className={({ isActive }) => 
+                    `px-4 py-2 rounded-lg transition-colors ${isActive ? 'bg-primary/20 text-primary' : 'hover:bg-default-100'}`
+                  }
+                >
+                  Secrets Vault
+                </NavLink>
+
+                <NavLink 
                   to="/settings/notifications"
                   className={({ isActive }) => 
                     `px-4 py-2 rounded-lg transition-colors ${isActive ? 'bg-primary/20 text-primary' : 'hover:bg-default-100'}`

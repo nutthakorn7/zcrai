@@ -79,7 +79,7 @@ export class MSSPService {
       WHERE (
         network_src_ip = {value:String} OR 
         network_dst_ip = {value:String} OR 
-        file_hash_sha256 = {value:String} OR
+        file_sha256 = {value:String} OR
         user_name = {value:String} OR
         host_name = {value:String}
       )
