@@ -1,11 +1,11 @@
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import AdminDashboard from './index';
-import { api } from '../../shared/api/api';
+import { api } from '../../shared/api';
 import { BrowserRouter } from 'react-router-dom';
 
 // Mock API
-vi.mock('../../shared/api/api', () => ({
+vi.mock('../../shared/api', () => ({
   api: {
     get: vi.fn(),
     post: vi.fn()

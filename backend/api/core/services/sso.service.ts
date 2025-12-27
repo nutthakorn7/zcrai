@@ -1,125 +1,128 @@
-import { discovery, authorizationCodeGrant, buildAuthorizationUrl, calculatePKCECodeChallenge, randomPKCECodeVerifier, randomState } from 'openid-client';
 import { db } from '../../infra/db';
-import { ssoConfigs } from '../../infra/db/schema';
+import { ssoConfigs, users, tenants } from '../../infra/db/schema';
 import { eq } from 'drizzle-orm';
-
-// Define Interface for cached config since v6 changes architecture (functional vs class)
-// Note: v6 returns a Configuration object.
-// We will store the DISCOVERED configuration.
+import * as client from 'openid-client';
 
 export class SSOService {
-  private static configs: Map<string, any> = new Map();
-
+  
   /**
-   * Get or discover OIDC configuration (Internal use for Auth flow)
+   * Get OIDC Client for a tenant
    */
-  private static async getConfig(tenantId: string, provider: string) {
-    const cacheKey = `${tenantId}:${provider}`;
-    if (this.configs.has(cacheKey)) {
-      return this.configs.get(cacheKey)!;
-    }
-
-    // Fetch config from DB
-    const [dbConfig] = await db
-      .select()
-      .from(ssoConfigs)
-      .where(eq(ssoConfigs.tenantId, tenantId));
-    
-    if (!dbConfig || !dbConfig.isEnabled) {
-      throw new Error('SSO not configured or disabled for this tenant');
-    }
-
-    const oidcConfig = await discovery(new URL(dbConfig.issuer), dbConfig.clientId, dbConfig.clientSecret);
-    this.configs.set(cacheKey, { oidcConfig, dbConfig });
-    return { oidcConfig, dbConfig };
-  }
-
-  /**
-   * Get Tenant Config (For Settings Page)
-   */
-  static async getTenantConfig(tenantId: string) {
-      const [config] = await db
-          .select()
-          .from(ssoConfigs)
-          .where(eq(ssoConfigs.tenantId, tenantId));
-      return config || null;
-  }
-
-  /**
-   * Update or Create Tenant Config
-   */
-  static async updateConfig(tenantId: string, data: typeof ssoConfigs.$inferInsert) {
-      // Check if exists
-      const existing = await this.getTenantConfig(tenantId);
-      
-      let result;
-      if (existing) {
-          [result] = await db.update(ssoConfigs)
-              .set({ ...data, tenantId }) // Ensure tenantId matches
-              .where(eq(ssoConfigs.tenantId, tenantId))
-              .returning();
-      } else {
-          [result] = await db.insert(ssoConfigs)
-              .values({ ...data, tenantId })
-              .returning();
-      }
-      
-      // Clear cache
-      this.configs.clear();
-      
-      return result;
-  }
-
-  /**
-   * Generate Auth URL
-   */
-  static async getAuthorizationUrl(tenantId: string, provider: string) {
-    const { oidcConfig, dbConfig } = await this.getConfig(tenantId, provider);
-    
-    // v6 helper
-    const state = tenantId; // Using tenantId as state for simplicity
-    const redirect_uri = `${process.env.API_URL || 'http://localhost:8000'}/auth/sso/callback`;
-
-    const url = buildAuthorizationUrl(oidcConfig, {
-        redirect_uri,
-        scope: 'openid email profile',
-        state,
-        response_type: 'code' // Optional, defaults to code
+  private static async getClient(tenantId: string) {
+    const config = await db.query.ssoConfigs.findFirst({
+        where: eq(ssoConfigs.tenantId, tenantId)
     });
 
-    return url.href;
+    if (!config || !config.isEnabled) {
+        throw new Error('SSO not configured or disabled for this tenant');
+    }
+
+    const issuer = await client.discovery(new URL(config.issuer), config.clientId, config.clientSecret);
+    return issuer;
+  }
+
+  static async getConfig(tenantId: string) {
+      return await db.query.ssoConfigs.findFirst({
+        where: eq(ssoConfigs.tenantId, tenantId)
+      });
+  }
+
+  static async saveConfig(tenantId: string, data: any) {
+      const existing = await this.getConfig(tenantId);
+      if (existing) {
+          const [updated] = await db.update(ssoConfigs)
+            .set(data)
+            .where(eq(ssoConfigs.id, existing.id))
+            .returning();
+          return updated;
+      } else {
+          const [created] = await db.insert(ssoConfigs).values({
+              ...data,
+              tenantId
+          }).returning();
+          return created;
+      }
   }
 
   /**
-   * Handle Callback
+   * Calculate Authorization URL
    */
-  static async handleCallback(tenantId: string, provider: string, currentUrl: URL) {
-     const { oidcConfig } = await this.getConfig(tenantId, provider);
-     
-     // Exchange code
-     const tokenHelper = await authorizationCodeGrant(oidcConfig, currentUrl, {
-         expectedState: tenantId, 
-     });
+  static async getAuthUrl(tenantId: string) {
+    const config = await db.query.ssoConfigs.findFirst({
+        where: eq(ssoConfigs.tenantId, tenantId)
+    });
 
-     // TokenHelper contains access_token, id_token, claims() etc.
-     // In v6:
-     // tokenHelper.access_token
-     // tokenHelper.id_token
-     // tokenHelper.claims() -> functional or property?
-     // Check exports: "fetchUserInfo" is separate. "claims" method usually on TokenSet?
-     // Actually authorizationCodeGrant returns "TokenEndpointResponse & { claims?: ... }" ?
-     // Let's assume it returns an object with `claims` function or property if ID Token verified.
-     // Based on standard simple-oidc flavors which v6 seems to be.
-     // Docs: Result has .claims() method if ID token present.
-     
-     let claims;
-     if (tokenHelper.claims) {
-         claims = tokenHelper.claims();
-     } else {
-         // Fallback if no claims method (should exist)
-         claims = {}; 
-     }
+    if (!config || !config.isEnabled) {
+        throw new Error('SSO not configured');
+    }
 
-     return { claims };
+    const oidcConfig = await client.discovery(new URL(config.issuer), config.clientId, config.clientSecret);
+
+    // Dynamic redirect URI based on env
+    const redirectUri = `${process.env.BACKEND_URL || 'http://localhost:8000'}/auth/sso/callback?tenantId=${tenantId}`;
+
+    const parameters: Record<string, string> = {
+      redirect_uri: redirectUri,
+      scope: 'openid email profile',
+    };
+
+    return client.buildAuthorizationUrl(oidcConfig, parameters).href;
+  }
+
+  /**
+   * Handle Callback and Login/Register User
+   */
+  static async handleCallback(tenantId: string, url:  URL) {
+    const config = await db.query.ssoConfigs.findFirst({
+        where: eq(ssoConfigs.tenantId, tenantId)
+    });
+
+    if (!config) throw new Error('Invalid SSO Config');
+
+    const oidcConfig = await client.discovery(new URL(config.issuer), config.clientId, config.clientSecret);
+    const redirectUri = `${process.env.BACKEND_URL || 'http://localhost:8000'}/auth/sso/callback?tenantId=${tenantId}`;
+
+    // Exchange code for tokens
+    const tokens = await client.authorizationCodeGrant(oidcConfig, url);
+
+    // Fetch user info
+    const claims = tokens.claims();
+    if (!claims || !claims.sub) throw new Error('Invalid ID Token');
+
+    const userInfo = await client.fetchUserInfo(oidcConfig, tokens.access_token, claims.sub);
+
+    if (!userInfo.email) throw new Error('Email not provided by IdP');
+
+    // Find or Create User
+    let user = await db.query.users.findFirst({
+        where: eq(users.email, userInfo.email)
+    });
+
+    if (!user) {
+        // JIT Provisioning
+        const newUser = await db.insert(users).values({
+            email: userInfo.email,
+            name: userInfo.name || userInfo.email.split('@')[0],
+            tenantId: tenantId,
+            passwordHash: 'SSO_MANAGED',
+            role: 'analyst', // Default role
+            ssoProvider: config.provider,
+            ssoId: userInfo.sub,
+            status: 'active'
+        }).returning();
+        user = newUser[0];
+    } else {
+        // Link existing account if not linked
+        if (user.ssoProvider === 'local') {
+            await db.update(users)
+                .set({ 
+                    ssoProvider: config.provider,
+                    ssoId: userInfo.sub 
+                })
+                .where(eq(users.id, user.id));
+        }
+    }
+
+    return user;
   }
 }

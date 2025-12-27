@@ -133,3 +133,17 @@ export const playbookController = new Elysia({ prefix: '/playbooks' })
     const result = await PlaybookService.executeStep(user.tenantId, executionId, stepId)
     return { success: true, data: result }
   })
+  
+  /**
+   * Get AI-suggested playbooks for an alert
+   * @route GET /playbooks/suggestions
+   * @access Protected - Requires authentication
+   * @query {string} alertId - Alert ID to analyze
+   * @returns {Object} List of suggested playbooks with matching score
+   */
+  .get('/suggestions', async ({ user, query }: any) => {
+    if (!query.alertId) throw new Error('alertId required');
+    const { AIPlaybookService } = await import('../core/services/ai-playbook.service');
+    const result = await AIPlaybookService.suggest(user.tenantId, query.alertId as string);
+    return { success: true, data: result };
+  })

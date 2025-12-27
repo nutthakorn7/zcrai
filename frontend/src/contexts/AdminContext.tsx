@@ -1,5 +1,5 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
-import { api } from '../shared/api/api'
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react'
+import { api } from '../shared/api';
 
 interface Tenant {
   id: string
@@ -31,17 +31,11 @@ export function AdminProvider({ children, userRole }: { children: ReactNode; use
 
   const isSuperAdmin = userRole === 'superadmin'
 
-  // Load tenants on mount if superadmin
-  useEffect(() => {
-    if (isSuperAdmin) {
-      refreshTenants()
-    }
-  }, [isSuperAdmin])
-
-  const refreshTenants = async () => {
+  const refreshTenants = useCallback(async () => {
     if (!isSuperAdmin) return
     setLoading(true)
     try {
+      const { api } = await import('../shared/api');
       const res = await api.get('/admin/tenants')
       setTenants(res.data)
     } catch (e) {
@@ -49,7 +43,14 @@ export function AdminProvider({ children, userRole }: { children: ReactNode; use
     } finally {
       setLoading(false)
     }
-  }
+  }, [isSuperAdmin])
+
+  // Load tenants on mount if superadmin
+  useEffect(() => {
+    if (isSuperAdmin) {
+      refreshTenants()
+    }
+  }, [isSuperAdmin, refreshTenants])
 
   const selectTenant = async (tenantId: string) => {
     try {

@@ -6,10 +6,22 @@ import { MetricsService } from '../core/services/metrics.service'
 
 // Middleware: Check if user is superadmin
 const requireSuperAdmin = async (jwt: any, access_token: any) => {
-  if (!access_token.value) throw new Error('Unauthorized')
+  console.log('[DEBUG_ADMIN] 1. Checking SuperAdmin access');
+  if (!access_token?.value) {
+    console.log('[DEBUG_ADMIN] No access token value found');
+    throw new Error('Unauthorized')
+  }
+  console.log('[DEBUG_ADMIN] 2. Token found, verifying...');
   const payload = await jwt.verify(access_token.value)
-  if (!payload) throw new Error('Invalid token')
-  if (payload.role !== 'superadmin') throw new Error('Forbidden: Super Admin access required')
+  if (!payload) {
+    console.log('[DEBUG_ADMIN] Token verification failed (check secret or expiry)');
+    throw new Error('Invalid token')
+  }
+  console.log(`[DEBUG_ADMIN] 3. Token verified. Role: ${payload.role}`);
+  if (payload.role !== 'superadmin') {
+    console.log(`[DEBUG_ADMIN] Forbidden. User role is: ${payload.role}`);
+    throw new Error('Forbidden: Super Admin access required')
+  }
   return payload
 }
 
@@ -101,7 +113,13 @@ export const adminController = new Elysia({ prefix: '/admin' })
   .put('/tenants/:id', async ({ params, body, jwt, cookie: { access_token }, set }) => {
     try {
       await requireSuperAdmin(jwt, access_token)
-      const updated = await AdminService.updateTenant(params.id, body as { name?: string; status?: string })
+      const updated = await AdminService.updateTenant(params.id, body as { 
+        name?: string; 
+        status?: string;
+        maxUsers?: number;
+        maxEvents?: number;
+        maxStorage?: number;
+      })
       return { message: 'Tenant updated', tenant: updated }
     } catch (e: any) {
       if (e.message === 'Tenant not found') {
@@ -117,6 +135,9 @@ export const adminController = new Elysia({ prefix: '/admin' })
     body: t.Object({
       name: t.Optional(t.String()),
       status: t.Optional(t.String()),
+      maxUsers: t.Optional(t.Number()),
+      maxEvents: t.Optional(t.Number()),
+      maxStorage: t.Optional(t.Number())
     })
   })
 
@@ -245,6 +266,53 @@ export const adminController = new Elysia({ prefix: '/admin' })
       set.status = 401
       return { error: e.message }
     }
+  })
+
+  /**
+   * Get system license status
+   * @route GET /admin/license
+   * @access SuperAdmin only
+   */
+  .get('/license', async ({ jwt, cookie: { access_token }, set }) => {
+    try {
+      await requireSuperAdmin(jwt, access_token)
+      // Mock data for now
+      return {
+        success: true,
+        data: {
+          plan: 'Enterprise',
+          version: '1.0.0',
+          status: 'active',
+          expiresAt: '2026-12-31T23:59:59Z',
+          maxTenants: 100,
+          maxUsers: 1000,
+          features: ['sso', 'audit_logs', 'reporting', 'ai_command']
+        }
+      }
+    } catch (e: any) {
+      set.status = e.message === 'Forbidden: Super Admin access required' ? 403 : 401
+      return { error: e.message }
+    }
+  })
+
+  /**
+   * Update system license key
+   * @route POST /admin/license
+   * @access SuperAdmin only
+   */
+  .post('/license', async ({ body, jwt, cookie: { access_token }, set }) => {
+    try {
+      await requireSuperAdmin(jwt, access_token)
+      // Mock validation
+      return { success: true, message: 'License updated successfully' }
+    } catch (e: any) {
+      set.status = e.message === 'Forbidden: Super Admin access required' ? 403 : 401
+      return { error: e.message }
+    }
+  }, {
+    body: t.Object({
+      key: t.String()
+    })
   })
 
   /**

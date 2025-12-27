@@ -3,18 +3,32 @@ import {
   Card, CardBody, CardHeader, Button, Input, Avatar, Chip, Switch, Divider, 
   Textarea
 } from "@heroui/react";
-import { api } from "../../shared/api/api";
+import { api } from "@/shared/api";
 import { useAuth } from "../../shared/store/useAuth";
-import { Icon } from "../../shared/ui";
+import { Icon, ConfirmDialog } from "@/shared/ui";
 
 interface Session {
   id: string;
   device: string; // The backend returns userAgent, we might need to parse or just show it
   ipAddress: string | null;
   userAgent: string | null;
-  createdAt: string;
   lastActive: string;
   isCurrent: boolean;
+}
+
+interface UserProfile {
+  name: string | null;
+  email: string;
+  jobTitle?: string;
+  phoneNumber?: string;
+  bio?: string;
+  emailAlertsEnabled?: boolean;
+  marketingOptIn?: boolean;
+  mfaEnabled: boolean;
+  tenant?: {
+    apiUsage: number;
+    apiLimit: number;
+  };
 }
 
 export default function ProfilePage() {
@@ -43,11 +57,15 @@ export default function ProfilePage() {
   // API Usage
   const [apiUsage, setApiUsage] = useState(0);
   const [apiLimit, setApiLimit] = useState(10000);
+  
+  // Confirmation State
+  const [sessionToRevoke, setSessionToRevoke] = useState<string | null>(null);
+  const [revoking, setRevoking] = useState(false);
 
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const { data } = await api.get('/profile');
+        const { data } = await api.get<UserProfile>('/profile');
         if (data) {
            setName(data.name || data.email.split('@')[0]);
            setEmail(data.email);
@@ -92,8 +110,9 @@ export default function ProfilePage() {
         bio
       });
       alert('Profile updated successfully');
-    } catch (error: any) {
-      alert(error.response?.data?.error || 'Failed to update profile');
+    } catch (error) {
+       const err = error as { response?: { data?: { error?: string } } };
+      alert(err.response?.data?.error || 'Failed to update profile');
     } finally {
       setIsLoading(false);
     }
@@ -125,21 +144,27 @@ export default function ProfilePage() {
       await api.put('/profile/password', { currentPassword, newPassword });
       alert('Password changed successfully. Please login again.');
       await logout();
-    } catch (error: any) {
-      alert(error.response?.data?.error || 'Failed to change password');
+    } catch (error) {
+       const err = error as { response?: { data?: { error?: string } } };
+      alert(err.response?.data?.error || 'Failed to change password');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleRevokeSession = async (sessionId: string) => {
-    if (!confirm('Are you sure you want to revoke this session?')) return;
+  const confirmRevokeSession = async () => {
+    if (!sessionToRevoke) return;
+    setRevoking(true);
     try {
-        await api.delete(`/profile/sessions/${sessionId}`);
-        setSessions(sessions.filter(s => s.id !== sessionId));
+        await api.delete(`/profile/sessions/${sessionToRevoke}`);
+        setSessions(sessions.filter(s => s.id !== sessionToRevoke));
+        alert('Session revoked successfully');
     } catch (e) {
         console.error('Failed to revoke session', e);
         alert('Failed to revoke session');
+    } finally {
+        setRevoking(false);
+        setSessionToRevoke(null);
     }
   };
 
@@ -161,7 +186,7 @@ export default function ProfilePage() {
           </div>
           <div className="flex-1">
              <div className="flex items-center gap-3">
-                 <h1 className="text-2xl font-bold">{name}</h1>
+                 <h1 className="text-3xl font-bold font-display tracking-tight text-foreground">{name}</h1>
                  <Chip color="primary" variant="flat" size="sm">Admin</Chip>
                  <Chip color="warning" variant="flat" size="sm">Pro Plan</Chip>
              </div>
@@ -186,10 +211,10 @@ export default function ProfilePage() {
               <Card className="bg-content1/50 border border-white/5">
                   <CardHeader className="pb-0 pt-6 px-6 flex justify-between items-start">
                       <div>
-                        <h3 className="text-lg font-bold">Personal Information</h3>
-                        <p className="text-sm text-foreground/60">Update your personal details and contact info.</p>
+                        <h3 className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">Personal Information</h3>
+                        <p className="text-foreground/60 text-sm mt-1">Update your personal details and contact info.</p>
                       </div>
-                      <Icon.User className="w-5 h-5 text-foreground/30" />
+                      <Icon.User className="w-4 h-4 text-foreground/30" />
                   </CardHeader>
                   <CardBody className="p-6 grid grid-cols-2 gap-4">
                       <Input label="Display Name" value={name} onValueChange={setName} variant="bordered" />
@@ -206,10 +231,10 @@ export default function ProfilePage() {
               <Card className="bg-content1/50 border border-white/5">
                   <CardHeader className="pb-0 pt-6 px-6 flex justify-between items-start">
                       <div>
-                        <h3 className="text-lg font-bold">Security Center</h3>
-                        <p className="text-sm text-foreground/60">Manage your password and authentication methods.</p>
+                        <h3 className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">Security Center</h3>
+                        <p className="text-foreground/60 text-sm mt-1">Manage your password and authentication methods.</p>
                       </div>
-                      <Icon.Shield className="w-5 h-5 text-success" />
+                      <Icon.Shield className="w-4 h-4 text-success" />
                   </CardHeader>
                   <CardBody className="p-6 space-y-6">
                       <div className="p-4 rounded-lg bg-content2/50 border border-white/5 flex items-center justify-between">
@@ -226,7 +251,7 @@ export default function ProfilePage() {
                       <Divider className="bg-white/10" />
 
                       <div className="space-y-4">
-                          <h4 className="text-sm font-semibold">Change Password</h4>
+                          <h3 className="text-sm font-semibold">Change Password</h3>
                           <div className="grid grid-cols-2 gap-4">
                               <Input label="Current Password" type="password" value={currentPassword} onValueChange={setCurrentPassword} variant="bordered" />
                               <div className="col-span-1"></div> {/* Spacer */}
@@ -244,8 +269,8 @@ export default function ProfilePage() {
                <Card className="bg-content1/50 border border-white/5">
                   <CardHeader className="pb-0 pt-6 px-6">
                       <div>
-                        <h3 className="text-lg font-bold">Active Sessions</h3>
-                        <p className="text-sm text-foreground/60">Manage devices logged into your account.</p>
+                        <h3 className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">Active Sessions</h3>
+                        <p className="text-foreground/60 text-sm mt-1">Manage devices logged into your account.</p>
                       </div>
                   </CardHeader>
                   <CardBody className="p-6">
@@ -267,7 +292,7 @@ export default function ProfilePage() {
                                           </div>
                                       </div>
                                   </div>
-                                  <Button size="sm" color="danger" variant="light" className="opacity-0 group-hover:opacity-100" onPress={() => handleRevokeSession(session.id)}>Revoke</Button>
+                                  <Button size="sm" color="danger" variant="light" className="opacity-0 group-hover:opacity-100" onPress={() => setSessionToRevoke(session.id)}>Revoke</Button>
                               </div>
                           ))}
                           {sessions.length === 0 && <div className="text-center text-foreground/60 py-4">No active sessions found.</div>}
@@ -281,7 +306,7 @@ export default function ProfilePage() {
               {/* Notification Preferences */}
               <Card className="bg-content1/50 border border-white/5">
                   <CardHeader className="pb-0 pt-6 px-6">
-                      <h3 className="text-lg font-bold">Notifications</h3>
+                      <h3 className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">Notifications</h3>
                   </CardHeader>
                   <CardBody className="p-6 space-y-4">
                       <div className="flex justify-between items-center">
@@ -302,7 +327,7 @@ export default function ProfilePage() {
                {/* API Usage */}
                <Card className="bg-content1/50 border border-white/5">
                   <CardHeader className="pb-0 pt-6 px-6">
-                      <h3 className="text-lg font-bold">API Usage</h3>
+                      <h3 className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">API Usage</h3>
                   </CardHeader>
                   <CardBody className="p-6">
                       <div className="mb-4">
@@ -320,8 +345,19 @@ export default function ProfilePage() {
                       <Button fullWidth variant="flat" color="primary">Upgrade Plan</Button>
                   </CardBody>
               </Card>
-          </div>
       </div>
+    </div>
+      
+      <ConfirmDialog 
+        isOpen={!!sessionToRevoke}
+        onClose={() => setSessionToRevoke(null)}
+        onConfirm={confirmRevokeSession}
+        title="Revoke Session"
+        description="Are you sure you want to revoke this session? The user will be logged out from that device."
+        confirmLabel="Revoke"
+        confirmColor="danger"
+        isLoading={revoking}
+      />
     </div>
   );
 }

@@ -7,7 +7,8 @@
 import { Elysia } from 'elysia'
 import { jwt } from '@elysiajs/jwt'
 import { IntegrationService } from '../core/services/integration.service'
-import { tenantAdminOnly } from '../middlewares/auth.middleware'
+import { AuditService } from '../core/services/audit.service'
+import { withAuth } from '../middleware/auth'
 import { AddSentinelOneSchema, AddCrowdStrikeSchema, AddAISchema, UpdateIntegrationSchema, AddAWSSchema } from '../validators/integration.validator'
 
 const COLLECTOR_API_KEY = process.env.COLLECTOR_API_KEY || 'dev_collector_key_change_in_production'
@@ -20,10 +21,7 @@ interface AddAIBody {
 }
 
 export const integrationController = new Elysia({ prefix: '/integrations' })
-  .use(jwt({
-    name: 'jwt',
-    secret: process.env.JWT_SECRET || 'super_secret_dev_key',
-  }))
+  // Note: JWT is configured in withAuth middleware, no need to duplicate here
 
   /**
    * Get active integrations for data collector
@@ -164,7 +162,7 @@ export const integrationController = new Elysia({ prefix: '/integrations' })
     }
   })
 
-  .use(tenantAdminOnly)
+  .use(withAuth)
 
   /**
    * List all integrations for authenticated tenant
@@ -172,13 +170,15 @@ export const integrationController = new Elysia({ prefix: '/integrations' })
    * @access Protected - Admin only
    * @returns {Object} List of configured integrations with status
    */
-  .get('/', async ({ jwt, cookie: { access_token }, set }) => {
+  .get('/', async ({ user, set }: any) => {
     try {
-      const payload = await jwt.verify(access_token.value as string)
-      if (!payload) throw new Error('Unauthorized')
-
-      return await IntegrationService.list(payload.tenantId as string)
+      console.log(`[IntegrationController] GET / called. User: ${user?.email} Tenant: ${user?.tenantId}`);
+      if (!user?.tenantId) throw new Error('Unauthorized - No tenant')
+      const result = await IntegrationService.list(user.tenantId as string)
+      console.log(`[IntegrationController] List result count: ${result.length}`);
+      return result
     } catch (e: any) {
+      console.error(`[IntegrationController] GET / failed:`, e);
       set.status = 400
       return { error: e.message }
     }
@@ -192,12 +192,21 @@ export const integrationController = new Elysia({ prefix: '/integrations' })
    * @body {string} apiToken - API token
    * @returns {Object} Created integration
    */
-  .post('/sentinelone', async ({ body, jwt, cookie: { access_token }, set }) => {
+  .post('/sentinelone', async ({ body, user, set }: any) => {
     try {
-      const payload = await jwt.verify(access_token.value as string)
-      if (!payload) throw new Error('Unauthorized')
+      if (!user?.tenantId) throw new Error('Unauthorized')
+      const integration = await IntegrationService.addSentinelOne(user.tenantId as string, body)
+      
+      await AuditService.log({
+        tenantId: user.tenantId,
+        userId: user.userId || user.id,
+        action: 'CREATE_INTEGRATION',
+        resource: 'integration',
+        resourceId: integration.id,
+        details: { provider: 'sentinelone', url: body.url },
+        status: 'SUCCESS'
+      })
 
-      const integration = await IntegrationService.addSentinelOne(payload.tenantId as string, body)
       set.status = 201
       return { message: 'SentinelOne integration added successfully', integration }
     } catch (e: any) {
@@ -214,12 +223,21 @@ export const integrationController = new Elysia({ prefix: '/integrations' })
    * @body {string} clientSecret - Client secret
    * @returns {Object} Created integration
    */
-  .post('/crowdstrike', async ({ body, jwt, cookie: { access_token }, set }) => {
+  .post('/crowdstrike', async ({ body, user, set }: any) => {
     try {
-      const payload = await jwt.verify(access_token.value as string)
-      if (!payload) throw new Error('Unauthorized')
+      if (!user?.tenantId) throw new Error('Unauthorized')
+      const integration = await IntegrationService.addCrowdStrike(user.tenantId as string, body)
+      
+      await AuditService.log({
+        tenantId: user.tenantId,
+        userId: user.userId || user.id,
+        action: 'CREATE_INTEGRATION',
+        resource: 'integration',
+        resourceId: integration.id,
+        details: { provider: 'crowdstrike', clientId: body.clientId },
+        status: 'SUCCESS'
+      })
 
-      const integration = await IntegrationService.addCrowdStrike(payload.tenantId as string, body)
       set.status = 201
       return { message: 'CrowdStrike integration added successfully', integration }
     } catch (e: any) {
@@ -238,27 +256,35 @@ export const integrationController = new Elysia({ prefix: '/integrations' })
    * @body {string} baseUrl - Custom base URL (optional)
    * @returns {Object} Created AI integration
    */
-  .post('/ai/:provider', async ({ jwt, cookie: { access_token }, params, body, set }) => {
+  .post('/ai/:provider', async ({ user, params, body, set }: any) => {
     try {
-      const payload = await jwt.verify(access_token.value as string)
-      if (!payload) throw new Error('Unauthorized')
-
+      if (!user?.tenantId) throw new Error('Unauthorized')
       const { apiKey, model, baseUrl, label } = body as AddAIBody
       const provider = params.provider.toLowerCase()
-
       if (!apiKey) throw new Error('API Key is required')
-
-      return await IntegrationService.addAI(payload.tenantId as string, provider, {
+      const result = await IntegrationService.addAI(user.tenantId as string, provider, {
         apiKey,
         model,
         baseUrl,
         label
       })
+      
+      await AuditService.log({
+        tenantId: user.tenantId,
+        userId: user.userId || user.id,
+        action: 'CREATE_INTEGRATION',
+        resource: 'integration',
+        resourceId: result.id,
+        details: { provider: `ai-${provider}`, model },
+        status: 'SUCCESS'
+      })
+      
+      return result
     } catch (e: any) {
       set.status = 400
       return { error: e.message }
     }
-  })
+  }, { body: AddAISchema })
 
   /**
    * Add AWS CloudTrail integration
@@ -269,13 +295,22 @@ export const integrationController = new Elysia({ prefix: '/integrations' })
    * @body {string} region - AWS region
    * @returns {Object} Created AWS integration
    */
-  .post('/aws', async ({ jwt, cookie: { access_token }, body, set }) => {
+  .post('/aws', async ({ user, body, set }: any) => {
     try {
-      const payload = await jwt.verify(access_token.value as string)
-      if (!payload) throw new Error('Unauthorized')
-
+      if (!user?.tenantId) throw new Error('Unauthorized')
       // @ts-ignore
-      const integration = await IntegrationService.addAWS(payload.tenantId as string, body)
+      const integration = await IntegrationService.addAWS(user.tenantId as string, body)
+      
+      await AuditService.log({
+        tenantId: user.tenantId,
+        userId: user.userId || user.id,
+        action: 'CREATE_INTEGRATION',
+        resource: 'integration',
+        resourceId: integration.id,
+        details: { provider: 'aws', accessKeyId: body.accessKeyId?.substring(0, 4) + '...' },
+        status: 'SUCCESS'
+      })
+
       set.status = 201
       return { message: 'AWS integration added successfully', integration }
     } catch (e: any) {
@@ -290,12 +325,10 @@ export const integrationController = new Elysia({ prefix: '/integrations' })
    * @access Protected - Admin only
    * @returns {Object} Sync result
    */
-  .post('/aws/sync', async ({ jwt, cookie: { access_token }, set }) => {
+  .post('/aws/sync', async ({ user, set }: any) => {
     try {
-      const payload = await jwt.verify(access_token.value as string)
-      if (!payload) throw new Error('Unauthorized')
-
-      const result = await IntegrationService.syncAWS(payload.tenantId as string)
+      if (!user?.tenantId) throw new Error('Unauthorized')
+      const result = await IntegrationService.syncAWS(user.tenantId as string)
       return { message: 'AWS CloudTrail Sync Complete', result }
     } catch (e: any) {
       set.status = 500
@@ -311,29 +344,164 @@ export const integrationController = new Elysia({ prefix: '/integrations' })
    * @body {string} apiKey - Provider API key
    * @returns {Object} Created enrichment integration
    */
-  .post('/enrichment/:provider', async ({ jwt, cookie: { access_token }, params, body, set }) => {
+  .post('/enrichment/:provider', async ({ user, params, body, set }: any) => {
     try {
-      const payload = await jwt.verify(access_token.value as string)
-      if (!payload) throw new Error('Unauthorized')
-
+      if (!user?.tenantId) throw new Error('Unauthorized')
       const { apiKey, label } = body as { apiKey: string; label?: string }
       const provider = params.provider.toLowerCase()
 
       if (!apiKey) throw new Error('API Key is required')
-      if (!['virustotal', 'abuseipdb', 'alienvault-otx'].includes(provider)) {
-        throw new Error('Invalid enrichment provider. Must be virustotal, abuseipdb, or alienvault-otx')
+      
+      // Normalize provider name: alienvault -> alienvault-otx
+      let normalizedProvider = provider
+      if (provider === 'alienvault') {
+        normalizedProvider = 'alienvault-otx'
+      }
+      
+      if (!['virustotal', 'abuseipdb', 'alienvault-otx', 'urlscan'].includes(normalizedProvider)) {
+        throw new Error('Invalid enrichment provider. Must be virustotal, abuseipdb, alienvault, or urlscan')
       }
 
       const defaultLabels: Record<string, string> = {
         'virustotal': 'VirusTotal',
         'abuseipdb': 'AbuseIPDB',
-        'alienvault-otx': 'AlienVault OTX'
+        'alienvault-otx': 'AlienVault OTX',
+        'urlscan': 'URLScan.io'
       }
 
-      return await IntegrationService.addEnrichment(payload.tenantId as string, provider, {
+      const result = await IntegrationService.addEnrichment(user.tenantId as string, normalizedProvider, {
         apiKey,
-        label: label || defaultLabels[provider] || provider
+        label: label || defaultLabels[normalizedProvider] || normalizedProvider
       })
+      
+      await AuditService.log({
+        tenantId: user.tenantId,
+        userId: user.userId || user.id,
+        action: 'CREATE_INTEGRATION',
+        resource: 'integration',
+        resourceId: result.integration.id,
+        details: { provider: normalizedProvider, type: 'enrichment' },
+        status: 'SUCCESS'
+      })
+      
+      return result
+    } catch (e: any) {
+      console.error('[Enrichment Add Error]', e.message, e.stack)
+      set.status = 400
+      return { error: e.message }
+    }
+  })
+  
+  /**
+   * Add ticketing integration (Jira/ServiceNow)
+   * @route POST /integrations/ticketing/:provider
+   */
+  .post('/ticketing/:provider', async ({ user, params, body, set }: any) => {
+      try {
+          if (!user?.tenantId) throw new Error('Unauthorized');
+          const provider = params.provider.toLowerCase();
+          if (!['jira', 'servicenow'].includes(provider)) throw new Error('Invalid provider');
+          
+          return await IntegrationService.addTicketing(user.tenantId, provider, body);
+      } catch (e: any) {
+          set.status = 400;
+          return { error: e.message };
+      }
+  })
+
+  /**
+   * Add Splunk SIEM integration
+   * @route POST /integrations/splunk
+   * @access Protected - Admin only  
+   * @body {string} host - Splunk host
+   * @body {string} token - HEC token
+   * @body {number} port - HEC port (default: 8088)
+   * @body {boolean} ssl - Use SSL (default: true)
+   * @returns {Object} Created integration
+   */
+  .post('/splunk', async ({ body, user, set }: any) => {
+    try {
+      if (!user?.tenantId) throw new Error('Unauthorized')
+      const integration = await IntegrationService.addSplunk(user.tenantId as string, body)
+      
+      await AuditService.log({
+        tenantId: user.tenantId,
+        userId: user.userId || user.id,
+        action: 'CREATE_INTEGRATION',
+        resource: 'integration',
+        resourceId: integration.id,
+        details: { provider: 'splunk', host: body.host },
+        status: 'SUCCESS'
+      })
+
+      set.status = 201
+      return { message: 'Splunk integration added successfully', integration }
+    } catch (e: any) {
+      set.status = 400
+      return { error: e.message }
+    }
+  })
+
+  /**
+   * Add Elastic SIEM integration
+   * @route POST /integrations/elastic
+   * @access Protected - Admin only
+   * @body {string} cloudId - Elastic Cloud ID (optional)
+   * @body {string} apiKey - Elastic API Key (optional)
+   * @body {string} url - Self-hosted URL (optional)
+   * @body {string} username - Username (optional)
+   * @body {string} password - Password (optional)
+   * @returns {Object} Created integration
+   */
+  .post('/elastic', async ({ body, user, set }: any) => {
+    try {
+      if (!user?.tenantId) throw new Error('Unauthorized')
+      const integration = await IntegrationService.addElastic(user.tenantId as string, body)
+      
+      await AuditService.log({
+        tenantId: user.tenantId,
+        userId: user.userId || user.id,
+        action: 'CREATE_INTEGRATION',
+        resource: 'integration',
+        resourceId: integration.id,
+        details: { provider: 'elastic', cloudId: body.cloudId?.slice(-8) },
+        status: 'SUCCESS'
+      })
+
+      set.status = 201
+      return { message: 'Elastic SIEM integration added successfully', integration }
+    } catch (e: any) {
+      set.status = 400
+      return { error: e.message }
+    }
+  })
+
+  /**
+   * Add Wazuh SIEM integration
+   * @route POST /integrations/wazuh
+   * @access Protected - Admin only
+   * @body {string} url - Wazuh API URL
+   * @body {string} user - Username
+   * @body {string} password - Password
+   * @returns {Object} Created integration
+   */
+  .post('/wazuh', async ({ body, user, set }: any) => {
+    try {
+      if (!user?.tenantId) throw new Error('Unauthorized')
+      const integration = await IntegrationService.addWazuh(user.tenantId as string, body)
+      
+      await AuditService.log({
+        tenantId: user.tenantId,
+        userId: user.userId || user.id,
+        action: 'CREATE_INTEGRATION',
+        resource: 'integration',
+        resourceId: integration.id,
+        details: { provider: 'wazuh', url: body.url },
+        status: 'SUCCESS'
+      })
+
+      set.status = 201
+      return { message: 'Wazuh integration added successfully', integration }
     } catch (e: any) {
       set.status = 400
       return { error: e.message }
@@ -347,12 +515,10 @@ export const integrationController = new Elysia({ prefix: '/integrations' })
    * @param {string} id - Integration ID
    * @returns {Object} Integration configuration (credentials masked)
    */
-  .get('/:id/config', async ({ params, jwt, cookie: { access_token }, set }) => {
+  .get('/:id/config', async ({ params, user, set }: any) => {
     try {
-      const payload = await jwt.verify(access_token.value as string)
-      if (!payload) throw new Error('Unauthorized')
-
-      const config = await IntegrationService.getConfig(params.id, payload.tenantId as string)
+      if (!user?.tenantId) throw new Error('Unauthorized')
+      const config = await IntegrationService.getConfig(params.id, user.tenantId as string)
       return config
     } catch (e: any) {
       set.status = 400
@@ -369,12 +535,10 @@ export const integrationController = new Elysia({ prefix: '/integrations' })
    * @returns {Object} Updated integration
    * @description Triggers collector reload after update
    */
-  .put('/:id', async ({ params, body, jwt, cookie: { access_token }, set }) => {
+  .put('/:id', async ({ params, body, user, set }: any) => {
     try {
-      const payload = await jwt.verify(access_token.value as string)
-      if (!payload) throw new Error('Unauthorized')
-
-      const integration = await IntegrationService.updateFull(params.id, payload.tenantId as string, body as any)
+      if (!user?.tenantId) throw new Error('Unauthorized')
+      const integration = await IntegrationService.updateFull(params.id, user.tenantId as string, body as any)
       
       // Trigger collector to reload config
       const collectorUrl = process.env.COLLECTOR_URL || 'http://localhost:8001'
@@ -391,6 +555,16 @@ export const integrationController = new Elysia({ prefix: '/integrations' })
         console.warn('[Integration Update] Failed to trigger Collector sync:', e)
       }
       
+      
+      await AuditService.log({
+        tenantId: user.tenantId,
+        userId: user.userId || user.id,
+        action: 'UPDATE_INTEGRATION',
+        resource: 'integration',
+        resourceId: params.id,
+        status: 'SUCCESS'
+      })
+
       return { message: 'Integration updated successfully', integration }
     } catch (e: any) {
       set.status = 400
@@ -406,11 +580,9 @@ export const integrationController = new Elysia({ prefix: '/integrations' })
    * @returns {Object} Success message
    * @description Notifies collector to stop syncing before deletion
    */
-  .delete('/:id', async ({ params, jwt, cookie: { access_token }, set }) => {
+  .delete('/:id', async ({ params, user, set }: any) => {
     try {
-      const payload = await jwt.verify(access_token.value as string)
-      if (!payload) throw new Error('Unauthorized')
-
+      if (!user?.tenantId) throw new Error('Unauthorized')
       // Notify collector to cancel sync
       const collectorUrl = process.env.COLLECTOR_URL || 'http://localhost:8001'
       try {
@@ -421,8 +593,17 @@ export const integrationController = new Elysia({ prefix: '/integrations' })
       } catch (e) {
         console.warn('Failed to notify collector about integration deletion:', e)
       }
+      await IntegrationService.delete(params.id, user.tenantId as string)
+      
+      await AuditService.log({
+          tenantId: user.tenantId,
+          userId: user.userId || user.id,
+          action: 'DELETE_INTEGRATION',
+          resource: 'integration',
+          resourceId: params.id,
+          status: 'SUCCESS'
+      })
 
-      await IntegrationService.delete(params.id, payload.tenantId as string)
       return { message: 'Integration deleted successfully' }
     } catch (e: any) {
       set.status = 400
@@ -438,16 +619,101 @@ export const integrationController = new Elysia({ prefix: '/integrations' })
    * @returns {Object} Connection test result
    * @throws {400} Connection failed
    */
-  .post('/:id/test', async ({ params, jwt, cookie: { access_token }, set }) => {
+  .post('/:id/test', async ({ params, user, set }: any) => {
     try {
-      const payload = await jwt.verify(access_token.value as string)
-      if (!payload) throw new Error('Unauthorized')
-
-      await IntegrationService.testExisting(params.id, payload.tenantId as string)
-      
+      if (!user?.tenantId) throw new Error('Unauthorized')
+      await IntegrationService.testExisting(params.id, user.tenantId as string)
       return { message: 'Connection verification successful', status: 'connected' }
     } catch (e: any) {
       set.status = 400
       return { error: e.message, status: 'disconnected' }
+    }
+  })
+
+  /**
+   * Get health status of all integrations for the tenant
+   * @route GET /integrations/health
+   */
+  .get('/health', async ({ user, set }: any) => {
+    try {
+      if (!user?.tenantId) throw new Error('Unauthorized')
+      return await IntegrationService.getHealthSummary(user.tenantId as string)
+    } catch (e: any) {
+      set.status = 400
+      return { error: e.message }
+    }
+  })
+
+  /**
+   * Manually reset the circuit breaker for an integration
+   * @route POST /integrations/:id/reset-circuit
+   */
+  .post('/:id/reset-circuit', async ({ params, user, set }: any) => {
+    try {
+      if (!user?.tenantId) throw new Error('Unauthorized')
+      const result = await IntegrationService.resetCircuit(params.id, user.tenantId as string)
+
+
+      
+      if (result.reconnected) {
+          await AuditService.log({
+            tenantId: user.tenantId,
+            userId: user.userId || user.id,
+            action: 'RESET_CIRCUIT',
+            resource: 'integration',
+            resourceId: params.id,
+            status: 'SUCCESS'
+          })
+      }
+
+      return { 
+        success: true, 
+        reconnected: result.reconnected,
+        message: result.reconnected ? '🔌 Reconnected successfully' : `Reconnect failed: ${result.message}`
+      }
+    } catch (e: any) {
+      set.status = 400
+      return { error: e.message }
+    }
+  })
+
+  /**
+   * Set token expiry date for an integration
+   * @route PUT /integrations/:id/token-expiry
+   * @access Protected - Admin only
+   * @body {string} expiresAt - ISO date string or null to clear
+   */
+  .put('/:id/token-expiry', async ({ params, body, user, set }: any) => {
+    try {
+      if (!user?.tenantId) throw new Error('Unauthorized')
+      const { expiresAt } = body as { expiresAt: string | null }
+      
+      const expiryDate = expiresAt ? new Date(expiresAt) : null
+      
+      // Validate date if provided
+      if (expiresAt && isNaN(expiryDate!.getTime())) {
+        throw new Error('Invalid date format')
+      }
+      
+      const updated = await IntegrationService.setTokenExpiry(params.id, user.tenantId as string, expiryDate)
+      
+      await AuditService.log({
+        tenantId: user.tenantId,
+        userId: user.userId || user.id,
+        action: 'UPDATE_TOKEN_EXPIRY',
+        resource: 'integration',
+        resourceId: params.id,
+        details: { expiresAt: expiryDate },
+        status: 'SUCCESS'
+      })
+
+      return { 
+        success: true, 
+        tokenExpiresAt: updated?.tokenExpiresAt,
+        message: expiresAt ? `Token expiry set to ${expiryDate!.toLocaleDateString()}` : 'Token expiry cleared'
+      }
+    } catch (e: any) {
+      set.status = 400
+      return { error: e.message }
     }
   })

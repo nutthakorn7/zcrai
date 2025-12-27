@@ -21,7 +21,7 @@ export const edrController = new Elysia({ prefix: '/edr' })
    * @returns {Object} Action execution result
    * @description Executes containment/remediation actions via EDR APIs
    */
-  .post('/execute', async ({ body }: any) => {
+  .post('/execute', async ({ body, user }: any) => {
     const { provider, action, parameters, executionStepId } = body;
 
     const result = await EDRActionService.executeAction({
@@ -29,6 +29,7 @@ export const edrController = new Elysia({ prefix: '/edr' })
       action,
       parameters,
       executionStepId: executionStepId || 'manual-' + Date.now(),
+      tenantId: user.tenantId,
     });
 
     return {

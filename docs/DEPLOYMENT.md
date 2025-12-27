@@ -174,6 +174,12 @@ CLICKHOUSE_DB=zcrai
 # Redis
 REDIS_URL=redis://:PASSWORD@localhost:6379
 
+# Redis (Cache & Pub/Sub)
+REDIS_URL=redis://:PASSWORD@localhost:6379
+# Optional: Cache TTLs (in seconds)
+CACHE_TTL_USER=300
+CACHE_TTL_TENANT=600
+
 # JWT (Generate secure random string)
 JWT_SECRET=CHANGE_TO_RANDOM_64_CHAR_STRING
 JWT_ACCESS_EXPIRY=15m
@@ -560,6 +566,11 @@ gunzip < /root/backups/postgres/backup_YYYYMMDD_HHMMSS.sql.gz | psql $DATABASE_U
 # Restart backend
 pm2 start zcrai-backend
 ```
+
+### Manual Backup (UI)
+Administrators can now trigger backups directly from the **Settings > System Management** dashboard.
+- Files are saved to `/backend/api/backups` by default.
+- Downloadable directly via the browser.
 
 ---
 

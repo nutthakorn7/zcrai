@@ -7,6 +7,7 @@
 import { VirusTotalProvider } from '../enrichment-providers/virustotal';
 import { AbuseIPDBProvider } from '../enrichment-providers/abuseipdb';
 import { AlienVaultOTXProvider } from '../enrichment-providers/alienvault-otx';
+import { URLScanProvider } from '../enrichment-providers/urlscan';
 import { db } from '../../infra/db';
 import { apiKeys } from '../../infra/db/schema';
 import { eq } from 'drizzle-orm';
@@ -52,6 +53,7 @@ export const ThreatIntelService = {
   virustotal: new VirusTotalProvider(),
   abuseipdb: new AbuseIPDBProvider(),
   otx: new AlienVaultOTXProvider(),
+  urlscan: new URLScanProvider(),
 
   /**
    * Get API key from DB or env var
@@ -127,6 +129,7 @@ export const ThreatIntelService = {
       case 'virustotal': return process.env.VIRUSTOTAL_API_KEY;
       case 'abuseipdb': return process.env.ABUSEIPDB_API_KEY;
       case 'alienvault-otx': return process.env.OTX_API_KEY;
+      case 'urlscan': return process.env.URLSCAN_API_KEY;
       default: return undefined;
     }
   },
@@ -141,6 +144,17 @@ export const ThreatIntelService = {
     if (cached && cached.expiresAt > Date.now()) {
       return cached.result;
     }
+
+    // Load API keys from DB and set on providers
+    const [vtKey, abuseKey, otxKey] = await Promise.all([
+      this.getApiKey('virustotal'),
+      this.getApiKey('abuseipdb'),
+      this.getApiKey('alienvault-otx'),
+    ]);
+    
+    if (vtKey) this.virustotal.setApiKey(vtKey);
+    if (abuseKey) this.abuseipdb.setApiKey(abuseKey);
+    if (otxKey) this.otx.setApiKey(otxKey);
 
     const sources: ThreatIntelResult['sources'] = [];
     let allTags: string[] = [];
@@ -166,15 +180,17 @@ export const ThreatIntelService = {
           break;
       }
 
+      if (vtResult.malicious) maliciousCount++;
+      if (Array.isArray(vtResult.categories)) {
+        allTags.push(...vtResult.categories);
+      }
+
       sources.push({
         name: 'VirusTotal',
         found: vtResult.malicious ?? false,
         risk: vtResult.malicious ? 'malicious' : 'clean',
         details: vtResult
       });
-
-      if (vtResult.malicious) maliciousCount++;
-      if (vtResult.categories) allTags.push(...vtResult.categories);
     } catch (e: any) {
       sources.push({
         name: 'VirusTotal',
@@ -184,10 +200,27 @@ export const ThreatIntelService = {
       });
     }
 
-    // Query AbuseIPDB (IP only)
-    if (type === 'ip') {
+    // Query AbuseIPDB (IP with DNS resolution for domains)
+    if (type === 'ip' || type === 'domain') {
       try {
-        const abuseResult = await this.abuseipdb.checkIP(indicator);
+        let ipToCheck = indicator;
+        let isResolved = false;
+
+        // Resolve domain to IP if needed
+        if (type === 'domain') {
+          try {
+            const dns = await import('dns/promises');
+            const resolved = await dns.lookup(indicator);
+            ipToCheck = resolved.address;
+            isResolved = true;
+          } catch (e) {
+            // DNS resolution failed, skip AbuseIPDB
+            console.warn(`[ThreatIntel] DNS resolution failed for ${indicator}`);
+            throw new Error('DNS resolution failed');
+          }
+        }
+
+        const abuseResult = await this.abuseipdb.checkIP(ipToCheck);
         
         const isHighRisk = abuseResult.abuseConfidenceScore > 50;
         const isMediumRisk = abuseResult.abuseConfidenceScore > 20;
@@ -196,18 +229,25 @@ export const ThreatIntelService = {
           name: 'AbuseIPDB',
           found: abuseResult.totalReports > 0,
           risk: isHighRisk ? 'malicious' : (isMediumRisk ? 'suspicious' : 'clean'),
-          details: abuseResult
+          details: {
+            ...abuseResult,
+            note: isResolved ? `Resolved from domain: ${ipToCheck}` : undefined,
+            resolvedIp: isResolved ? ipToCheck : undefined
+          }
         });
 
         if (isHighRisk) maliciousCount++;
         else if (isMediumRisk) suspiciousCount++;
       } catch (e: any) {
-        sources.push({
-          name: 'AbuseIPDB',
-          found: false,
-          risk: 'error',
-          details: { error: e.message }
-        });
+        // Only add error result if it was an IP lookup or if resolution was attempted
+        if (type === 'ip') {
+             sources.push({
+              name: 'AbuseIPDB',
+              found: false,
+              risk: 'error',
+              details: { error: e.message }
+            });
+        }
       }
     }
 
@@ -247,6 +287,34 @@ export const ThreatIntelService = {
         risk: 'error',
         details: { error: e.message }
       });
+    }
+
+    // Query URLScan (URL and Domain only)
+    if (type === 'url' || type === 'domain') {
+      try {
+        const urlscanResult = await this.urlscan.checkURL(indicator);
+        if (urlscanResult) {
+          sources.push({
+            name: 'URLScan.io',
+            found: urlscanResult.isMalicious,
+            risk: urlscanResult.isMalicious ? 'malicious' : 'clean',
+            details: {
+              score: urlscanResult.score,
+              tags: urlscanResult.tags,
+              urlscanUrl: urlscanResult.details.urlscanUrl,
+            }
+          });
+          if (urlscanResult.isMalicious) maliciousCount++;
+          allTags.push(...urlscanResult.tags);
+        }
+      } catch (e: any) {
+        sources.push({
+          name: 'URLScan.io',
+          found: false,
+          risk: 'error',
+          details: { error: e.message }
+        });
+      }
     }
 
     // Calculate verdict
@@ -356,6 +424,7 @@ export const ThreatIntelService = {
       { name: 'VirusTotal', provider: 'virustotal', envKey: 'VIRUSTOTAL_API_KEY' },
       { name: 'AbuseIPDB', provider: 'abuseipdb', envKey: 'ABUSEIPDB_API_KEY' },
       { name: 'AlienVault OTX', provider: 'alienvault-otx', envKey: 'OTX_API_KEY' },
+      { name: 'URLScan.io', provider: 'urlscan', envKey: 'URLSCAN_API_KEY' },
     ];
 
     const results = [];

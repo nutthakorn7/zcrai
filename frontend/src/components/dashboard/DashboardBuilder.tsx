@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 // @ts-ignore - react-grid-layout types are incomplete
 import GridLayout from 'react-grid-layout';
 import { Button, Card, CardBody, Modal, ModalContent, ModalHeader, ModalBody, useDisclosure, Chip } from "@heroui/react";
-import { api } from '../../shared/api/api';
+import { api } from '../../shared/api';
 import { Icon } from '../../shared/ui';
 import { WidgetRenderer } from './widgets';
 import CustomWidgetCreator from './CustomWidgetCreator';
@@ -18,6 +18,7 @@ const WIDGET_LIBRARY = [
   { id: 'alerts-feed', name: 'Recent Alerts', description: 'Live alert feed', defaultW: 6, defaultH: 8 },
   { id: 'top-hosts', name: 'Top Hosts', description: 'Most active hosts', defaultW: 6, defaultH: 6 },
   { id: 'sources-donut', name: 'Sources Donut', description: 'Events by source', defaultW: 4, defaultH: 6 },
+  { id: 'ai-workforce', name: 'AI Workforce Value', description: 'ROI & Efficiency Stats', defaultW: 8, defaultH: 5 },
 ];
 
 interface LayoutItem {
@@ -38,8 +39,8 @@ export default function DashboardBuilder({ onClose, onSave }: DashboardBuilderPr
   const [layout, setLayout] = useState<LayoutItem[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const { isOpen: isWidgetOpen, onOpen: openWidgets, onOpenChange: onWidgetChange } = useDisclosure();
-  const { isOpen: isCustomOpen, onOpen: openCustom, onClose: closeCustom } = useDisclosure();
+  const [isWidgetOpen, setIsWidgetOpen] = useState(false);
+  const [isCustomOpen, setIsCustomOpen] = useState(false);
 
   // Load saved layout
   useEffect(() => {
@@ -88,7 +89,7 @@ export default function DashboardBuilder({ onClose, onSave }: DashboardBuilderPr
       type: widgetType,
     };
     setLayout(prev => [...prev, newItem]);
-    onWidgetChange();
+    setIsWidgetOpen(false); // Close modal after adding
   };
 
   const removeWidget = (id: string) => {
@@ -139,10 +140,10 @@ export default function DashboardBuilder({ onClose, onSave }: DashboardBuilderPr
         <div className="flex gap-2">
           {isEditing ? (
             <>
-              <Button size="sm" variant="flat" onPress={openWidgets} startContent={<Icon.Add className="w-4 h-4" />}>
+              <Button size="sm" variant="flat" onPress={() => setIsWidgetOpen(true)} startContent={<Icon.Add className="w-4 h-4" />}>
                 Add Widget
               </Button>
-              <Button size="sm" variant="ghost" color="secondary" onPress={openCustom} startContent={<Icon.Chart className="w-4 h-4" />}>
+              <Button size="sm" variant="ghost" color="secondary" onPress={() => setIsCustomOpen(true)} startContent={<Icon.Chart className="w-4 h-4" />}>
                 Create Custom
               </Button>
               <Button size="sm" variant="flat" color="danger" onPress={handleReset}>
@@ -213,7 +214,7 @@ export default function DashboardBuilder({ onClose, onSave }: DashboardBuilderPr
       </div>
 
       {/* Widget Library Modal */}
-      <Modal isOpen={isWidgetOpen} onOpenChange={onWidgetChange} size="2xl">
+      <Modal isOpen={isWidgetOpen} onClose={() => setIsWidgetOpen(false)} size="2xl">
         <ModalContent>
           {() => (
             <>
@@ -233,7 +234,7 @@ export default function DashboardBuilder({ onClose, onSave }: DashboardBuilderPr
                           <Icon.Chart className="w-5 h-5 text-primary" />
                         </div>
                         <div>
-                          <h4 className="font-semibold text-sm">{widget.name}</h4>
+                          <h3 className="font-semibold text-sm">{widget.name}</h3>
                           <p className="text-xs text-default-400">{widget.defaultW}x{widget.defaultH}</p>
                         </div>
                       </div>
@@ -250,7 +251,7 @@ export default function DashboardBuilder({ onClose, onSave }: DashboardBuilderPr
       {/* Custom Widget Creator Modal */}
       <CustomWidgetCreator 
         isOpen={isCustomOpen} 
-        onClose={closeCustom}
+        onClose={() => setIsCustomOpen(false)}
         onSave={(widget) => {
           // Add custom widget to layout
           const newItem: LayoutItem = {
@@ -262,6 +263,7 @@ export default function DashboardBuilder({ onClose, onSave }: DashboardBuilderPr
             type: `custom-${widget.id}`
           };
           setLayout(prev => [...prev, newItem]);
+          setIsCustomOpen(false); // Close modal after adding
         }}
       />
     </div>

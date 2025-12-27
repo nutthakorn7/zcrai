@@ -64,14 +64,7 @@ export default function SettingsLayout() {
                   Audit Logs
                 </NavLink>
 
-                <NavLink 
-                  to="/settings/detection-rules"
-                  className={({ isActive }) => 
-                    `px-4 py-2 rounded-lg transition-colors ${isActive ? 'bg-primary/20 text-primary' : 'hover:bg-default-100'}`
-                  }
-                >
-                  Detection Rules
-                </NavLink>
+
 
                 <NavLink 
                   to="/settings/integrations"
@@ -83,12 +76,30 @@ export default function SettingsLayout() {
                 </NavLink>
 
                 <NavLink 
+                  to="/settings/secrets-vault"
+                  className={({ isActive }) => 
+                    `px-4 py-2 rounded-lg transition-colors ${isActive ? 'bg-primary/20 text-primary' : 'hover:bg-default-100'}`
+                  }
+                >
+                  Secrets Vault
+                </NavLink>
+
+                <NavLink 
                   to="/settings/notifications"
                   className={({ isActive }) => 
                     `px-4 py-2 rounded-lg transition-colors ${isActive ? 'bg-primary/20 text-primary' : 'hover:bg-default-100'}`
                   }
                 >
                   Notifications
+                </NavLink>
+
+                <NavLink 
+                  to="/settings/subscription"
+                  className={({ isActive }) => 
+                    `px-4 py-2 rounded-lg transition-colors ${isActive ? 'bg-primary/20 text-primary' : 'hover:bg-default-100'}`
+                  }
+                >
+                  Subscription
                 </NavLink>
               </>
             )}
@@ -132,6 +143,15 @@ export default function SettingsLayout() {
                   }
                 >
                   EDR Actions
+                </NavLink>
+
+                <NavLink 
+                  to="/settings/system"
+                  className={({ isActive }) => 
+                    `px-4 py-2 rounded-lg transition-colors ${isActive ? 'bg-primary/20 text-primary' : 'hover:bg-default-100'}`
+                  }
+                >
+                  System Management
                 </NavLink>
               </>
             )}

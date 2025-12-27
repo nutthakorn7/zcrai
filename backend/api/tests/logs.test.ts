@@ -32,14 +32,14 @@ describe('Logs Controller', () => {
     })
 
     it('should list logs with pagination', async () => {
-        const { data, response } = await api.logs.index.get({ 
+        const { data, response } = await api.logs.get({ 
             headers,
             query: { page: 1, limit: 10 }
         })
         expect(response.status).toBe(200)
-        expect(data?.success).toBe(true)
+        // expect(data?.success).toBe(true) // no wrapper
         // Check strict equality or subset
-        expect(data?.data?.data[0].id).toBe(mockLogsList.data[0].id)
+        expect(data?.data?.[0].id).toBe(mockLogsList.data[0].id)
     })
 
     it('should get log detail', async () => {

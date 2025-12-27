@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/go-resty/resty/v2"
@@ -148,6 +149,8 @@ func ParseS1Config(configStr string) (*S1Config, error) {
 	if err := json.Unmarshal([]byte(configStr), &cfg); err != nil {
 		return nil, err
 	}
+	// Trim whitespace from URL to prevent parse errors
+	cfg.BaseURL = strings.TrimSpace(cfg.BaseURL)
 	return &cfg, nil
 }
 
@@ -157,6 +160,8 @@ func ParseCrowdStrikeConfig(configStr string) (*CrowdStrikeConfig, error) {
 	if err := json.Unmarshal([]byte(configStr), &cfg); err != nil {
 		return nil, err
 	}
+	// Trim whitespace from URL to prevent parse errors
+	cfg.BaseURL = strings.TrimSpace(cfg.BaseURL)
 	return &cfg, nil
 }
 

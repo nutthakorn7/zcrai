@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { useState, useEffect } from 'react';
 import { Spinner } from '@heroui/react';
-import { api } from '../../shared/api/api';
+import { api } from '../../shared/api';
 import { 
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, Tooltip, ResponsiveContainer
@@ -41,7 +41,7 @@ export default function CustomWidget({ widgetId, className }: CustomWidgetProps)
 
   if (loading) {
     return (
-      <div className={`h-full flex items-center justify-center ${className}`}>
+      <div className={`h-full flex items-center justify-center ${className || ''}`}>
         <Spinner size="sm" />
       </div>
     );
@@ -49,7 +49,7 @@ export default function CustomWidget({ widgetId, className }: CustomWidgetProps)
 
   if (!widget) {
     return (
-      <div className={`h-full flex items-center justify-center text-default-500 ${className}`}>
+      <div className={`h-full flex items-center justify-center text-default-500 ${className || ''}`}>
         Widget not found
       </div>
     );
@@ -135,7 +135,7 @@ export default function CustomWidget({ widgetId, className }: CustomWidgetProps)
   };
 
   return (
-    <div className={`h-full flex flex-col ${className}`}>
+    <div className={`h-full flex flex-col ${className || ''}`}>
       <div className="text-xs font-medium text-default-600 mb-1 truncate">
         {widget.name}
       </div>

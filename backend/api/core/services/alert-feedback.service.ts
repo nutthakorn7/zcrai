@@ -7,7 +7,7 @@ import { db } from '../../infra/db';
 import { alerts } from '../../infra/db/schema';
 import { eq, and, sql, gte, desc } from 'drizzle-orm';
 
-interface FeedbackStats {
+export interface FeedbackStats {
   totalAlerts: number;
   confirmed: number;
   falsePositives: number;
@@ -15,7 +15,7 @@ interface FeedbackStats {
   patterns: FPPattern[];
 }
 
-interface FPPattern {
+export interface FPPattern {
   rule: string;
   source: string;
   severity: string;
@@ -24,7 +24,7 @@ interface FPPattern {
   fpRate: number;
 }
 
-interface FeedbackInput {
+export interface FeedbackInput {
   alertId: string;
   feedback: 'confirmed' | 'false_positive';
   reason?: string;

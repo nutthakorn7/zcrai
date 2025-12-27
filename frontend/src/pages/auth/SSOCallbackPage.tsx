@@ -1,0 +1,36 @@
+import { useEffect, useRef } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+
+export const SSOCallbackPage = () => {
+    const [searchParams] = useSearchParams();
+    const navigate = useNavigate();
+    // const { login } = useAuth(); // Not needed if we manually set token
+    const processed = useRef(false);
+
+    useEffect(() => {
+        if (processed.current) return;
+        processed.current = true;
+
+        const token = searchParams.get('token');
+        if (token) {
+            // Store token
+            localStorage.setItem('token', token);
+            // Update auth state (trigger re-verification or just set state)
+            // Ideally useAuth().setToken(token) or similar
+            // Force reload or navigate
+            navigate('/dashboard');
+            window.location.reload(); // To ensure auth state is fresh
+        } else {
+            navigate('/login?error=sso_failed');
+        }
+    }, [searchParams, navigate]);
+
+    return (
+        <div className="flex h-screen flex-col items-center justify-center bg-background">
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary mb-4"></div>
+            <span className="text-sm font-bold font-display uppercase tracking-[0.2em] text-foreground/60">Completing login...</span>
+        </div>
+    );
+};
+
+export default SSOCallbackPage;

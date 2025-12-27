@@ -1,8 +1,7 @@
 import { useState, useEffect } from "react";
 import { Button, Input, Select, SelectItem, Card, CardBody, Switch, Divider } from "@heroui/react";
-import { Icon } from "../../shared/ui";
-
-import { api } from "../../shared/api/api";
+import { api } from "@/shared/api";
+import { Icon } from "@/shared/ui";
 
 // Example Providers
 const PROVIDERS = [
@@ -66,10 +65,10 @@ export default function SSOPage() {
   return (
     <div className="space-y-6 max-w-4xl">
       <div>
-        <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-default-500 bg-clip-text text-transparent">
+        <h1 className="text-3xl font-bold font-display tracking-tight text-foreground">
           Single Sign-On (SSO)
         </h1>
-        <p className="text-default-500 mt-1">Configure enterprise authentication for your team</p>
+        <p className="text-foreground/60 mt-1">Configure enterprise authentication for your team</p>
       </div>
 
       <Card className="border border-default-200">
@@ -80,7 +79,7 @@ export default function SSOPage() {
                         <Icon.Key className="w-6 h-6 text-primary" />
                     </div>
                     <div>
-                        <h3 className="text-lg font-semibold">Enable SSO</h3>
+                        <h3 className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">Enable SSO</h3>
                         <p className="text-xs text-default-400">Allow users to sign in using your Identity Provider</p>
                     </div>
                 </div>
@@ -137,7 +136,7 @@ export default function SSOPage() {
                 
                 {provider === 'generic-oidc' && (
                     <div className="space-y-4 p-4 bg-default-50 rounded-lg border border-default-200">
-                         <h4 className="text-sm font-semibold text-default-600">Advanced Endpoint Configuration</h4>
+                         <h3 className="text-sm font-semibold text-default-600">Advanced Endpoint Configuration</h3>
                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <Input label="Authorization Endpoint" value={authEndpoint} onValueChange={setAuthEndpoint} size="sm" />
                             <Input label="Token Endpoint" value={tokenEndpoint} onValueChange={setTokenEndpoint} size="sm" />
@@ -152,7 +151,7 @@ export default function SSOPage() {
                     color="primary" 
                     onPress={handleSave} 
                     isLoading={isLoading}
-                    className="font-medium shadow-lg shadow-primary/20"
+                    className="h-[44px] bg-primary hover:bg-primary/90 text-black font-bold font-display tracking-tight shadow-lg shadow-primary/20"
                 >
                     {isSaved ? 'Saved Successfully' : 'Save Configuration'}
                 </Button>
@@ -165,8 +164,8 @@ export default function SSOPage() {
           <CardBody className="p-4 flex gap-4">
               <Icon.Info className="w-6 h-6 text-default-400 mt-1" />
               <div className="text-sm text-default-500">
-                  <h4 className="font-semibold text-default-700 mb-1">Callback URL</h4>
-                  <p className="mb-2">Add this URL to your Identity Provider's allowed redirect URIs:</p>
+                  <h3 className="font-semibold text-default-700 mb-1">Callback URL</h3>
+                  <p className="mb-2">Add this URL to your Identity Provider&apos;s allowed redirect URIs:</p>
                   <code className="px-2 py-1 bg-default-200 rounded text-default-800 font-mono">
                       https://app.zcr.ai/api/auth/sso/callback
                   </code>

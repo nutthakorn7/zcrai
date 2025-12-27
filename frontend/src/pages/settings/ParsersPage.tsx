@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Card, Button, Input, Textarea, Select, SelectItem, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Chip, useDisclosure } from '@heroui/react';
 import { Plus, Edit, Trash2, TestTube } from 'lucide-react';
-import { api } from '../../shared/api/api';
+import { api } from '../../shared/api';
+import { PageHeader, ConfirmDialog } from '../../shared/ui';
 import toast from 'react-hot-toast';
 
 interface Parser {
@@ -10,10 +11,16 @@ interface Parser {
   description?: string;
   type: 'regex' | 'grok' | 'json_path';
   pattern: string;
-  fieldMappings?: any;
+  fieldMappings?: Record<string, string>;
   testInput?: string;
   isActive: boolean;
   createdAt: string;
+}
+
+interface ParserTestResult {
+  success: boolean;
+  data?: any;
+  error?: string;
 }
 
 export default function ParsersPage() {
@@ -22,7 +29,11 @@ export default function ParsersPage() {
   const { isOpen, onOpen, onClose } = useDisclosure();
   const { isOpen: isTestOpen, onOpen: onTestOpen, onClose: onTestClose } = useDisclosure();
   const [editingParser, setEditingParser] = useState<Parser | null>(null);
-  const [testResult, setTestResult] = useState<any>(null);
+  const [testResult, setTestResult] = useState<ParserTestResult | null>(null);
+  
+  // Delete confirm state
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [parserToDelete, setParserToDelete] = useState<string | null>(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -60,19 +71,28 @@ export default function ParsersPage() {
       onClose();
       fetchParsers();
       resetForm();
-    } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Operation failed');
+    } catch (error) {
+      const err = error as { response?: { data?: { error?: string } } };
+      toast.error(err.response?.data?.error || 'Operation failed');
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Delete this parser?')) return;
+  const handleDeleteClick = (id: string) => {
+    setParserToDelete(id);
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!parserToDelete) return;
     try {
-      await api.delete(`/parsers/${id}`);
+      await api.delete(`/parsers/${parserToDelete}`);
       toast.success('Parser deleted');
       fetchParsers();
     } catch (error) {
       toast.error('Failed to delete parser');
+    } finally {
+      setDeleteConfirmOpen(false);
+      setParserToDelete(null);
     }
   };
 
@@ -120,24 +140,20 @@ export default function ParsersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold">Custom Parsers</h1>
-          <p className="text-sm text-default-600">Create custom log parsing rules</p>
-        </div>
+      <PageHeader title="Custom Parsers" description="Create custom log parsing rules">
         <Button color="primary" startContent={<Plus className="w-4 h-4" />} onPress={openCreateModal}>
           New Parser
         </Button>
-      </div>
+      </PageHeader>
 
       <Card className="p-6">
         <Table aria-label="Parsers table">
           <TableHeader>
-            <TableColumn>NAME</TableColumn>
-            <TableColumn>TYPE</TableColumn>
-            <TableColumn>PATTERN</TableColumn>
-            <TableColumn>STATUS</TableColumn>
-            <TableColumn>ACTIONS</TableColumn>
+            <TableColumn className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">NAME</TableColumn>
+            <TableColumn className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">TYPE</TableColumn>
+            <TableColumn className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">PATTERN</TableColumn>
+            <TableColumn className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">STATUS</TableColumn>
+            <TableColumn className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">ACTIONS</TableColumn>
           </TableHeader>
           <TableBody emptyContent="No parsers found" isLoading={loading}>
             {parsers.map((parser) => (
@@ -168,7 +184,7 @@ export default function ParsersPage() {
                     <Button size="sm" variant="light" isIconOnly onPress={() => handleEdit(parser)}>
                       <Edit className="w-4 h-4" />
                     </Button>
-                    <Button size="sm" variant="light" color="danger" isIconOnly onPress={() => handleDelete(parser.id)}>
+                    <Button size="sm" variant="light" color="danger" isIconOnly onPress={() => handleDeleteClick(parser.id)}>
                       <Trash2 className="w-4 h-4" />
                     </Button>
                   </div>
@@ -200,7 +216,7 @@ export default function ParsersPage() {
               <Select
                 label="Parser Type"
                 selectedKeys={[formData.type]}
-                onSelectionChange={(keys) => setFormData({ ...formData, type: Array.from(keys)[0] as any })}
+                onSelectionChange={(keys) => setFormData({ ...formData, type: Array.from(keys)[0] as 'regex' | 'grok' | 'json_path' })}
               >
                 <SelectItem key="regex">Regex</SelectItem>
                 <SelectItem key="json_path">JSON Path</SelectItem>
@@ -264,6 +280,16 @@ export default function ParsersPage() {
           </ModalFooter>
         </ModalContent>
       </Modal>
+
+      <ConfirmDialog
+        isOpen={deleteConfirmOpen}
+        onClose={() => setDeleteConfirmOpen(false)}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Parser"
+        description="Are you sure you want to delete this parser?"
+        confirmLabel="Delete"
+        confirmColor="danger"
+      />
     </div>
   );
 }

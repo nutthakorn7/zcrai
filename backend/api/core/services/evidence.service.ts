@@ -6,7 +6,7 @@
 import { db } from '../../infra/db';
 import { nanoid } from 'nanoid';
 
-interface CustodyEvent {
+export interface CustodyEvent {
   timestamp: Date;
   action: 'collected' | 'transferred' | 'analyzed' | 'stored' | 'exported';
   performedBy: string;
@@ -14,7 +14,7 @@ interface CustodyEvent {
   notes?: string;
 }
 
-interface EvidenceItem {
+export interface EvidenceItem {
   id: string;
   caseId: string;
   type: 'memory_dump' | 'disk_image' | 'network_pcap' | 'log_file';

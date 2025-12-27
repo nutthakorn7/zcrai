@@ -31,8 +31,14 @@ docker-compose.override.yml
 # Drizzle
 drizzle/meta/
 
+
 # Test
 coverage/
+test-results/
+playwright-report/
+e2e/test-results/
+e2e/playwright-report/
+blob-report/
 
 # Temp
 tmp/
@@ -41,4 +47,15 @@ temp/
 
 # Environment
 .env
-.env.test
+.env.*
+!.env.example
+backend/api/.env
+backend/api/.env.*
+!backend/api/.env.example
+collector/.env
+collector/.env.*
+!collector/.env.example
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
+!frontend/.env.production.example

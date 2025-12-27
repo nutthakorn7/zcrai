@@ -2,6 +2,7 @@ import { db } from '../../infra/db';
 import { alerts, alertCorrelations, cases } from '../../infra/db/schema';
 import { eq, and, desc, inArray, sql, or, gte, lte } from 'drizzle-orm';
 import { ObservableService } from './observable.service';
+import { NotificationChannelService } from './notification-channel.service';
 import crypto from 'crypto';
 
 export class AlertService {
@@ -91,28 +92,81 @@ export class AlertService {
       duplicateCount: 1,
       firstSeenAt: new Date(),
       lastSeenAt: new Date(),
+      aiTriageStatus: 'pending' // Initial status
     }).returning();
 
     // Auto-extract IOCs from description + rawData
     const textToScan = data.description + (data.rawData ? JSON.stringify(data.rawData) : '');
-    await ObservableService.extract(textToScan, data.tenantId, undefined, alert.id);
+    const extractedIOCs = await ObservableService.extract(textToScan, data.tenantId, undefined, alert.id, 'system');
 
     // Auto-correlate after creation
     await this.correlate(alert.id);
+
+    // Auto-notify
+    try {
+        await NotificationChannelService.send(data.tenantId, {
+            type: 'alert',
+            severity: data.severity,
+            title: `New Alert: ${data.title}`,
+            message: `${data.description}${data.source ? `\nSource: ${data.source}` : ''}`,
+            metadata: { alertId: alert.id }
+        });
+    } catch (err) {
+        console.error('Failed to send notification', err);
+    }
+
+    // Auto-Triage (AI SOC Phase 1)
+    // If we have observables, they might need enrichment. 
+    // We'll set status to 'enriching' and let the EnrichmentWorker trigger the AI once done.
+    if (extractedIOCs && extractedIOCs.length > 0) {
+        await db.update(alerts)
+            .set({ aiTriageStatus: 'enriching' })
+            .where(eq(alerts.id, alert.id));
+        console.log(`[AlertService] Alert ${alert.id} set to 'enriching' status. Waiting for IOC enrichment...`);
+    } else {
+        // Fire-and-forget: Analyze alert immediately if no IOCs
+        import('./ai-triage.service').then(({ AITriageService }) => {
+            AITriageService.analyze(alert.id, { 
+                ...data, 
+                tenantId: data.tenantId, 
+                rawData: data.rawData,
+                observables: extractedIOCs 
+            });
+        }).catch(err => console.error('Failed to trigger AI Triage', err));
+    }
+
+    // Emit real-time event
+    import('./socket.service').then(({ SocketService }) => {
+        SocketService.broadcast(data.tenantId, 'new_alert', alert);
+    }).catch(err => console.error('Failed to emit real-time alert', err));
 
     return alert;
   }
 
   // List alerts with filters
   static async list(filters: {
-    tenantId: string;
+    tenantId?: string; // Optional for superadmin
     status?: string[];
     severity?: string[];
     source?: string[];
+    aiStatus?: string[]; // 'verified', 'blocked', 'pending'
+    technique?: string;
     limit?: number;
     offset?: number;
+    fields?: string[]; // Selective fields like 'id', 'title', etc.
   }) {
-    const conditions = [eq(alerts.tenantId, filters.tenantId)];
+    // Check Cache
+    const cacheKey = `alerts:list:${filters.tenantId || 'all'}:${JSON.stringify(filters)}`;
+    const { redis } = await import('../../infra/cache/redis');
+    const cached = await redis.get(cacheKey);
+    if (cached) return JSON.parse(cached);
+
+    const conditions = [];
+    
+    // Only filter by tenantId if provided (non-superadmin users)
+    if (filters.tenantId) {
+      conditions.push(eq(alerts.tenantId, filters.tenantId));
+    }
 
     if (filters.status && filters.status.length > 0) {
       conditions.push(inArray(alerts.status, filters.status));
@@ -126,19 +180,75 @@ export class AlertService {
       conditions.push(inArray(alerts.source, filters.source));
     }
 
-    const result = await db
-      .select()
-      .from(alerts)
-      .where(and(...conditions))
+    // AI Status Filter
+    if (filters.aiStatus && filters.aiStatus.length > 0) {
+        const aiConditions = [];
+        if (filters.aiStatus.includes('verified')) {
+            aiConditions.push(sql`alerts.ai_analysis->>'classification' = 'TRUE_POSITIVE'`);
+        }
+        if (filters.aiStatus.includes('blocked')) {
+            aiConditions.push(sql`alerts.ai_analysis->'actionTaken'->>'type' = 'BLOCK_IP'`);
+        }
+        if (filters.aiStatus.includes('pending')) {
+           aiConditions.push(or(
+               sql`alerts.ai_triage_status = 'pending'`,
+               sql`alerts.ai_triage_status IS NULL`
+           ));
+        }
+        if (filters.aiStatus.includes('promoted')) {
+            aiConditions.push(sql`alerts.ai_analysis->'promotedCaseId' IS NOT NULL`);
+        }
+        
+        if (aiConditions.length > 0) {
+            conditions.push(or(...aiConditions));
+        }
+    }
+
+    if (filters.technique && filters.technique !== 'all') {
+        conditions.push(or(
+            sql`alerts.raw_data->>'mitre_technique' = ${filters.technique}`,
+            sql`alerts.raw_data->>'technique' = ${filters.technique}`
+        ));
+    }
+
+    // Selective Field Selection
+    let query;
+    if (filters.fields && filters.fields.length > 0) {
+      const selection: Record<string, any> = {};
+      filters.fields.forEach(f => {
+        if ((alerts as any)[f]) {
+          selection[f] = (alerts as any)[f];
+        }
+      });
+      query = db.select(selection).from(alerts);
+    } else {
+      query = db.select().from(alerts);
+    }
+
+    query = query
       .orderBy(desc(alerts.createdAt))
       .limit(filters.limit || 100)
       .offset(filters.offset || 0);
+    
+    // Only add where clause if there are conditions
+    const result = conditions.length > 0 
+      ? await query.where(and(...conditions))
+      : await query;
+
+    // Cache result (60s - relatively fresh)
+    await redis.setex(cacheKey, 60, JSON.stringify(result));
 
     return result;
   }
 
   // Get alert by ID
   static async getById(id: string, tenantId: string) {
+    // Check Cache
+    const cacheKey = `alert:${id}:${tenantId}`;
+    const { redis } = await import('../../infra/cache/redis');
+    const cached = await redis.get(cacheKey);
+    if (cached) return JSON.parse(cached);
+
     const [alert] = await db
       .select()
       .from(alerts)
@@ -152,7 +262,12 @@ export class AlertService {
       .from(alertCorrelations)
       .where(eq(alertCorrelations.primaryAlertId, id));
 
-    return { ...alert, correlations };
+    const result = { ...alert, correlations };
+    
+    // Cache result (5 mins)
+    await redis.setex(cacheKey, 300, JSON.stringify(result));
+
+    return result;
   }
 
   // Update alert status

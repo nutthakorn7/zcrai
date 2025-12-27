@@ -27,7 +27,7 @@ describe('Alert Controller', () => {
         }
         
         const title = `Suspicious Login ${Date.now()}`
-        const { data, response } = await api.alerts.index.post({
+        const { data, response } = await api.alerts.post({
             title,
             description: 'Multiple failed login attempts detected',
             severity: 'high',
@@ -51,7 +51,7 @@ describe('Alert Controller', () => {
             return
         }
         
-        const { data, response } = await api.alerts.index.get({ headers })
+        const { data, response } = await api.alerts.get({ headers })
         expect(response.status).toBe(200)
         expect(data?.success).toBe(true)
         expect(Array.isArray(data?.data)).toBe(true)

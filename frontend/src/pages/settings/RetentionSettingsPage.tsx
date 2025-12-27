@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
 import { Card, CardBody, Button, Input, Divider } from "@heroui/react";
 import { toast } from 'react-hot-toast';
-import { api } from '../../shared/api/api';
+import { api } from '../../shared/api';
+import { ConfirmDialog } from '../../shared/ui/ConfirmDialog';
 import { Loader2, Trash2 } from 'lucide-react';
 
 export default function RetentionSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [triggering, setTriggering] = useState(false);
+  const [confirmCleanup, setConfirmCleanup] = useState(false);
   
   const [settings, setSettings] = useState({
     auditLogDays: 90,
@@ -47,9 +49,7 @@ export default function RetentionSettingsPage() {
     }
   };
 
-  const handleTriggerCleanup = async () => {
-    if (!confirm('Are you sure you want to run cleanup now? This is irreversible.')) return;
-    
+  const onConfirmCleanup = async () => {
     try {
       setTriggering(true);
       await api.post('/admin/settings/retention/trigger', {});
@@ -58,6 +58,7 @@ export default function RetentionSettingsPage() {
       toast.error('Failed to trigger cleanup');
     } finally {
       setTriggering(false);
+      setConfirmCleanup(false);
     }
   };
 
@@ -68,19 +69,19 @@ export default function RetentionSettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Data Retention Policy</h1>
-        <p className="text-default-500">Configure automated data cleanup schedules to meet compliance requirements.</p>
+        <h1 className="text-3xl font-bold font-display tracking-tight text-foreground">Data Retention Policy</h1>
+        <p className="text-foreground/60 text-sm mt-1">Configure automated data cleanup schedules to meet compliance requirements.</p>
       </div>
 
       <Card>
         <CardBody className="gap-6 p-6">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold">Retention Periods (Days)</h3>
+            <h3 className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">Retention Periods (Days)</h3>
             <Button
               color="danger"
               variant="flat"
               startContent={triggering ? <Loader2 className="animate-spin" /> : <Trash2 size={18} />}
-              onPress={handleTriggerCleanup}
+              onPress={() => setConfirmCleanup(true)}
               disabled={triggering}
             >
               {triggering ? 'Running...' : 'Run Cleanup Now'}
@@ -140,15 +141,26 @@ export default function RetentionSettingsPage() {
               <Trash2 className="text-warning" size={24} />
             </div>
             <div>
-              <h4 className="font-semibold text-warning-700">Warning: Permanent Deletion</h4>
+              <h3 className="font-semibold text-warning-700">Warning: Permanent Deletion</h3>
               <p className="text-sm text-default-600 mt-1">
                 Data removed by the cleanup job cannot be recovered. 
-                Ensure your retention periods comply with your organization's legal requirements (e.g., ISO 27001 requires audit logs &gt; 90 days).
+                Ensure your retention periods comply with your organization&apos;s legal requirements (e.g., ISO 27001 requires audit logs &gt; 90 days).
               </p>
             </div>
           </div>
         </CardBody>
       </Card>
+
+      <ConfirmDialog 
+        isOpen={confirmCleanup}
+        onClose={() => setConfirmCleanup(false)}
+        onConfirm={onConfirmCleanup}
+        title="Run Data Cleanup"
+        description="Are you sure you want to run cleanup now? This is irreversible and will permanently delete data older than the configured retention period."
+        confirmLabel="Run Cleanup"
+        confirmColor="danger"
+        isLoading={triggering}
+      />
     </div>
   );
 }

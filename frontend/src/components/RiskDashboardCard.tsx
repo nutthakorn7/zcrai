@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { useState, useEffect } from 'react';
 import { Card, CardBody, CardHeader, Chip, Progress, Divider, Tooltip } from '@heroui/react';
-import { api } from '../shared/api/api';
+import { api } from '../shared/api';
 import { Icon } from '../shared/ui';
 import { 
   AreaChart, Area, XAxis, YAxis, Tooltip as ChartTooltip, 
@@ -178,7 +178,7 @@ export function RiskDashboardCard() {
         {/* Trend Prediction Chart */}
         <div>
           <div className="flex justify-between items-center mb-2">
-            <h4 className="text-sm font-medium">7-Day Prediction</h4>
+            <h3 className="text-sm font-medium">7-Day Prediction</h3>
             <Chip size="sm" color={prediction.predictedChange > 0 ? 'danger' : 'success'} variant="flat">
               {prediction.predictedChange > 0 ? '+' : ''}{prediction.predictedChange}%
             </Chip>

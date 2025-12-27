@@ -58,7 +58,7 @@ export const CasesAPI = {
   },
 
   summarize: async (id: string) => {
-    const res = await api.post<{ success: boolean; data: { summary: string } }>(`/cases/${id}/ai/summarize`);
+    const res = await api.post<{ success: boolean; data: { summary: string; verdict: string; confidence: number; evidence_analysis: string } }>(`/cases/${id}/ai/summarize`);
     return res.data;
   },
 
@@ -74,6 +74,11 @@ export const CasesAPI = {
 
   deleteComment: async (caseId: string, commentId: string) => {
     const res = await api.delete(`/cases/${caseId}/comments/${commentId}`);
+    return res.data;
+  },
+
+  syncToTicket: async (id: string, system: 'jira' | 'servicenow', config: any) => {
+    const res = await api.post(`/cases/${id}/sync`, { system, config });
     return res.data;
   }
 };

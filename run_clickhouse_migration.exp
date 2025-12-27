@@ -1,0 +1,31 @@
+#!/usr/bin/expect -f
+
+set timeout 60
+set pass "#8#J8YMULd6u8iQ"
+set host "root@45.118.132.160"
+
+# Upload migration file
+puts "📦 Uploading migration to server..."
+spawn scp -o StrictHostKeyChecking=no backend/api/infra/clickhouse/migrations/004_dashboard_performance_views.sql $host:/tmp/clickhouse_migration.sql
+expect {
+    "password:" { send "$pass\r"; exp_continue }
+    eof
+}
+
+# Run migration via Docker
+puts "\n🚀 Running ClickHouse migration via Docker..."
+spawn ssh -o StrictHostKeyChecking=no $host "docker exec -i \$(docker ps -q -f name=clickhouse) clickhouse-client --user=default --password=clickhouse --database=zcrai --multiquery < /tmp/clickhouse_migration.sql"
+expect {
+    "password:" { send "$pass\r"; exp_continue }
+    eof
+}
+
+# Verify
+puts "\n📊 Verifying materialized views..."
+spawn ssh -o StrictHostKeyChecking=no $host "docker exec \$(docker ps -q -f name=clickhouse) clickhouse-client --user=default --password=clickhouse --database=zcrai -q \"SHOW TABLES LIKE 'mv_%'\" "
+expect {
+    "password:" { send "$pass\r"; exp_continue }
+    eof
+}
+
+puts "\n✅ Migration completed!"

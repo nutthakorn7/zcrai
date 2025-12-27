@@ -28,8 +28,33 @@ export interface Alert {
     reasoning: string;
     suggested_action: string;
     investigationReport?: string; // Phase 3: Investigation Summary
+    actionTaken?: {
+      type: string;
+      target: string;
+      status: string;
+      details: string;
+      timestamp: string;
+      multipleActions?: Array<{
+        type: string;
+        target: string;
+        status: string;
+        details: string;
+        timestamp: string;
+      }>;
+    };
+    swarmFindings?: Array<{
+      agent: string;
+      status: string;
+      summary: string;
+      data?: any;
+    }>;
   };
   aiTriageStatus?: 'pending' | 'processed' | 'failed';
+  
+  // Phase 4: Analyst Feedback Loop
+  userFeedback?: 'correct' | 'incorrect';
+  feedbackReason?: string;
+  feedbackBy?: string;
 }
 
 export interface AlertCorrelation {
@@ -89,6 +114,12 @@ export const AlertsAPI = {
     return response.data.data as Alert;
   },
 
+  // Feedback API
+  feedback: async (id: string, data: { feedback: 'correct' | 'incorrect'; reason?: string; shouldReopen?: boolean }) => {
+    const response = await api.post(`/feedback/${id}`, data);
+    return response.data.data as Alert;
+  },
+
   promoteToCase: async (id: string, caseData?: {
     title?: string;
     description?: string;
@@ -121,4 +152,11 @@ export const AlertsAPI = {
     const response = await api.get('/alerts/stats/summary');
     return response.data.data;
   },
+
+  exportReport: async (id: string) => {
+    const response = await api.get(`/reports/investigation/${id}`, {
+      responseType: 'blob'
+    });
+    return response.data;
+  }
 };

@@ -27,7 +27,7 @@ describe('Observable Controller', () => {
         }
         
         try {
-            const { data, response } = await api.observables.index.post({
+            const { data, response } = await api.observables.post({
                 type: 'ip',
                 value: '1.2.3.4',
                 tags: ['test-ip']
@@ -43,7 +43,7 @@ describe('Observable Controller', () => {
             expect(data?.success).toBe(true)
             expect(data?.data?.id).toBeDefined()
             expect(data?.data?.value).toBe('1.2.3.4')
-            createdObservableId = data?.data?.id
+            createdObservableId = data?.data?.id || ''
         } catch (e) {
             // Skip on error
             expect(true).toBe(true)
@@ -57,7 +57,7 @@ describe('Observable Controller', () => {
         }
         
         try {
-            const { data, response } = await api.observables.index.get({ headers })
+            const { data, response } = await api.observables.get({ headers })
             
             if (response.status >= 500) {
                 expect(true).toBe(true)

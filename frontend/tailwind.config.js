@@ -10,7 +10,8 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ["Roboto", "sans-serif"],
+        sans: ["Inter", "sans-serif"],
+        display: ["Outfit", "sans-serif"],
       },
       animation: {
         'fade-in': 'fadeIn 0.2s ease-in',
@@ -66,30 +67,37 @@ export default {
             },
           },
           colors: {
-            background: "#111315", // Chinese Black (Main BG)
-            foreground: "#ECEDEE", // Text Color (White-ish)
+            background: "#09090b", 
+            foreground: "#fafafa", 
             
-            // Surface colors (Card, Sidebar)
-            content1: "#1A1D1F", // Eerie Black
-            content2: "#242527", // Raisin Black (Hover)
-            content3: "#353839", // Onyx (Active)
-            content4: "#4A4D50", // Lighter divider
-
+            // Surface colors
+            content1: "#111114", 
+            content2: "#18181b", 
+            content3: "#27272a", 
+            content4: "#3f3f46", 
+ 
             // Action Colors
             primary: {
-              DEFAULT: "#C0DBEF", // Beau Blue (Main Action)
-              foreground: "#111315", // Text on Primary Button (Dark)
+              DEFAULT: "#00d8ff", 
+              foreground: "#09090b", 
             },
             secondary: {
-              DEFAULT: "#FDC693", // Peach-Orange
-              foreground: "#111315",
+              DEFAULT: "#8b5cf6", 
+              foreground: "#fafafa",
             },
             success: {
-              DEFAULT: "#FFEE98", // Flavescent (Adapting for positive vibes)
-              foreground: "#111315",
+              DEFAULT: "#10b981", 
+              foreground: "#fafafa",
             },
-            // Mapping colors to HeroUI semantics
-            focus: "#C0DBEF", 
+            warning: {
+              DEFAULT: "#f59e0b",
+              foreground: "#09090b",
+            },
+            danger: {
+              DEFAULT: "#ef4444",
+              foreground: "#fafafa",
+            },
+            focus: "#00d8ff", 
           },
         },
       },

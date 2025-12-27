@@ -1,20 +1,14 @@
-import { useEffect, useState, useMemo } from 'react';
-import { Button, Chip, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Input, Card, CardBody, Progress } from "@heroui/react";
-import { Icon } from '../../shared/ui';
-import { ObservablesAPI, Observable } from '../../shared/api/observables';
+import { useEffect, useState, useMemo, useCallback } from 'react';
+import { Button, Chip, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Input, Card, CardBody, Progress, Pagination } from "@heroui/react";
+import { Icon, ConfirmDialog } from '../../shared/ui';
+import { ObservablesAPI, Observable } from '../../shared/api';
 import { ObservableDetailModal } from '../../components/ObservableDetailModal';
 import { AddObservableModal } from '../../components/observables/AddObservableModal';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 
-const IOC_TYPE_COLORS: Record<string, string> = {
-  ip: 'primary',
-  domain: 'secondary',
-  email: 'success',
-  url: 'warning',
-  hash: 'danger',
-  file: 'default',
-};
+import { IOC_TYPE_COLORS } from '../../shared/config/theme';
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const IOC_TYPE_ICONS: Record<string, any> = {
   ip: Icon.Global,
   domain: Icon.Global,
@@ -45,27 +39,42 @@ export default function ObservablesPage() {
   const [selectedObservable, setSelectedObservable] = useState<Observable | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  
+  // Delete Confirm State
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
-  const fetchObservables = async () => {
+
+  // Pagination State
+  const [page, setPage] = useState(1);
+  const [limit] = useState(25); // Default limit
+  const [totalPages, setTotalPages] = useState(1);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const fetchObservables = useCallback(async () => {
+    setIsLoading(true);
     try {
+      // Note: Backend might need to return total count for precise pagination
+      // For now, we fetch and see if we get full page
       const data = await ObservablesAPI.list({
         type: typeFilter.length > 0 ? typeFilter : undefined,
         isMalicious: statusFilter === 'malicious' ? true : statusFilter === 'safe' ? false : undefined,
         search: searchQuery || undefined,
+        limit: limit,
+        offset: (page - 1) * limit
       });
       setObservables(data);
+      // Mock total pages logic if backend doesn't return count (assuming lots of data if full page)
+      if (data.length === limit) setTotalPages(page + 1);
     } catch (e) {
       console.error(e);
+    } finally {
+      setIsLoading(false);
     }
-  };
+  }, [typeFilter, statusFilter, searchQuery, page, limit]);
 
   useEffect(() => {
     fetchObservables();
-  }, []);
-
-  useEffect(() => {
-    fetchObservables();
-  }, [typeFilter, statusFilter, searchQuery]);
+  }, [fetchObservables]);
 
   const filteredObservables = useMemo(() => {
     return observables;
@@ -100,24 +109,54 @@ export default function ObservablesPage() {
   const typeDistribution = useMemo(() => {
     return facets.types.map(f => ({ name: f.name, value: f.count }));
   }, [facets]);
-  
-
-
-  // Risk Score Helper (Mock)
   const getRiskScore = (o: Observable) => {
-      if (o.isMalicious) return Math.floor(Math.random() * 20) + 80; // 80-99
-      if (o.isMalicious === false) return Math.floor(Math.random() * 10); // 0-9
+      if (o.enrichmentData) {
+          // Use AbuseIPDB score if available
+          if (o.enrichmentData.abuseipdb?.abuseConfidenceScore) {
+              return o.enrichmentData.abuseipdb.abuseConfidenceScore;
+          }
+          // Use VirusTotal malicious count (normalized to 100 roughly)
+          if (o.enrichmentData.virustotal?.lastAnalysisStats?.malicious) {
+              const malicious = o.enrichmentData.virustotal.lastAnalysisStats.malicious;
+              return Math.min(100, malicious * 10 + 50);
+          }
+      }
+      
+      if (o.isMalicious) return 90;
+      if (o.isMalicious === false) return 0;
       return 0; // Unknown
   };
 
-  const handleBulkEnrich = () => {
+  const handleBulkEnrich = async () => {
       setIsEnriching(true);
-      setTimeout(() => {
-          setIsEnriching(false);
-          setSelectedKeys(new Set([]));
-          // Mock refresh
-          fetchObservables();
-      }, 2000);
+      try {
+        const promises = Array.from(selectedKeys).map(id => ObservablesAPI.enrich(id));
+        await Promise.all(promises);
+        
+        setSelectedKeys(new Set([]));
+        fetchObservables();
+      } catch (e) {
+        console.error("Bulk enrichment failed", e);
+      } finally {
+        setIsEnriching(false);
+      }
+  };
+
+  const handleBulkDeleteClick = () => {
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleBulkDeleteConfirm = async () => {
+    try {
+        const promises = Array.from(selectedKeys).map(id => ObservablesAPI.delete(id));
+        await Promise.all(promises);
+        setSelectedKeys(new Set([]));
+        fetchObservables();
+    } catch(e) {
+        console.error("Bulk delete failed", e);
+    } finally {
+        setDeleteConfirmOpen(false);
+    }
   };
 
   const handleOpenDetail = (observable: Observable) => {
@@ -125,9 +164,18 @@ export default function ObservablesPage() {
     setIsDetailModalOpen(true);
   };
 
-  const handleEnrich = async (_id: string) => {
-    // Call API to trigger enrichment (future implementation)
-
+  const handleEnrich = async (id: string) => {
+    try {
+      await ObservablesAPI.enrich(id);
+      fetchObservables();
+      // If modal is open, we might want to refresh the selected observable too
+      if (selectedObservable && selectedObservable.id === id) {
+        const updated = await ObservablesAPI.getById(id);
+        setSelectedObservable(updated);
+      }
+    } catch (e) {
+      console.error("Enrichment failed", e);
+    }
   };
 
   const getStatusChip = (observable: Observable) => {
@@ -146,8 +194,16 @@ export default function ObservablesPage() {
         const TypeIcon = IOC_TYPE_ICONS[observable.type] || Icon.Document;
         return (
           <div className="flex items-center gap-2">
-            <TypeIcon className="w-4 h-4" />
-            <Chip size="sm" color={IOC_TYPE_COLORS[observable.type] as any} variant="flat" className="capitalize">
+            <TypeIcon className="w-4 h-4" style={{ color: IOC_TYPE_COLORS[observable.type.toLowerCase()] || '#ccc' }} />
+            <Chip 
+              size="sm" 
+              variant="dot" 
+              style={{ 
+                borderColor: `${IOC_TYPE_COLORS[observable.type.toLowerCase()]}44`, 
+                color: IOC_TYPE_COLORS[observable.type.toLowerCase()] 
+              }} 
+              className="capitalize bg-transparent border-none"
+            >
               {observable.type}
             </Chip>
           </div>
@@ -159,7 +215,21 @@ export default function ObservablesPage() {
             onClick={() => handleOpenDetail(observable)}
           >
             {observable.value}
-          </span>
+            </span>
+        );
+      case "source":
+        return (
+          <div className="flex items-center gap-1.5">
+            {observable.source === 'manual' ? (
+              <Chip size="sm" variant="flat" color="default" startContent={<Icon.User className="w-3 h-3" />}>
+                Manual
+              </Chip>
+            ) : (
+              <Chip size="sm" variant="flat" color="primary" startContent={<Icon.Zap className="w-3 h-3 text-primary" />}>
+                AI Extracted
+              </Chip>
+            )}
+          </div>
         );
       case "status":
         return getStatusChip(observable);
@@ -185,7 +255,7 @@ export default function ObservablesPage() {
         const today = new Date();
         const isToday = date.toDateString() === today.toDateString();
         return (
-          <span className="text-sm text-gray-400">
+          <span className="text-sm text-foreground/60">
             {isToday 
               ? `Today ${date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`
               : date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
@@ -216,7 +286,7 @@ export default function ObservablesPage() {
       {/* Sticky Glass Header */}
       <header className="sticky top-0 z-40 w-full backdrop-blur-xl bg-background/60 border-b border-white/5 h-16 flex items-center justify-between px-8">
          <div className="flex items-center gap-3">
-           <h1 className="text-2xl font-bold tracking-tight text-foreground">Observables</h1>
+           <h1 className="text-3xl font-bold font-display tracking-tight text-foreground">Observables</h1>
            <span className="text-sm text-foreground/60 border-l border-white/10 pl-3">Indicator Management</span>
          </div>
          
@@ -234,7 +304,16 @@ export default function ObservablesPage() {
                      >
                          Enrich
                      </Button>
-                     <Button size="sm" color="danger" variant="light" isIconOnly className="h-7 w-7"><Icon.Delete className="w-4 h-4"/></Button>
+                     <Button 
+                        size="sm" 
+                        color="danger" 
+                        variant="light" 
+                        isIconOnly 
+                        className="h-7 w-7"
+                        onPress={handleBulkDeleteClick}
+                     >
+                        <Icon.Delete className="w-4 h-4"/>
+                     </Button>
                  </div>
              )}
              
@@ -268,9 +347,9 @@ export default function ObservablesPage() {
             </div>
 
             <div className="space-y-4">
-                <h3 className="text-xs font-bold text-foreground/40 uppercase tracking-wider flex justify-between items-center">
+                <h3 className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em] flex justify-between items-center">
                     Type
-                    {typeFilter.length > 0 && <span onClick={() => setTypeFilter([])} className="text-[10px] text-primary cursor-pointer hover:underline">Clear</span>}
+                    {typeFilter.length > 0 && <span onClick={() => setTypeFilter([])} className="text-[10px] text-primary cursor-pointer hover:underline normal-case tracking-normal">Clear</span>}
                 </h3>
                 <div className="space-y-1">
                     {facets.types.map(f => (
@@ -288,7 +367,7 @@ export default function ObservablesPage() {
                                  {/* Icon Mapping */}
                                  <span className="capitalize">{f.name}</span>
                              </div>
-                             <span className={`text-xs px-1.5 rounded-full ${typeFilter.includes(f.name) ? 'bg-primary/20 text-primary' : 'bg-white/5 text-foreground/40'}`}>{f.count}</span>
+                             <span className={`text-xs px-1.5 rounded-full ${typeFilter.includes(f.name) ? 'bg-primary/20 text-primary' : 'bg-white/5 text-foreground/50'}`}>{f.count}</span>
                          </div>
                     ))}
                 </div>
@@ -297,9 +376,9 @@ export default function ObservablesPage() {
             <div className="w-full h-px bg-white/5" />
 
             <div className="space-y-4">
-                <h3 className="text-xs font-bold text-foreground/40 uppercase tracking-wider flex justify-between items-center">
+                <h3 className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em] flex justify-between items-center">
                     Status
-                    {statusFilter && <span onClick={() => setStatusFilter('')} className="text-[10px] text-primary cursor-pointer hover:underline">Clear</span>}
+                    {statusFilter && <span onClick={() => setStatusFilter('')} className="text-[10px] text-primary cursor-pointer hover:underline normal-case tracking-normal">Clear</span>}
                 </h3>
                 <div className="space-y-1">
                     {facets.statuses.map(f => (
@@ -309,7 +388,7 @@ export default function ObservablesPage() {
                             className={`flex items-center justify-between text-sm group cursor-pointer p-1.5 rounded transition-all ${statusFilter === f.name.toLowerCase() ? 'bg-primary/10 text-primary' : 'hover:bg-white/5 text-foreground/70'}`}
                          >
                              <span>{f.name}</span>
-                             <span className={`text-xs px-1.5 rounded-full ${statusFilter === f.name.toLowerCase() ? 'bg-primary/20 text-primary' : 'bg-white/5 text-foreground/40'}`}>{f.count}</span>
+                             <span className={`text-xs px-1.5 rounded-full ${statusFilter === f.name.toLowerCase() ? 'bg-primary/20 text-primary' : 'bg-white/5 text-foreground/50'}`}>{f.count}</span>
                          </div>
                     ))}
                 </div>
@@ -318,7 +397,7 @@ export default function ObservablesPage() {
             <div className="w-full h-px bg-white/5" />
 
             <div className="space-y-4">
-                <h3 className="text-xs font-bold text-foreground/40 uppercase tracking-wider">Top Tags</h3>
+                <h3 className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">Top Tags</h3>
                 <div className="flex flex-wrap gap-2">
                     {facets.tags.map(f => (
                          <Chip 
@@ -327,7 +406,7 @@ export default function ObservablesPage() {
                             variant="flat" 
                             className="cursor-pointer hover:bg-content2 transition-colors bg-white/5 border border-white/5"
                          >
-                             {f.name} <span className="text-foreground/40 ml-1 opacity-70 text-[10px]">{f.count}</span>
+                             {f.name} <span className="text-foreground/50 ml-1 opacity-70 text-[10px]">{f.count}</span>
                          </Chip>
                     ))}
                 </div>
@@ -339,21 +418,27 @@ export default function ObservablesPage() {
             {/* Analytics Section */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <Card className="bg-content1/50 border border-white/5">
-                    <CardBody className="p-4 flex flex-row items-center gap-4 h-32">
-                        <div className="h-full w-32 flex-shrink-0">
+                    <CardBody className="p-4 flex flex-row items-center gap-4 h-40">
+                        <div className="h-full w-40 flex-shrink-0">
                             <ResponsiveContainer width="100%" height="100%">
                                 <PieChart>
                                     <Pie 
                                         data={typeDistribution} 
                                         cx="50%" 
                                         cy="50%" 
-                                        innerRadius={25} 
-                                        outerRadius={50} 
+                                        innerRadius={38} 
+                                        outerRadius={60} 
                                         paddingAngle={5} 
                                         dataKey="value"
+                                        stroke="none"
+                                        cornerRadius={8}
                                     >
                                         {typeDistribution.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={IOC_TYPE_COLORS[entry.name] ? `var(--nextui-${IOC_TYPE_COLORS[entry.name]})` : '#8884d8'} />
+                                            <Cell 
+                                                key={`cell-${index}`} 
+                                                fill={IOC_TYPE_COLORS[entry.name.toLowerCase()] || '#8884d8'} 
+                                                style={{ filter: `drop-shadow(0 0 6px ${IOC_TYPE_COLORS[entry.name.toLowerCase()]}AA)` }}
+                                            />
                                         ))}
                                     </Pie>
                                 </PieChart>
@@ -361,26 +446,26 @@ export default function ObservablesPage() {
                         </div>
                         <div className="flex-1">
                              <h3 className="text-sm font-medium text-foreground/70 mb-2">Type Distribution</h3>
-                             <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-                                 {typeDistribution.slice(0, 4).map(t => (
-                                     <div key={t.name} className="flex items-center justify-between text-xs">
-                                         <div className="flex items-center gap-1.5">
-                                             <div className={`w-2 h-2 rounded-full bg-${IOC_TYPE_COLORS[t.name] || 'default'}-500`} />
-                                             <span className="capitalize opacity-70">{t.name}</span>
-                                         </div>
-                                         <span className="font-mono">{t.value}</span>
-                                     </div>
-                                 ))}
-                             </div>
+                              <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                                  {typeDistribution.slice(0, 6).map(t => (
+                                      <div key={t.name} className="flex items-center justify-between text-[11px]">
+                                          <div className="flex items-center gap-2">
+                                              <div className="w-2.5 h-2.5 rounded-full shadow-[0_0_8px_rgba(255,255,255,0.2)]" style={{ backgroundColor: IOC_TYPE_COLORS[t.name.toLowerCase()] || '#8884d8' }} />
+                                              <span className="capitalize text-foreground/70 font-medium">{t.name}</span>
+                                          </div>
+                                          <span className="font-mono text-foreground/40">{t.value}</span>
+                                      </div>
+                                  ))}
+                              </div>
                         </div>
                     </CardBody>
                 </Card>
 
                 <Card className="bg-content1/50 border border-white/5">
-                    <CardBody className="p-4 flex flex-col justify-center h-32">
+                    <CardBody className="p-4 flex flex-col justify-center h-40">
                         <div className="flex justify-between items-end mb-2">
                            <h3 className="text-sm font-medium text-foreground/70">Enrichment Queue</h3>
-                           <span className="text-xs text-foreground/40">{observables.filter(o => o.enrichedAt).length}/{observables.length} processed</span>
+                           <span className="text-xs text-foreground/50">{observables.filter(o => o.enrichedAt).length}/{observables.length} processed</span>
                         </div>
                          <Progress 
                             size="md" 
@@ -407,9 +492,24 @@ export default function ObservablesPage() {
         selectionMode="multiple"
         selectedKeys={selectedKeys}
         onSelectionChange={(keys) => setSelectedKeys(keys as Set<string>)}
+        bottomContent={
+          totalPages > 1 ? (
+            <div className="flex w-full justify-center">
+              <Pagination
+                isCompact
+                showControls
+                showShadow
+                color="primary"
+                page={page}
+                total={totalPages}
+                onChange={(page) => setPage(page)}
+              />
+            </div>
+          ) : null
+        }
         classNames={{
           wrapper: "bg-transparent shadow-none border border-white/5 rounded-lg",
-          th: "bg-content1/50 backdrop-blur text-[10px] font-bold text-foreground/40 uppercase tracking-wider border-b border-white/10 h-10",
+          th: "bg-content1/50 backdrop-blur text-[10px] font-bold text-foreground/50 uppercase tracking-wider border-b border-white/10 h-10",
           td: "py-3 text-foreground/90 border-b border-white/5",
           tr: "hover:bg-content1/50 last:border-0 transition-all cursor-pointer group",
         }}
@@ -418,12 +518,13 @@ export default function ObservablesPage() {
           <TableColumn key="risk" className="w-16">RISK</TableColumn>
           <TableColumn key="type">TYPE</TableColumn>
           <TableColumn key="value">VALUE</TableColumn>
+          <TableColumn key="source">SOURCE</TableColumn>
           <TableColumn key="tags">TAGS</TableColumn>
           <TableColumn key="enrichment">INTELLIGENCE</TableColumn>
           <TableColumn key="lastSeen">LAST SEEN</TableColumn>
           <TableColumn key="actions" align="end">ACTIONS</TableColumn>
         </TableHeader>
-        <TableBody items={filteredObservables} emptyContent="No observables found.">
+        <TableBody items={filteredObservables} emptyContent="No observables found." isLoading={isLoading}>
           {(item) => (
             <TableRow key={item.id}>
               {(columnKey) => <TableCell>{columnKey === 'risk' ? (
@@ -437,7 +538,7 @@ export default function ObservablesPage() {
                            <span className={`w-2 h-2 rounded-full ${item.isMalicious ? 'bg-danger' : (item.isMalicious === false ? 'bg-success' : 'bg-gray-500')}`} />
                            <span className="text-xs font-medium">{item.isMalicious ? 'Malicious' : (item.isMalicious === false ? 'Safe' : 'Unknown')}</span>
                        </div>
-                       {item.enrichedAt && <span className="text-[10px] text-foreground/40">VT Score: {item.isMalicious ? '24/70' : '0/70'}</span>}
+                       {item.enrichedAt && <span className="text-[10px] text-foreground/50">VT Score: {item.isMalicious ? '24/70' : '0/70'}</span>}
                   </div>
               ) : renderCell(item, columnKey as string)}</TableCell>}
             </TableRow>
@@ -462,6 +563,16 @@ export default function ObservablesPage() {
             setIsAddModalOpen(false);
             fetchObservables();
         }}
+      />
+
+      <ConfirmDialog
+        isOpen={deleteConfirmOpen}
+        onClose={() => setDeleteConfirmOpen(false)}
+        onConfirm={handleBulkDeleteConfirm}
+        title="Delete Observables"
+        description={`Are you sure you want to delete ${selectedKeys.size} observables?`}
+        confirmLabel="Delete"
+        confirmColor="danger"
       />
     </div>
   );

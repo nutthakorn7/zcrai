@@ -1,12 +1,14 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardBody, Button, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Chip, Input, Pagination, Spinner, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure } from "@heroui/react";
-import { api } from "../../shared/api/api";
+import { api } from "@/shared/api";
+import { PageHeader } from '../../shared/ui';
 
 
 interface AuditLog {
   id: string;
   action: string;
   resource: string;
+  resourceId?: string; // Added resourceId
   details: any;
   ipAddress: string;
   user?: {
@@ -27,28 +29,34 @@ export default function AuditLogsPage() {
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
 
-  const fetchLogs = async () => {
+  const fetchLogs = useCallback(async () => {
     setIsLoading(true);
     try {
+      const limit = 20;
+      const offset = (page - 1) * limit;
+      
       const response = await api.get('/audit-logs', {
         params: {
-          page,
-          limit: 20,
+          limit,
+          offset,
           action: actionFilter || undefined
         }
       });
-      setLogs(response.data.data);
-      setTotalPages(Math.ceil(response.data.total / 20));
+      
+      if (response.data && response.data.data) {
+        setLogs(response.data.data.logs || []);
+        setTotalPages(Math.ceil((response.data.data.total || 0) / limit));
+      }
     } catch (error) {
       console.error("Failed to fetch audit logs", error);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [page, actionFilter]);
 
   useEffect(() => {
     fetchLogs();
-  }, [page]); // Reload on page change
+  }, [fetchLogs]); // Reload on page change
 
   const handleSearch = () => {
     setPage(1);
@@ -62,15 +70,11 @@ export default function AuditLogsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold">Audit Logs</h1>
-          <p className="text-default-500">Track all user activities and system changes.</p>
-        </div>
+      <PageHeader title="Audit Logs" description="Track all user activities and system changes.">
         <Button color="primary" variant="flat" onPress={fetchLogs}>
           Refresh
         </Button>
-      </div>
+      </PageHeader>
 
       <Card>
         <CardBody className="gap-4">
@@ -103,12 +107,12 @@ export default function AuditLogsPage() {
             }
           >
             <TableHeader>
-              <TableColumn>TIMESTAMP</TableColumn>
-              <TableColumn>USER</TableColumn>
-              <TableColumn>ACTION</TableColumn>
-              <TableColumn>RESOURCE</TableColumn>
-              <TableColumn>IP ADDRESS</TableColumn>
-              <TableColumn>DETAILS</TableColumn>
+              <TableColumn className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">TIMESTAMP</TableColumn>
+              <TableColumn className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">USER</TableColumn>
+              <TableColumn className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">ACTION</TableColumn>
+              <TableColumn className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">RESOURCE</TableColumn>
+              <TableColumn className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">IP ADDRESS</TableColumn>
+              <TableColumn className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">DETAILS</TableColumn>
             </TableHeader>
             <TableBody 
               items={logs} 
@@ -159,6 +163,16 @@ export default function AuditLogsPage() {
                           <div>
                             <span className="text-tiny text-default-500 block">Timestamp</span>
                             <span>{new Date(selectedLog.createdAt).toLocaleString()}</span>
+                          </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <span className="text-tiny text-default-500 block">Resource Type</span>
+                            <span className="capitalize">{selectedLog.resource}</span>
+                          </div>
+                          <div>
+                            <span className="text-tiny text-default-500 block">Resource ID</span>
+                            <span className="font-mono text-xs">{selectedLog.resourceId || '-'}</span>
                           </div>
                       </div>
                       <div>

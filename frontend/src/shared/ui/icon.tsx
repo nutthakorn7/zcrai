@@ -28,6 +28,7 @@ import {
   ArrowLeftStartOnRectangleIcon,
   ArrowPathIcon,
   ArrowDownTrayIcon,
+  ArrowUpTrayIcon,
   DevicePhoneMobileIcon,
   ComputerDesktopIcon,
   MapPinIcon,
@@ -36,6 +37,7 @@ import {
   PencilIcon,
   LockClosedIcon,
   KeyIcon,
+  FingerPrintIcon,
   
   // Users & Social
   UsersIcon,
@@ -83,7 +85,8 @@ import {
   WrenchIcon,
   BriefcaseIcon,
   CloudIcon,
-  CreditCardIcon
+  CreditCardIcon,
+  BoltIcon
 } from '@heroicons/react/24/outline';
 
 import {
@@ -133,6 +136,7 @@ export const Icon = {
   Edit: PencilIcon,
   Lock: LockClosedIcon,
   Key: KeyIcon,
+  Fingerprint: FingerPrintIcon,
   
   // Users
   Users: UsersIcon,
@@ -181,12 +185,19 @@ export const Icon = {
   Wrench: WrenchIcon,
   Briefcase: BriefcaseIcon,
   Download: ArrowDownTrayIcon,
+  Upload: ArrowUpTrayIcon,
   // Devices
   DevicePhoneMobile: DevicePhoneMobileIcon,
   DeviceComputer: ComputerDesktopIcon,
   Map: MapPinIcon,
   Cloud: CloudIcon,
-  CreditCard: CreditCardIcon
+  CreditCard: CreditCardIcon,
+
+  // Swarm & Missing
+  Zap: BoltIcon,
+  Globe: GlobeAltIcon,
+  FileCode: DocumentTextIcon, // Fallback
+  Plus: PlusIcon,
 } as const;
 
 /**

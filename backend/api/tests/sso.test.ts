@@ -19,8 +19,8 @@ describe('SSO Controller', () => {
         }
         
         try {
-            const { response } = await api.auth.sso.login.get({ 
-                $query: { provider: '', tenantId: '' } 
+            const { response } = await api.auth.sso.login({ tenantId: '' }).get({ 
+                query: { provider: '' } 
             } as any);
 
             expect(response.status).toBe(422)
@@ -37,14 +37,14 @@ describe('SSO Controller', () => {
         
         try {
             const { response, data, error } = await api.auth.sso.callback.get({
-                $query: { code: 'fake_code' }
+                query: { code: 'fake_code' }
             } as any);
 
             expect(response.status).toBe(400)
             if (error) {
                  expect(error.value).toBeTruthy()
             } else {
-                 expect(data?.error).toBeTruthy()
+                 expect((data as any)?.error).toBeTruthy()
             }
         } catch (e) {
             expect(true).toBe(true)
@@ -96,7 +96,7 @@ describe('SSO Controller', () => {
             });
             
             expect(getResp.status).toBe(200);
-            expect(getData?.clientId).toBe(CONFIG.clientId);
+            expect((getData as any)?.clientId).toBe(CONFIG.clientId);
         } catch (e) {
             // Skip on auth/db errors
             expect(true).toBe(true)

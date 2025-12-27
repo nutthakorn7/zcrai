@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Card, CardBody, Button, Input, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure, Chip, Select, SelectItem, Switch, Divider } from "@heroui/react";
-import { api } from "../../shared/api/api";
-import { usePageContext } from "../../contexts/PageContext";
-import { Icon } from '../../shared/ui';
+import { api } from "@/shared/api";
+import { usePageContext } from "@/contexts/PageContext";
+import { Icon, ConfirmDialog } from '../../shared/ui';
+import toast from 'react-hot-toast';
 
 // ⭐ Import Logos
 import SentinelOneLogo from '../../assets/logo/sentinelone.png';
@@ -32,90 +33,208 @@ const PROVIDER_LOGOS: Record<string, string> = {
 };
 
 // ⭐ Provider Config
-const PROVIDER_CONFIG: Record<string, { name: string; color: string; gradient: string; description: string; category?: string }> = {
+// ⭐ Provider Config
+interface ProviderConfigItem {
+  name: string;
+  color: "primary" | "secondary" | "success" | "warning" | "danger" | "default";
+  gradient: string;
+  border: string;
+  iconBg: string;
+  iconColor: string;
+  description: string;
+  category?: string;
+}
+
+const PROVIDER_CONFIG: Record<string, ProviderConfigItem> = {
   sentinelone: { 
     name: 'SentinelOne', 
     color: 'primary',
-    gradient: 'from-purple-500/20 to-purple-600/10',
+    gradient: 'from-purple-500/10 via-purple-500/5 to-transparent',
+    border: 'border-purple-500/20 group-hover:border-purple-500/50',
+    iconBg: 'bg-purple-500/10',
+    iconColor: 'text-purple-400',
     description: 'AI-Powered Endpoint Security',
     category: 'EDR'
   },
   crowdstrike: { 
     name: 'CrowdStrike', 
     color: 'danger',
-    gradient: 'from-red-500/20 to-orange-500/10',
+    gradient: 'from-red-500/10 via-red-500/5 to-transparent',
+    border: 'border-red-500/20 group-hover:border-red-500/50',
+    iconBg: 'bg-red-500/10',
+    iconColor: 'text-red-400',
     description: 'Cloud-Native Endpoint Protection',
     category: 'EDR'
   },
   aws: { 
     name: 'AWS CloudTrail', 
     color: 'warning', 
-    gradient: 'from-orange-500/20 to-amber-500/10',
+    gradient: 'from-orange-500/10 via-orange-500/5 to-transparent',
+    border: 'border-orange-500/20 group-hover:border-orange-500/50',
+    iconBg: 'bg-orange-500/10',
+    iconColor: 'text-orange-400',
     description: 'AWS Log Ingestion & Threat Detection',
     category: 'Cloud'
   },
   openai: { 
     name: 'OpenAI', 
     color: 'success',
-    gradient: 'from-emerald-500/20 to-teal-500/10',
+    gradient: 'from-emerald-500/10 via-emerald-500/5 to-transparent',
+    border: 'border-emerald-500/20 group-hover:border-emerald-500/50',
+    iconBg: 'bg-emerald-500/10',
+    iconColor: 'text-emerald-400',
     description: 'GPT Models & AI Assistant',
     category: 'AI'
   },
   claude: { 
     name: 'Anthropic Claude', 
     color: 'warning',
-    gradient: 'from-amber-500/20 to-orange-400/10',
+    gradient: 'from-amber-500/10 via-amber-500/5 to-transparent',
+    border: 'border-amber-500/20 group-hover:border-amber-500/50',
+    iconBg: 'bg-amber-500/10',
+    iconColor: 'text-amber-400',
     description: 'Safe & Helpful AI Assistant',
     category: 'AI'
   },
   gemini: { 
     name: 'Google Gemini', 
     color: 'secondary',
-    gradient: 'from-blue-500/20 to-cyan-400/10',
+    gradient: 'from-blue-500/10 via-blue-500/5 to-transparent',
+    border: 'border-blue-500/20 group-hover:border-blue-500/50',
+    iconBg: 'bg-blue-500/10',
+    iconColor: 'text-blue-400',
     description: 'Multimodal AI by Google',
+    category: 'AI'
+  },
+  deepseek: { 
+    name: 'DeepSeek', 
+    color: 'primary',
+    gradient: 'from-indigo-500/10 via-indigo-500/5 to-transparent',
+    border: 'border-indigo-500/20 group-hover:border-indigo-500/50',
+    iconBg: 'bg-indigo-500/10',
+    iconColor: 'text-indigo-400',
+    description: 'Open Source LLM',
     category: 'AI'
   },
   virustotal: {
     name: 'VirusTotal',
     color: 'primary',
-    gradient: 'from-blue-500/20 to-indigo-500/10',
+    gradient: 'from-blue-500/10 via-blue-500/5 to-transparent',
+    border: 'border-blue-500/20 group-hover:border-blue-500/50',
+    iconBg: 'bg-blue-500/10',
+    iconColor: 'text-blue-400',
     description: 'Threat Intelligence & IOC Enrichment',
     category: 'Enrichment'
   },
   abuseipdb: {
     name: 'AbuseIPDB',
     color: 'danger',
-    gradient: 'from-red-500/20 to-pink-500/10',
+    gradient: 'from-red-500/10 via-pink-500/5 to-transparent',
+    border: 'border-red-500/20 group-hover:border-red-500/50',
+    iconBg: 'bg-red-500/10',
+    iconColor: 'text-red-400',
     description: 'IP Reputation & Abuse Reports',
     category: 'Enrichment'
   },
   alienvault: {
     name: 'AlienVault OTX',
     color: 'secondary',
-    gradient: 'from-cyan-500/20 to-blue-500/10',
+    gradient: 'from-cyan-500/10 via-cyan-500/5 to-transparent',
+    border: 'border-cyan-500/20 group-hover:border-cyan-500/50',
+    iconBg: 'bg-cyan-500/10',
+    iconColor: 'text-cyan-400',
     description: 'Open Threat Exchange Intelligence',
+    category: 'Enrichment'
+  },
+  urlscan: {
+    name: 'URLScan.io',
+    color: 'warning',
+    gradient: 'from-yellow-500/10 via-orange-500/5 to-transparent',
+    border: 'border-yellow-500/20 group-hover:border-yellow-500/50',
+    iconBg: 'bg-yellow-500/10',
+    iconColor: 'text-yellow-400',
+    description: 'URL & Domain Scanning',
     category: 'Enrichment'
   },
   azure: {
     name: 'Microsoft Azure',
     color: 'primary',
-    gradient: 'from-blue-600/20 to-blue-400/10',
+    gradient: 'from-blue-600/10 via-blue-400/5 to-transparent',
+    border: 'border-blue-500/20 group-hover:border-blue-500/50',
+    iconBg: 'bg-blue-500/10',
+    iconColor: 'text-blue-400',
     description: 'Azure Activity Logs & Security Center',
     category: 'Cloud'
   },
   gcp: {
     name: 'Google Cloud',
     color: 'warning',
-    gradient: 'from-yellow-500/20 to-red-500/10',
+    gradient: 'from-yellow-500/10 via-red-500/5 to-transparent',
+    border: 'border-yellow-500/20 group-hover:border-yellow-500/50',
+    iconBg: 'bg-yellow-500/10',
+    iconColor: 'text-yellow-400',
     description: 'GCP Audit Logs & Security Command Center',
     category: 'Cloud'
   },
   m365: {
     name: 'Microsoft 365',
     color: 'secondary',
-    gradient: 'from-indigo-500/20 to-blue-500/10',
+    gradient: 'from-indigo-500/10 via-blue-500/5 to-transparent',
+    border: 'border-indigo-500/20 group-hover:border-indigo-500/50',
+    iconBg: 'bg-indigo-500/10',
+    iconColor: 'text-indigo-400',
     description: 'Exchange, SharePoint, Teams Audit Logs',
     category: 'SaaS'
+  },
+  jira: { 
+    name: 'Jira Software', 
+    color: 'primary',
+    gradient: 'from-blue-500/10 via-blue-500/5 to-transparent',
+    border: 'border-blue-500/20 group-hover:border-blue-500/50',
+    iconBg: 'bg-blue-500/10',
+    iconColor: 'text-blue-400',
+    description: 'Issue & Project Tracking',
+    category: 'Ticketing'
+  },
+  servicenow: { 
+    name: 'ServiceNow', 
+    color: 'success',
+    gradient: 'from-emerald-500/10 via-teal-500/5 to-transparent',
+    border: 'border-emerald-500/20 group-hover:border-emerald-500/50',
+    iconBg: 'bg-emerald-500/10',
+    iconColor: 'text-emerald-400',
+    description: 'IT Service Management (ITSM)',
+    category: 'Ticketing'
+  },
+  splunk: { 
+    name: 'Splunk', 
+    color: 'success',
+    gradient: 'from-green-500/10 via-emerald-500/5 to-transparent',
+    border: 'border-green-500/20 group-hover:border-green-500/50',
+    iconBg: 'bg-green-500/10',
+    iconColor: 'text-green-400',
+    description: 'Enterprise Log Management & SIEM',
+    category: 'SIEM'
+  },
+  elastic: { 
+    name: 'Elastic SIEM', 
+    color: 'warning',
+    gradient: 'from-yellow-500/10 via-amber-500/5 to-transparent',
+    border: 'border-yellow-500/20 group-hover:border-yellow-500/50',
+    iconBg: 'bg-yellow-500/10',
+    iconColor: 'text-yellow-400',
+    description: 'Elastic Stack Security Solution',
+    category: 'SIEM'
+  },
+  wazuh: { 
+    name: 'Wazuh', 
+    color: 'primary',
+    gradient: 'from-blue-500/10 via-indigo-500/5 to-transparent',
+    border: 'border-blue-500/20 group-hover:border-blue-500/50',
+    iconBg: 'bg-blue-500/10',
+    iconColor: 'text-blue-400',
+    description: 'Open Source Security Monitoring',
+    category: 'SIEM'
   },
 };
 
@@ -148,6 +267,18 @@ const DAY_OPTIONS = [
   { value: 365, label: '365 days (Full Year)' },
 ];
 
+interface CloudConfig {
+    region?: string;
+    tenantId?: string;
+}
+
+interface CloudCredentials {
+    accessKeyId?: string;
+    secretAccessKey?: string;
+    clientId?: string;
+    clientSecret?: string;
+}
+
 interface Integration {
   id: string;
   provider: string;
@@ -160,6 +291,9 @@ interface Integration {
   fetchSettings?: S1FetchSettings | CSFetchSettings | null;  // ⭐ เพิ่ม
   maskedUrl?: string | null;  // ⭐ เพิ่ม
   keyId?: string | null;      // ⭐ CrowdStrike Client ID
+  config?: CloudConfig;
+  credentials?: CloudCredentials;
+  tokenExpiresAt?: string | null;  // ⏰ Token Expiry
 }
 
 export default function IntegrationPage() {
@@ -174,7 +308,7 @@ export default function IntegrationPage() {
   // Mode: 'add' | 'edit'
   const [mode, setMode] = useState<'add' | 'edit'>('add');
   // Selected Provider for Add
-  const [modalType, setModalType] = useState<'s1' | 'cs' | 'ai' | 'enrichment' | 'aws' | 'm365'>('s1');
+  const [modalType, setModalType] = useState<'s1' | 'cs' | 'ai' | 'enrichment' | 'aws' | 'm365' | 'ticketing' | 'siem'>('s1');
   // Selected Integration for Edit
   const [selectedIntegration, setSelectedIntegration] = useState<Integration | null>(null);
 
@@ -207,6 +341,35 @@ export default function IntegrationPage() {
   const [awsBucket, setAwsBucket] = useState('');
   const [awsRoleArn, setAwsRoleArn] = useState('');
   
+  // ⭐ Ticketing State
+  const [ticketingProvider, setTicketingProvider] = useState<'jira' | 'servicenow'>('jira');
+  const [ticketingUrl, setTicketingUrl] = useState(''); // Domain or Instance URL
+  const [ticketingUser, setTicketingUser] = useState(''); // Email or Username
+  const [ticketingToken, setTicketingToken] = useState(''); // API Token or Password
+  const [ticketingProjectKey, setTicketingProjectKey] = useState(''); // Jira Project Key
+  const [autoSync, setAutoSync] = useState(false);
+
+  // ⭐ SIEM State
+  const [siemProvider, setSiemProvider] = useState<'splunk' | 'elastic' | 'wazuh'>('splunk');
+  // Splunk
+  const [splunkHost, setSplunkHost] = useState('');
+  const [splunkToken, setSplunkToken] = useState('');
+  const [splunkPort, setSplunkPort] = useState('8088');
+  const [splunkSsl, setSplunkSsl] = useState(true);
+  // Elastic
+  const [elasticCloudId, setElasticCloudId] = useState('');
+  const [elasticApiKey, setElasticApiKey] = useState('');
+  const [elasticUrl, setElasticUrl] = useState('');
+  const [elasticUsername, setElasticUsername] = useState('');
+  const [elasticPassword, setElasticPassword] = useState('');
+  // Wazuh
+  const [wazuhUrl, setWazuhUrl] = useState('');
+  const [wazuhUser, setWazuhUser] = useState('');
+  const [wazuhPassword, setWazuhPassword] = useState('');
+
+  // ⏰ Token Expiry State
+  const [tokenExpiresAt, setTokenExpiresAt] = useState(''); // ISO Date string YYYY-MM-DD
+
   // Credential tracking states
   const [hasExistingToken, setHasExistingToken] = useState(false);
   const [hasExistingSecret, setHasExistingSecret] = useState(false);
@@ -230,7 +393,18 @@ export default function IntegrationPage() {
   const [m365ClientId, setM365ClientId] = useState('');
   const [m365ClientSecret, setM365ClientSecret] = useState('');
 
-  const fetchIntegrations = async () => {
+  // ⭐ Test Connection State
+  const [testingId, setTestingId] = useState<string | null>(null);
+  const [testResult, setTestResult] = useState<Record<string, 'success' | 'error' | null>>({});
+  
+  // 🔌 Reconnect State
+  const [reconnectingId, setReconnectingId] = useState<string | null>(null);
+
+  // Delete Confirm State
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [integrationToDelete, setIntegrationToDelete] = useState<{ id: string; provider: string } | null>(null);
+
+  const fetchIntegrations = useCallback(async () => {
     try {
       const [legacyRes, cloudRes] = await Promise.all([
          api.get('/integrations'),
@@ -238,13 +412,13 @@ export default function IntegrationPage() {
       ]);
 
       const legacyData = legacyRes.data;
-      const cloudData = cloudRes.data.map((i: any) => ({
+      const cloudData = cloudRes.data.map((i: { id: string; provider: string; name: string; createdAt: string; status: string; lastError: string; lastSyncAt: string; config: CloudConfig; credentials: CloudCredentials }) => ({
           id: i.id,
           provider: i.provider, // 'aws' or 'm365'
           label: i.name, // Cloud service returns 'name'
           createdAt: i.createdAt,
           hasApiKey: true,
-          lastSyncStatus: i.status === 'error' ? 'error' : 'success', // Simple mapping
+          lastSyncStatus: (i.status === 'error' ? 'error' : 'success') as 'error' | 'success', // Simple mapping
           lastSyncError: i.lastError,
           lastSyncAt: i.lastSyncAt,
           // Cloud specific config stashed in separate object if needed, or mapped to state in edit
@@ -279,25 +453,106 @@ export default function IntegrationPage() {
     } catch (error) {
       console.error('Failed to fetch integrations', error);
     }
+  }, [setPageContext]);
+
+  // ⭐ Test Connection Handler
+  const handleTestConnection = async (integrationId: string) => {
+    setTestingId(integrationId);
+    setTestResult(prev => ({ ...prev, [integrationId]: null }));
+    
+    try {
+      await api.post(`/integrations/${integrationId}/test`);
+      setTestResult(prev => ({ ...prev, [integrationId]: 'success' }));
+      // Auto-clear success after 3 seconds
+      setTimeout(() => {
+        setTestResult(prev => ({ ...prev, [integrationId]: null }));
+      }, 3000);
+    } catch (error) {
+      const err = error as { response?: { data?: { error?: string } }; message?: string };
+      setTestResult(prev => ({ ...prev, [integrationId]: 'error' }));
+      alert(`Test Failed: ${err.response?.data?.error || err.message}`);
+    } finally {
+      setTestingId(null);
+      fetchIntegrations(); // Refresh to get updated sync status
+    }
+  };
+
+  // 🔌 Reconnect Handler - Reset circuit breaker and retry
+  const handleReconnect = async (integrationId: string) => {
+    setReconnectingId(integrationId);
+    
+    try {
+      const res = await api.post(`/integrations/${integrationId}/reset-circuit`);
+      const data = res.data as { reconnected?: boolean; message?: string };
+      
+      if (data.reconnected) {
+        toast.success('🔌 ' + (data.message || 'Reconnected successfully!'), {
+          duration: 5000,
+          style: {
+            borderRadius: '10px',
+            background: '#1A1D1F',
+            color: '#fff',
+            border: '1px solid rgba(34,197,94,0.5)'
+          },
+        });
+      } else {
+        toast.error('⚠️ ' + (data.message || 'Reconnect failed. Please check your credentials.'), {
+          duration: 6000,
+          style: {
+            borderRadius: '10px',
+            background: '#1A1D1F',
+            color: '#fff',
+            border: '1px solid rgba(239,68,68,0.5)'
+          },
+        });
+      }
+      
+      fetchIntegrations(); // Refresh to get updated status
+    } catch (error) {
+      const err = error as { response?: { data?: { error?: string } }; message?: string };
+      toast.error(`Reconnect Failed: ${err.response?.data?.error || err.message}`, {
+        duration: 6000,
+      });
+    } finally {
+      setReconnectingId(null);
+    }
   };
 
   useEffect(() => {
     fetchIntegrations();
-  }, []);
+  }, [fetchIntegrations]);
 
-  // ⭐ handleOpenAdd รับ aiProviderOverride สำหรับ AI cards และ enrichmentProvider สำหรับ Enrichment
-  const handleOpenAdd = (type: 's1' | 'cs' | 'ai' | 'enrichment' | 'aws' | 'm365', providerOverride?: string) => {
+  // ⭐ handleOpenAdd
+  const handleOpenAdd = (type: 's1' | 'cs' | 'ai' | 'enrichment' | 'aws' | 'm365' | 'ticketing' | 'siem', providerOverride?: string) => {
     setMode('add');
     setModalType(type);
     resetForm();
-    // ถ้ามี providerOverride ให้ set
+    
+    // Reset Ticketing Defaults
+    setAutoSync(false);
+    setTicketingUrl('');
+    setTicketingUser('');
+    setTicketingToken('');
+    setTicketingProjectKey('');
+
     if (type === 'ai' && providerOverride) {
       setAiProvider(providerOverride);
     } else if (type === 'enrichment' && providerOverride) {
-      // For enrichment providers, set label from provider name
-      setLabel(providerOverride === 'virustotal' ? 'VirusTotal' : 'AbuseIPDB');
-      // Store provider in a state (reuse aiProvider for simplicity)
+      setLabel(
+        providerOverride === 'virustotal' ? 'VirusTotal' : 
+        providerOverride === 'alienvault' ? 'AlienVault OTX' :
+        providerOverride === 'urlscan' ? 'URLScan.io' : 'AbuseIPDB'
+      );
       setAiProvider(providerOverride);
+    } else if (type === 'ticketing' && providerOverride) {
+        setTicketingProvider(providerOverride as 'jira' | 'servicenow');
+        setLabel(providerOverride === 'jira' ? 'Jira Software' : 'ServiceNow');
+    } else if (type === 'siem' && providerOverride) {
+        setSiemProvider(providerOverride as 'splunk' | 'elastic' | 'wazuh');
+        setLabel(
+          providerOverride === 'splunk' ? 'Splunk' : 
+          providerOverride === 'elastic' ? 'Elastic SIEM' : 'Wazuh'
+        );
     }
     onOpen();
   };
@@ -319,7 +574,7 @@ export default function IntegrationPage() {
     } else if (int.provider === 'crowdstrike') {
       setModalType('cs');
       setCsSecret('');
-    } else if (int.provider === 'virustotal' || int.provider === 'abuseipdb') {
+    } else if (int.provider === 'virustotal' || int.provider === 'abuseipdb' || int.provider === 'alienvault' || int.provider === 'alienvault-otx') {
       setModalType('enrichment');
       setAiProvider(int.provider);
       setAiKey('');
@@ -330,6 +585,10 @@ export default function IntegrationPage() {
     } else if (int.provider === 'm365') {
        setModalType('m365');
        setM365ClientSecret('');
+    } else if (int.provider === 'jira' || int.provider === 'servicenow') {
+        setModalType('ticketing');
+        setTicketingProvider(int.provider as 'jira' | 'servicenow');
+        setTicketingToken('');
     } else {
       setModalType('ai');
       setAiProvider(int.provider);
@@ -340,7 +599,8 @@ export default function IntegrationPage() {
     try {
       // IF cloud provider, use data already in int (mapped from fetch)
       if (int.provider === 'aws' || int.provider === 'm365') {
-          const cloudInt = int as any; // Cast to access custom props added in fetch
+          // ... (existing cloud logic)
+          const cloudInt = int as Integration & { config: CloudConfig, credentials: CloudCredentials }; 
           if (int.provider === 'aws') {
               setAwsRegion(cloudInt.config?.region || 'us-east-1');
               setAwsAccessKey(cloudInt.credentials?.accessKeyId || '');
@@ -368,12 +628,25 @@ export default function IntegrationPage() {
               setCsFetchSettings(data.fetchSettings);
               setShowAdvanced(true);
             }
-          } else if (int.provider === 'virustotal' || int.provider === 'abuseipdb') {
+          } else if (int.provider === 'jira' || int.provider === 'servicenow') {
+              setTicketingUrl(data.url || '');
+              setTicketingUser(data.user || '');
+              setTicketingProjectKey(data.projectKey || '');
+              setAutoSync(data.autoSync || false);
+              setHasExistingToken(data.hasToken || false);
+          } else if (int.provider === 'virustotal' || int.provider === 'abuseipdb' || int.provider === 'alienvault' || int.provider === 'alienvault-otx') {
             setHasExistingKey(data.hasKey || false);
           } else {
             setAiModel(data.model || '');
             setAiBaseUrl(data.baseUrl || '');
             setHasExistingKey(data.hasKey || false);
+          }
+          
+          // ⏰ Load Token Expiry
+          if (int.tokenExpiresAt) {
+            setTokenExpiresAt(new Date(int.tokenExpiresAt).toISOString().split('T')[0]);
+          } else {
+            setTokenExpiresAt('');
           }
       }
     } catch (e) {
@@ -393,7 +666,7 @@ export default function IntegrationPage() {
             url: s1Url,
             token: s1Token,
             label: label || 'SentinelOne',
-            fetchSettings: s1FetchSettings, // ⭐ ส่ง fetch settings
+            fetchSettings: s1FetchSettings,
           });
         } else if (modalType === 'cs') {
           await api.post('/integrations/crowdstrike', {
@@ -401,7 +674,7 @@ export default function IntegrationPage() {
             clientId: csClientId,
             clientSecret: csSecret,
             label: label || 'CrowdStrike',
-            fetchSettings: csFetchSettings, // ⭐ ส่ง fetch settings
+            fetchSettings: csFetchSettings,
           });
         } else if (modalType === 'ai') {
           await api.post(`/integrations/ai/${aiProvider}`, {
@@ -414,7 +687,11 @@ export default function IntegrationPage() {
           // Enrichment providers (VirusTotal, AbuseIPDB)
           await api.post(`/integrations/enrichment/${aiProvider}`, {
             apiKey: aiKey,
-            label: label || (aiProvider === 'virustotal' ? 'VirusTotal' : 'AbuseIPDB'),
+            label: label || (
+                aiProvider === 'virustotal' ? 'VirusTotal' : 
+                aiProvider === 'alienvault' ? 'AlienVault OTX' :
+                aiProvider === 'urlscan' ? 'URLScan.io' : 'AbuseIPDB'
+            ),
           });
         } else if (modalType === 'aws') {
           // Use New Cloud Controller
@@ -442,6 +719,42 @@ export default function IntegrationPage() {
                     clientSecret: m365ClientSecret
                 }
             });
+        } else if (modalType === 'ticketing') {
+            await api.post(`/integrations/ticketing/${ticketingProvider}`, {
+                label: label || (ticketingProvider === 'jira' ? 'Jira' : 'ServiceNow'),
+                url: ticketingUrl,
+                user: ticketingUser,
+                token: ticketingToken,
+                projectKey: ticketingProvider === 'jira' ? ticketingProjectKey : undefined,
+                autoSync: autoSync
+            });
+        } else if (modalType === 'siem') {
+            // SIEM Integrations (Splunk, Elastic, Wazuh)
+            if (siemProvider === 'splunk') {
+              await api.post('/integrations/splunk', {
+                host: splunkHost,
+                token: splunkToken,
+                port: parseInt(splunkPort) || 8088,
+                ssl: splunkSsl,
+                label: label || 'Splunk',
+              });
+            } else if (siemProvider === 'elastic') {
+              await api.post('/integrations/elastic', {
+                cloudId: elasticCloudId || undefined,
+                apiKey: elasticApiKey || undefined,
+                url: elasticUrl || undefined,
+                username: elasticUsername || undefined,
+                password: elasticPassword || undefined,
+                label: label || 'Elastic SIEM',
+              });
+            } else if (siemProvider === 'wazuh') {
+              await api.post('/integrations/wazuh', {
+                url: wazuhUrl,
+                user: wazuhUser,
+                password: wazuhPassword,
+                label: label || 'Wazuh',
+              });
+            }
         }
       } else {
         // Edit Mode
@@ -474,7 +787,7 @@ export default function IntegrationPage() {
               clientSecret: csSecret || undefined, // undefined = keep existing
               fetchSettings: csFetchSettings,
             });
-          } else if (provider === 'virustotal' || provider === 'abuseipdb') {
+          } else if (provider === 'virustotal' || provider === 'abuseipdb' || provider === 'alienvault' || provider === 'alienvault-otx') {
             // Enrichment Provider
             await api.put(`/integrations/${selectedIntegration.id}`, {
               label: label,
@@ -489,6 +802,13 @@ export default function IntegrationPage() {
               baseUrl: aiBaseUrl || undefined,
             });
           }
+
+          // ⏰ Update Token Expiry if changed
+          if (tokenExpiresAt !== (selectedIntegration.tokenExpiresAt ? new Date(selectedIntegration.tokenExpiresAt).toISOString().split('T')[0] : '')) {
+             await api.put(`/integrations/${selectedIntegration.id}/token-expiry`, {
+                expiresAt: tokenExpiresAt ? new Date(tokenExpiresAt).toISOString() : null
+             });
+          }
         }
       }
 
@@ -502,24 +822,33 @@ export default function IntegrationPage() {
       // Optional: a delayed fetch to catch status updates
       setTimeout(() => fetchIntegrations(), 5000);
 
-    } catch (error: any) {
-      alert(error.response?.data?.error || 'Operation failed');
+    } catch (error) {
+      const err = error as { response?: { data?: { error?: string } }; message?: string };
+      alert(err.response?.data?.error || 'Operation failed');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleDelete = async (id: string, provider: string) => {
-    if (!confirm('Are you sure you want to delete this integration?')) return;
+  const handleDeleteClick = (id: string, provider: string) => {
+    setIntegrationToDelete({ id, provider });
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!integrationToDelete) return;
     try {
-      if (provider === 'aws' || provider === 'm365') {
-          await api.delete(`/cloud/integrations/${id}`);
+      if (integrationToDelete.provider === 'aws' || integrationToDelete.provider === 'm365') {
+          await api.delete(`/cloud/integrations/${integrationToDelete.id}`);
       } else {
-          await api.delete(`/integrations/${id}`);
+          await api.delete(`/integrations/${integrationToDelete.id}`);
       }
       fetchIntegrations();
     } catch (error) {
       alert('Failed to delete integration');
+    } finally {
+      setDeleteConfirmOpen(false);
+      setIntegrationToDelete(null);
     }
   };
 
@@ -557,107 +886,201 @@ export default function IntegrationPage() {
     
     setM365ClientId('');
     setM365ClientSecret('');
+    setM365ClientSecret('');
     setM365TenantId('');
+    
+    setTokenExpiresAt('');
   };
 
   return (
     <div className="space-y-8">
       {/* ⭐ Header Section - Simple */}
       <div>
-        <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-default-500 bg-clip-text text-transparent">
+        <h1 className="text-3xl font-bold font-display tracking-tight text-foreground">
           Integrations
         </h1>
-        <p className="text-default-600 mt-1">Connect your security tools and AI providers</p>
+        <p className="text-foreground/60 text-sm mt-1">Connect your security tools and AI providers</p>
       </div>
 
       {/* ⭐ Security Integrations Section */}
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-default-600 flex items-center gap-2">
-          <Icon.Wrench className="w-5 h-5 text-secondary" />
+        <h2 className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em] flex items-center gap-2">
+          <Icon.Wrench className="w-4 h-4 text-secondary" />
           Security & Cloud Tools
         </h2>
         
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {['crowdstrike', 'sentinelone', 'aws', 'm365', 'azure', 'gcp'].map(provider => {
+          {['crowdstrike', 'sentinelone', 'aws', 'm365', 'azure', 'gcp', 'jira', 'servicenow'].map(provider => {
             // Find active integration for this provider
             const int = integrations.find(i => i.provider === provider);
             const isConfigured = !!int;
-            const config = PROVIDER_CONFIG[provider] || { name: provider, color: 'default', gradient: '', description: '' }; // Fallback
+            // Fallback config if provider not found (shouldn't happen)
+            const config: ProviderConfigItem = PROVIDER_CONFIG[provider] || { 
+               name: provider, color: 'default', gradient: '', border: '', iconBg: '', iconColor: '', description: '' 
+            };
 
             return isConfigured ? (
               // ⭐ Active Card
               <Card 
                 key={int?.id} 
-                className={`bg-gradient-to-br ${config.gradient} border transition-all duration-300 ${
-                    config.color === 'primary' ? 'border-purple-500/20 hover:border-purple-500/40' : 
-                    config.color === 'danger' ? 'border-red-500/20 hover:border-red-500/40' :
-                    config.color === 'warning' ? 'border-orange-500/20 hover:border-orange-500/40' :
-                    'border-default-200'
-                }`}
+                className={`bg-gradient-to-br ${config.gradient} border ${config.border.replace('group-hover:', '')} transition-all duration-300`}
               >
                 <CardBody className="p-5">
                   <div className="flex items-center gap-3 mb-3">
-                    <div className={`w-10 h-10 rounded-xl ${
-                      config.color === 'primary' ? 'bg-purple-500/20' : 
-                      config.color === 'danger' ? 'bg-red-500/20' :
-                      config.color === 'warning' ? 'bg-orange-500/20' :
-                      'bg-default-100'
-                    } flex items-center justify-center`}>
+                    <div className={`w-10 h-10 rounded-xl ${config.iconBg} flex items-center justify-center`}>
                       {PROVIDER_LOGOS[provider] ? (
-                        <img src={PROVIDER_LOGOS[provider]} alt={provider} className="w-6 h-6" />
+                        <img src={PROVIDER_LOGOS[provider]} alt={provider} className="w-6 h-6 object-contain" />
                       ) : (
-                        <Icon.Cloud className={`w-6 h-6 ${
-                          config.color === 'primary' ? 'text-purple-400' : 
-                          config.color === 'danger' ? 'text-red-400' :
-                          config.color === 'warning' ? 'text-orange-400' :
-                          'text-default-400'
-                        }`} />
+                        <Icon.Cloud className={`w-6 h-6 ${config.iconColor}`} />
                       )}
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
                         <h3 className="font-semibold text-sm">{config.name}</h3>
-                        <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
+                        <div className={`w-2 h-2 rounded-full ${
+                          int.lastSyncStatus === 'error' ? 'bg-danger' : 
+                          int.lastSyncStatus === 'success' ? 'bg-success animate-pulse shadow-[0_0_8px_rgba(74,222,128,0.5)]' : 
+                          'bg-warning animate-pulse'
+                        }`} />
                       </div>
-                      <p className="text-xs text-default-400 capitalize">{int.label}</p>
+                      <p className="text-xs text-default-400 capitalize truncate">{int.label}</p>
                     </div>
                     <Chip 
                       size="sm" 
-                      color={int.lastSyncStatus === 'success' ? "success" : "warning"} 
+                      color={int.lastSyncStatus === 'error' ? "danger" : int.lastSyncStatus === 'success' ? "success" : "warning"} 
                       variant="dot" 
                       classNames={{ 
-                        base: `border-none ${
-                            config.color === 'primary' ? 'bg-purple-500/20' : 
-                            config.color === 'danger' ? 'bg-red-500/20' :
-                            config.color === 'warning' ? 'bg-orange-500/20' :
-                            'bg-default-100'
-                        }`, 
-                        content: `${
-                            config.color === 'primary' ? 'text-purple-400' : 
-                            config.color === 'danger' ? 'text-red-400' :
-                            config.color === 'warning' ? 'text-orange-400' :
-                            'text-default-400'
-                        } font-medium` 
+                        base: `border-none ${int.lastSyncStatus === 'error' ? 'bg-danger/10' : config.iconBg}`, 
+                        content: `${int.lastSyncStatus === 'error' ? 'text-danger' : config.iconColor} font-medium` 
                       }}
                     >
-                      {int.lastSyncStatus === 'success' ? 'Active' : 'Syncing'}
+                      {int.lastSyncStatus === 'error' ? 'Error' : int.lastSyncStatus === 'success' ? 'Active' : 'Syncing'}
                     </Chip>
                   </div>
                   
-                  <p className="text-xs text-default-600 mb-4 line-clamp-2">
+                  {/* ⭐ Last Sync Display - Enhanced */}
+                  <div className="flex items-center gap-2 mb-3 px-2 py-1.5 bg-default-100/50 rounded-lg">
+                     <Icon.Clock className={`w-3.5 h-3.5 ${
+                        int.lastSyncAt && new Date(int.lastSyncAt).getTime() < Date.now() - 60 * 60 * 1000 
+                          ? 'text-warning animate-pulse' 
+                          : int.lastSyncAt ? 'text-success' : 'text-default-400'
+                     }`} />
+                     <span className="text-xs text-default-500 font-medium">
+                        {int.lastSyncAt ? (
+                          <>
+                            Last sync: {new Date(int.lastSyncAt).toLocaleString(undefined, { 
+                              month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' 
+                            })}
+                            {new Date(int.lastSyncAt).getTime() < Date.now() - 60 * 60 * 1000 && (
+                              <span className="text-warning ml-1 font-semibold">(Stale)</span>
+                            )}
+                          </>
+                        ) : (
+                          <span className="text-default-400">Waiting for first sync...</span>
+                        )}
+                     </span>
+                  </div>
+
+                  {/* ⭐ API Key Display */}
+                  {int.hasApiKey && (
+                    <div className="flex items-center gap-2 mb-3 px-2 py-1.5 bg-default-100/50 rounded-lg">
+                       <Icon.Key className="w-3.5 h-3.5 text-success" />
+                       <span className="text-xs text-default-500 font-medium">
+                          Key: {int.keyId ? `••••${int.keyId.slice(-4)}` : 'Configured ✓'}
+                       </span>
+                    </div>
+                  )}
+
+                  {/* ⏰ Token Expiry Display */}
+                  {(() => {
+                    if (!int.tokenExpiresAt) {
+                        return (
+                           <div className="flex items-center gap-2 mb-3 px-2 py-1.5 bg-default-100/50 rounded-lg border border-default-200/50">
+                             <Icon.Calendar className="w-3.5 h-3.5 text-default-500" />
+                             <span className="text-xs text-default-500 font-medium">Token Expiry: Not monitored</span>
+                           </div>
+                        );
+                    }
+
+                    const expiryDate = new Date(int.tokenExpiresAt);
+                    const now = new Date();
+                    const daysRemaining = Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                    const isExpired = daysRemaining <= 0;
+                    const isExpiringSoon = daysRemaining > 0 && daysRemaining <= 7;
+                    const isWarning = daysRemaining > 7 && daysRemaining <= 30;
+                    
+                    return (
+                      <div className={`flex items-center gap-2 mb-3 px-2 py-1.5 rounded-lg ${
+                        isExpired ? 'bg-danger/20' :
+                        isExpiringSoon ? 'bg-warning/20' :
+                        isWarning ? 'bg-warning/10' : 'bg-default-100/50'
+                      }`}>
+                        <Icon.Calendar className={`w-3.5 h-3.5 ${
+                          isExpired ? 'text-danger' :
+                          isExpiringSoon ? 'text-warning animate-pulse' :
+                          isWarning ? 'text-warning' : 'text-default-400'
+                        }`} />
+                        <span className={`text-xs font-medium ${
+                          isExpired ? 'text-danger' :
+                          isExpiringSoon ? 'text-warning' :
+                          isWarning ? 'text-warning' : 'text-default-500'
+                        }`}>
+                          {isExpired ? (
+                            <>Token expired {Math.abs(daysRemaining)} days ago!</>
+                          ) : (
+                            <>Token expires: {expiryDate.toLocaleDateString()} ({daysRemaining} days)</>
+                          )}
+                        </span>
+                      </div>
+                    );
+                  })()}
+
+                  <p className="text-xs text-default-600 mb-4 line-clamp-2 min-h-[20px]">
                     {config.description}
                   </p>
 
+
                   <div className="flex gap-2">
+                    {/* 🔌 Reconnect Button - Show only when error */}
+                    {int.lastSyncStatus === 'error' && (
+                      <Button 
+                        size="sm" 
+                        variant="flat" 
+                        className="bg-warning/20 hover:bg-warning/30 text-warning"
+                        isIconOnly
+                        isLoading={reconnectingId === int.id}
+                        onPress={() => handleReconnect(int.id)}
+                        title="Reset circuit and retry connection"
+                      >
+                        <Icon.Refresh className="w-4 h-4" />
+                      </Button>
+                    )}
+                    {/* ⭐ Test Connection Button */}
                     <Button 
                       size="sm" 
                       variant="flat" 
-                      className={`flex-1 ${
-                        config.color === 'primary' ? 'bg-purple-500/10 hover:bg-purple-500/20 text-purple-400' : 
-                        config.color === 'danger' ? 'bg-red-500/10 hover:bg-red-500/20 text-red-400' :
-                        config.color === 'warning' ? 'bg-orange-500/10 hover:bg-orange-500/20 text-orange-400' :
-                        'bg-default-100'
-                      }`} 
+                      className={`${
+                        testResult[int.id] === 'success' ? 'bg-success/20 text-success' :
+                        testResult[int.id] === 'error' ? 'bg-danger/20 text-danger' :
+                        'bg-default-100 hover:bg-default-200'
+                      }`}
+                      isIconOnly
+                      isLoading={testingId === int.id}
+                      onPress={() => handleTestConnection(int.id)}
+                      title="Test Connection"
+                    >
+                      {testResult[int.id] === 'success' ? (
+                        <Icon.Check className="w-4 h-4" />
+                      ) : testResult[int.id] === 'error' ? (
+                        <Icon.XCircle className="w-4 h-4" />
+                      ) : (
+                        <Icon.Signal className="w-4 h-4" />
+                      )}
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="flat" 
+                      className={`flex-1 ${config.iconBg.replace('10', '5')} hover:${config.iconBg.replace('10', '20')} ${config.iconColor}`} 
                       onPress={() => handleOpenEdit(int)}
                     >
                       Configure
@@ -667,7 +1090,7 @@ export default function IntegrationPage() {
                       variant="flat" 
                       className="bg-danger/10 hover:bg-danger/20 text-danger" 
                       isIconOnly 
-                      onPress={() => handleDelete(int.id, int.provider)}
+                      onPress={() => handleDeleteClick(int.id, int.provider)}
                     >
                       <Icon.Delete className="w-4 h-4" />
                     </Button>
@@ -681,58 +1104,36 @@ export default function IntegrationPage() {
                 onClick={() => handleOpenAdd(
                     provider === 'crowdstrike' ? 'cs' : 
                     provider === 'sentinelone' ? 's1' : 
-                    provider === 'aws-cloudtrail' ? 'aws' :
-                    provider === 'm365' ? 'm365' : 'aws' 
-                    // Note: 'aws' fallback for others
+                    provider === 'aws' ? 'aws' :
+                    provider === 'm365' ? 'm365' : 
+                    (provider === 'jira' || provider === 'servicenow') ? 'ticketing' : 'aws' 
                 , provider)}
                 className={`group relative overflow-hidden rounded-xl 
-                           border transition-all duration-300 p-4 text-left h-full
-                           ${config.color === 'primary'
-                             ? 'border-purple-500/20 bg-gradient-to-br from-purple-500/10 to-purple-600/5 hover:from-purple-500/20 hover:to-purple-600/10 hover:border-purple-500/40' 
-                             : config.color === 'danger'
-                             ? 'border-red-500/20 bg-gradient-to-br from-red-500/10 to-orange-500/5 hover:from-red-500/20 hover:to-orange-500/10 hover:border-red-500/40'
-                             : 'border-orange-500/20 bg-gradient-to-br from-orange-500/10 to-yellow-500/5 hover:from-orange-500/20 hover:to-yellow-500/10 hover:border-orange-500/40'
-                           }
+                           border ${config.border}
+                           bg-gradient-to-br ${config.gradient}
+                           w-full
+                           transition-all duration-300 p-4 text-left h-full
+                           hover:shadow-lg hover:shadow-${config.color}-500/5
                            active:scale-[0.98]`}
               >
                 <div className="flex items-center gap-3">
-                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform ${
-                    config.color === 'primary' ? 'bg-purple-500/20' : 
-                    config.color === 'danger' ? 'bg-red-500/20' : 
-                    'bg-orange-500/20'
-                  }`}>
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform ${config.iconBg}`}>
                     {PROVIDER_LOGOS[provider] ? (
-                      <img src={PROVIDER_LOGOS[provider]} alt={provider} className="w-7 h-7" />
+                      <img src={PROVIDER_LOGOS[provider]} alt={provider} className="w-7 h-7 object-contain" />
                     ) : (
-                      <Icon.Cloud className={`w-7 h-7 ${
-                        config.color === 'primary' ? 'text-purple-400' : 
-                        config.color === 'danger' ? 'text-red-400' : 
-                        'text-orange-400'
-                      }`} />
+                      <Icon.Cloud className={`w-7 h-7 ${config.iconColor}`} />
                     )}
                   </div>
                   <div className="flex-1">
-                    <span className={`font-semibold transition-colors block ${
-                      config.color === 'primary' ? 'text-purple-400 group-hover:text-purple-300' : 
-                      config.color === 'danger' ? 'text-red-400 group-hover:text-red-300' :
-                      'text-orange-400 group-hover:text-orange-300'
-                    }`}>
+                    <span className={`font-semibold transition-colors block group-hover:${config.iconColor.split(' ')[0]}`}>
                       {config.name}
                     </span>
                     <span className="text-xs text-default-400">
                       {config.category || 'Security Tool'}
                     </span>
                   </div>
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
-                    config.color === 'primary' ? 'bg-purple-500/10 group-hover:bg-purple-500/20' : 
-                    config.color === 'danger' ? 'bg-red-500/10 group-hover:bg-red-500/20' :
-                    'bg-orange-500/10 group-hover:bg-orange-500/20'
-                  }`}>
-                    <span className={`text-lg font-light ${
-                      config.color === 'primary' ? 'text-purple-400' : 
-                      config.color === 'danger' ? 'text-red-400' :
-                      'text-orange-400'
-                    }`}>+</span>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${config.iconBg.replace('10', '5')} group-hover:${config.iconBg}`}>
+                    <span className={`text-lg font-light ${config.iconColor}`}>+</span>
                   </div>
                 </div>
               </button>
@@ -754,95 +1155,30 @@ export default function IntegrationPage() {
             const int = integrations.find(i => i.provider === provider && i.id !== 'system-gemini');
             const isConfigured = !!int;
             
-            // Define colors/logos helper (Expanded)
-            const getProviderConfig = (p: string) => {
-               // ... existing switch ...
-               // Added DeepSeek
-               if (p === 'deepseek') return {
-                  color: 'blue',
-                  logo: null, // No logo yet
-                  name: 'DeepSeek',
-                  desc: 'Open Source LLM',
-                  gradient: 'from-blue-600/10 to-indigo-500/5',
-                  border: 'border-blue-500/20',
-                  hoverBorder: 'hover:border-blue-500/40',
-                  bg: 'bg-blue-500/20',
-                  text: 'text-blue-400',
-                  hoverText: 'group-hover:text-blue-300',
-                  hoverBg: 'group-hover:bg-blue-500/20'
-               };
-               // ... existing ...
-              switch(p) {
-                case 'openai': return { 
-                  color: 'emerald', 
-                  logo: OpenAILogo, 
-                  name: 'OpenAI', 
-                  desc: 'GPT Models',
-                  gradient: 'from-emerald-500/10 to-teal-500/5',
-                  border: 'border-emerald-500/20',
-                  hoverBorder: 'hover:border-emerald-500/40',
-                  bg: 'bg-emerald-500/20',
-                  text: 'text-emerald-400',
-                  hoverText: 'group-hover:text-emerald-300',
-                  hoverBg: 'group-hover:bg-emerald-500/20'
-                };
-                case 'claude': return { 
-                  color: 'amber', 
-                  logo: ClaudeLogo, 
-                  name: 'Claude', 
-                  desc: 'Anthropic',
-                  gradient: 'from-amber-500/10 to-orange-400/5',
-                  border: 'border-amber-500/20',
-                  hoverBorder: 'hover:border-amber-500/40',
-                  bg: 'bg-amber-500/20',
-                  text: 'text-amber-400',
-                  hoverText: 'group-hover:text-amber-300',
-                  hoverBg: 'group-hover:bg-amber-500/20'
-                };
-                case 'gemini': return { 
-                  color: 'blue', 
-                  logo: GeminiLogo, 
-                  name: 'Gemini', 
-                  desc: 'Google AI',
-                  gradient: 'from-blue-500/10 to-cyan-400/5',
-                  border: 'border-blue-500/20',
-                  hoverBorder: 'hover:border-blue-500/40',
-                  bg: 'bg-blue-500/20',
-                  text: 'text-blue-400',
-                  hoverText: 'group-hover:text-blue-300',
-                  hoverBg: 'group-hover:bg-blue-500/20'
-                };
-                default: return { 
-                  color: 'default', 
-                  logo: null, 
-                  name: p, 
-                  desc: 'AI Provider',
-                  gradient: '', border: '', hoverBorder: '', bg: '', text: '', hoverText: '', hoverBg: ''
-                };
-              }
+            // Get Config from PROVIDER_CONFIG directly
+            const config: ProviderConfigItem = PROVIDER_CONFIG[provider] || { 
+               name: provider, color: 'default', gradient: '', border: '', iconBg: '', iconColor: '', description: '' 
             };
-
-            const config = getProviderConfig(provider);
 
             return isConfigured ? (
               // ⭐ Active Card
               <Card 
                 key={int?.id} 
-                className={`bg-gradient-to-br ${config.gradient} border ${config.border} ${config.hoverBorder} transition-all duration-300`}
+                className={`bg-gradient-to-br ${config.gradient} border ${config.border.replace('group-hover:', '')} transition-all duration-300`}
               >
                 <CardBody className="p-5">
                   <div className="flex items-center gap-3 mb-3">
-                    <div className={`w-10 h-10 rounded-xl ${config.bg} flex items-center justify-center`}>
-                      {config.logo ? (
-                        <img src={config.logo} alt={provider} className="w-6 h-6" />
+                    <div className={`w-10 h-10 rounded-xl ${config.iconBg} flex items-center justify-center`}>
+                      {PROVIDER_LOGOS[provider] ? (
+                        <img src={PROVIDER_LOGOS[provider]} alt={provider} className="w-6 h-6 object-contain" />
                       ) : (
-                        <Icon.Cpu className={`w-6 h-6 ${config.text}`} />
+                        <Icon.Cpu className={`w-6 h-6 ${config.iconColor}`} />
                       )}
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
                         <h3 className="font-semibold text-sm">{config.name}</h3>
-                        <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
+                        <div className="w-2 h-2 rounded-full bg-success animate-pulse shadow-[0_0_8px_rgba(74,222,128,0.5)]" />
                       </div>
                       <p className="text-xs text-default-400 capitalize">{int.label === provider ? config.name : int.label}</p>
                     </div>
@@ -851,23 +1187,23 @@ export default function IntegrationPage() {
                       color="success"
                       variant="dot" 
                       classNames={{ 
-                        base: `border-none ${config.bg}`, 
-                        content: `${config.text} font-medium` 
+                        base: `border-none ${config.iconBg}`, 
+                        content: `${config.iconColor} font-medium` 
                       }}
                     >
                       Active
                     </Chip>
                   </div>
                   
-                  <p className="text-xs text-default-600 mb-4 line-clamp-2">
-                    {config.desc} Integration
+                  <p className="text-xs text-default-600 mb-4 line-clamp-2 min-h-[32px]">
+                    {config.description}
                   </p>
 
                   <div className="flex gap-2">
                     <Button 
                       size="sm" 
                       variant="flat" 
-                      className={`flex-1 bg-white/5 hover:bg-white/10 ${config.text}`} 
+                      className={`flex-1 ${config.iconBg.replace('10', '5')} hover:${config.iconBg.replace('10', '20')} ${config.iconColor}`} 
                       onPress={() => handleOpenEdit(int)}
                     >
                       Configure
@@ -877,7 +1213,7 @@ export default function IntegrationPage() {
                       variant="flat" 
                       className="bg-danger/10 hover:bg-danger/20 text-danger" 
                       isIconOnly 
-                      onPress={() => handleDelete(int.id, int.provider)}
+                      onPress={() => handleDeleteClick(int.id, int.provider)}
                     >
                       <Icon.Delete className="w-4 h-4" />
                     </Button>
@@ -890,29 +1226,31 @@ export default function IntegrationPage() {
                 key={provider}
                 onClick={() => handleOpenAdd('ai', provider)}
                 className={`group relative overflow-hidden rounded-xl 
-                           border transition-all duration-300 p-4 text-left h-full
-                           ${config.border} bg-gradient-to-br ${config.gradient} 
-                           ${config.hoverBorder}
+                           border ${config.border}
+                           bg-gradient-to-br ${config.gradient}
+                           w-full
+                           transition-all duration-300 p-4 text-left h-full
+                           hover:shadow-lg hover:shadow-${config.color}-500/5
                            active:scale-[0.98]`}
               >
                 <div className="flex items-center gap-3">
-                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform ${config.bg}`}>
-                    {config.logo ? (
-                      <img src={config.logo} alt={provider} className="w-7 h-7" />
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform ${config.iconBg}`}>
+                    {PROVIDER_LOGOS[provider] ? (
+                      <img src={PROVIDER_LOGOS[provider]} alt={provider} className="w-7 h-7 object-contain" />
                     ) : (
-                       <Icon.Cpu className={`w-7 h-7 ${config.text}`} />
+                       <Icon.Cpu className={`w-7 h-7 ${config.iconColor}`} />
                     )}
                   </div>
                   <div className="flex-1">
-                    <span className={`font-semibold transition-colors block ${config.text} ${config.hoverText}`}>
+                    <span className={`font-semibold transition-colors block group-hover:${config.iconColor.split(' ')[0]}`}>
                       {config.name}
                     </span>
                     <span className="text-xs text-default-400">
-                      {config.desc}
+                      {config.description}
                     </span>
                   </div>
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${config.hoverBg.replace('group-hover:', 'bg-').replace('500/20', '500/10')} ${config.hoverBg}`}>
-                    <span className={`text-lg font-light ${config.text}`}>+</span>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${config.iconBg.replace('10', '5')} group-hover:${config.iconBg}`}>
+                    <span className={`text-lg font-light ${config.iconColor}`}>+</span>
                   </div>
                 </div>
               </button>
@@ -929,43 +1267,62 @@ export default function IntegrationPage() {
         </h2>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {['virustotal', 'abuseipdb', 'alienvault'].map(provider => {
-             const int = integrations.find(i => i.provider === provider);
+          {['virustotal', 'abuseipdb', 'alienvault', 'urlscan'].map(provider => {
+             // Match alienvault or alienvault-otx from backend
+             const int = integrations.find(i => 
+               i.provider === provider || 
+               (provider === 'alienvault' && i.provider === 'alienvault-otx')
+             );
              const isConfigured = !!int;
-             const config = PROVIDER_CONFIG[provider];
+             const config: ProviderConfigItem = PROVIDER_CONFIG[provider] || { 
+                name: provider, color: 'default', gradient: '', border: '', iconBg: '', iconColor: '', description: '' 
+             };
              
              return isConfigured ? (
                <Card 
                  key={int.id} 
-                 className={`bg-gradient-to-br ${config.gradient} border border-${config.color}-500/20 hover:border-${config.color}-500/40 transition-all duration-300`}
+                 className={`bg-gradient-to-br ${config.gradient} border ${config.border.replace('group-hover:', '')} transition-all duration-300`}
                >
                  <CardBody className="p-5">
                    <div className="flex items-center gap-3 mb-3">
-                     <div className={`w-10 h-10 rounded-xl bg-${config.color}-500/20 flex items-center justify-center`}>
-                       {config.name === 'VirusTotal' ? <Icon.Shield className={`w-5 h-5 text-${config.color}-400`} /> : <Icon.Global className={`w-5 h-5 text-${config.color}-400`} />}
+                     <div className={`w-10 h-10 rounded-xl ${config.iconBg} flex items-center justify-center`}>
+                       {config.name === 'VirusTotal' ? <Icon.Shield className={`w-5 h-5 ${config.iconColor}`} /> : <Icon.Global className={`w-5 h-5 ${config.iconColor}`} />}
                      </div>
                      <div className="flex-1">
                        <div className="flex items-center gap-2">
                          <h3 className="font-semibold text-sm">{config.name}</h3>
-                         <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
+                         <div className="w-2 h-2 rounded-full bg-success animate-pulse shadow-[0_0_8px_rgba(74,222,128,0.5)]" />
                        </div>
                        <p className="text-xs text-default-400 capitalize">{int.label}</p>
                      </div>
-                     {/* Note: dynamic color class interpolation might not work in tailwind if full class name not present in source. 
-                         However, we used standard names like blue-500, red-500. 
-                         Safest to use style or explicit maps if this breaks. 
-                         For now, assuming safe list or JIT matches 'bg-primary-500' if configured? 
-                         Wait, config.color is 'primary', 'danger'. That maps to variables or explicit colors?
-                         In PROVIDER_CONFIG: 'primary', 'danger', 'secondary', 'warning'.
-                         Tailwind classes like 'bg-primary-500' might not exist by default unless extended.
-                         Earlier code used explicit 'bg-red-500/20'.
-                         Safest is to revert to explicit mapping or use style.
-                         Let's use the same logic as Security Tools (explicit conditional classes).
-                      */} 
-                      <Chip size="sm" color="success" variant="dot" classNames={{ base: "border-none bg-default-100", content: "text-success font-medium" }}>Active</Chip> 
+                     <Chip 
+                        size="sm" 
+                        color="success" 
+                        variant="dot" 
+                        classNames={{ 
+                            base: `border-none ${config.iconBg}`, 
+                            content: `${config.iconColor} font-medium` 
+                        }}
+                     >Active</Chip> 
                    </div>
                    
-                   <p className="text-xs text-default-600 mb-4 line-clamp-2">
+                   {/* ⭐ API Key Display */}
+                   {int.hasApiKey && (
+                     <div className="flex items-center gap-2 mb-2 px-2 py-1.5 bg-default-100/50 rounded-lg">
+                        <Icon.Key className="w-3.5 h-3.5 text-success" />
+                        <span className="text-xs text-default-500 font-medium">
+                           Key: {int.keyId ? `••••${int.keyId}` : 'Configured ✓'}
+                        </span>
+                     </div>
+                   )}
+                   
+                   {/* ⭐ Ready Status */}
+                   <div className="flex items-center gap-2 mb-3 px-2 py-1.5 bg-default-100/50 rounded-lg">
+                      <Icon.Check className="w-3.5 h-3.5 text-success" />
+                      <span className="text-xs text-default-500 font-medium">Ready for enrichment</span>
+                   </div>
+                   
+                   <p className="text-xs text-default-600 mb-4 line-clamp-2 min-h-[32px]">
                      {config.description}
                    </p>
  
@@ -973,7 +1330,7 @@ export default function IntegrationPage() {
                      <Button 
                        size="sm" 
                        variant="flat" 
-                       className="flex-1 bg-default-100 hover:bg-default-200" 
+                       className={`flex-1 ${config.iconBg.replace('10', '5')} hover:${config.iconBg.replace('10', '20')} ${config.iconColor}`}
                        onPress={() => handleOpenEdit(int)}
                      >
                        Configure
@@ -983,7 +1340,7 @@ export default function IntegrationPage() {
                        variant="flat" 
                        className="bg-danger/10 hover:bg-danger/20 text-danger" 
                        isIconOnly 
-                       onPress={() => handleDelete(int.id, int.provider)}
+                       onPress={() => handleDeleteClick(int.id, int.provider)}
                      >
                        <Icon.Delete className="w-4 h-4" />
                      </Button>
@@ -995,22 +1352,22 @@ export default function IntegrationPage() {
                  key={provider}
                  onClick={() => handleOpenAdd('enrichment', provider)}
                  className={`group relative overflow-hidden rounded-xl 
-                          border border-default-200 
+                          border ${config.border}
                           bg-gradient-to-br ${config.gradient}
-                          hover:border-default-400 
+                          hover:shadow-lg hover:shadow-${config.color}-500/5
                           active:scale-[0.98]
-                          transition-all duration-300 p-4 text-left h-full`}
+                          transition-all duration-300 p-4 text-left h-full w-full`}
                >
                  <div className="flex items-center gap-3">
-                   <div className={`w-12 h-12 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform bg-default-100`}>
-                      {provider === 'virustotal' ? <Icon.Shield className="w-6 h-6 text-primary" /> : <Icon.Global className="w-6 h-6 text-primary" />}
+                   <div className={`w-12 h-12 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform ${config.iconBg}`}>
+                      {provider === 'virustotal' ? <Icon.Shield className={`w-6 h-6 ${config.iconColor}`} /> : <Icon.Global className={`w-6 h-6 ${config.iconColor}`} />}
                    </div>
                    <div className="flex-1">
-                     <span className="font-semibold text-default-600 group-hover:text-default-800 transition-colors block">{config.name}</span>
+                     <span className={`font-semibold group-hover:${config.iconColor.split(' ')[0]} transition-colors block`}>{config.name}</span>
                      <span className="text-xs text-default-400">{config.description}</span>
                    </div>
-                   <div className="w-8 h-8 rounded-full bg-default-100 group-hover:bg-default-200 flex items-center justify-center transition-colors">
-                     <span className="text-default-600 text-lg font-light">+</span>
+                   <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${config.iconBg.replace('10', '5')} group-hover:${config.iconBg}`}>
+                     <span className={`text-lg font-light ${config.iconColor}`}>+</span>
                    </div>
                  </div>
                </button>
@@ -1047,11 +1404,17 @@ export default function IntegrationPage() {
                   <img src={PROVIDER_LOGOS[aiProvider] || OpenAILogo} alt="AI" className="w-8 h-8" />
                 )}
                 {modalType === 'enrichment' && (
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${aiProvider === 'virustotal' ? 'bg-blue-500/20' : 'bg-red-500/20'}`}>
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                    PROVIDER_CONFIG[aiProvider as keyof typeof PROVIDER_CONFIG]?.iconBg || 'bg-default-100'
+                  }`}>
                     {aiProvider === 'virustotal' ? (
-                      <Icon.Shield className={`w-5 h-5 ${aiProvider === 'virustotal' ? 'text-blue-500' : 'text-red-500'}`} />
+                      <Icon.Shield className={`w-5 h-5 ${PROVIDER_CONFIG.virustotal.iconColor}`} />
+                    ) : aiProvider === 'urlscan' ? (
+                      <Icon.Globe className={`w-5 h-5 ${PROVIDER_CONFIG.urlscan.iconColor}`} />
                     ) : (
-                      <Icon.Global className="w-5 h-5 text-red-500" />
+                      <Icon.Global className={`w-5 h-5 ${
+                        PROVIDER_CONFIG[aiProvider as keyof typeof PROVIDER_CONFIG]?.iconColor || 'text-default-400'
+                      }`} />
                     )}
                   </div>
                 )}
@@ -1065,8 +1428,10 @@ export default function IntegrationPage() {
                      modalType === 'cs' ? 'CrowdStrike' : 
                      modalType === 'aws' ? 'AWS CloudTrail' :
                      modalType === 'm365' ? 'Microsoft 365' :
-                     modalType === 'enrichment' ? (aiProvider === 'virustotal' ? 'VirusTotal' : 'AbuseIPDB') :
-                     PROVIDER_CONFIG[aiProvider]?.name || 'AI Provider'}
+                     modalType === 'enrichment' ? (
+                        PROVIDER_CONFIG[aiProvider as keyof typeof PROVIDER_CONFIG]?.name || 'Enrichment'
+                     ) :
+                     PROVIDER_CONFIG[aiProvider as keyof typeof PROVIDER_CONFIG]?.name || 'AI Provider'}
                   </h3>
                   <p className="text-xs text-default-400 font-normal">
                     {modalType === 's1' ? 'AI-Powered Endpoint Security' : 
@@ -1416,6 +1781,172 @@ export default function IntegrationPage() {
                     </>
                 )}
 
+                {/* ⭐ Ticketing Form - Add & Edit */}
+                {modalType === 'ticketing' && (
+                    <>
+                        <Input
+                             label={ticketingProvider === 'jira' ? 'Jira Domain' : 'Instance URL'}
+                             placeholder={ticketingProvider === 'jira' ? 'your-domain.atlassian.net' : 'https://dev12345.service-now.com'}
+                             value={ticketingUrl}
+                             onValueChange={setTicketingUrl}
+                             description="Base URL for API access"
+                        />
+                        <Input
+                             label={ticketingProvider === 'jira' ? 'Email Address' : 'Username'}
+                             placeholder={ticketingProvider === 'jira' ? 'user@example.com' : 'admin'}
+                             value={ticketingUser}
+                             onValueChange={setTicketingUser}
+                        />
+                         <Input
+                              label={ticketingProvider === 'jira' ? 'API Token' : 'Password/Token'}
+                              placeholder={mode === 'edit' && hasExistingToken ? '••••••• (Leave empty to keep existing)' : 'Enter Secret'}
+                              description={mode === 'edit' && hasExistingToken ? '✓ Secret exists - leave empty to keep, or enter new to replace' : undefined}
+                              value={ticketingToken}
+                              onValueChange={setTicketingToken}
+                              type="password"
+                         />
+                         
+                         {ticketingProvider === 'jira' && (
+                             <Input
+                                  label="Project Key"
+                                  placeholder="SEC, ITSM, SOC"
+                                  value={ticketingProjectKey}
+                                  onValueChange={setTicketingProjectKey}
+                                  description="Key of the project where issues will be created"
+                             />
+                         )}
+
+                         <div className="flex items-center gap-3 p-3 bg-default-100 rounded-lg">
+                            <Switch 
+                                isSelected={autoSync}
+                                onValueChange={setAutoSync}
+                            />
+                            <div>
+                                <p className="text-sm font-medium">Auto-Create Tickets</p>
+                                <p className="text-xs text-default-500">
+                                    Automatically create a ticket when a Case is created in zcrAI
+                                </p>
+                            </div>
+                         </div>
+                    </>
+                )}
+
+                {/* ⭐ SIEM Form - Add Mode */}
+                {modalType === 'siem' && (
+                    <>
+                        {siemProvider === 'splunk' && (
+                            <>
+                                <Input
+                                    label="Splunk Host"
+                                    placeholder="splunk.example.com"
+                                    value={splunkHost}
+                                    onValueChange={setSplunkHost}
+                                    description="Your Splunk HEC endpoint hostname"
+                                />
+                                <Input
+                                    label="HEC Token"
+                                    placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                                    value={splunkToken}
+                                    onValueChange={setSplunkToken}
+                                    type="password"
+                                    description="HTTP Event Collector token"
+                                />
+                                <div className="flex gap-4">
+                                    <Input
+                                        label="Port"
+                                        placeholder="8088"
+                                        value={splunkPort}
+                                        onValueChange={setSplunkPort}
+                                        className="w-32"
+                                    />
+                                    <div className="flex items-center gap-3 p-3 bg-default-100 rounded-lg flex-1">
+                                        <Switch 
+                                            isSelected={splunkSsl}
+                                            onValueChange={setSplunkSsl}
+                                        />
+                                        <div>
+                                            <p className="text-sm font-medium">Use SSL</p>
+                                            <p className="text-xs text-default-500">HTTPS connection</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </>
+                        )}
+
+                        {siemProvider === 'elastic' && (
+                            <>
+                                <div className="text-sm text-default-500 mb-2">
+                                    Connect via Elastic Cloud or Self-Hosted URL
+                                </div>
+                                <Input
+                                    label="Cloud ID (Elastic Cloud)"
+                                    placeholder="deployment:base64encoded..."
+                                    value={elasticCloudId}
+                                    onValueChange={setElasticCloudId}
+                                    description="Find this in Kibana → Management → Cloud"
+                                />
+                                <Input
+                                    label="API Key"
+                                    placeholder="API Key for authentication"
+                                    value={elasticApiKey}
+                                    onValueChange={setElasticApiKey}
+                                    type="password"
+                                />
+                                <Divider className="my-2" />
+                                <p className="text-xs text-default-400">Or connect to self-hosted cluster:</p>
+                                <Input
+                                    label="Elasticsearch URL"
+                                    placeholder="https://elasticsearch.example.com:9200"
+                                    value={elasticUrl}
+                                    onValueChange={setElasticUrl}
+                                />
+                                <div className="flex gap-2">
+                                    <Input
+                                        label="Username"
+                                        placeholder="elastic"
+                                        value={elasticUsername}
+                                        onValueChange={setElasticUsername}
+                                        className="flex-1"
+                                    />
+                                    <Input
+                                        label="Password"
+                                        placeholder="••••••••"
+                                        value={elasticPassword}
+                                        onValueChange={setElasticPassword}
+                                        type="password"
+                                        className="flex-1"
+                                    />
+                                </div>
+                            </>
+                        )}
+
+                        {siemProvider === 'wazuh' && (
+                            <>
+                                <Input
+                                    label="Wazuh API URL"
+                                    placeholder="https://wazuh.example.com:55000"
+                                    value={wazuhUrl}
+                                    onValueChange={setWazuhUrl}
+                                    description="Wazuh Manager API endpoint"
+                                />
+                                <Input
+                                    label="Username"
+                                    placeholder="wazuh-wui"
+                                    value={wazuhUser}
+                                    onValueChange={setWazuhUser}
+                                />
+                                <Input
+                                    label="Password"
+                                    placeholder="Enter password"
+                                    value={wazuhPassword}
+                                    onValueChange={setWazuhPassword}
+                                    type="password"
+                                />
+                            </>
+                        )}
+                    </>
+                )}
+
                 {/* ⭐ AI Provider Form - Add & Edit */}
                 {modalType === 'ai' && (
                       <>
@@ -1509,17 +2040,25 @@ export default function IntegrationPage() {
                         <Icon.Info className="w-4 h-4 text-blue-400 mt-0.5" />
                         <div className="text-xs text-default-400">
                           <p className="font-medium text-blue-400 mb-1">
-                            {aiProvider === 'virustotal' ? 'VirusTotal API Key' : 'AbuseIPDB API Key'}
+                            {PROVIDER_CONFIG[aiProvider as keyof typeof PROVIDER_CONFIG]?.name || 'Enrichment'} API Key
                           </p>
                           <p className="mb-1">
                             {aiProvider === 'virustotal' 
                               ? 'Get your free API key from virustotal.com (4 requests/minute)'
-                              : 'Get your free API key from abuseipdb.com (1000 requests/day)'}
+                              : aiProvider === 'alienvault'
+                                ? 'Get your free API key from otx.alienvault.com'
+                                : aiProvider === 'urlscan'
+                                  ? 'Get your free API key from urlscan.io'
+                                  : 'Get your free API key from abuseipdb.com (1000 requests/day)'}
                           </p>
                           <a 
                             href={aiProvider === 'virustotal' 
                               ? 'https://www.virustotal.com/gui/join-us' 
-                              : 'https://www.abuseipdb.com/pricing'}
+                              : aiProvider === 'alienvault'
+                                ? 'https://otx.alienvault.com/api'
+                                : aiProvider === 'urlscan'
+                                  ? 'https://urlscan.io/about-api/'
+                                  : 'https://www.abuseipdb.com/pricing'}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-blue-400 hover:text-blue-300 underline"
@@ -1539,7 +2078,25 @@ export default function IntegrationPage() {
                       type="password"
                     />
                   </>
-                )}
+            )}
+            
+            {/* ⏰ Token Expiry Input - Available for all types in Edit Mode */}
+            {mode === 'edit' && (
+              <>
+                 <Divider className="my-2" />
+                 <Input
+                    type="date"
+                    label="Token Expiry Date (Optional)"
+                    placeholder="Select expiry date"
+                    value={tokenExpiresAt}
+                    onValueChange={setTokenExpiresAt}
+                    description="Set a reminder date for when this token expires."
+                    variant="bordered"
+                    startContent={<Icon.Calendar className="w-4 h-4 text-default-400" />}
+                 />
+              </>
+            )}
+
               </ModalBody>
 
               <ModalFooter className="gap-2">
@@ -1565,6 +2122,16 @@ export default function IntegrationPage() {
           )}
         </ModalContent>
       </Modal>
+
+      <ConfirmDialog
+        isOpen={deleteConfirmOpen}
+        onClose={() => setDeleteConfirmOpen(false)}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Integration"
+        description="Are you sure you want to delete this integration?"
+        confirmLabel="Delete"
+        confirmColor="danger"
+      />
     </div>
   );
 }

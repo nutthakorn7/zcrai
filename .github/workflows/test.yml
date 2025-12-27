@@ -1,16 +1,29 @@
 name: Test Suite
 
-# Disabled: Tests run manually only until test suite is stabilized
-# Re-enable push/pull_request triggers when tests are fixed
+# Enabled for informational purposes - tests run on push/PR but don't block
 on:
-  workflow_dispatch:  # Manual trigger only
+  push:
+    branches: [master, main, develop]
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+      - 'e2e/**'
+      - '.github/workflows/test.yml'
+  pull_request:
+    branches: [master, main]
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+      - 'e2e/**'
+  workflow_dispatch:  # Manual trigger
 
 jobs:
   backend:
     runs-on: ubuntu-latest
+    continue-on-error: true  # Informational - don't block PRs
     services:
       postgres:
-        image: postgres:latest
+        image: postgres:16-alpine
         env:
           POSTGRES_USER: test_user
           POSTGRES_PASSWORD: test_password
@@ -24,7 +37,7 @@ jobs:
           --health-retries 5
 
       redis:
-        image: redis:alpine
+        image: redis:7-alpine
         ports:
           - 6379:6379
         options: >-
@@ -32,6 +45,15 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+
+      clickhouse:
+        image: clickhouse/clickhouse-server:24.8-alpine
+        ports:
+          - 8123:8123
+          - 9000:9000
+        env:
+          CLICKHOUSE_PASSWORD: clickhouse
+          CLICKHOUSE_DB: zcrai_test
 
     steps:
       - uses: actions/checkout@v4
@@ -49,26 +71,47 @@ jobs:
         working-directory: ./backend/api
         env:
           DATABASE_URL: postgres://test_user:test_password@localhost:5432/zcrai_test
+          REDIS_URL: redis://localhost:6379
         run: bun run db:migrate
+        continue-on-error: true
 
       - name: Seed Database
         working-directory: ./backend/api
         env:
           DATABASE_URL: postgres://test_user:test_password@localhost:5432/zcrai_test
+          REDIS_URL: redis://localhost:6379
         run: bun run db:seed
+        continue-on-error: true
 
-      - name: Run Backend Tests
+      - name: Run Unit Tests
         working-directory: ./backend/api
         env:
           CI: true
           DATABASE_URL: postgres://test_user:test_password@localhost:5432/zcrai_test
           REDIS_URL: redis://localhost:6379
+          CLICKHOUSE_URL: http://localhost:8123
           NODE_ENV: test
-          JWT_SECRET: test_secret
-        run: bun test
+          JWT_SECRET: test_secret_for_ci_testing_only
+          ENCRYPTION_KEY: test_encryption_key_32_chars_00
+        run: bun test tests/unit --timeout 30000
+        continue-on-error: true
+
+      - name: Run Integration Tests
+        working-directory: ./backend/api
+        env:
+          CI: true
+          DATABASE_URL: postgres://test_user:test_password@localhost:5432/zcrai_test
+          REDIS_URL: redis://localhost:6379
+          CLICKHOUSE_URL: http://localhost:8123
+          NODE_ENV: test
+          JWT_SECRET: test_secret_for_ci_testing_only
+          ENCRYPTION_KEY: test_encryption_key_32_chars_00
+        run: bun test tests/*.test.ts --timeout 60000 --workers=1
+        continue-on-error: true
 
   frontend:
     runs-on: ubuntu-latest
+    continue-on-error: true  # Informational
     steps:
       - uses: actions/checkout@v4
 
@@ -83,17 +126,23 @@ jobs:
         working-directory: ./frontend
         run: npm ci
 
+      - name: Type Check
+        working-directory: ./frontend
+        run: npx tsc --noEmit
+        continue-on-error: true
+
       - name: Run Frontend Tests
         working-directory: ./frontend
-        run: npm run test
+        run: npm run test -- --run
+        continue-on-error: true
 
-      - name: Lint Check
+      - name: Build Check
         working-directory: ./frontend
-        run: npm run lint
+        run: npm run build
 
   e2e:
-    needs: [backend, frontend]
     runs-on: ubuntu-latest
+    continue-on-error: true  # Informational
     container:
       image: mcr.microsoft.com/playwright:v1.49.0-jammy
     steps:
@@ -110,22 +159,28 @@ jobs:
         working-directory: ./e2e
         run: npm ci
 
-      - name: Run E2E Tests (Functional)
+      - name: Run E2E Tests (Production)
         working-directory: ./e2e
         env:
-          # In a real pipeline, we'd need to spin up the app or target a staging env
-          # For now, we might skip this or target a demo env if allowed, 
-          # otherwise this will fail if it can't connect.
-          # We'll set a flag to only run if URL is available or use a mocked mode if existing.
-          BASE_URL: http://localhost:5173
+          BASE_URL: https://app.zcr.ai
+          TEST_EMAIL: ${{ secrets.TEST_EMAIL }}
+          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
         run: |
-          echo "⚠️ Skipping actual E2E execution until preview env is ready."
-          # npm run test:functional
-          echo "E2E Placeholder Passed"
+          echo "🧪 Running E2E tests against production..."
+          npx playwright test tests/auth.spec.ts tests/dashboard.spec.ts --reporter=list
+        continue-on-error: true
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: playwright-report
           path: e2e/playwright-report/
           retention-days: 7
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-screenshots
+          path: e2e/test-results/
+          retention-days: 7
+

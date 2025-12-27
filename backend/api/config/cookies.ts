@@ -10,27 +10,39 @@ export const COOKIE_CONFIG = {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax' as const,
-    maxAge: DEFAULTS.SESSION_DURATION,
+    maxAge: DEFAULTS.SESSION_DURATION * 1000, 
     path: '/'
   },
   refresh: {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax' as const,
-    maxAge: DEFAULTS.SESSION_DURATION,
-    path: '/auth/refresh'
+    maxAge: DEFAULTS.SESSION_DURATION * 1000, 
+    path: '/'  // Changed from '/auth/refresh' - ensures cookie is always sent
   }
 } as const
+
+
+
+
 
 /**
  * Helper function to set access token cookie
  */
 export function setAccessTokenCookie(cookie: any, token: string) {
+  console.log('🍪 [Config] Setting access_token cookie:', {
+    httpOnly: COOKIE_CONFIG.access.httpOnly,
+    secure: COOKIE_CONFIG.access.secure,
+    sameSite: COOKIE_CONFIG.access.sameSite,
+    path: COOKIE_CONFIG.access.path,
+    tokenPrefix: token.substring(0, 10) + '...'
+  });
   cookie.set({
     ...COOKIE_CONFIG.access,
     value: token
   })
 }
+
 
 /**
  * Helper function to set refresh token cookie

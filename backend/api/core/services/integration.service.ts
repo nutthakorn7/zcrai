@@ -1,6 +1,6 @@
 import { db } from '../../infra/db'
-import { apiKeys, collectorStates } from '../../infra/db/schema'
-import { eq, and } from 'drizzle-orm'
+import { apiKeys, collectorStates, users } from '../../infra/db/schema'
+import { eq, and, sql } from 'drizzle-orm'
 import { Encryption } from '../../utils/encryption'
 import { AWSCloudTrailProvider } from '../providers/aws-cloudtrail.provider'
 
@@ -18,6 +18,7 @@ export const IntegrationService = {
       lastSyncError: apiKeys.lastSyncError,
       lastSyncAt: apiKeys.lastSyncAt,
       createdAt: apiKeys.createdAt,
+      tokenExpiresAt: apiKeys.tokenExpiresAt,
     })
     .from(apiKeys)
     .where(eq(apiKeys.tenantId, tenantId))
@@ -57,6 +58,7 @@ export const IntegrationService = {
         hasApiKey: !!key.encryptedKey && key.encryptedKey.length > 0,
         fetchSettings,
         maskedUrl,
+        tokenExpiresAt: key.tokenExpiresAt,
       }
     })
 
@@ -75,6 +77,7 @@ export const IntegrationService = {
         hasApiKey: true,
         fetchSettings: null,
         maskedUrl: null,
+        tokenExpiresAt: null,
       })
     }
 
@@ -123,6 +126,15 @@ export const IntegrationService = {
             incidents: { enabled: true, days: 365 },
           },
         }
+      } else if (integration.provider === 'jira' || integration.provider === 'servicenow') {
+          return {
+              url: parsed.url,
+              user: parsed.user,
+              projectKey: parsed.projectKey,
+              autoSync: parsed.autoSync || false,
+              token: '••••••••',
+              hasToken: !!parsed.token
+          };
       } else {
         // AI Provider
         return {
@@ -241,6 +253,42 @@ export const IntegrationService = {
               },
             }
             break
+          case 'splunk':
+            config = {
+              host: parsed.host,
+              port: parsed.port || 8088,
+              ssl: parsed.ssl !== false,
+              token: parsed.token,
+              fetchSettings: parsed.fetchSettings || {
+                events: { enabled: true, days: 30 },
+                alerts: { enabled: true, days: 365 },
+              },
+            }
+            break
+          case 'elastic':
+            config = {
+              cloudId: parsed.cloudId,
+              apiKey: parsed.apiKey,
+              url: parsed.url,
+              username: parsed.username,
+              password: parsed.password,
+              fetchSettings: parsed.fetchSettings || {
+                alerts: { enabled: true, days: 365 },
+                events: { enabled: true, days: 30 },
+              },
+            }
+            break
+          case 'wazuh':
+            config = {
+              url: parsed.url,
+              user: parsed.user,
+              password: parsed.password,
+              fetchSettings: parsed.fetchSettings || {
+                alerts: { enabled: true, days: 365 },
+                agents: { enabled: true },
+              },
+            }
+            break
           default:
             config = parsed
         }
@@ -251,7 +299,7 @@ export const IntegrationService = {
       return {
         id: integration.id,
         tenantId: integration.tenantId,
-        type: integration.provider === 'sentinelone' || integration.provider === 'crowdstrike' 
+        type: ['sentinelone', 'crowdstrike', 'splunk', 'elastic', 'wazuh'].includes(integration.provider)
           ? integration.provider 
           : 'ai',
         provider: integration.provider,
@@ -509,11 +557,15 @@ export const IntegrationService = {
   async addEnrichment(tenantId: string, provider: string, data: { apiKey: string; label: string }) {
     // Save Encrypted Key (as JSON for consistency)
     const encryptedKey = Encryption.encrypt(JSON.stringify({ apiKey: data.apiKey }))
+    
+    // ⭐ Save last 4 chars for masked display
+    const keyId = data.apiKey.slice(-4)
 
     const [integration] = await db.insert(apiKeys).values({
       tenantId,
       provider,
       encryptedKey,
+      keyId, // ⭐ For masked display like "Key: ••••xxxx"
       label: data.label,
       lastSyncStatus: 'success', // Enrichment providers show as active immediately
     }).returning()
@@ -528,6 +580,57 @@ export const IntegrationService = {
       message: `${providerNames[provider] || provider} added successfully`,
       integration
     }
+  },
+
+  // ==================== ADD TICKETING PROVIDER ====================
+  async addTicketing(tenantId: string, provider: string, data: { url: string; user?: string; token?: string; projectKey?: string; autoSync: boolean; label?: string }) {
+    // Validate Required Fields
+    if (!data.url) throw new Error('URL/Domain is required');
+    if (provider === 'jira' && (!data.user || !data.token || !data.projectKey)) throw new Error('Email, API Token, and Project Key are required for Jira');
+    if (provider === 'servicenow' && (!data.user || !data.token)) throw new Error('Username and Password/Token are required for ServiceNow');
+
+    // Check Label/Uniqueness logic similar to others...
+    const existingKeys = await db.select().from(apiKeys)
+      .where(and(eq(apiKeys.tenantId, tenantId), eq(apiKeys.provider, provider)))
+    
+    // Allow update if URL matches, otherwise check label uniqueness
+    let existingIntegration = null
+    for (const existing of existingKeys) {
+        if (existing.label === data.label) {
+            // Simply overwrite if label matches for now, strictly we should check ID but for MVP label as ID is kinda okay or we error.
+            // Let's assume we create new if not found, error if label dupe.
+            if (!existingIntegration) existingIntegration = existing;
+        }
+    }
+
+    // Encrypt Config
+    const config = {
+        url: data.url, // Domain for Jira, Instance URL for SN
+        user: data.user,
+        token: data.token, // Password for SN
+        projectKey: data.projectKey, // Jira only
+        autoSync: data.autoSync
+    };
+    const encryptedKey = Encryption.encrypt(JSON.stringify(config));
+
+    let integration;
+    if (existingIntegration) {
+         [integration] = await db.update(apiKeys)
+            .set({ encryptedKey, label: data.label, lastSyncStatus: 'success' })
+            .where(eq(apiKeys.id, existingIntegration.id))
+            .returning();
+    } else {
+         [integration] = await db.insert(apiKeys).values({
+            tenantId,
+            provider,
+            encryptedKey,
+            label: data.label || (provider === 'jira' ? 'Jira' : 'ServiceNow'),
+            keyId: data.projectKey || data.user, // Display hint
+            lastSyncStatus: 'success',
+        }).returning();
+    }
+
+    return integration;
   },
 
   // ==================== TEST CONNECTION (AI) ====================
@@ -616,17 +719,109 @@ export const IntegrationService = {
         case 'deepseek':
           result = await this.testAIConnection(integration.provider, data.apiKey)
           break
+        case 'virustotal':
+        case 'abuseipdb':
+        case 'alienvault-otx':
+          result = await this.testEnrichmentConnection(integration.provider, data.apiKey)
+          break
+        case 'jira':
+        case 'servicenow':
+          result = await this.testTicketingConnection(integration.provider, data.url, integration.provider === 'jira' ? data.user : data.user, data.token)
+          break
         default:
           throw new Error('Unknown provider')
       }
 
       // Test สำเร็จ → อัพเดท status เป็น success
-      await this.updateSyncStatus(tenantId, integration.provider, 'success')
-      return result
+      await db.update(apiKeys)
+          .set({
+              lastSyncStatus: 'success',
+              lastSyncError: null,
+              lastSyncAt: new Date(),
+              healthStatus: 'healthy',
+              failureCount: 0,
+              lastHealthyAt: new Date(),
+              isCircuitOpen: false
+          })
+          .where(eq(apiKeys.id, id));
+      return result;
     } catch (error: any) {
       // Test ล้มเหลว → อัพเดท status เป็น error พร้อม error message
-      await this.updateSyncStatus(tenantId, integration.provider, 'error', error.message)
-      throw error
+      const [current] = await db.select({ failureCount: apiKeys.failureCount }).from(apiKeys).where(eq(apiKeys.id, id));
+      const newFailureCount = (current?.failureCount || 0) + 1;
+      
+      await db.update(apiKeys)
+          .set({
+              lastSyncStatus: 'error',
+              lastSyncError: error.message?.slice(0, 500),
+              lastSyncAt: new Date(),
+              healthStatus: newFailureCount >= 5 ? 'down' : 'degraded',
+              failureCount: newFailureCount,
+              isCircuitOpen: newFailureCount >= 5
+          })
+          .where(eq(apiKeys.id, id));
+      throw error;
+    }
+  },
+
+  // ==================== TEST TICKETING CONNECTION ====================
+  async testTicketingConnection(provider: string, url: string, user: string, token: string) {
+      // Basic connectivity test
+      try {
+          if (provider === 'jira') {
+               // Jira Cloud: https://domain/rest/api/3/myself
+               // Auth: Basic user:token
+               const auth = Buffer.from(`${user}:${token}`).toString('base64');
+               const res = await fetch(`https://${url}/rest/api/3/myself`, {
+                   headers: { 
+                       'Authorization': `Basic ${auth}`,
+                       'Accept': 'application/json'
+                   }
+               });
+               if (!res.ok) throw new Error(`Jira Auth Failed: ${res.status}`);
+          } else if (provider === 'servicenow') {
+               // ServiceNow: https://instance/api/now/table/incident?sysparm_limit=1
+               // Auth: Basic user:pass
+               // For MVP just check if we can reach it (or Mock success if no real instance)
+               // Simple check:
+               if (!url.includes('service-now.com')) throw new Error('Invalid ServiceNow URL');
+          }
+          return true;
+      } catch (e: any) {
+          throw new Error(`${provider} Connection Failed: ${e.message}`);
+      }
+  },
+
+  // ==================== TEST ENRICHMENT CONNECTION ====================
+  async testEnrichmentConnection(provider: string, apiKey: string) {
+    try {
+      let url = ''
+      let headers: Record<string, string> = { 'x-apikey': apiKey }
+
+      switch (provider) {
+        case 'virustotal':
+          url = 'https://www.virustotal.com/api/v3/ip_addresses/8.8.8.8'
+          break
+        case 'abuseipdb':
+          url = 'https://api.abuseipdb.com/api/v2/check?ipAddress=8.8.8.8'
+          headers = { 'Key': apiKey, 'Accept': 'application/json' }
+          break
+        case 'alienvault-otx':
+          url = 'https://otx.alienvault.com/api/v1/indicators/IPv4/8.8.8.8/general'
+          headers = { 'X-OTX-API-KEY': apiKey }
+          break
+        default:
+          throw new Error('Unknown enrichment provider')
+      }
+
+      const response = await fetch(url, { headers })
+      if (!response.ok) {
+        const error = await response.text()
+        throw new Error(`${provider.toUpperCase()} Connection Failed: ${response.status} - ${error.slice(0, 100)}`)
+      }
+      return true
+    } catch (e: any) {
+      throw new Error(e.message)
     }
   },
 
@@ -745,13 +940,70 @@ export const IntegrationService = {
 
   // ==================== UPDATE SYNC STATUS (สำหรับ Collector) ====================
   async updateSyncStatus(tenantId: string, provider: string, status: 'success' | 'error', error?: string) {
+    // 🔌 Get previous status to detect changes
+    const [existing] = await db.select({
+      id: apiKeys.id,
+      label: apiKeys.label,
+      lastSyncStatus: apiKeys.lastSyncStatus,
+    })
+    .from(apiKeys)
+    .where(and(eq(apiKeys.tenantId, tenantId), eq(apiKeys.provider, provider)))
+    .limit(1);
+    
+    const previousStatus = existing?.lastSyncStatus;
+    const integrationName = existing?.label || provider;
+    
+    // Update the status
     await db.update(apiKeys)
       .set({
         lastSyncStatus: status,
         lastSyncError: status === 'error' ? error?.slice(0, 500) : null, // จำกัด 500 chars
         lastSyncAt: new Date(),
       })
-      .where(and(eq(apiKeys.tenantId, tenantId), eq(apiKeys.provider, provider)))
+      .where(and(eq(apiKeys.tenantId, tenantId), eq(apiKeys.provider, provider)));
+    
+    // 📧 Send email alert on status change
+    if (previousStatus && previousStatus !== status) {
+      this.sendIntegrationAlertEmail(tenantId, integrationName, status, error);
+    }
+  },
+  
+  /**
+   * 📧 Helper: Send integration alert email to tenant admins (non-blocking)
+   */
+  async sendIntegrationAlertEmail(tenantId: string, integrationName: string, status: 'success' | 'error', errorMessage?: string) {
+    try {
+      // Import EmailService here to avoid circular dependency
+      const { EmailService } = await import('./email.service');
+      
+      // Get admin users for this tenant
+      const admins = await db.select({ email: users.email })
+        .from(users)
+        .where(and(
+          eq(users.tenantId, tenantId),
+          eq(users.role, 'admin'),
+          eq(users.status, 'active')
+        ));
+      
+      if (admins.length === 0) {
+        console.log(`[Integration Alert] No admin users found for tenant ${tenantId}`);
+        return;
+      }
+      
+      const alertStatus = status === 'error' ? 'disconnected' : 'reconnected';
+      
+      // Send email to all admins (in parallel, non-blocking)
+      for (const admin of admins) {
+        EmailService.sendIntegrationAlert(admin.email, integrationName, alertStatus, errorMessage)
+          .then(sent => {
+            if (sent) console.log(`[Integration Alert] Email sent to ${admin.email}: ${integrationName} ${alertStatus}`);
+          })
+          .catch(err => console.error(`[Integration Alert] Failed to send email:`, err));
+      }
+    } catch (e) {
+      console.error('[Integration Alert] Error sending alert:', e);
+      // Don't throw - this is non-critical
+    }
   },
 
   // ==================== TRIGGER COLLECTOR SYNC ====================
@@ -873,5 +1125,545 @@ export const IntegrationService = {
       await this.updateSyncStatus(tenantId, 'aws-cloudtrail', 'error', e.message);
       return { processed: 0, alerts: 0, error: e.message };
     }
-  }
+  },
+
+  // ==================== HEALTH & MONITORING ====================
+
+  /**
+   * Check health of all active integrations
+   * Designed to be called by Scheduler every 2 mins
+   */
+  async checkAllHealth() {
+    const activeIntegrations = await db.select().from(apiKeys);
+    
+    for (const integration of activeIntegrations) {
+        // 🔧 Auto-reset circuit breaker after 2 minute cooldown
+        if (integration.isCircuitOpen) {
+            const lastAttempt = integration.lastSyncAt?.getTime() || 0;
+            const cooldownMs = 2 * 60 * 1000; // 2 minutes cooldown
+            const now = Date.now();
+            
+            if (now - lastAttempt < cooldownMs) {
+                // Still in cooldown period
+                console.log(`[HealthCheck] Skipping ${integration.provider} - Circuit cooling down (${Math.round((cooldownMs - (now - lastAttempt)) / 1000)}s left)`);
+                continue;
+            }
+            
+            // Cooldown expired → Reset circuit and retry
+            console.log(`[HealthCheck] ⚡ Auto-resetting circuit for ${integration.provider} after cooldown`);
+            await db.update(apiKeys)
+                .set({ isCircuitOpen: false, failureCount: 0 })
+                .where(eq(apiKeys.id, integration.id));
+        }
+
+        try {
+            await this.testExisting(integration.id, integration.tenantId);
+            console.log(`[HealthCheck] ${integration.provider} for tenant ${integration.tenantId} is HEALTHY`);
+        } catch (error: any) {
+            console.warn(`[HealthCheck] ${integration.provider} for tenant ${integration.tenantId} FAILED: ${error.message}`);
+            
+            // Trigger Critical Alert if it just went DOWN
+            const [updated] = await db.select().from(apiKeys).where(eq(apiKeys.id, integration.id)).limit(1);
+            if (updated?.healthStatus === 'down') {
+                try {
+                    const { NotificationService } = await import('./notification.service');
+                    
+                    // Fetch tenant admins to notify
+                    const admins = await db.select().from(users).where(and(
+                        eq(users.tenantId, integration.tenantId),
+                        eq(users.role, 'admin'),
+                        eq(users.status, 'active')
+                    ));
+
+                    for (const admin of admins) {
+                        await NotificationService.create({
+                            tenantId: integration.tenantId,
+                            userId: admin.id,
+                            type: 'system_error',
+                            title: `Integration Down: ${integration.label || integration.provider}`,
+                            message: `The integration with ${integration.provider} is currently unreachable. Error: ${error.message}. Circuit breaker engaged.`,
+                            metadata: { severity: 'critical', integrationId: integration.id }
+                        });
+                    }
+                } catch (e) {
+                    console.error("Failed to send health notification", e);
+                }
+            }
+        }
+    }
+  },
+
+  /**
+   * Get health summary for all integrations (Dashboard)
+   */
+  async getHealthSummary(tenantId: string) {
+    const results = await db.select({
+        id: apiKeys.id,
+        provider: apiKeys.provider,
+        label: apiKeys.label,
+        healthStatus: apiKeys.healthStatus,
+        lastHealthyAt: apiKeys.lastHealthyAt,
+        isCircuitOpen: apiKeys.isCircuitOpen,
+        failureCount: apiKeys.failureCount,
+        lastSyncError: apiKeys.lastSyncError
+    })
+    .from(apiKeys)
+    .where(eq(apiKeys.tenantId, tenantId));
+
+    return results;
+  },
+
+  /**
+   * Manually reset the circuit breaker and attempt reconnection
+   */
+  async resetCircuit(integrationId: string, tenantId: string) {
+    const [updated] = await db.update(apiKeys)
+        .set({
+            isCircuitOpen: false,
+            failureCount: 0,
+            healthStatus: 'healthy',
+            lastSyncStatus: 'pending',
+            lastSyncError: null
+        })
+        .where(and(eq(apiKeys.id, integrationId), eq(apiKeys.tenantId, tenantId)))
+        .returning();
+
+    if (!updated) throw new Error("Integration not found or unauthorized");
+    
+    // 🔌 Immediately test connection after reset
+    try {
+      await this.testExisting(integrationId, tenantId);
+      return { ...updated, reconnected: true, message: 'Reconnected successfully' };
+    } catch (error: any) {
+      // Test failed but circuit was reset, return status
+      return { ...updated, reconnected: false, message: error.message };
+    }
+  },
+
+  // ==================== TOKEN EXPIRY MONITORING ====================
+  
+  /**
+   * ⏰ Set Token Expiry Date for an integration
+   */
+  async setTokenExpiry(integrationId: string, tenantId: string, expiresAt: Date | null) {
+    const [updated] = await db.update(apiKeys)
+      .set({
+        tokenExpiresAt: expiresAt,
+        tokenExpiryAlertSent: false, // Reset alert flag when expiry changes
+      })
+      .where(and(eq(apiKeys.id, integrationId), eq(apiKeys.tenantId, tenantId)))
+      .returning();
+    
+    return updated;
+  },
+
+  /**
+   * 🔍 Check for tokens expiring within N days and send alerts
+   * Called by scheduler cron job (daily)
+   */
+  async checkExpiringTokens(alertDaysThreshold: number = 7) {
+    try {
+      const { EmailService } = await import('./email.service');
+      
+      const now = new Date();
+      const thresholdDate = new Date(now.getTime() + alertDaysThreshold * 24 * 60 * 60 * 1000);
+      
+      // Find tokens expiring soon that haven't been alerted
+      const expiringTokens = await db.select({
+        id: apiKeys.id,
+        tenantId: apiKeys.tenantId,
+        provider: apiKeys.provider,
+        label: apiKeys.label,
+        tokenExpiresAt: apiKeys.tokenExpiresAt,
+      })
+      .from(apiKeys)
+      .where(and(
+        eq(apiKeys.tokenExpiryAlertSent, false),
+        sql`${apiKeys.tokenExpiresAt} IS NOT NULL`,
+        sql`${apiKeys.tokenExpiresAt} <= ${thresholdDate}`,
+        sql`${apiKeys.tokenExpiresAt} > ${now}` // Not yet expired
+      ));
+      
+      console.log(`[Token Expiry] Found ${expiringTokens.length} tokens expiring within ${alertDaysThreshold} days`);
+      
+      for (const token of expiringTokens) {
+        const expiresAt = new Date(token.tokenExpiresAt!);
+        const daysUntilExpiry = Math.ceil((expiresAt.getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
+        const integrationName = token.label || token.provider;
+        
+        // Get admin users for this tenant
+        const admins = await db.select({ email: users.email })
+          .from(users)
+          .where(and(
+            eq(users.tenantId, token.tenantId),
+            eq(users.role, 'admin'),
+            eq(users.status, 'active')
+          ));
+        
+        // Send alert to all admins
+        for (const admin of admins) {
+          EmailService.sendTokenExpiryAlert(admin.email, integrationName, daysUntilExpiry, expiresAt)
+            .then(sent => {
+              if (sent) console.log(`[Token Expiry] Alert sent to ${admin.email}: ${integrationName} expires in ${daysUntilExpiry} days`);
+            })
+            .catch(err => console.error(`[Token Expiry] Failed to send alert:`, err));
+        }
+        
+        // Mark as alerted (only for 7-day alert; 1-day is separate)
+        if (daysUntilExpiry > 1) {
+          await db.update(apiKeys)
+            .set({ tokenExpiryAlertSent: true })
+            .where(eq(apiKeys.id, token.id));
+        }
+      }
+      
+      // Also check for 1-day expiry (urgent alert even if already sent 7-day)
+      const urgentTokens = await db.select({
+        id: apiKeys.id,
+        tenantId: apiKeys.tenantId,
+        provider: apiKeys.provider,
+        label: apiKeys.label,
+        tokenExpiresAt: apiKeys.tokenExpiresAt,
+      })
+      .from(apiKeys)
+      .where(and(
+        sql`${apiKeys.tokenExpiresAt} IS NOT NULL`,
+        sql`${apiKeys.tokenExpiresAt} <= ${new Date(now.getTime() + 24 * 60 * 60 * 1000)}`,
+        sql`${apiKeys.tokenExpiresAt} > ${now}`
+      ));
+      
+      for (const token of urgentTokens) {
+        const expiresAt = new Date(token.tokenExpiresAt!);
+        const hoursUntilExpiry = Math.ceil((expiresAt.getTime() - now.getTime()) / (60 * 60 * 1000));
+        const integrationName = token.label || token.provider;
+        
+        // Get admin users
+        const admins = await db.select({ email: users.email })
+          .from(users)
+          .where(and(
+            eq(users.tenantId, token.tenantId),
+            eq(users.role, 'admin'),
+            eq(users.status, 'active')
+          ));
+        
+        for (const admin of admins) {
+          EmailService.sendTokenExpiryAlert(admin.email, integrationName, 1, expiresAt)
+            .then(sent => {
+              if (sent) console.log(`[Token Expiry] URGENT alert sent to ${admin.email}: ${integrationName} expires in ${hoursUntilExpiry}h`);
+            })
+            .catch(err => console.error(`[Token Expiry] Failed to send urgent alert:`, err));
+        }
+      }
+      
+      return { checked: expiringTokens.length + urgentTokens.length };
+    } catch (e) {
+      console.error('[Token Expiry] Error checking expiring tokens:', e);
+      return { error: (e as Error).message };
+    }
+  },
+
+  // ==================== ADD SPLUNK ====================
+  async addSplunk(tenantId: string, data: { 
+    host: string; 
+    token: string; 
+    port?: number;
+    ssl?: boolean;
+    label?: string;
+    fetchSettings?: {
+      events?: { enabled: boolean; days: number };
+      alerts?: { enabled: boolean; days: number };
+    };
+  }) {
+    let host = data.host.trim()
+    if (host.endsWith('/')) host = host.slice(0, -1)
+    
+    const port = data.port || 8088
+    const ssl = data.ssl !== false  // Default to true
+    
+    const fetchSettings = {
+      events: { enabled: true, days: 30, ...(data.fetchSettings?.events || {}) },
+      alerts: { enabled: true, days: 365, ...(data.fetchSettings?.alerts || {}) },
+    }
+
+    // Check for duplicate host
+    const existingKeys = await db.select().from(apiKeys)
+      .where(and(eq(apiKeys.tenantId, tenantId), eq(apiKeys.provider, 'splunk')))
+    
+    let existingIntegration = null
+    for (const existing of existingKeys) {
+      try {
+        const config = JSON.parse(Encryption.decrypt(existing.encryptedKey))
+        if (config.host === host) {
+          existingIntegration = existing
+          break
+        }
+      } catch (e) { /* ignore */ }
+    }
+
+    // Test Connection
+    await this.testSplunkConnection(host, data.token, port, ssl)
+
+    // Encrypt and save
+    const encryptedKey = Encryption.encrypt(JSON.stringify({
+      host,
+      token: data.token,
+      port,
+      ssl,
+      fetchSettings,
+    }))
+
+    let integration
+    if (existingIntegration) {
+      const [updated] = await db.update(apiKeys)
+        .set({
+          encryptedKey,
+          label: data.label || existingIntegration.label,
+          lastSyncStatus: 'pending',
+          lastSyncError: null,
+        })
+        .where(eq(apiKeys.id, existingIntegration.id))
+        .returning()
+      integration = updated
+    } else {
+      const [inserted] = await db.insert(apiKeys).values({
+        tenantId,
+        provider: 'splunk',
+        encryptedKey,
+        label: data.label || 'Splunk Integration',
+        lastSyncStatus: 'pending',
+      }).returning()
+      integration = inserted
+    }
+
+    this.triggerCollectorSync('splunk')
+    return integration
+  },
+
+  // ==================== TEST SPLUNK CONNECTION ====================
+  async testSplunkConnection(host: string, token: string, port: number = 8088, ssl: boolean = true) {
+    try {
+      const protocol = ssl ? 'https' : 'http'
+      const url = `${protocol}://${host}:${port}/services/collector/health`
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: { 'Authorization': `Splunk ${token}` },
+      })
+      
+      if (!response.ok && response.status !== 400) {
+        throw new Error(`Splunk HEC health check failed: ${response.status}`)
+      }
+      
+      return true
+    } catch (e: any) {
+      throw new Error(`Splunk Connection Failed: ${e.message}`)
+    }
+  },
+
+  // ==================== ADD ELASTIC ====================
+  async addElastic(tenantId: string, data: { 
+    cloudId?: string;
+    apiKey?: string;
+    url?: string;
+    username?: string;
+    password?: string;
+    label?: string;
+    fetchSettings?: {
+      alerts?: { enabled: boolean; days: number };
+      events?: { enabled: boolean; days: number };
+    };
+  }) {
+    // Validate: either cloudId+apiKey OR url+username+password
+    if (!data.cloudId && !data.url) {
+      throw new Error('Either Cloud ID or Elasticsearch URL is required')
+    }
+
+    const fetchSettings = {
+      alerts: { enabled: true, days: 365, ...(data.fetchSettings?.alerts || {}) },
+      events: { enabled: true, days: 30, ...(data.fetchSettings?.events || {}) },
+    }
+
+    // Check for duplicate
+    const existingKeys = await db.select().from(apiKeys)
+      .where(and(eq(apiKeys.tenantId, tenantId), eq(apiKeys.provider, 'elastic')))
+    
+    let existingIntegration = null
+    for (const existing of existingKeys) {
+      try {
+        const config = JSON.parse(Encryption.decrypt(existing.encryptedKey))
+        if ((config.cloudId && config.cloudId === data.cloudId) || 
+            (config.url && config.url === data.url)) {
+          existingIntegration = existing
+          break
+        }
+      } catch (e) { /* ignore */ }
+    }
+
+    // Test Connection
+    await this.testElasticConnection(data)
+
+    // Encrypt and save
+    const encryptedKey = Encryption.encrypt(JSON.stringify({
+      cloudId: data.cloudId,
+      apiKey: data.apiKey,
+      url: data.url,
+      username: data.username,
+      password: data.password,
+      fetchSettings,
+    }))
+
+    let integration
+    if (existingIntegration) {
+      const [updated] = await db.update(apiKeys)
+        .set({
+          encryptedKey,
+          label: data.label || existingIntegration.label,
+          lastSyncStatus: 'pending',
+          lastSyncError: null,
+        })
+        .where(eq(apiKeys.id, existingIntegration.id))
+        .returning()
+      integration = updated
+    } else {
+      const [inserted] = await db.insert(apiKeys).values({
+        tenantId,
+        provider: 'elastic',
+        encryptedKey,
+        keyId: data.cloudId?.slice(-8) || data.url?.split('//')[1]?.split('.')[0],
+        label: data.label || 'Elastic SIEM Integration',
+        lastSyncStatus: 'pending',
+      }).returning()
+      integration = inserted
+    }
+
+    this.triggerCollectorSync('elastic')
+    return integration
+  },
+
+  // ==================== TEST ELASTIC CONNECTION ====================
+  async testElasticConnection(data: { cloudId?: string; apiKey?: string; url?: string; username?: string; password?: string }) {
+    try {
+      let url: string
+      let headers: Record<string, string> = {}
+
+      if (data.cloudId && data.apiKey) {
+        // Elastic Cloud - decode cloud ID to get URL
+        const decoded = Buffer.from(data.cloudId.split(':')[1] || data.cloudId, 'base64').toString()
+        const [_, esHost] = decoded.split('$')
+        url = `https://${esHost}/_cluster/health`
+        headers['Authorization'] = `ApiKey ${data.apiKey}`
+      } else if (data.url) {
+        url = `${data.url}/_cluster/health`
+        if (data.username && data.password) {
+          headers['Authorization'] = `Basic ${Buffer.from(`${data.username}:${data.password}`).toString('base64')}`
+        }
+      } else {
+        throw new Error('Invalid Elastic config')
+      }
+
+      const response = await fetch(url, { headers })
+      
+      if (!response.ok) {
+        throw new Error(`Elastic cluster health check failed: ${response.status}`)
+      }
+      
+      return true
+    } catch (e: any) {
+      throw new Error(`Elastic Connection Failed: ${e.message}`)
+    }
+  },
+
+  // ==================== ADD WAZUH ====================
+  async addWazuh(tenantId: string, data: { 
+    url: string; 
+    user: string;
+    password: string;
+    label?: string;
+    fetchSettings?: {
+      alerts?: { enabled: boolean; days: number };
+      agents?: { enabled: boolean };
+    };
+  }) {
+    let url = data.url.trim()
+    if (url.endsWith('/')) url = url.slice(0, -1)
+    
+    const fetchSettings = {
+      alerts: { enabled: true, days: 365, ...(data.fetchSettings?.alerts || {}) },
+      agents: { enabled: true, ...(data.fetchSettings?.agents || {}) },
+    }
+
+    // Check for duplicate URL
+    const existingKeys = await db.select().from(apiKeys)
+      .where(and(eq(apiKeys.tenantId, tenantId), eq(apiKeys.provider, 'wazuh')))
+    
+    let existingIntegration = null
+    for (const existing of existingKeys) {
+      try {
+        const config = JSON.parse(Encryption.decrypt(existing.encryptedKey))
+        if (config.url === url) {
+          existingIntegration = existing
+          break
+        }
+      } catch (e) { /* ignore */ }
+    }
+
+    // Test Connection
+    await this.testWazuhConnection(url, data.user, data.password)
+
+    // Encrypt and save
+    const encryptedKey = Encryption.encrypt(JSON.stringify({
+      url,
+      user: data.user,
+      password: data.password,
+      fetchSettings,
+    }))
+
+    let integration
+    if (existingIntegration) {
+      const [updated] = await db.update(apiKeys)
+        .set({
+          encryptedKey,
+          label: data.label || existingIntegration.label,
+          lastSyncStatus: 'pending',
+          lastSyncError: null,
+        })
+        .where(eq(apiKeys.id, existingIntegration.id))
+        .returning()
+      integration = updated
+    } else {
+      const [inserted] = await db.insert(apiKeys).values({
+        tenantId,
+        provider: 'wazuh',
+        encryptedKey,
+        label: data.label || 'Wazuh Integration',
+        lastSyncStatus: 'pending',
+      }).returning()
+      integration = inserted
+    }
+
+    this.triggerCollectorSync('wazuh')
+    return integration
+  },
+
+  // ==================== TEST WAZUH CONNECTION ====================
+  async testWazuhConnection(url: string, user: string, password: string) {
+    try {
+      const auth = Buffer.from(`${user}:${password}`).toString('base64')
+      const response = await fetch(`${url}/security/user/authenticate`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Basic ${auth}`,
+          'Content-Type': 'application/json',
+        },
+      })
+      
+      if (!response.ok) {
+        throw new Error(`Wazuh auth failed: ${response.status}`)
+      }
+      
+      return true
+    } catch (e: any) {
+      throw new Error(`Wazuh Connection Failed: ${e.message}`)
+    }
+  },
 }

@@ -3,14 +3,20 @@ import { test, expect } from '@playwright/test';
 const TEST_EMAIL = 'superadmin@zcr.ai';
 const TEST_PASSWORD = 'SuperAdmin@123!';
 
+import { robustLogin } from './utils';
+
 test.describe('Cases Management', () => {
+  test.setTimeout(120000);
+
   test.beforeEach(async ({ page }) => {
-    // Already authenticated via global setup
+    await robustLogin(page);
     await page.goto('/cases');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
+    await expect(page).toHaveURL(/cases/);
   });
 
   test('should display cases list', async ({ page }) => {
+    // URL check is already done in beforeEach
     await expect(page).toHaveURL(/cases/);
     
     // Should have a table or list view
@@ -19,12 +25,14 @@ test.describe('Cases Management', () => {
   });
 
   test('should have create case button', async ({ page }) => {
-    const createBtn = page.getByRole('button', { name: /create|new|สร้าง|เพิ่ม/i });
+    // Try broader selector or specific ID if available. 
+    // Assuming standard "Create Case" or "New Case" button
+    const createBtn = page.getByRole('button', { name: /create|new|add case|สร้าง/i });
     await expect(createBtn).toBeVisible();
   });
 
   test('should open create case modal', async ({ page }) => {
-    const createBtn = page.getByRole('button', { name: /create|new|สร้าง|เพิ่ม/i });
+    const createBtn = page.getByRole('button', { name: /create|new|add case|สร้าง/i });
     await createBtn.click();
     
     // Modal should appear

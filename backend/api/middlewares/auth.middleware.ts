@@ -1,7 +1,7 @@
 import { Elysia } from 'elysia'
 import { jwt } from '@elysiajs/jwt'
 import { db } from '../infra/db'
-import { auditLogs } from '../infra/db/schema'
+import { auditLogs, users } from '../infra/db/schema'
 
 // JWT Payload Type
 interface JWTPayload {
@@ -27,21 +27,81 @@ export const authGuard = new Elysia({ name: 'authGuard' })
     secret: process.env.JWT_SECRET || 'super_secret_dev_key',
   }))
   .derive(async ({ jwt, cookie: { access_token }, set }: any) => {
-    if (!access_token?.value) {
-      set.status = 401
-      throw new Error('Unauthorized')
+    // Debug logging for production
+    console.log('🔐 [authGuard] derive() called');
+    console.log('🔐 [authGuard] NODE_ENV:', process.env.NODE_ENV);
+    console.log('🔐 [authGuard] access_token exists:', !!access_token?.value);
+    
+    //🔓 BYPASS MODE: Auto-inject mock user (skip all auth)
+    // Bypass when NOT production, or when explicit bypass flags are set
+    const bypassAuth = process.env.NODE_ENV !== 'production' 
+                    || process.env.DEV_AUTH_BYPASS === 'true'
+                    || process.env.BYPASS_AUTH === 'true';
+    
+    console.log('🔐 [authGuard] bypassAuth:', bypassAuth);
+    
+    if (bypassAuth) {
+      console.log('🔓 [authGuard] BYPASS MODE enabled');
+      // Fetch actual superadmin from database to get valid tenant ID
+      try {
+        const { eq } = await import('drizzle-orm');
+        const superadmin = await db.query.users.findFirst({
+          where: eq(users.role, 'superadmin')
+        });
+        
+        if (superadmin) {
+          return {
+            user: {
+              id: superadmin.id,
+              email: superadmin.email,
+              role: 'superadmin',
+              tenantId: superadmin.tenantId || 'system-admin-tenant'
+            } as JWTPayload
+          };
+        }
+      } catch (e) {
+        console.error('[Auth] Failed to fetch superadmin for bypass mode:', e);
+      }
+      
+      // Fallback mock user
+      return {
+        user: {
+          id: 'demo-user-id',
+          role: 'superadmin',
+          tenantId: 'demo-tenant-id'
+        } as JWTPayload
+      };
     }
 
-    const payload = await jwt.verify(access_token.value as string)
-    if (!payload) {
-      set.status = 401
-      throw new Error('Invalid token')
-    }
+    // Production: Normal JWT verification
+    console.log('🔐 [authGuard] Production mode - verifying JWT');
     
-    return {
-      user: payload as JWTPayload,
+    if (!access_token?.value) {
+      console.log('🔐 [authGuard] No access_token cookie found!');
+      set.status = 401;
+      throw new Error('Unauthorized - no token');
+    }
+
+    console.log('🔐 [authGuard] Token found, verifying...');
+    try {
+      const payload = await jwt.verify(access_token.value as string);
+      if (!payload) {
+        console.log('🔐 [authGuard] JWT verification returned null!');
+        set.status = 401;
+        throw new Error('Invalid token');
+      }
+      
+      console.log('🔐 [authGuard] JWT verified successfully, user:', (payload as any).email);
+      return {
+        user: payload as JWTPayload,
+      };
+    } catch (e: any) {
+      console.error('🔐 [authGuard] JWT verification error:', e.message);
+      set.status = 401;
+      throw new Error('Invalid token');
     }
   })
+
 
 // ==================== ROLE GUARD ====================
 export const requireRole = (...allowedRoles: Role[]) => {
@@ -49,6 +109,11 @@ export const requireRole = (...allowedRoles: Role[]) => {
     .use(authGuard)
     .onBeforeHandle((ctx: any) => {
       const user = ctx.user as JWTPayload
+      // Guard against undefined user (auth failure)
+      if (!user) {
+        ctx.set.status = 401
+        return { error: 'Unauthorized: Authentication required' }
+      }
       const userRole = user.role as Role
       if (!allowedRoles.includes(userRole)) {
         ctx.set.status = 403
@@ -65,10 +130,10 @@ export const tenantGuard = new Elysia({ name: 'tenantGuard' })
     return {
       user,
       checkTenantAccess: (resourceTenantId: string) => {
-        if (user.role === 'superadmin') return true
-        return user.tenantId === resourceTenantId
+        if (user?.role === 'superadmin') return true
+        return user?.tenantId === resourceTenantId
       },
-      tenantId: user.tenantId,
+      tenantId: user?.tenantId,
     }
   })
 

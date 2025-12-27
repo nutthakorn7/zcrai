@@ -1,5 +1,5 @@
 import { Elysia } from 'elysia';
-import { withAuth } from '../middleware/auth';
+import { withAuth, withPermission } from '../middleware/auth';
 import { AlertService } from '../core/services/alert.service';
 import { Errors } from '../middleware/error';
 import { HTTP_STATUS } from '../config/constants';
@@ -7,30 +7,61 @@ import { CreateAlertSchema } from '../validators/alert.validator';
 
 export const alertController = new Elysia({ prefix: '/alerts' })
   .use(withAuth)
+
   
   /**
    * List alerts with optional filtering
    * @route GET /alerts
    * @access Protected - Requires authentication
-   * @query {string} status - Filter by status (open, reviewing, dismissed) - comma-separated
-   * @query {string} severity - Filter by severity (critical, high, medium, low) - comma-separated
-   * @query {string} source - Filter by alert source - comma-separated
-   * @query {number} limit - Max results to return (default: 100)
-   * @query {number} offset - Pagination offset (default: 0)
-   * @returns {Object} Filtered list of alerts
    */
-  .get('/', async ({ query, user }: any) => {
-    const alerts = await AlertService.list({
-      tenantId: user.tenantId,
-      status: query.status ? query.status.split(',') : undefined,
-      severity: query.severity ? query.severity.split(',') : undefined,
-      source: query.source ? query.source.split(',') : undefined,
-      limit: query.limit ? parseInt(query.limit) : 100,
-      offset: query.offset ? parseInt(query.offset) : 0,
-    });
+  .get('/', async ({ query, user, set }) => {
+    try {
+      console.log('[ALERTS] === GET / endpoint called ===');
+      if (!user) {
+        console.error('[ALERTS] Error: User context missing');
+        set.status = 401;
+        return { success: false, error: 'Authentication required' };
+      }
+      console.log('[ALERTS] User:', user?.email, 'Role:', user?.role, 'TenantId:', user?.tenantId);
+      
+      // Build filters
+      const filters: any = {
+        limit: query.limit ? parseInt(query.limit) : 100,
+        offset: query.offset ? parseInt(query.offset) : 0,
+      };
+      
+      // Only filter by tenantId for non-superadmin users
+      if (user.role !== 'superadmin') {
+        if (!user.tenantId) {
+            console.error('[ALERTS] Error: TenantId missing for user', user.email);
+            set.status = 403;
+            return { success: false, error: 'Tenant context missing' };
+        }
+        filters.tenantId = user.tenantId;
+        console.log('[ALERTS] Filtering by tenantId:', user.tenantId);
+      } else {
+        console.log('[ALERTS] Superadmin - showing all tenants');
+      }
+      
+      if (query.status) filters.status = query.status.split(',');
+      if (query.severity) filters.severity = query.severity.split(',');
+      if (query.source) filters.source = query.source.split(',');
+      if (query.aiStatus) filters.aiStatus = query.aiStatus.split(',');
+      if (query.fields) filters.fields = query.fields.split(',');
+      
+      const alerts = await AlertService.list(filters);
 
-    return { success: true, data: alerts };
+      console.log('[ALERTS] Retrieved alerts count:', alerts.length);
+      return { success: true, data: alerts };
+    } catch (e: any) {
+      console.error('[ALERTS] GET / failed:', e.message);
+      set.status = 500;
+      return { success: false, error: 'Internal Server Error', message: e.message };
+    }
+  }, {
+    beforeHandle: [withPermission('alerts.manage') as any]
   })
+
 
   /**
    * Create a new security alert
@@ -47,7 +78,10 @@ export const alertController = new Elysia({ prefix: '/alerts' })
       ...body,
     });
     return { success: true, data: alert };
-  }, { body: CreateAlertSchema })
+  }, { 
+    body: CreateAlertSchema,
+    beforeHandle: [withPermission('alerts.manage') as any]
+  })
   
   /**
    * Get detailed information for a specific alert
@@ -59,6 +93,8 @@ export const alertController = new Elysia({ prefix: '/alerts' })
   .get('/:id', async ({ params, user }: any) => {
     const alert = await AlertService.getById(params.id, user.tenantId);
     return { success: true, data: alert };
+  }, {
+    beforeHandle: [withPermission('alerts.manage') as any]
   })
 
   /**
@@ -76,6 +112,8 @@ export const alertController = new Elysia({ prefix: '/alerts' })
     );
 
     return { success: true, data: alert };
+  }, {
+    beforeHandle: [withPermission('alerts.manage') as any]
   })
 
   /**
@@ -93,6 +131,8 @@ export const alertController = new Elysia({ prefix: '/alerts' })
     );
 
     return { success: true, data: alert };
+  }, {
+    beforeHandle: [withPermission('alerts.manage') as any]
   })
 
   /**
@@ -114,6 +154,8 @@ export const alertController = new Elysia({ prefix: '/alerts' })
       message: 'Alert promoted to case successfully',
       data: result 
     };
+  }, {
+    beforeHandle: [withPermission('alerts.manage') as any]
   })
 
   /**
@@ -140,6 +182,8 @@ export const alertController = new Elysia({ prefix: '/alerts' })
       message: `${result.count} alerts dismissed successfully`,
       data: result
     };
+  }, {
+    beforeHandle: [withPermission('alerts.manage') as any]
   })
 
   /**
@@ -170,6 +214,8 @@ export const alertController = new Elysia({ prefix: '/alerts' })
       message: `${result.count} alerts promoted to cases successfully`,
       data: result
     };
+  }, {
+    beforeHandle: [withPermission('alerts.manage') as any]
   })
 
   /**
@@ -186,6 +232,8 @@ export const alertController = new Elysia({ prefix: '/alerts' })
     );
 
     return { success: true, data: correlations };
+  }, {
+    beforeHandle: [withPermission('alerts.manage') as any]
   })
 
   /**
@@ -197,6 +245,8 @@ export const alertController = new Elysia({ prefix: '/alerts' })
   .get('/stats/summary', async ({ user }: any) => {
     const stats = await AlertService.getStats(user.tenantId);
     return { success: true, data: stats };
+  }, {
+    beforeHandle: [withPermission('alerts.view_results') as any] 
   })
 
   /**
@@ -218,6 +268,8 @@ export const alertController = new Elysia({ prefix: '/alerts' })
     });
 
     return { success: true, message: 'Feedback recorded' };
+  }, {
+    beforeHandle: [withPermission('alerts.manage') as any]
   })
 
   /**
@@ -231,4 +283,39 @@ export const alertController = new Elysia({ prefix: '/alerts' })
     
     const recommendations = await AlertFeedbackService.getTuningRecommendations(user.tenantId);
     return { success: true, data: recommendations };
+  }, {
+    beforeHandle: [withPermission('alerts.manage') as any]
+  })
+
+  /**
+   * AI Triage - Analyze and prioritize alerts by urgency
+   * @route POST /alerts/triage
+   * @access Protected - Requires authentication
+   * @body {Array} alerts - Array of alert objects to analyze
+   * @returns {Object} Triaged alerts with urgency scores, categories, and actions
+   */
+  .post('/triage', async ({ body, user, set }: any) => {
+    try {
+      const { alerts } = body;
+      
+      if (!alerts || !Array.isArray(alerts) || alerts.length === 0) {
+        set.status = 400;
+        return { success: false, error: 'alerts array is required' };
+      }
+
+      const { AIService } = await import('../core/services/ai.service');
+      const result = await AIService.triageAlerts(alerts);
+
+      return { 
+        success: true, 
+        data: result.triaged,
+        message: `Triaged ${result.triaged.length} alerts`
+      };
+    } catch (e: any) {
+      console.error('[ALERTS] Triage failed:', e.message);
+      set.status = 500;
+      return { success: false, error: 'AI Triage failed', message: e.message };
+    }
+  }, {
+    beforeHandle: [withPermission('alerts.manage') as any]
   });

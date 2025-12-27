@@ -87,13 +87,15 @@ describe('Playbook Automation', () => {
         // 2. Run Playbook
         const { data: runData } = await api.playbooks.run.post({
             caseId: createdCase.id,
-            playbookId: playbook?.id
+            playbookId: playbook?.id || ''
         }, { headers });
         
         const execution = runData?.data;
         expect(execution?.id).toBeDefined();
         expect(execution?.status).toBe('running');
         
+        if (!execution?.id) return;
+
         // @ts-ignore
         const stepId = execution.steps[0].id;
 
@@ -104,6 +106,7 @@ describe('Playbook Automation', () => {
         
         expect(result?.success).toBe(true);
         expect(result?.data?.success).toBe(true);
-        expect(result?.data?.output?.status).toBe('blocked');
+        // @ts-ignore
+        expect(result?.data?.data?.status).toBe('blocked');
     });
 });

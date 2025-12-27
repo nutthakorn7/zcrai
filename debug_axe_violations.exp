@@ -1,0 +1,13 @@
+#!/usr/bin/expect -f
+
+set timeout 300
+set pass "#8#J8YMULd6u8iQ"
+set host "root@45.118.132.160"
+
+# Run specific tests with JSON reporter to get detailed violations
+spawn ssh -o StrictHostKeyChecking=no $host "cd /root/e2e_runners/e2e && BASE_URL=https://app.zcr.ai ./node_modules/.bin/playwright test tests/accessibility.spec.ts:16 tests/accessibility.spec.ts:30 --reporter=json 2>&1 | tee /tmp/axe-violations.json && cat /tmp/axe-violations.json"
+expect {
+    "password:" { send "$pass\r"; exp_continue }
+    "violations" { exp_continue }
+    eof
+}

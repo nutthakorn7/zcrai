@@ -1,28 +1,168 @@
 import { useEffect, useState } from 'react';
-import { Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Chip, Button, Switch, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Input, Select, SelectItem, Textarea } from "@heroui/react";
-import { Icon } from '../../shared/ui';
-import { DetectionRulesAPI, DetectionRule } from '../../shared/api/detection-rules';
+import { Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Chip, Button, Switch, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Input, Select, SelectItem, Textarea, Tabs, Tab, Popover, PopoverTrigger, PopoverContent } from "@heroui/react";
+import { Icon, PageHeader } from '../../shared/ui';
+import { DetectionRulesAPI, DetectionRule, PlaybooksAPI, Playbook } from '@/shared/api';
+import { MitreHeatmap } from '../../components/MitreHeatmap';
 
 export default function DetectionRulesPage() {
   const [rules, setRules] = useState<DetectionRule[]>([]);
+  const [playbooks, setPlaybooks] = useState<Playbook[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<string>("manage");
   
   // Edit State
   const [selectedRule, setSelectedRule] = useState<DetectionRule | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editForm, setEditForm] = useState<Partial<DetectionRule>>({});
+  
+  // Test State
+  const [isTesting, setIsTesting] = useState(false);
+  interface TestResult {
+    success: boolean;
+    count: number;
+    error?: string;
+    events?: any[];
+  }
+  const [testResults, setTestResults] = useState<TestResult | null>(null);
+  
+  // AI Generation State
+  const [isAiGenerating, setIsAiGenerating] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [isAiPopoverOpen, setIsAiPopoverOpen] = useState(false);
+
+  // Filter State
+  const [searchTerm, setSearchTerm] = useState('');
+  const [severityFilter, setSeverityFilter] = useState<'all' | 'critical' | 'high' | 'medium' | 'low'>('all');
+
+  // Delete State
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [ruleToDelete, setRuleToDelete] = useState<DetectionRule | null>(null);
+
+  const handleAiGenerate = async () => {
+      if (!aiPrompt) return;
+      setIsAiGenerating(true);
+      try {
+          // Use the new generateRule that returns full rule config
+          const res = await DetectionRulesAPI.generateRule(aiPrompt);
+          if (res.success && res.data) {
+              setEditForm({ 
+                  ...editForm, 
+                  ...res.data, // Auto-fill Name, Desc, Severity, Query, MITRE, Interval
+                  isEnabled: true
+              });
+              setIsAiPopoverOpen(false); // Close popover on success
+          } else {
+              alert('Failed to generate rule');
+          }
+      } catch (e) {
+          console.error(e);
+          alert('AI Generation failed');
+      } finally {
+          setIsAiGenerating(false);
+      }
+  };
+
+  const handleTest = async () => {
+      if (!editForm.query) return;
+      setIsTesting(true);
+      setTestResults(null);
+      try {
+          const res = await DetectionRulesAPI.test(editForm.query);
+          setTestResults(res);
+      } catch (e) {
+          console.error(e);
+          setTestResults({ success: false, count: 0, error: 'Failed to execute test query' });
+      } finally {
+          setIsTesting(false);
+      }
+  };
+
+  // Import/Export Logic
+  const handleExport = () => {
+      const dataStr = JSON.stringify(rules, null, 2);
+      const blob = new Blob([dataStr], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `detection-rules-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+  };
+
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+          try {
+              const json = JSON.parse(event.target?.result as string);
+              if (Array.isArray(json)) {
+                  setLoading(true);
+                  let successCount = 0;
+                  for (const rule of json) {
+                      // Basic validation or sanitization could happen here
+                      // We strip ID to create as new
+                      const { id, createdAt, updatedAt, ...rest } = rule;
+                      await DetectionRulesAPI.create({ ...rest, isEnabled: false }); // Import as disabled
+                      successCount++;
+                  }
+                  await fetchRules();
+                  alert(`Successfully imported ${successCount} rules.`);
+              }
+          } catch (err) {
+              console.error(err);
+              alert('Failed to import rules. Invalid JSON.');
+          } finally {
+             setLoading(false);
+          }
+      };
+      reader.readAsText(file);
+      // Reset input
+      e.target.value = '';
+  };
 
   const fetchRules = async () => {
     try {
       setLoading(true);
       const data = await DetectionRulesAPI.list();
       setRules(data);
+      
+      // Fetch Playbooks
+      const playbookList = await PlaybooksAPI.list();
+      setPlaybooks(playbookList);
     } catch (e) {
       console.error(e);
     } finally {
         setLoading(false);
     }
   };
+
+  const handleDeleteClick = (rule: DetectionRule) => {
+      setRuleToDelete(rule);
+      setIsDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+      if (!ruleToDelete) return;
+      try {
+          await DetectionRulesAPI.delete(ruleToDelete.id);
+          setRules(rules.filter(r => r.id !== ruleToDelete.id));
+          setIsDeleteModalOpen(false);
+          setRuleToDelete(null);
+      } catch (e) {
+          console.error(e);
+          alert('Failed to delete rule');
+      }
+  };
+
+  const filteredRules = rules.filter(rule => {
+      const matchesSearch = rule.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                            rule.description?.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesSeverity = severityFilter === 'all' || rule.severity === severityFilter;
+      return matchesSearch && matchesSeverity;
+  });
 
   useEffect(() => {
     fetchRules();
@@ -40,19 +180,44 @@ export default function DetectionRulesPage() {
   const handleEdit = (rule: DetectionRule) => {
       setSelectedRule(rule);
       setEditForm({ ...rule });
+      setTestResults(null); // Reset test
+      setIsModalOpen(true);
+  };
+
+  const handleNewRule = () => {
+      setSelectedRule(null);
+      setEditForm({
+          name: '',
+          description: '',
+          severity: 'medium',
+          isEnabled: true,
+          runIntervalSeconds: 3600,
+          query: '',
+
+          mitreTechnique: '', // Initialize MITRE field
+          actions: { group_by: [] }
+      });
+      setTestResults(null); // Reset test
       setIsModalOpen(true);
   };
 
   const handleSave = async () => {
-      if (!selectedRule) return;
       try {
           // Ensure actions object is structured correctly
           const actions = editForm.actions || {};
           
-          await DetectionRulesAPI.update(selectedRule.id, {
-              ...editForm,
-              actions
-          });
+          if (selectedRule) {
+              await DetectionRulesAPI.update(selectedRule.id, {
+                  ...editForm,
+                  actions
+              });
+          } else {
+              await DetectionRulesAPI.create({
+                  ...editForm,
+                  actions
+              });
+          }
+
           fetchRules();
           setIsModalOpen(false);
       } catch (e) {
@@ -61,93 +226,148 @@ export default function DetectionRulesPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">Detection Rules</h2>
-          <p className="text-foreground/60">Manage SIGMA-based detection logic and automation</p>
-        </div>
-        <Button color="primary" startContent={<Icon.Add className="w-4 h-4"/>}>New Rule</Button>
-      </div>
+    <div className="p-6 min-h-screen bg-background space-y-6">
+      <PageHeader title="Detection Rules" description="Manage SIGMA-based detection logic and automation">
+        <div className="flex gap-4 items-center">
+             <Input 
+                className="w-64" 
+                placeholder="Search rules..." 
+                startContent={<Icon.Search className="w-4 h-4 text-default-400"/>}
+                value={searchTerm}
+                onValueChange={setSearchTerm}
+                size="sm"
+             />
+             <Select 
+                className="w-40" 
+                placeholder="Severity" 
+                selectedKeys={[severityFilter]} 
+                onChange={(e) => setSeverityFilter(e.target.value as any)}
+                size="sm"
+             >
+                <SelectItem key="all">All Severities</SelectItem>
+                <SelectItem key="critical">Critical</SelectItem>
+                <SelectItem key="high">High</SelectItem>
+                <SelectItem key="medium">Medium</SelectItem>
+                <SelectItem key="low">Low</SelectItem>
+             </Select>
 
-      <Table aria-label="Detection Rules Table">
-        <TableHeader>
-          <TableColumn>STATUS</TableColumn>
-          <TableColumn>NAME</TableColumn>
-          <TableColumn>SEVERITY</TableColumn>
-          <TableColumn>ACTIONS</TableColumn>
-          <TableColumn>LAST RUN</TableColumn>
-          <TableColumn>MANAGE</TableColumn>
-        </TableHeader>
-        <TableBody items={rules} isLoading={loading}>
-          {(item) => (
-            <TableRow key={item.id}>
-              <TableCell>
-                  <Switch size="sm" isSelected={item.isEnabled} onValueChange={() => handleToggle(item)} />
-              </TableCell>
-              <TableCell>
-                  <div>
-                      <div className="font-medium">{item.name}</div>
-                      <div className="text-xs text-foreground/50">{item.description}</div>
-                  </div>
-              </TableCell>
-              <TableCell>
-                  <Chip size="sm" color={
-                      item.severity === 'critical' ? 'danger' : 
-                      item.severity === 'high' ? 'warning' : 
-                      item.severity === 'medium' ? 'secondary' : 'default'
-                  } variant="flat" className="capitalize">
-                      {item.severity}
-                  </Chip>
-              </TableCell>
-              <TableCell>
-                  <div className="flex gap-2">
-                       {item.actions?.auto_case && (
-                           <Chip size="sm" startContent={<Icon.Cpu className="w-3 h-3"/>} color="primary" variant="flat">Auto-Case</Chip>
-                       )}
-                  </div>
-              </TableCell>
-              <TableCell>
-                  <span className="text-xs text-foreground/50">
-                      {item.lastRunAt ? new Date(item.lastRunAt).toLocaleString() : 'Never'}
-                  </span>
-              </TableCell>
-              <TableCell>
-                  <div className="flex gap-2">
-                      <Button isIconOnly size="sm" variant="light" onPress={() => handleEdit(item)}>
-                          <Icon.Edit className="w-4 h-4"/>
-                      </Button>
-                      <Button isIconOnly size="sm" variant="light" color="danger">
-                          <Icon.Delete className="w-4 h-4"/>
-                      </Button>
-                  </div>
-              </TableCell>
-            </TableRow>
-          )}
-        </TableBody>
-      </Table>
+             <Tabs aria-label="View Mode" selectedKey={activeTab} onSelectionChange={(k) => setActiveTab(String(k))}>
+                <Tab key="manage" title="Manage Rules" />
+                <Tab key="coverage" title="Coverage Analysis" />
+            </Tabs>
+            {activeTab === 'manage' && (
+                <div className="flex gap-2">
+                    <Button variant="flat" onPress={handleExport} startContent={<Icon.Download className="w-4 h-4"/>}>Export</Button>
+                    <div className="relative">
+                        <input 
+                            type="file" 
+                            accept=".json" 
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
+                            onChange={handleImport}
+                        />
+                        <Button variant="flat" startContent={<Icon.Upload className="w-4 h-4"/>}>Import</Button>
+                    </div>
+                    <Button color="primary" onPress={handleNewRule} startContent={<Icon.Add className="w-4 h-4"/>}>New Rule</Button>
+                </div>
+            )}
+        </div>
+      </PageHeader>
+
+      {activeTab === 'manage' ? (
+          <Table aria-label="Detection Rules Table">
+            <TableHeader>
+              <TableColumn className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">STATUS</TableColumn>
+              <TableColumn className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">NAME</TableColumn>
+              <TableColumn className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">SEVERITY</TableColumn>
+              <TableColumn className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">ACTIONS</TableColumn>
+              <TableColumn className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">LAST RUN</TableColumn>
+              <TableColumn className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">MANAGE</TableColumn>
+            </TableHeader>
+            <TableBody items={filteredRules} isLoading={loading} emptyContent="No detection rules found">
+              {(item) => (
+                <TableRow key={item.id}>
+                  <TableCell>
+                      <Switch size="sm" isSelected={item.isEnabled} onValueChange={() => handleToggle(item)} />
+                  </TableCell>
+                  <TableCell>
+                      <div>
+                          <div className="font-medium">{item.name}</div>
+                          <div className="text-xs text-foreground/50">{item.description}</div>
+                      </div>
+                  </TableCell>
+                  <TableCell>
+                      <Chip size="sm" color={
+                          item.severity === 'critical' ? 'danger' : 
+                          item.severity === 'high' ? 'warning' : 
+                          item.severity === 'medium' ? 'secondary' : 'default'
+                      } variant="flat" className="capitalize">
+                          {item.severity}
+                      </Chip>
+                  </TableCell>
+                  <TableCell>
+                      <div className="flex gap-2">
+                           {item.actions?.auto_case && (
+                               <Chip size="sm" startContent={<Icon.Cpu className="w-3 h-3"/>} color="primary" variant="flat">Auto-Case</Chip>
+                           )}
+                           {item.actions?.playbook_id && (
+                               <Chip size="sm" startContent={<Icon.Zap className="w-3 h-3"/>} color="warning" variant="flat">Playbook</Chip>
+                           )}
+                      </div>
+                  </TableCell>
+                  <TableCell>
+                      <span className="text-xs text-foreground/50">
+                          {item.lastRunAt ? new Date(item.lastRunAt).toLocaleString() : 'Never'}
+                      </span>
+                  </TableCell>
+                  <TableCell>
+                      <div className="flex gap-2">
+                          <Button isIconOnly size="sm" variant="light" onPress={() => handleEdit(item)}>
+                              <Icon.Edit className="w-4 h-4"/>
+                          </Button>
+                          <Button isIconOnly size="sm" variant="light" color="danger" onPress={() => handleDeleteClick(item)}>
+                              <Icon.Delete className="w-4 h-4"/>
+                          </Button>
+                      </div>
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+      ) : (
+          <div className="h-[650px] animate-fade-in">
+              <MitreHeatmap mode="coverage" />
+          </div>
+      )}
 
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} size="2xl">
           <ModalContent>
-              <ModalHeader>Edit Detection Rule</ModalHeader>
+              <ModalHeader>{selectedRule ? 'Edit Detection Rule' : 'Create Detection Rule'}</ModalHeader>
               <ModalBody className="gap-4">
                   <Input label="Name" value={editForm.name} onValueChange={v => setEditForm({...editForm, name: v})} />
                   <Textarea label="Description" value={editForm.description} onValueChange={v => setEditForm({...editForm, description: v})} />
                   
                   <div className="grid grid-cols-2 gap-4">
-                      <Select label="Severity" selectedKeys={editForm.severity ? [editForm.severity] : []} onChange={e => setEditForm({...editForm, severity: e.target.value as any})}>
+                      <Select label="Severity" selectedKeys={editForm.severity ? [editForm.severity] : []} onChange={e => setEditForm({...editForm, severity: e.target.value as DetectionRule['severity']})}>
                           <SelectItem key="critical">Critical</SelectItem>
                           <SelectItem key="high">High</SelectItem>
                           <SelectItem key="medium">Medium</SelectItem>
                           <SelectItem key="low">Low</SelectItem>
                       </Select>
+                      <Input 
+                        label="MITRE Technique ID" 
+                        placeholder="e.g. T1003" 
+                        value={editForm.mitreTechnique || ''} 
+                        onValueChange={v => setEditForm({...editForm, mitreTechnique: v})} 
+                      />
                       <Input type="number" label="Interval (Seconds)" value={editForm.runIntervalSeconds?.toString()} onValueChange={v => setEditForm({...editForm, runIntervalSeconds: parseInt(v)})} />
                   </div>
 
-                  <div className="p-4 bg-default-100 rounded-lg">
-                      <h4 className="text-sm font-bold mb-2 flex items-center gap-2">
+                  <div className="p-4 bg-default-100 rounded-lg space-y-4">
+                      <h3 className="text-sm font-bold flex items-center gap-2">
                           <Icon.Cpu className="w-4 h-4 text-warning"/> Automation Actions
-                      </h4>
+                      </h3>
+                      
+                      {/* Auto Case Toggle */}
                       <div className="flex items-center justify-between">
                           <div>
                               <div className="text-sm">Auto-Create Case</div>
@@ -161,6 +381,46 @@ export default function DetectionRulesPage() {
                               })} 
                           />
                       </div>
+
+                      {/* Playbook Selection */}
+                      <div className="flex items-center justify-between border-t border-divider pt-2 mt-2">
+                           <div className="flex-1 mr-4">
+                               <div className="text-sm">Run Playbook (Response)</div>
+                               <div className="text-xs text-foreground/50">Execute a playbook when this rule triggers</div>
+                           </div>
+                           <Select 
+                                className="w-48"
+                                placeholder="Select Playbook" 
+                                size="sm"
+                                selectedKeys={editForm.actions?.playbook_id ? [editForm.actions.playbook_id] : []}
+                                onChange={e => setEditForm({
+                                    ...editForm,
+                                    actions: { ...editForm.actions, playbook_id: e.target.value }
+                                })}
+                           >
+                               {playbooks.map(pb => (
+                                   <SelectItem key={pb.id} textValue={pb.title}>{pb.title}</SelectItem>
+                               ))}
+                           </Select>
+                      </div>
+
+                      {/* Grouping Params */}
+                      <div className="border-t border-divider pt-4">
+                          <div className="text-sm font-medium mb-1">Alert Aggregation (Noise Reduction)</div>
+                          <div className="text-xs text-foreground/50 mb-2">Group multiple events into a single alert based on these fields (comma separated). Leave empty for no grouping.</div>
+                          <Input 
+                            placeholder="e.g. src_ip, user.name" 
+                            size="sm"
+                            value={(editForm.actions?.group_by as string[])?.join(', ') || ''}
+                            onValueChange={v => {
+                                const list = v.split(',').map(s => s.trim()).filter(Boolean);
+                                setEditForm({
+                                    ...editForm,
+                                    actions: { ...editForm.actions, group_by: list }
+                                });
+                            }}
+                          />
+                      </div>
                   </div>
 
                   <Textarea 
@@ -169,10 +429,109 @@ export default function DetectionRulesPage() {
                     value={editForm.query} 
                     onValueChange={v => setEditForm({...editForm, query: v})} 
                   />
+                  
+                   <div className="flex justify-end -mt-2 mb-2">
+                       <Popover isOpen={isAiPopoverOpen} onOpenChange={setIsAiPopoverOpen} placement="top">
+                           <PopoverTrigger>
+                               <Button size="sm" variant="flat" color="secondary" startContent={<Icon.Cpu className="w-4 h-4"/>}>
+                                   Generate Rule with AI
+                               </Button>
+                           </PopoverTrigger>
+                           <PopoverContent className="w-[300px] p-4 bg-content1 border border-white/10">
+                               <div className="space-y-2">
+                                   <div className="font-bold text-sm">Describe Detection Logic</div>
+                                   <p className="text-xs text-foreground/60">AI will auto-fill Name, Query, Severity, and MITRE for you.</p>
+                                   <Textarea 
+                                        placeholder="e.g. Detect 5 failed logins followed by success from same IP within 10 minutes"
+                                        minRows={2}
+                                        value={aiPrompt}
+                                        onValueChange={setAiPrompt}
+                                   />
+                                   <Button 
+                                    fullWidth
+                                    isDisabled={!aiPrompt}
+                                    onPress={handleAiGenerate}
+                                    isLoading={isAiGenerating}
+                                   >
+                                       Generate Full Rule
+                                   </Button>
+                               </div>
+                           </PopoverContent>
+                       </Popover>
+                  </div>
+                  
+                   {/* MITRE Mapping (New) - Optional, but useful to add later. For now, default seeded rules have it. */}
+                   {/* I won't add MITRE input fields yet to keep it simple, or I should? The plan didn't explicitly key it. */}
+                   {/* I'll skip editing MITRE fields in this iteration unless easy. */}
+
+                  {/* Test Results Section */}
+                  {testResults && (
+                      <div className="rounded-lg border border-divider p-3 bg-content1/50 text-xs">
+                          <div className="flex justify-between items-center mb-2">
+                              <span className="font-bold flex items-center gap-2">
+                                  {testResults.success ? (
+                                      <Icon.CheckCircle className="w-4 h-4 text-success"/>
+                                  ) : (
+                                      <Icon.Close className="w-4 h-4 text-danger"/>
+                                  )}
+                                  Test Result: {testResults.success ? `Found ${testResults.count} matches` : 'Error'}
+                              </span>
+                              {testResults.success && testResults.count > 0 && (
+                                  <span className="text-foreground/50">Last 24h</span>
+                              )}
+                          </div>
+                          
+                          {!testResults.success ? (
+                              <div className="text-danger font-mono p-2 bg-danger/10 rounded">{testResults.error}</div>
+                          ) : (
+                              testResults.events && testResults.events.length > 0 && (
+                                  <div className="overflow-x-auto">
+                                      <table className="w-full text-left border-collapse">
+                                          <thead>
+                                              <tr className="border-b border-white/10 text-foreground/50">
+                                                  <th className="py-1 px-2">Time</th>
+                                                  <th className="py-1 px-2">Event</th>
+                                              </tr>
+                                          </thead>
+                                          <tbody>
+                                              {testResults.events.slice(0, 3).map((e: any, i: number) => (
+                                                  <tr key={i} className="border-b border-white/5 last:border-0">
+                                                      <td className="py-1 px-2 whitespace-nowrap">{new Date(e.timestamp).toLocaleTimeString()}</td>
+                                                      <td className="py-1 px-2 font-mono truncate max-w-[200px]">{JSON.stringify(e).substring(0, 100)}...</td>
+                                                  </tr>
+                                              ))}
+                                          </tbody>
+                                      </table>
+                                      {testResults.count > 3 && (
+                                          <div className="text-center mt-2 italic text-foreground/50">...and {testResults.count - 3} more</div>
+                                      )}
+                                  </div>
+                              )
+                          )}
+                      </div>
+                  )}
+
               </ModalBody>
               <ModalFooter>
                   <Button variant="light" onPress={() => setIsModalOpen(false)}>Cancel</Button>
+                  <Button variant="flat" color="warning" onPress={handleTest} isLoading={isTesting} startContent={<Icon.Search className="w-4 h-4"/>}>
+                      Test Rule
+                  </Button>
                   <Button color="primary" onPress={handleSave}>Save Changes</Button>
+              </ModalFooter>
+          </ModalContent>
+      </Modal>
+      {/* Delete Confirmation Modal */}
+      <Modal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)}>
+          <ModalContent>
+              <ModalHeader>Confirm Deletion</ModalHeader>
+              <ModalBody>
+                  Are you sure you want to delete the rule "{ruleToDelete?.name}"?
+                  This action cannot be undone.
+              </ModalBody>
+              <ModalFooter>
+                  <Button variant="light" onPress={() => setIsDeleteModalOpen(false)}>Cancel</Button>
+                  <Button color="danger" onPress={confirmDelete}>Delete Rule</Button>
               </ModalFooter>
           </ModalContent>
       </Modal>

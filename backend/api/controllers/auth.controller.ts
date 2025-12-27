@@ -1,4 +1,5 @@
 import { Elysia } from 'elysia'
+import { rateLimit } from 'elysia-rate-limit'
 import { jwt } from '@elysiajs/jwt'
 import { AuthService } from '../core/services/auth.service'
 import { MFAService } from '../core/services/mfa.service'
@@ -22,6 +23,16 @@ export const authController = new Elysia({ prefix: '/auth' })
       exp: process.env.JWT_ACCESS_EXPIRY || '7d'
     })
   )
+  .use(rateLimit({
+    duration: 60000,
+    max: 500,
+    generator: (request, server) => {
+      const xForwardedFor = request.headers.get('x-forwarded-for')
+      if (xForwardedFor) return xForwardedFor.split(',')[0].trim()
+      return server?.requestIP(request)?.address || 'unknown'
+    },
+    errorResponse: Errors.TooManyRequests('Too many login attempts, please try again later.')
+  }))
 
   /**
    * Register a new user account
@@ -37,7 +48,17 @@ export const authController = new Elysia({ prefix: '/auth' })
     const result = await AuthService.register(body)
     set.status = 201
     return { message: 'User registered successfully', user: result.user }
-  }, { body: RegisterSchema })
+  }, { 
+    body: RegisterSchema,
+    detail: {
+        tags: ['Auth'],
+        summary: 'Register a new user',
+        responses: {
+            201: { description: 'User created successfully' },
+            400: { description: 'Email already exists' }
+        }
+    }
+  })
 
   /**
    * Login with email and password (with optional MFA)
@@ -50,37 +71,58 @@ export const authController = new Elysia({ prefix: '/auth' })
    * @throws {401} Invalid credentials
    * @throws {400} MFA code required/invalid
    */
-  .post('/login', async ({ body, jwt, cookie: { access_token, refresh_token }, set, request }) => {
+  .post('/login', async ({ body, jwt, cookie: { access_token, refresh_token }, set, headers }) => {
+    console.log(`[DEBUG_AUTH] 1. Login Controller Hit!`);
     try {
-      const user = await AuthService.login(body)
+      console.log('[DEBUG_AUTH] 2. About to call AuthService.login');
+      const user = await AuthService.login(body as any)
+      console.log('[DEBUG_AUTH] 3. AuthService.login completed successfully');
       
       if (user.mfaEnabled) {
-        if (!body.mfaCode) {
+        console.log('[DEBUG_AUTH] 4. MFA is enabled, checking code');
+        if (!(body as any).mfaCode) {
           return { requireMFA: true, message: 'MFA code required' }
         }
-        await MFAService.verifyCode(user.id, body.mfaCode)
+        await MFAService.verifyCode(user.id, (body as any).mfaCode)
       }
 
+      console.log('[DEBUG_AUTH] 5. About to sign access token');
       const accessToken = await jwt.sign({
+        userId: user.id,
         id: user.id,
+        email: user.email,
         role: user.role,
-        tenantId: user.tenantId
+        tenantId: user.tenantId,
+        exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60) // 24 hours
       })
+      console.log('[DEBUG_AUTH] 6. Access token signed');
 
-      const userAgent = request.headers.get('user-agent') || undefined
-      const ipAddress = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 
-                        request.headers.get('x-real-ip') || 
+      const userAgent = headers['user-agent'] || undefined
+      // header names are lowercased in Elysia headers object? Usually yes.
+      const ipAddress = (headers['x-forwarded-for'] || '').split(',')[0]?.trim() || 
+                        headers['x-real-ip'] || 
                         'unknown'
+      console.log('[DEBUG_AUTH] 7. Got user agent and IP');
 
+      console.log('[DEBUG_AUTH] 8. About to sign refresh token');
       const refreshToken = await jwt.sign({
         id: user.id,
-        type: 'refresh'
+        type: 'refresh',
+        exp: Math.floor(Date.now() / 1000) + (30 * 24 * 60 * 60) // 30 days
       })
+      console.log('[DEBUG_AUTH] 9. Refresh token signed');
 
+      console.log('[DEBUG_AUTH] 10. Setting cookies');
       setAccessTokenCookie(access_token, accessToken)
       setRefreshTokenCookie(refresh_token, refreshToken)
+      console.log('[DEBUG_AUTH] 11. Cookies set');
 
-      await analyticsService.trackLogin(user.id, user.tenantId || '', ipAddress, userAgent, true)
+      // Track login analytics (non-critical, don't fail login if this fails)
+      /*try {
+        await analyticsService.trackLogin(user.id, user.tenantId || '', ipAddress, userAgent, true)
+      } catch (analyticsError) {
+        console.error('[Auth] Analytics tracking failed:', analyticsError)
+      }*/
 
       return {
         success: true,
@@ -94,6 +136,10 @@ export const authController = new Elysia({ prefix: '/auth' })
         }
       }
     } catch (error: any) {
+      console.error('[Auth] Login error:', error);
+      console.error('[Auth] Error message:', error?.message);
+      console.error('[Auth] Error stack:', error?.stack);
+      
       if (error.message === 'Invalid credentials' || error.message?.includes('Invalid credentials')) {
         set.status = 401
         return { success: false, message: 'Invalid credentials' }
@@ -104,7 +150,19 @@ export const authController = new Elysia({ prefix: '/auth' })
       }
       throw error
     }
-  }, { body: LoginSchema })
+  }, { 
+    body: LoginSchema,
+    detail: {
+        tags: ['Auth'],
+        summary: 'Login with email/password',
+        description: 'Authenticates user and sets HttpOnly cookies (access_token, refresh_token). Supports MFA.',
+        responses: {
+            200: { description: 'Login successful' },
+            401: { description: 'Invalid credentials' },
+            429: { description: 'Account locked' }
+        }
+    }
+  })
 
   /**
    * Get current user profile
@@ -112,6 +170,7 @@ export const authController = new Elysia({ prefix: '/auth' })
    * @access Protected
    * @returns {Object} Current user details
    */
+
   .get('/me', async ({ jwt, cookie: { access_token }, set }) => {
     try {
       if (!access_token.value) {
@@ -158,6 +217,12 @@ export const authController = new Elysia({ prefix: '/auth' })
   .post('/logout', async ({ cookie: { access_token, refresh_token } }) => {
     clearAuthCookies(access_token, refresh_token)
     return { success: true, message: 'Logged out successfully' }
+  }, {
+    detail: {
+        tags: ['Auth'],
+        summary: 'Logout',
+        description: 'Clears authentication cookies.'
+    }
   })
 
   /**
@@ -168,6 +233,17 @@ export const authController = new Elysia({ prefix: '/auth' })
    * @throws {401} Invalid/expired refresh token
    */
   .post('/refresh', async ({ jwt, cookie: { access_token, refresh_token } }) => {
+    console.log('[HTTP] POST /auth/refresh | Cookies:', { 
+      access_token: access_token?.value ? 'present' : 'missing',
+      refresh_token: refresh_token?.value ? 'present' : 'missing'
+    });
+    
+    // Check if refresh_token cookie exists
+    if (!refresh_token?.value) {
+      console.log('[AUTH] Refresh failed: No refresh_token cookie');
+      throw Errors.Unauthorized('Refresh token not found')
+    }
+    
     const payload = await jwt.verify(refresh_token.value as string)
     if (!payload || payload.type !== 'refresh') {
       throw Errors.Unauthorized('Invalid refresh token')
@@ -179,7 +255,9 @@ export const authController = new Elysia({ prefix: '/auth' })
     }
 
     const newAccessToken = await jwt.sign({
+      userId: user.id,
       id: user.id,
+      email: user.email,
       role: user.role,
       tenantId: user.tenantId
     })
@@ -187,6 +265,16 @@ export const authController = new Elysia({ prefix: '/auth' })
     setAccessTokenCookie(access_token, newAccessToken)
 
     return { success: true, message: 'Token refreshed' }
+  }, {
+    detail: {
+        tags: ['Auth'],
+        summary: 'Refresh Access Token',
+        description: 'Uses HttpOnly refresh_token cookie to issue a new access_token.',
+        responses: {
+            200: { description: 'Token refreshed' },
+            401: { description: 'Invalid or missing refresh token' }
+        }
+    }
   })
 
   /**
@@ -197,7 +285,7 @@ export const authController = new Elysia({ prefix: '/auth' })
    * @returns {Object} Success message (always returns success for security)
    */
   .post('/forgot-password', async ({ body }) => {
-    await AuthService.requestPasswordReset(body.email)
+    await AuthService.createResetToken(body.email)
     return { success: true, message: 'If email exists, reset link will be sent' }
   }, { body: ForgotPasswordSchema })
 
@@ -225,19 +313,23 @@ export const authController = new Elysia({ prefix: '/auth' })
    * @throws {400} Invalid MFA code
    */
   .post('/mfa/verify', async ({ body, jwt, cookie: { access_token, refresh_token } }) => {
+    // @ts-ignore - Schema validation ensures userId exists on body
     const isValid = await MFAService.verifyCode(body.userId, body.code)
     
     if (!isValid) {
       throw Errors.BadRequest('Invalid MFA code')
     }
 
+    // @ts-ignore
     const user = await AuthService.getUserById(body.userId)
     if (!user) {
       throw Errors.Unauthorized('User not found')
     }
 
     const accessToken = await jwt.sign({
+      userId: user.id,
       id: user.id,
+      email: user.email,
       role: user.role,
       tenantId: user.tenantId
     })

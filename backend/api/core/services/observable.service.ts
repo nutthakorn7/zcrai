@@ -25,6 +25,7 @@ export class ObservableService {
     isMalicious?: boolean;
     tlpLevel?: string;
     tags?: string[];
+    source?: string;
   }) {
     // Check for existing observable (deduplication)
     const [existing] = await db
@@ -67,6 +68,7 @@ export class ObservableService {
     // Create new observable
     const [observable] = await db.insert(observables).values({
       ...data,
+      source: data.source || 'manual',
       tags: data.tags || [],
       sightingCount: '1',
       enrichmentData: dgaAnalysis ? { dga: dgaAnalysis } as any : undefined,
@@ -81,7 +83,7 @@ export class ObservableService {
   }
 
   // Extract IOCs from text
-  static async extract(text: string, tenantId: string, caseId?: string, alertId?: string) {
+  static async extract(text: string, tenantId: string, caseId?: string, alertId?: string, source: string = 'system') {
     const extractedIOCs: any[] = [];
 
     // IPv4
@@ -96,6 +98,7 @@ export class ObservableService {
         alertId,
         type: 'ip',
         value: ip,
+        source,
       });
       extractedIOCs.push(observable);
     }
@@ -112,6 +115,7 @@ export class ObservableService {
         alertId,
         type: 'domain',
         value: domain.toLowerCase(),
+        source,
       });
       extractedIOCs.push(observable);
     }
@@ -125,6 +129,7 @@ export class ObservableService {
         alertId,
         type: 'email',
         value: email.toLowerCase(),
+        source,
       });
       extractedIOCs.push(observable);
     }
@@ -138,6 +143,7 @@ export class ObservableService {
         alertId,
         type: 'url',
         value: url,
+        source,
       });
       extractedIOCs.push(observable);
     }
@@ -154,6 +160,7 @@ export class ObservableService {
         alertId,
         type: 'hash',
         value: hash.toLowerCase(),
+        source,
       });
       extractedIOCs.push(observable);
     }
@@ -222,6 +229,14 @@ export class ObservableService {
       .offset(filters.offset || 0);
 
     return result;
+  }
+
+  // Get all observables for an alert
+  static async getByAlertId(alertId: string, tenantId: string) {
+    return await db
+      .select()
+      .from(observables)
+      .where(and(eq(observables.alertId, alertId), eq(observables.tenantId, tenantId)));
   }
 
   // Get by ID
@@ -327,11 +342,11 @@ export class ObservableService {
     const providers: string[] = [];
 
     if (type === 'ip') {
-      providers.push('virustotal', 'abuseipdb');
+      providers.push('virustotal', 'abuseipdb', 'alienvault');
     } else if (type === 'domain' || type === 'url') {
-      providers.push('virustotal');
+      providers.push('virustotal', 'alienvault', 'urlscan');
     } else if (type === 'hash') {
-      providers.push('virustotal');
+      providers.push('virustotal', 'alienvault', 'urlscan');
     }
 
     for (const provider of providers) {

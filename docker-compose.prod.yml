@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgres:16-alpine
+    image: pgvector/pgvector:pg16
     container_name: zcrai_postgres
     restart: unless-stopped
     ports:
@@ -24,9 +24,14 @@ services:
     ports:
       - "8123:8123" # HTTP
       - "9000:9000" # Native
+    environment:
+      - CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1
+      - CLICKHOUSE_USER=default
+      - CLICKHOUSE_PASSWORD=zcrAI1234
     volumes:
       - clickhouse_data:/var/lib/clickhouse
       - ./clickhouse_logs:/var/log/clickhouse-server
+      # - ./clickhouse_config/users.xml:/etc/clickhouse-server/users.d/users.xml:ro
     ulimits:
       nofile:
         soft: 262144
@@ -54,6 +59,9 @@ services:
     ports:
       - "8686:8686" # API
       - "9090:9090" # Source
+    environment:
+      - CLICKHOUSE_USER=default
+      - CLICKHOUSE_PASSWORD=zcrAI1234
     volumes:
       - ./vector.toml:/etc/vector/vector.toml
       - vector_data:/var/lib/vector
@@ -70,7 +78,22 @@ services:
     environment:
       - DATABASE_URL=postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-zcrai}
       - REDIS_URL=redis://:${REDIS_PASSWORD:-redis_password}@redis:6379
+      - CLICKHOUSE_URL=http://zcrai_clickhouse:8123
+      - CLICKHOUSE_DB=zcrai
+      - CLICKHOUSE_PASSWORD=zcrAI1234
       - NODE_ENV=production
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - SSO_ISSUER=${SSO_ISSUER}
+      - SSO_CLIENT_ID=${SSO_CLIENT_ID}
+      - SSO_CLIENT_SECRET=${SSO_CLIENT_SECRET}
+      - SSO_REDIRECT_URI=${SSO_REDIRECT_URI}
+      - FRONTEND_URL=${FRONTEND_URL:-https://app.zcr.ai}
+      - COLLECTOR_URL=http://zcrai_collector:8001
+      - ENCRYPTION_KEY=zcrAI_32char_encryption_key_2024
+      - COLLECTOR_API_KEY=zcrai_collector_api_key_prod_2024
+      - JWT_ACCESS_EXPIRY=2h  # Increased from 15m for better session persistence
+    volumes:
+      - case_uploads:/var/uploads
     depends_on:
       postgres:
         condition: service_healthy
@@ -83,11 +106,42 @@ services:
     restart: unless-stopped
     ports:
       - "80:80"
+      - "443:443"
+    volumes:
+      - ./frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - case_uploads:/usr/share/nginx/html/uploads:ro
     depends_on:
       - backend
+
+  # Data Collector - Pulls from CrowdStrike/SentinelOne and pushes to Vector
+  collector:
+    build: ./collector
+    container_name: zcrai_collector
+    restart: unless-stopped
+    ports:
+      - "8001:8001"
+    environment:
+      - ENV=production
+      - PORT=8001
+      - ELYSIA_URL=http://zcrai_backend:8000
+      - VECTOR_URL=http://zcrai_vector:8088
+      - POLL_INTERVAL=5m
+      - LOOKBACK_DAYS=1
+      - COLLECTOR_API_KEY=zcrai_collector_api_key_prod_2024
+      - CLICKHOUSE_HOST=zcrai_clickhouse
+      - CLICKHOUSE_PORT=9000
+      - CLICKHOUSE_DB=zcrai
+      - CLICKHOUSE_USER=default
+      - CLICKHOUSE_PASSWORD=zcrAI1234
+    depends_on:
+      - backend
+      - vector
+      - clickhouse
 
 volumes:
   postgres_data:
   clickhouse_data:
   redis_data:
   vector_data:
+  case_uploads:

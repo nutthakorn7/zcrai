@@ -2,11 +2,11 @@ import { useEffect, useState } from 'react';
 import { 
   Button, Card, CardBody, Input, Chip, 
   Modal, ModalContent, ModalHeader, ModalBody, ModalFooter,
-  Textarea, Select, SelectItem, ScrollShadow,
+  Textarea, ScrollShadow,
   Spinner
 } from "@heroui/react";
-import { Icon } from '../../shared/ui';
-import { PlaybooksAPI, Playbook, PlaybookStep } from '../../shared/api/playbooks';
+import { Icon, PageHeader, ConfirmDialog } from '../../shared/ui';
+import { PlaybooksAPI, Playbook } from '@/shared/api';
 import PlaybookEditor from './PlaybookEditor';
 
 // Client-side Templates (for quick start)
@@ -27,14 +27,12 @@ export default function PlaybooksPage() {
   // Create Form State
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [steps, setSteps] = useState<PlaybookStep[]>([]);
-  
-  // Step Form (in Modal)
-  const [newStepName, setNewStepName] = useState('');
-  const [newStepType, setNewStepType] = useState<'manual' | 'automation'>('manual');
 
   // Selected Playbook for Editing
   const [selectedPlaybook, setSelectedPlaybook] = useState<Playbook | null>(null);
+  
+  // Delete confirm state
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   
   useEffect(() => {
     loadPlaybooks();
@@ -55,19 +53,12 @@ export default function PlaybooksPage() {
   const handleSelectTemplate = (t: any) => {
     setTitle(t.title);
     setDescription(t.description);
-    setSteps([
-        { name: 'Start', type: 'manual', order: 1, description: 'Trigger Event' },
-        { name: 'Analyze', type: 'automation', order: 2, description: 'Run analysis script' },
-        { name: 'Decision', type: 'manual', order: 3, description: 'Human approval' },
-    ]);
-    setNewStepName('');
     setIsModalOpen(true);
   };
 
   const handleOpenCreate = () => {
     setTitle('');
     setDescription('');
-    setSteps([]);
     setIsModalOpen(true);
   };
 
@@ -78,7 +69,7 @@ export default function PlaybooksPage() {
       const newPlaybook = await PlaybooksAPI.create({
         title,
         description,
-        steps,
+        steps: [], // Start with empty steps
         triggerType: 'manual',
         isActive: true
       });
@@ -98,10 +89,13 @@ export default function PlaybooksPage() {
       setSelectedPlaybook(updated);
   };
 
-  const handleDelete = async () => {
+  const handleDeleteClick = () => {
       if (!selectedPlaybook) return;
-      if (!confirm('Are you sure you want to delete this playbook?')) return;
-      
+      setDeleteConfirmOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+      if (!selectedPlaybook) return;
       try {
           await PlaybooksAPI.delete(selectedPlaybook.id);
           setPlaybooks(playbooks.filter(p => p.id !== selectedPlaybook.id));
@@ -109,45 +103,46 @@ export default function PlaybooksPage() {
       } catch (e) {
           console.error(e);
           alert('Failed to delete playbook');
+      } finally {
+          setDeleteConfirmOpen(false);
       }
   };
 
-  const addStepToModal = () => {
-    if (!newStepName) return;
-    setSteps([...steps, {
-      name: newStepName,
-      type: newStepType,
-      order: steps.length + 1,
-      description: newStepType === 'manual' ? 'Manual instruction' : undefined
-    }]);
-    setNewStepName('');
-    setNewStepType('manual');
-  };
-
-  const removeStepFromModal = (index: number) => {
-    const newSteps = [...steps];
-    newSteps.splice(index, 1);
-    setSteps(newSteps);
-  };
-
   return (
-    <div className="flex h-screen bg-background overflow-hidden animate-fade-in">
-       {/* Sidebar: Library */}
-       <div className="w-80 border-r border-white/5 bg-content1/50 flex flex-col pt-16">
-           <div className="p-4 border-b border-white/5">
-               <h2 className="font-bold flex items-center gap-2 text-foreground"><Icon.Briefcase className="w-5 h-5 text-primary"/> Library</h2>
-               <Input placeholder="Search playbooks..." size="sm" className="mt-2" startContent={<Icon.Search className="w-4 h-4 text-foreground/60"/>} />
+    <div className="h-screen bg-background flex flex-col overflow-hidden animate-fade-in">
+       {/* Page Header */}
+       <div className="p-6 border-b border-white/5">
+         <PageHeader title="Automation Playbooks" description="Design and manage security automation workflows">
+           <Button 
+             color="primary" 
+             onPress={handleOpenCreate}
+             startContent={<Icon.Add className="w-4 h-4" />}
+           >
+             New Playbook
+           </Button>
+         </PageHeader>
+       </div>
+
+       {/* Main Content */}
+       <div className="flex flex-1 overflow-hidden">
+         {/* Sidebar: Library */}
+         <div className="w-80 border-r border-white/5 bg-content1/50 flex flex-col">
+            <div className="p-4 border-b border-white/5 bg-white/5">
+                <h2 className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em] flex items-center gap-2 mb-3">
+                    <Icon.Briefcase className="w-4 h-4 text-primary"/> Library
+                </h2>
+                <Input placeholder="Search playbooks..." size="sm" className="mt-2" startContent={<Icon.Search className="w-4 h-4 text-foreground/60"/>} />
            </div>
 
            {/* Enterprise ROI Stats */}
            <div className="p-4 grid grid-cols-2 gap-3 border-b border-white/5 bg-white/5">
-                <div className="bg-content1 rounded-lg p-3 border border-white/5">
-                    <div className="text-[10px] text-foreground/60 uppercase font-bold">Time Saved</div>
-                    <div className="text-xl font-mono font-bold text-success">124h</div>
+                <div className="bg-content1 rounded-lg p-3 border border-white/5 flex flex-col justify-center">
+                    <div className="text-[9px] text-foreground/40 uppercase font-black font-display tracking-widest">Time Saved</div>
+                    <div className="text-xl font-bold font-display text-success tracking-tight">124h</div>
                 </div>
-                <div className="bg-content1 rounded-lg p-3 border border-white/5">
-                    <div className="text-[10px] text-foreground/60 uppercase font-bold">Active</div>
-                    <div className="text-xl font-mono font-bold text-primary">{playbooks.filter(p => p.isActive).length}/{playbooks.length}</div>
+                <div className="bg-content1 rounded-lg p-3 border border-white/5 flex flex-col justify-center">
+                    <div className="text-[9px] text-foreground/40 uppercase font-black font-display tracking-widest">Active</div>
+                    <div className="text-xl font-bold font-display text-primary tracking-tight">{playbooks.filter(p => p.isActive).length}/{playbooks.length}</div>
                 </div>
            </div>
            
@@ -207,7 +202,7 @@ export default function PlaybooksPage() {
             playbook={selectedPlaybook}
             onClose={() => setSelectedPlaybook(null)}
             onUpdate={handleUpdate}
-            onDelete={handleDelete}
+            onDelete={handleDeleteClick}
            />
        ) : (
            <div className="flex-1 flex flex-col items-center justify-center text-foreground/60 pt-16">
@@ -219,6 +214,8 @@ export default function PlaybooksPage() {
                <Button color="primary" variant="flat" className="mt-6" onPress={handleOpenCreate}>Create New Playbook</Button>
            </div>
        )}
+
+       </div> {/* End of Main Content flex wrapper */}
 
       {/* Create Modal */}
       <Modal 
@@ -245,52 +242,6 @@ export default function PlaybooksPage() {
                   value={description}
                   onValueChange={setDescription}
                 />
-                
-                <div className="border border-white/10 rounded-lg p-4 mt-2">
-                  <h4 className="border-b border-white/10 pb-2 mb-3 text-sm font-semibold">Steps Definition</h4>
-                  
-                  {/* Step List */}
-                  <div className="flex flex-col gap-2 mb-4">
-                    {steps.length === 0 && <p className="text-sm text-gray-500 italic">No steps added yet.</p>}
-                    {steps.map((step, idx) => (
-                      <div key={idx} className="flex justify-between items-center bg-content2 p-2 rounded">
-                        <div className="flex items-center gap-2">
-                          <Chip size="sm">{idx + 1}</Chip>
-                          <span className="font-medium">{step.name}</span>
-                          <Chip size="sm" variant="flat" color={step.type === 'automation' ? "secondary" : "default"}>
-                            {step.type}
-                          </Chip>
-                        </div>
-                        <Button isIconOnly size="sm" color="danger" variant="light" onPress={() => removeStepFromModal(idx)}>
-                          <Icon.Delete className="w-4 h-4"/>
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Add Step */}
-                  <div className="flex gap-2 items-end">
-                    <Input 
-                      label="New Step Name" 
-                      size="sm"
-                      value={newStepName}
-                      onValueChange={setNewStepName}
-                      className="flex-grow"
-                    />
-                    <Select 
-                      label="Type" 
-                      size="sm" 
-                      className="w-40"
-                      selectedKeys={[newStepType]}
-                      onChange={(e) => setNewStepType(e.target.value as any)}
-                    >
-                      <SelectItem key="manual">Manual</SelectItem>
-                      <SelectItem key="automation">Automation</SelectItem>
-                    </Select>
-                    <Button size="sm" color="primary" onPress={addStepToModal}>Add</Button>
-                  </div>
-                </div>
-
               </ModalBody>
               <ModalFooter>
                 <Button variant="flat" onPress={onClose}>Cancel</Button>
@@ -300,6 +251,16 @@ export default function PlaybooksPage() {
           )}
         </ModalContent>
       </Modal>
+
+      <ConfirmDialog
+        isOpen={deleteConfirmOpen}
+        onClose={() => setDeleteConfirmOpen(false)}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Playbook"
+        description="Are you sure you want to delete this playbook?"
+        confirmLabel="Delete"
+        confirmColor="danger"
+      />
     </div>
   );
 }

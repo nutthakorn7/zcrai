@@ -1,9 +1,10 @@
 import { db } from '../infra/db';
-import { enrichmentQueue, observables } from '../infra/db/schema';
-import { eq } from 'drizzle-orm';
+import { enrichmentQueue, observables, alerts } from '../infra/db/schema';
+import { eq, and, inArray } from 'drizzle-orm';
 import { VirusTotalProvider } from '../core/enrichment-providers/virustotal';
 import { AbuseIPDBProvider } from '../core/enrichment-providers/abuseipdb';
 import { AlienVaultOTXProvider } from '../integrations/alienvault.provider';
+import { URLScanProvider } from '../core/enrichment-providers/urlscan';
 
 const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
@@ -11,6 +12,7 @@ export class EnrichmentWorker {
   private vtProvider: VirusTotalProvider;
   private abuseIPDBProvider: AbuseIPDBProvider;
   private otxProvider: AlienVaultOTXProvider;
+  private urlscanProvider: URLScanProvider; // Added URLScanProvider property
   private isRunning = false;
   private intervalId?: NodeJS.Timeout;
 
@@ -18,6 +20,7 @@ export class EnrichmentWorker {
     this.vtProvider = new VirusTotalProvider();
     this.abuseIPDBProvider = new AbuseIPDBProvider();
     this.otxProvider = new AlienVaultOTXProvider();
+    this.urlscanProvider = new URLScanProvider(); // Initialized URLScanProvider
   }
 
   start() {
@@ -102,6 +105,8 @@ export class EnrichmentWorker {
             result = await this.enrichWithAbuseIPDB(observable);
           } else if (item.provider === 'alienvault') {
             result = await this.enrichWithOTX(observable);
+          } else if (item.provider === 'urlscan') {
+            result = await this.enrichWithURLScan(observable);
           }
 
           // Merge with existing enrichment data
@@ -134,6 +139,46 @@ export class EnrichmentWorker {
             .where(eq(enrichmentQueue.id, item.id));
 
           console.log(`✅ Enriched ${observable.type}: ${observable.value}`);
+
+          // --- NEW: Trigger AI Triage if this was the last pending enrichment for an alert ---
+          try {
+            const affectedAlerts = await db
+              .select()
+              .from(alerts)
+              .where(and(
+                eq(alerts.aiTriageStatus, 'enriching'),
+                // We need to check if this alert uses this observable
+                // Since observables table has alertId, we can use that directly
+                eq(alerts.id, observable.alertId as string)
+              ));
+
+            for (const alert of affectedAlerts) {
+              // Check if ALL observables for this alert are enriched
+              const allObservables = await db
+                .select()
+                .from(observables)
+                .where(eq(observables.alertId, alert.id));
+              
+              const pendingEnrichment = await db
+                .select()
+                .from(enrichmentQueue)
+                .where(and(
+                  inArray(enrichmentQueue.observableId, allObservables.map(o => o.id)),
+                  eq(enrichmentQueue.status, 'pending')
+                ));
+
+              if (pendingEnrichment.length === 0) {
+                console.log(`🚀 All observables enriched for alert ${alert.id}. Triggering AI Triage...`);
+                const { AITriageService } = await import('../core/services/ai-triage.service');
+                // We can't easily reconstruction the original 'data' object here, 
+                // but AITriageService.analyze fetches what it needs from the DB anyway.
+                // We just need to pass the alertId and some basic info.
+                AITriageService.analyze(alert.id, alert).catch(e => console.error(`AI Triage trigger failed for ${alert.id}:`, e));
+              }
+            }
+          } catch (e) {
+            console.warn("[EnrichmentWorker] AI Triage Trigger Check failed:", e);
+          }
 
         } catch (error: any) {
           console.error(`❌ Enrichment failed for item ${item.id}:`, error.message);
@@ -204,5 +249,11 @@ export class EnrichmentWorker {
       default:
         throw new Error(`Unsupported type for AlienVault OTX: ${observable.type}`);
     }
+  }
+  private async enrichWithURLScan(observable: any) {
+    if (observable.type !== 'url' && observable.type !== 'domain') {
+      throw new Error('URLScan only supports URLs and domains');
+    }
+    return await this.urlscanProvider.checkURL(observable.value);
   }
 }

@@ -27,7 +27,7 @@ export function createError(message: string, status: number = HTTP_STATUS.INTERN
  * Catches all errors and returns consistent error responses
  */
 export const errorHandler = (app: Elysia) => {
-  return app.onError(({ code, error, set }) => {
+  return app.onError(({ code, error, set, request }) => {
     const err = error as any // Type assertion for Elysia error types
 
     // Custom API errors with status
@@ -74,6 +74,8 @@ export const errorHandler = (app: Elysia) => {
         console.error('[Global Error Handler]', {
           code,
           message: err.message,
+          method: request.method,
+          url: request.url,
           stack: err.stack
         })
 
@@ -112,5 +114,8 @@ export const Errors = {
     createError(message, HTTP_STATUS.FORBIDDEN, ERROR_CODES.UPGRADE_REQUIRED),
   
   TokenExpired: () => 
-    createError('Token expired', HTTP_STATUS.UNAUTHORIZED, ERROR_CODES.TOKEN_EXPIRED)
+    createError('Token expired', HTTP_STATUS.UNAUTHORIZED, ERROR_CODES.TOKEN_EXPIRED),
+
+  TooManyRequests: (message = 'Too many requests') =>
+    createError(message, 429, 'RATE_LIMIT_EXCEEDED')
 }

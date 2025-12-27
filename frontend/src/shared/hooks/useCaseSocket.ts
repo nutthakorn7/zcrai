@@ -21,8 +21,9 @@ export const useCaseSocket = (caseId: string) => {
         // Assuming API URL is stored in env or hardcoded relative to current window
         // For this env: wss://45.118.132.160:3002/realtime/case/... or similar
         // Ideally use import.meta.env.VITE_WS_URL but I'll derive from API URL logic
-        
-        const wsUrl = `ws://45.118.132.160:3002/realtime/case/${caseId}?userId=${user.id}&userName=${encodeURIComponent(user.email)}&userEmail=${encodeURIComponent(user.email)}`;
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const host = window.location.host;
+        const wsUrl = `${protocol}//${host}/realtime/case/${caseId}?userId=${user.id}&userName=${encodeURIComponent(user.email)}&userEmail=${encodeURIComponent(user.email)}`;
         
         ws.current = new WebSocket(wsUrl);
 

@@ -4,11 +4,11 @@
  */
 
 import { Elysia, t } from 'elysia';
-import { tenantGuard } from '../middlewares/auth.middleware';
+import { withAuth } from '../middleware/auth';
 import { AnomalyDetectionService } from '../core/services/anomaly.service';
 import { MLAnalyticsService } from '../core/services/ml-analytics.service';
 
-interface AnomalyMetric {
+export interface AnomalyMetric {
   metric: string;
   isAnomaly: boolean;
   severity: 'low' | 'medium' | 'high' | 'critical';
@@ -20,7 +20,7 @@ interface AnomalyMetric {
 }
 
 export const mlController = new Elysia({ prefix: '/ml' })
-  .use(tenantGuard)
+  .use(withAuth)
   
   /**
    * Get real-time ano maly detection for all monitored metrics
@@ -29,11 +29,18 @@ export const mlController = new Elysia({ prefix: '/ml' })
    * @returns {Object} Current anomalies with severity, confidence scores, and time series data
    * @description Monitors: Alert Volume, Login Failures, Network Traffic, API Errors, Memory Usage
    */
-  .get('/anomalies', async (context) => {
+  .get('/anomalies', async ({ user }: any) => {
     try {
-      const user = (context as any).user;
-      const loginStats = await MLAnalyticsService.getLoginFailureStats(user.tenantId);
-      const alertStats = await MLAnalyticsService.getAlertVolumeStats(user.tenantId);
+      if (!user?.tenantId) {
+        throw new Error('Tenant ID not found in user context');
+      }
+      
+      const [loginStats, alertStats, networkStats, apiErrorStats] = await Promise.all([
+        MLAnalyticsService.getLoginFailureStats(user.tenantId),
+        MLAnalyticsService.getAlertVolumeStats(user.tenantId),
+        MLAnalyticsService.getNetworkTrafficStats(user.tenantId),
+        MLAnalyticsService.getApiErrorStats(user.tenantId),
+      ]);
 
       const metrics = [
         {
@@ -50,19 +57,19 @@ export const mlController = new Elysia({ prefix: '/ml' })
         },
         {
           name: 'Network Traffic',
-          current: 2.4 + Math.random() * 0.4,
-          historicalAvg: 2.4,
-          history: [2.2, 2.3, 2.4, 2.5, 2.3, 2.4, 2.6, 2.4, 2.3, 2.5],
+          current: networkStats.current,
+          historicalAvg: networkStats.average,
+          history: networkStats.history,
         },
         {
           name: 'API Errors',
-          current: Math.floor(Math.random() * 10) + 18,
-          historicalAvg: 5,
-          history: [3, 4, 5, 6, 4, 5, 7, 5, 4, 6],
+          current: apiErrorStats.current,
+          historicalAvg: apiErrorStats.average,
+          history: apiErrorStats.history,
         },
         {
-          name: 'Memory Usage',
-          current: 68 + Math.floor(Math.random() * 10),
+          name: 'Memory Usage', // Still mock for now as we don't have OS metrics ingested
+          current: 68 + Math.floor(Math.random() * 5),
           historicalAvg: 68,
           history: [65, 67, 68, 70, 66, 69, 71, 68, 67, 70],
         },
@@ -74,43 +81,48 @@ export const mlController = new Elysia({ prefix: '/ml' })
           m.history
         );
         
-        const change = ((m.current - m.historicalAvg) / m.historicalAvg) * 100;
+        const change = m.historicalAvg > 0 
+           ? ((m.current - m.historicalAvg) / m.historicalAvg) * 100
+           : (m.current > 0 ? 100 : 0);
         
         return {
           metric: m.name,
           isAnomaly: result.isAnomaly,
           severity: result.severity,
           confidence: result.confidence,
-          baseline: m.historicalAvg,
+          baseline: Number(m.historicalAvg.toFixed(2)),
           currentValue: Number(m.current.toFixed(2)),
           zScore: result.zScore,
           change: Number(change.toFixed(1)),
         };
       });
 
-      const now = Date.now();
-      const baseline = 150;
+      // Generate real time series from the primary metric (Alert Volume history)
+      // Since history is daily, and we want 24h view, we'll use a mix of real data and interpolation for now
+      // or just show the daily trend points.
       const timeSeries = [];
+      const historyPoints = alertStats.history.slice(-24); // Last 24 points
       
-      for (let i = 23; i >= 0; i--) {
-        const hour = new Date(now - i * 3600000);
-        const isSpike = i === 3 || i === 2;
-        const value = isSpike 
-          ? baseline + Math.random() * 200 + 150 
-          : baseline + (Math.random() - 0.5) * 40;
+      const now = new Date();
+      for (let i = 0; i < historyPoints.length; i++) {
+        const pointDate = new Date(now);
+        pointDate.setDate(pointDate.getDate() - (historyPoints.length - 1 - i));
+        
+        const value = historyPoints[i];
+        const isAnomaly = value > alertStats.average * 2.5; // Simple threshold for visualization
         
         timeSeries.push({
-          time: hour.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-          value: Math.round(value),
-          isAnomaly: isSpike,
-          baseline,
+          time: pointDate.toLocaleDateString([], { month: 'short', day: 'numeric' }),
+          value: value,
+          isAnomaly: isAnomaly,
+          baseline: alertStats.average,
         });
       }
 
       return {
         success: true,
         anomalies,
-        timeSeries,
+        timeSeries: timeSeries.length > 0 ? timeSeries : [],
         summary: {
           total: anomalies.length,
           active: anomalies.filter(a => a.isAnomaly).length,
@@ -119,6 +131,7 @@ export const mlController = new Elysia({ prefix: '/ml' })
         },
       };
     } catch (error: any) {
+      console.error('[ML Controller Error]:', error);
       return {
         success: false,
         error: error.message,
@@ -203,7 +216,6 @@ export const mlController = new Elysia({ prefix: '/ml' })
   }, {
     body: t.Object({
       timeSeries: t.Array(t.Number()),
-      windowSize: t.Optional(t.Number()),
       windowSize: t.Optional(t.Number()),
       threshold: t.Optional(t.Number()),
     }),

@@ -1,5 +1,5 @@
 import { Card, CardBody, Chip } from '@heroui/react';
-import { AlertCorrelation, Alert } from '../../shared/api/alerts';
+import { AlertCorrelation, Alert } from '@/shared/api';
 import { Icon } from '../../shared/ui';
 
 interface CorrelationCardProps {
@@ -85,9 +85,9 @@ export function CorrelationCard({ correlation, onViewAlert }: CorrelationCardPro
                       </Chip>
                       <span className="text-xs text-foreground/60">{alert.source}</span>
                     </div>
-                    <h4 className="text-sm font-medium text-foreground line-clamp-1">
+                    <h3 className="text-sm font-medium text-foreground line-clamp-1">
                       {alert.title}
-                    </h4>
+                    </h3>
                     <p className="text-xs text-foreground/60 mt-1 line-clamp-1">
                       {alert.description}
                     </p>

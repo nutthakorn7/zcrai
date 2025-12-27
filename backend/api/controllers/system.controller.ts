@@ -10,7 +10,7 @@ import { exec } from 'child_process'
 import { promisify } from 'util'
 
 const execAsync = promisify(exec)
-const BACKUP_DIR = process.env.BACKUP_DIR || '/root/backups/postgres'
+const BACKUP_DIR = process.env.BACKUP_DIR || join(process.cwd(), 'backups')
 
 export const systemController = new Elysia({ prefix: '/system' })
   .use(withAuth)
@@ -46,6 +46,7 @@ export const systemController = new Elysia({ prefix: '/system' })
       )
       return { success: true, data: backups.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()) }
     } catch (error) {
+       // Create directory if it doesn't exist (lazy init)
        return { success: true, data: [] }
     }
   })
@@ -58,15 +59,46 @@ export const systemController = new Elysia({ prefix: '/system' })
    * @description Executes backup script to create PostgreSQL dump
    */
   .post('/backups', async () => {
-    const scriptPath = process.env.BACKUP_SCRIPT_PATH || '/app/backup_postgres.sh'
-    const cmd = `bash ${process.cwd()}/backup_postgres.sh` 
+    const scriptPath = join(process.cwd(), 'scripts', 'backup_postgres.sh')
+    const cmd = `bash "${scriptPath}"`
     
-    const { stdout } = await execAsync(cmd)
-    console.log('Backup output:', stdout)
-    
-    return { success: true, message: 'Backup started successfully' }
+    // Ensure backup dir exists
+    try { await readdir(BACKUP_DIR) } catch { 
+       const { mkdir } = await import('fs/promises'); 
+       await mkdir(BACKUP_DIR, { recursive: true });
+    }
+
+    try {
+        const { stdout, stderr } = await execAsync(cmd)
+        console.log('Backup stdout:', stdout)
+        if (stderr) console.warn('Backup stderr:', stderr)
+        return { success: true, message: 'Backup completed successfully' }
+    } catch (e: any) {
+        console.error('Backup failed:', e)
+        throw new Error(`Backup failed: ${e.message}`)
+    }
   })
   
+  /**
+   * Download a backup file
+   * @route GET /system/backups/:filename
+   */
+  .get('/backups/:filename', async ({ params, set }: any) => {
+    const { filename } = params
+    if (!/^backup_\d{8}_\d{6}\.sql\.gz$/.test(filename)) {
+        set.status = 400
+        return 'Invalid filename'
+    }
+    const filePath = join(BACKUP_DIR, filename)
+    try {
+        await stat(filePath)
+        return Bun.file(filePath)
+    } catch {
+        set.status = 404
+        return 'Not Found'
+    }
+  })
+
   /**
    * Get current license information
    * @route GET /system/license
@@ -111,7 +143,8 @@ export const systemController = new Elysia({ prefix: '/system' })
 
     const { licenseKey } = body
     
-    // TODO: Implement actual license verification
+    // Mock license verification for MVP/Demo
+    // In production, this would validate against a license server
     const mockLicense = {
       type: 'enterprise',
       maxUsers: 999,

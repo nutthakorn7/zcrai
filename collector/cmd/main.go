@@ -9,6 +9,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
+	"github.com/zrd4y/zcrAI/collector/internal/clickhouse"
 	"github.com/zrd4y/zcrAI/collector/internal/config"
 	"github.com/zrd4y/zcrAI/collector/internal/migration"
 	"github.com/zrd4y/zcrAI/collector/internal/publisher"
@@ -47,8 +48,21 @@ func main() {
 		// panic("Failed to run migrations: " + err.Error())
 	}
 
-	// สร้าง publisher
-	pub := publisher.NewPublisher(cfg.VectorURL, cfg.Logger)
+	// สร้าง ClickHouse client for direct writes
+	chClient, err := clickhouse.NewClient(clickhouse.Config{
+		Host:     cfg.ClickHouseHost,
+		Port:     cfg.ClickHousePort,
+		Database: cfg.ClickHouseDB,
+		Username: cfg.ClickHouseUser,
+		Password: cfg.ClickHousePassword,
+	}, cfg.Logger)
+	if err != nil {
+		cfg.Logger.Warn("Failed to create ClickHouse client, falling back to Vector", zap.Error(err))
+		chClient = nil
+	}
+
+	// สร้าง publisher (with ClickHouse direct write if available)
+	pub := publisher.NewPublisher(cfg.VectorURL, chClient, cfg.Logger)
 
 	// สร้าง scheduler
 	sched := scheduler.NewScheduler(cfg, pub)

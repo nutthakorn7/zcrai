@@ -26,3 +26,75 @@ export const threatIntelController = new Elysia({ prefix: '/threat-intel' })
         days: t.Optional(t.Number({ default: 90 }))
     })
   })
+
+  /**
+   * Lookup an indicator across configured threat intel providers
+   * @route POST /threat-intel/lookup
+   * @access Protected - Requires authentication
+   * @body {string} type - IOC type (ip, hash, domain)
+   * @body {string} value - IOC value to lookup
+   * @returns {Object} Consolidated threat intelligence report
+   */
+  .post('/lookup', async ({ user, body, set }: any) => {
+    try {
+      console.log('[ThreatIntel] Lookup request:', body);
+      const { ThreatIntelService } = await import('../core/services/threat-intel.service');
+      const { type, value } = body;
+      console.log('[ThreatIntel] Calling lookup for:', value, 'type:', type);
+      const result = await ThreatIntelService.lookup(value, type);
+      console.log('[ThreatIntel] Lookup success, verdict:', result.verdict);
+      return { success: true, data: result };
+    } catch (e: any) {
+      console.error('[ThreatIntel] Lookup ERROR:', e.message);
+      console.error('[ThreatIntel] Stack:', e.stack);
+      set.status = 500;
+      return { success: false, error: 'Threat Intel lookup failed', message: e.message };
+    }
+  }, {
+    body: t.Object({
+        type: t.Union([t.Literal('ip'), t.Literal('hash'), t.Literal('domain'), t.Literal('url')]),
+        value: t.String()
+    })
+  })
+
+  /**
+   * Get dynamic status of all threat intel providers
+   * @route GET /threat-intel/providers
+   * @returns {Array} List of providers with their configuration status
+   */
+  .get('/providers', async ({ user, set }: any) => {
+    try {
+      if (!user) {
+        set.status = 401;
+        return { success: false, error: 'Authentication required', code: 'UNAUTHORIZED' };
+      }
+      const { ThreatIntelService } = await import('../core/services/threat-intel.service');
+      const data = await ThreatIntelService.getProviderStatus();
+      return { success: true, data };
+    } catch (e: any) {
+      console.error('[ThreatIntel] Provider status error:', e.message);
+      set.status = 500;
+      return { success: false, error: 'Failed to fetch provider status', message: e.message };
+    }
+  })
+
+  /**
+   * Get summary of recent threat intel activity
+   * @route GET /threat-intel/summary
+   * @returns {Object} Statistics and recent queries
+   */
+  .get('/summary', async ({ user, set }: any) => {
+    try {
+      if (!user) {
+        set.status = 401;
+        return { success: false, error: 'Authentication required', code: 'UNAUTHORIZED' };
+      }
+      const { ThreatIntelService } = await import('../core/services/threat-intel.service');
+      const data = ThreatIntelService.getSummary();
+      return { success: true, data };
+    } catch (e: any) {
+      console.error('[ThreatIntel] Summary error:', e.message);
+      set.status = 500;
+      return { success: false, error: 'Failed to fetch summary', message: e.message };
+    }
+  })

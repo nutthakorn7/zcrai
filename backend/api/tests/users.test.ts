@@ -9,7 +9,7 @@ describe('User Controller', () => {
     })
 
     it('should list users', async () => {
-        const { data, response } = await api.users.index.get({ headers })
+        const { data, response } = await api.users.get({ headers })
         expect(response.status).toBe(200)
         // Structure is { success: true, data: { data: [], pagination: {} } }
         expect(Array.isArray(data?.data?.data)).toBe(true)
@@ -19,10 +19,10 @@ describe('User Controller', () => {
     it('should create a new user', async () => {
         const email = `test.user.${Date.now()}@zcr.ai`
         
-        const { data, response } = await api.users.index.post({
+        const { data, response } = await api.users.post({
             email,
-            role: 'analyst',
-            tenantId: '' // Explicitly empty or handle in backend?
+            role: 'soc_analyst',
+            // tenantId handled by auth context
             // Backend might require tenantId if not optional.
             // But superadmin can create users?
             // Let's assume userController.create handles it.
@@ -34,7 +34,7 @@ describe('User Controller', () => {
         
         // If 400, we'll debug.
         if (response.status === 200 || response.status === 201) {
-             expect(data?.email).toBe(email)
+             expect(data?.user?.email).toBe(email)
         } else {
              // Maybe API user creation requires password or tenantId
              // console.error(response.status, data)

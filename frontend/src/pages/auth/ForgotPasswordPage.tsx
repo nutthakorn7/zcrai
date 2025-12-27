@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Input, Button } from "@heroui/react";
-import { api } from "../../shared/api/api";
+import { api } from "@/shared/api";
 import { Icon, IconSolid } from '../../shared/ui';
 import { useNavigate } from "react-router-dom";
 import ZcrAILogo from '../../assets/logo/zcrailogo.svg';
@@ -60,7 +60,7 @@ export default function ForgotPasswordPage() {
               }}
             />
           </div>
-          <h1 className="text-3xl font-bold tracking-tight mt-2 text-foreground">
+          <h1 className="text-3xl font-bold font-display tracking-tight mt-2 text-foreground">
             Reset Password
           </h1>
           {!isSent && (
@@ -86,7 +86,7 @@ export default function ForgotPasswordPage() {
               
               <Button
                 onClick={() => navigate('/login')}
-                className="w-full h-[50px] bg-primary hover:bg-primary/90 text-background font-bold tracking-wide shadow-[0_0_20px_rgba(192,219,239,0.2)]"
+                className="w-full h-[50px] bg-primary hover:bg-primary/90 text-black font-bold font-display tracking-tight shadow-[0_0_20px_rgba(0,216,255,0.2)]"
               >
                 Back to Login
               </Button>
@@ -119,7 +119,7 @@ export default function ForgotPasswordPage() {
                 placeholder="example@company.com"
                 startContent={<Icon.Mail className="w-5 h-5 text-foreground/60" />}
                 classNames={{
-                  label: "text-xs font-semibold text-foreground/60 uppercase tracking-wider ",
+                  label: "text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]",
                   inputWrapper: "bg-content1 border border-content4 hover:border-primary/50 data-[hover=true]:border-primary/50 group-data-[focus=true]:border-primary h-[56px]",
                   input: " text-base placeholder:text-foreground/60"
                 }}
@@ -128,7 +128,7 @@ export default function ForgotPasswordPage() {
               <Button 
                 type="submit" 
                 isLoading={isLoading}
-                className="h-[50px] bg-primary hover:bg-primary/90 text-background font-bold tracking-wide shadow-[0_0_20px_rgba(192,219,239,0.2)]"
+                className="h-[50px] bg-primary hover:bg-primary/90 text-black font-bold font-display tracking-tight shadow-[0_0_20px_rgba(0,216,255,0.2)]"
                 spinner={<Icon.Refresh className="w-5 h-5 animate-spin" />}
               >
                 Send Reset Link

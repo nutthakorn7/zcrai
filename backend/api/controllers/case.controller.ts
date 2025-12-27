@@ -106,8 +106,8 @@ export const caseController = new Elysia({ prefix: '/cases' })
     const caseDetail = await CaseService.getById(user.tenantId, id);
     if (!caseDetail) throw Errors.NotFound('Case');
     
-    const summary = await AIService.summarizeCase(caseDetail);
-    return { success: true, data: { summary } };
+    const summaryData = await AIService.summarizeCase(caseDetail);
+    return { success: true, data: summaryData };
   })
 
   /**
@@ -137,4 +137,14 @@ export const caseController = new Elysia({ prefix: '/cases' })
     }
 
     return { success: true, data: { ...suggestion, playbookTitle } };
+  })
+
+  /**
+   * Sync case to external ticketing (Jira/ServiceNow)
+   * @route POST /cases/:id/sync
+   */
+  .post('/:id/sync', async ({ user, params: { id }, body }: any) => {
+    const { system, config } = body;
+    const result = await CaseService.syncToTicketing(user.tenantId, id, user.id, system, config);
+    return { success: true, data: result };
   })

@@ -1,61 +1,108 @@
 import { db } from '../../infra/db';
 import { auditLogs } from '../../infra/db/schema';
-import { eq, and, desc, gte, lte, like, count } from 'drizzle-orm';
+import { eq, desc, and, gte, lte, sql } from 'drizzle-orm';
 
-export interface AuditLogFilters {
-  userId?: string;
-  action?: string;
-  resource?: string;
-  startDate?: string;
-  endDate?: string;
-  limit?: number;
-  offset?: number;
+export interface AuditEvent {
+    tenantId?: string;
+    userId?: string;
+    action: string;
+    resource: string;
+    resourceId?: string;
+    details?: any;
+    ipAddress?: string;
+    userAgent?: string;
+    status?: 'SUCCESS' | 'FAILURE';
 }
 
-export const AuditLogService = {
-  /**
-   * List audit logs with filters and pagination
-   */
-  async list(tenantId: string, filters: AuditLogFilters = {}) {
-    const conditions = [eq(auditLogs.tenantId, tenantId)];
+export class AuditService {
+    
+    /**
+     * Record an audit log entry
+     */
+    static async log(event: AuditEvent) {
+        try {
+            await db.insert(auditLogs).values({
+                tenantId: event.tenantId,
+                userId: event.userId,
+                action: event.action.toUpperCase(),
+                resource: event.resource.toLowerCase(),
+                resourceId: event.resourceId,
+                details: event.details,
+                ipAddress: event.ipAddress,
+                userAgent: event.userAgent,
+                status: event.status || 'SUCCESS'
+            });
+        } catch (error) {
+            console.error("Failed to write audit log:", error);
+            // Non-blocking, don't throw to avoid disrupting main flow, 
+            // but in strict compliance mode, this might need to alert admins.
+        }
+    }
 
-    if (filters.userId) {
-      conditions.push(eq(auditLogs.userId, filters.userId));
-    }
-    if (filters.action) {
-      conditions.push(like(auditLogs.action, `%${filters.action}%`));
-    }
-    if (filters.resource) {
-      conditions.push(like(auditLogs.resource, `%${filters.resource}%`));
-    }
-    if (filters.startDate) {
-      conditions.push(gte(auditLogs.createdAt, new Date(filters.startDate)));
-    }
-    if (filters.endDate) {
-      conditions.push(lte(auditLogs.createdAt, new Date(filters.endDate)));
+    /**
+     * List audit logs with advanced filtering and pagination
+     */
+    static async list(tenantId: string | null | undefined, filters: any = {}) {
+        const { userId, action, resource, resourceId, startDate, endDate, limit = 50, offset = 0 } = filters;
+
+        const whereClauses = [];
+        if (tenantId) {
+            whereClauses.push(eq(auditLogs.tenantId, tenantId));
+        }
+
+        if (userId) whereClauses.push(eq(auditLogs.userId, userId));
+        if (action) whereClauses.push(eq(auditLogs.action, action.toUpperCase()));
+        if (resource) whereClauses.push(eq(auditLogs.resource, resource.toLowerCase()));
+        if (resourceId) whereClauses.push(eq(auditLogs.resourceId, resourceId));
+        
+        if (startDate) {
+            whereClauses.push(gte(auditLogs.createdAt, new Date(startDate)));
+        }
+        if (endDate) {
+            const end = new Date(endDate);
+            end.setHours(23, 59, 59, 999);
+            whereClauses.push(lte(auditLogs.createdAt, end));
+        }
+
+        const data = await db.select()
+            .from(auditLogs)
+            .where(and(...whereClauses))
+            .orderBy(desc(auditLogs.createdAt))
+            .limit(limit)
+            .offset(offset);
+
+        return data;
     }
 
-    const limit = filters.limit || 50;
-    const offset = filters.offset || 0;
+    /**
+     * Get total count of audit logs for pagination
+     */
+    static async count(tenantId: string | null | undefined, filters: any = {}) {
+        const { userId, action, resource, resourceId, startDate, endDate } = filters;
 
-    const [data, total] = await Promise.all([
-      db.select()
-        .from(auditLogs)
-        .where(and(...conditions))
-        .orderBy(desc(auditLogs.createdAt))
-        .limit(limit)
-        .offset(offset),
-      
-      db.select({ count: count() })
-        .from(auditLogs)
-        .where(and(...conditions))
-    ]);
+        const whereClauses = [];
+        if (tenantId) {
+            whereClauses.push(eq(auditLogs.tenantId, tenantId));
+        }
 
-    return {
-      data,
-      total: total[0].count,
-      page: Math.floor(offset / limit) + 1,
-      totalPages: Math.ceil(total[0].count / limit)
-    };
-  }
-};
+        if (userId) whereClauses.push(eq(auditLogs.userId, userId));
+        if (action) whereClauses.push(eq(auditLogs.action, action.toUpperCase()));
+        if (resource) whereClauses.push(eq(auditLogs.resource, resource.toLowerCase()));
+        if (resourceId) whereClauses.push(eq(auditLogs.resourceId, resourceId));
+        
+        if (startDate) {
+            whereClauses.push(gte(auditLogs.createdAt, new Date(startDate)));
+        }
+        if (endDate) {
+            const end = new Date(endDate);
+            end.setHours(23, 59, 59, 999);
+            whereClauses.push(lte(auditLogs.createdAt, end));
+        }
+
+        const [result] = await db.select({ count: sql<number>`count(*)` })
+            .from(auditLogs)
+            .where(and(...whereClauses));
+
+        return Number(result.count);
+    }
+}

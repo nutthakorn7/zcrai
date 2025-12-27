@@ -5,15 +5,15 @@ import {
   Chip, Tabs, Tab
 } from "@heroui/react";
 import { Icon } from '../../shared/ui';
-import { SystemAPI, BackupFile, LicenseInfo } from '../../shared/api/system';
+import { SystemAPI, BackupFile, LicenseInfo } from '@/shared/api';
 
 export default function SystemPage() {
   const [activeTab, setActiveTab] = useState('backups');
   return (
     <div className="p-6 h-screen overflow-y-auto animate-fade-in">
-        <div className="mb-8">
-           <h1 className="text-2xl font-bold flex items-center gap-2">
-             <Icon.Server className="w-6 h-6 text-primary"/> 
+        <div className="mb-6">
+           <h1 className="text-3xl font-bold font-display tracking-tight text-foreground flex items-center gap-3">
+             <Icon.Server className="w-8 h-8 text-primary"/> 
              System Management
            </h1>
            <p className="text-foreground/60 text-sm mt-1">Manage system backups and enterprise licensing.</p>
@@ -82,10 +82,10 @@ function BackupView() {
                 <CardBody className="p-0">
                     <Table aria-label="Backups table" className="bg-transparent" removeWrapper>
                         <TableHeader>
-                            <TableColumn>FILENAME</TableColumn>
-                            <TableColumn>SIZE</TableColumn>
-                            <TableColumn>CREATED AT</TableColumn>
-                            <TableColumn>ACTIONS</TableColumn>
+                            <TableColumn className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">FILENAME</TableColumn>
+                            <TableColumn className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">SIZE</TableColumn>
+                            <TableColumn className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">CREATED AT</TableColumn>
+                            <TableColumn className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">ACTIONS</TableColumn>
                         </TableHeader>
                         <TableBody emptyContent={"No backups found."} isLoading={isLoading}>
                             {backups.map((file) => (
@@ -94,7 +94,12 @@ function BackupView() {
                                     <TableCell>{(file.size / 1024 / 1024).toFixed(2)} MB</TableCell>
                                     <TableCell>{new Date(file.createdAt).toLocaleString()}</TableCell>
                                     <TableCell>
-                                        <Button size="sm" variant="flat" isIconOnly>
+                                        <Button 
+                                          size="sm" 
+                                          variant="flat" 
+                                          isIconOnly
+                                          onPress={() => window.open(SystemAPI.getBackupDownloadUrl(file.name), '_blank')}
+                                        >
                                             <Icon.Download className="w-4 h-4"/>
                                         </Button>
                                     </TableCell>
@@ -143,8 +148,8 @@ function LicenseView() {
             <Card className="mb-6 bg-white/5 border border-white/5">
                 <CardBody className="p-6">
                     <div className="flex justify-between items-center mb-6">
-                        <h3 className="text-lg font-bold">Current License</h3>
-                        <Chip color={info?.status === 'active' ? 'success' : 'danger'}>
+                        <h3 className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">Current License</h3>
+                        <Chip color={info?.status === 'active' ? 'success' : 'danger'} size="sm" variant="flat" className="font-bold">
                             {info?.status?.toUpperCase() || 'UNKNOWN'}
                         </Chip>
                     </div>
@@ -171,7 +176,7 @@ function LicenseView() {
 
             <Card className="bg-white/5 border border-white/5">
                 <CardBody className="p-6">
-                    <h3 className="text-lg font-bold mb-4">Update License</h3>
+                    <h3 className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em] mb-4">Update License</h3>
                     <div className="flex gap-2">
                         <Input 
                             placeholder="Paste new license key..." 

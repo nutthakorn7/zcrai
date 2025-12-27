@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import {
   Modal,
   ModalContent,
@@ -12,7 +12,7 @@ import {
   Spinner,
   Divider
 } from '@heroui/react';
-import { Alert, AlertCorrelation, AlertsAPI } from '../../shared/api/alerts';
+import { AlertCorrelation, Alert, AlertsAPI } from '@/shared/api';
 import { CorrelationCard } from './CorrelationCard';
 import { Icon } from '../../shared/ui';
 
@@ -56,13 +56,7 @@ export function AlertDetailModal({ alert, isOpen, onClose }: AlertDetailModalPro
   const [correlations, setCorrelations] = useState<AlertCorrelation[]>([]);
   const [isLoadingCorrelations, setIsLoadingCorrelations] = useState(false);
 
-  useEffect(() => {
-    if (alert && isOpen) {
-      loadCorrelations();
-    }
-  }, [alert, isOpen]);
-
-  const loadCorrelations = async () => {
+  const loadCorrelations = useCallback(async () => {
     if (!alert) return;
     
     try {
@@ -74,11 +68,17 @@ export function AlertDetailModal({ alert, isOpen, onClose }: AlertDetailModalPro
     } finally {
       setIsLoadingCorrelations(false);
     }
-  };
+  }, [alert]);
+
+  useEffect(() => {
+    if (alert && isOpen) {
+      loadCorrelations();
+    }
+  }, [alert, isOpen, loadCorrelations]);
 
   const handleViewRelatedAlert = (alertId: string) => {
     // Navigate to the related alert (you can enhance this later)
-    window.location.href = `/alerts?id=${alertId}`;
+    window.location.href = `/detections?id=${alertId}`;
   };
 
   if (!alert) return null;
@@ -122,7 +122,7 @@ export function AlertDetailModal({ alert, isOpen, onClose }: AlertDetailModalPro
               {/* Alert Details */}
               <Card className="bg-content2/50 border border-white/5 mb-4">
                 <CardBody className="p-4">
-                  <h4 className="text-sm font-semibold mb-2">Description</h4>
+                  <h3 className="text-sm font-semibold mb-2">Description</h3>
                   <p className="text-sm text-foreground/80">{alert.description}</p>
                   
                   <Divider className="my-3" />
@@ -160,7 +160,7 @@ export function AlertDetailModal({ alert, isOpen, onClose }: AlertDetailModalPro
                 <Card className="bg-content2/50 border border-white/5 mb-4">
                   <CardHeader className="border-b border-white/5 px-4 py-3 flex gap-2">
                     <Icon.Search className="w-5 h-5 text-primary" />
-                    <h4 className="text-sm font-semibold">Automated Investigation Report</h4>
+                    <h3 className="text-sm font-semibold">Automated Investigation Report</h3>
                     <Chip size="sm" variant="flat" color="primary">AI Findings</Chip>
                   </CardHeader>
                   <CardBody className="p-4">
@@ -179,7 +179,7 @@ export function AlertDetailModal({ alert, isOpen, onClose }: AlertDetailModalPro
                   <div className="flex items-center justify-between w-full">
                     <div className="flex items-center gap-2">
                       <Icon.Signal className="w-5 h-5 text-warning" />
-                      <h4 className="text-sm font-semibold">Related Alerts</h4>
+                      <h3 className="text-sm font-semibold">Related Alerts</h3>
                       {correlations.length > 0 && (
                         <Chip size="sm" variant="flat" color="warning">
                           {correlations.reduce((acc, c) => acc + (c.relatedAlerts?.length || 0), 0)} correlated
@@ -206,9 +206,9 @@ export function AlertDetailModal({ alert, isOpen, onClose }: AlertDetailModalPro
                     </div>
                   ) : (
                     <div className="text-center py-8">
-                      <Icon.Info className="w-8 h-8 text-foreground/40 mx-auto mb-2" />
+                      <Icon.Info className="w-8 h-8 text-foreground/50 mx-auto mb-2" />
                       <p className="text-sm text-foreground/60">No related alerts found</p>
-                      <p className="text-xs text-foreground/40 mt-1">
+                      <p className="text-xs text-foreground/50 mt-1">
                         This alert has no correlations within the last hour
                       </p>
                     </div>

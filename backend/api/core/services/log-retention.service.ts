@@ -10,12 +10,12 @@ export const LogRetentionService = {
   init() {
     console.log('✅ LogRetentionService initialized');
     
-    // Run daily at 02:00 AM
+    // Run every hour to check disk health and retention
     new CronJob(
-      '0 2 * * *',
+      '0 * * * *',
       async () => {
-        console.log('🧹 Running Log Retention Cleanup Job...');
-        await this.cleanup();
+        console.log('🧹 Running Log Retention & Storage Protection Job...');
+        await this.checkStorageAndCleanup();
       },
       null,
       true,
@@ -24,16 +24,42 @@ export const LogRetentionService = {
   },
 
   /**
-   * Run cleanup logic based on configured retention days
+   * Monitor Storage and Trigger Cleanup
    */
-  async cleanup() {
+  async checkStorageAndCleanup() {
+    const isDiskFull = await this.checkDiskUsage(); // Mock or system call
+    
+    if (isDiskFull) {
+        console.warn('⚠️ [StorageProtection] Disk usage high (>85%). Triggering aggressive cleanup.');
+        // If disk is full, we temporarily reduce retention policy by 50% to free up space
+        await this.cleanup(0.5); 
+    } else {
+        await this.cleanup(1.0);
+    }
+  },
+
+  /**
+   * Mock for disk usage check
+   * In production, this would use 'df -h' or a node-disk-info package
+   */
+  async checkDiskUsage(): Promise<boolean> {
+      // Logic for checking ClickHouse/Postgres volumes
+      return false; // Default safe
+  },
+
+  /**
+   * Run cleanup logic based on configured retention days
+   * @param factor Reduction factor for capacity-based eviction (0.1 to 1.0)
+   */
+  async cleanup(factor: number = 1.0) {
     try {
       // 1. Fetch retention settings
-      const auditLogDays = await this.getConfig('retention.audit_logs_days', 90);
-      const notificationDays = await this.getConfig('retention.notifications_days', 30);
-      const sessionDays = await this.getConfig('retention.sessions_days', 7);
+      const auditLogDays = Math.floor(await this.getConfig('retention.audit_logs_days', 90) * factor);
+      const notificationDays = Math.floor(await this.getConfig('retention.notifications_days', 30) * factor);
+      const sessionDays = Math.floor(await this.getConfig('retention.sessions_days', 7) * factor);
 
-      console.log(`[LogRetention] Policy: Audit=${auditLogDays}d, Notif=${notificationDays}d, Sess=${sessionDays}d`);
+      console.log(`[LogRetention] Active Policy (Factor ${factor}): Audit=${auditLogDays}d, Notif=${notificationDays}d, Sess=${sessionDays}d`);
+      // ... existing cleanup logic ...
 
       // 2. Cleanup Audit Logs
       const auditCutoff = new Date(Date.now() - auditLogDays * 24 * 60 * 60 * 1000);

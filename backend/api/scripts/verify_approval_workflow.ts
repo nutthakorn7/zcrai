@@ -61,7 +61,7 @@ async function main() {
     let playbookData;
     const clone = playbookRes.clone();
     try {
-        playbookData = await playbookRes.json();
+        playbookData = await playbookRes.json() as any;
     } catch (e) {
         throw new Error(`Failed to parse playbook response (${playbookRes.status}): ${await clone.text()}`);
     }
@@ -86,7 +86,7 @@ async function main() {
             status: 'open'
         })
     });
-    const caseData = await caseRes.json();
+    const caseData = await caseRes.json() as any;
     const caseId = caseData.data.id;
     console.log('✅ Case Created:', caseId);
 
@@ -100,7 +100,7 @@ async function main() {
             playbookId
         })
     });
-    const runData = await runRes.json();
+    const runData = await runRes.json() as any;
     const executionId = runData.data.id;
     console.log('✅ Playbook Execution Started:', executionId);
 
@@ -112,7 +112,7 @@ async function main() {
     const execDetailRes = await fetch(`${BASE_URL}/playbooks/executions?caseId=${caseId}`, {
         headers: { 'Cookie': cookie }
     });
-    const execList = await execDetailRes.json();
+    const execList = await execDetailRes.json() as any;
     const headers = { 'Content-Type': 'application/json', 'Cookie': cookie }; // define headers for subsequent requests
 
     // We assume ours is the latest
@@ -130,7 +130,7 @@ async function main() {
         method: 'POST',
         headers
     });
-    const triggerData = await triggerRes.json();
+    const triggerData = await triggerRes.json() as any;
     console.log('Trigger Result:', triggerData); // Should say "waiting_for_approval"
 
     if (triggerData.data.status !== 'waiting_for_approval') throw new Error('Expected waiting_for_approval status');
@@ -138,7 +138,7 @@ async function main() {
     // 7. Check Pending Approvals
     console.log('6. Checking Pending Approvals...');
     const pendingRes = await fetch(`${BASE_URL}/approvals/pending`, { headers });
-    const pendingData = await pendingRes.json();
+    const pendingData = await pendingRes.json() as any;
     
     const approvalRequest = pendingData.data.find((a: any) => a.executionId === executionId);
     if (!approvalRequest) throw new Error('Approval request not found in pending list');
@@ -154,7 +154,7 @@ async function main() {
             comments: 'LGTM via Automated Verification'
         })
     });
-    const approveResult = await approveRes.json();
+    const approveResult = await approveRes.json() as any;
     console.log('Approve Result:', approveResult);
 
     if (!approveResult.success) throw new Error('Approval failed');

@@ -52,31 +52,23 @@ jobs:
           FRONTEND_URL=https://app.zcr.ai
           SUPERADMIN_EMAIL=superadmin@zcr.ai
           SUPERADMIN_PASSWORD=${{ secrets.SUPERADMIN_PASSWORD }}
-          BYPASS_AUTH=true
+          GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
+          SSO_ISSUER=${{ secrets.SSO_ISSUER }}
+          SSO_CLIENT_ID=${{ secrets.SSO_CLIENT_ID }}
+          SSO_CLIENT_SECRET=${{ secrets.SSO_CLIENT_SECRET }}
+          SSO_REDIRECT_URI=${{ secrets.SSO_REDIRECT_URI }}
+          BYPASS_AUTH=false
           EOF"
 
-      - name: Install Backend Dependencies
+      - name: Deploy with Docker Compose
         run: |
-          ssh root@45.118.132.160 "export PATH=\$PATH:/root/.bun/bin && cd /root/zcrAI/backend/api && bun install"
-
-      - name: Build Frontend
-        run: |
-          ssh root@45.118.132.160 "cd /root/zcrAI/frontend && npm install --force && VITE_BYPASS_AUTH=true npm run build"
-
-      - name: Deploy Frontend to Nginx
-        run: |
-          ssh root@45.118.132.160 "cp -r /root/zcrAI/frontend/dist/* /var/www/zcrai/"
-
-      - name: Run Database Migrations
-        run: |
-          ssh root@45.118.132.160 "export PATH=\$PATH:/root/.bun/bin && cd /root/zcrAI/backend/api && bun run db:migrate || echo 'Migration skipped (tables may already exist)'"
-
-      - name: Restart Backend
-        run: |
-          ssh root@45.118.132.160 "export PATH=\$PATH:/root/.bun/bin && pm2 delete zcrAI-backend || true && pm2 start 'bun run /root/zcrAI/backend/api/index.ts' --name zcrAI-backend"
+          ssh root@45.118.132.160 "cd /root/zcrAI && \
+          docker compose -f docker-compose.prod.yml pull && \
+          docker compose -f docker-compose.prod.yml up -d --no-recreate postgres clickhouse redis vector && \
+          docker compose -f docker-compose.prod.yml up -d --build --force-recreate backend frontend collector"
 
       - name: Health Check
         run: |
-          sleep 5
-          curl -f https://app.zcr.ai/health || exit 1
+          sleep 30
+          curl -k -f https://app.zcr.ai/api/health || exit 1
           echo "✅ Deployment successful!"

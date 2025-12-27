@@ -7,9 +7,36 @@ const RedisClient = process.env.NODE_ENV === 'test' && !process.env.CI
   : Redis
 
 // Read from env dynamically (not at module load time) to allow test overrides
-const getRedisUrl = () => process.env.REDIS_URL || 'redis://localhost:6379'
+// Read from env dynamically
+const getRedisConfig = () => {
+  const url = process.env.REDIS_URL || 'redis://:redis_password@127.0.0.1:6379'
+  console.log('[DEBUG_REDIS] Checking REDIS_URL from Env:', process.env.REDIS_URL);
+  console.log('[DEBUG_REDIS] Final Config URL:', url);
+  return url
+}
 
-export const redis = new RedisClient(getRedisUrl())
+// Optimized Redis client with connection options
+export const redis = new RedisClient(getRedisConfig(), {
+  // Connection optimization
+  keepAlive: 30000, // Send TCP keepalive every 30s
+  enableReadyCheck: true, // Wait for Redis to be ready
+  lazyConnect: false, // Connect immediately
+  connectTimeout: 10000, // 10s connection timeout
+  
+  // Retry strategy for reconnection
+  retryStrategy: (times: number) => {
+    if (times > 10) {
+      console.error('[Redis] Max retries exceeded, giving up');
+      return null;
+    }
+    const delay = Math.min(times * 100, 3000);
+    console.log(`[Redis] Reconnecting in ${delay}ms (attempt ${times})`);
+    return delay;
+  },
+  
+  // Enhanced error handling
+  maxRetriesPerRequest: 3,
+})
 
 // Key prefixes
 export const SESSION_PREFIX = 'session:'

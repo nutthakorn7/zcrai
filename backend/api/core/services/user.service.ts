@@ -1,8 +1,10 @@
 import { db } from '../../infra/db'
 import { users, tenants } from '../../infra/db/schema'
+import { redis } from '../../infra/cache/redis'
 import { eq, like, and, sql, ne } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
 import { hashPassword } from '../../utils/password'
+import { EmailService } from './email.service'
 
 export const UserService = {
   // ==================== LIST USERS (ภายใน Tenant) ====================
@@ -54,6 +56,22 @@ export const UserService = {
 
   // ==================== GET USER BY ID ====================
   async getById(id: string, tenantId?: string) {
+    // Check Cache
+    const cached = await redis.get(`user:${id}`)
+    if (cached) {
+      try {
+        const user = JSON.parse(cached)
+        // Verify tenant match if requested
+        if (tenantId && user.tenantId !== tenantId) {
+             // Fallthrough to DB check if cached data looks stale/wrong context
+        } else {
+             return user
+        }
+      } catch (e) {
+        // invalid cache, ignore
+      }
+    }
+
     const conditions = [eq(users.id, id)]
     if (tenantId) {
       conditions.push(eq(users.tenantId, tenantId))
@@ -73,6 +91,10 @@ export const UserService = {
     .where(and(...conditions))
 
     if (!user) throw new Error('User not found')
+
+    // Cache result
+    await redis.setex(`user:${id}`, 300, JSON.stringify(user))
+
     return user
   },
 
@@ -101,8 +123,14 @@ export const UserService = {
       status: users.status,
     })
 
-    // TODO: ส่ง email invite พร้อม reset password link
-    console.log(`[DEV] Invited ${data.email} with temp password: ${tempPassword}`)
+    // Send Invitation Email
+    const emailSent = await EmailService.sendInvite(data.email, tempPassword)
+    
+    if (emailSent) {
+      console.log(`✅ Invited ${data.email} (Email sent)`)
+    } else {
+      console.warn(`⚠️ Failed to send invite email to ${data.email}. Temp Password: ${tempPassword}`)
+    }
 
     return { user, tempPassword } // tempPassword ให้ dev test เท่านั้น
   },
@@ -111,6 +139,9 @@ export const UserService = {
   async update(id: string, tenantId: string, data: { role?: string; status?: string }) {
     // เช็คว่า user อยู่ใน tenant นี้
     await this.getById(id, tenantId)
+    
+    // Invalidate Cache
+    await redis.del(`user:${id}`)
 
     const [updated] = await db.update(users)
       .set({
@@ -131,6 +162,9 @@ export const UserService = {
   // ==================== DELETE USER (Soft Delete) ====================
   async delete(id: string, tenantId: string) {
     await this.getById(id, tenantId)
+
+    // Invalidate Cache
+    await redis.del(`user:${id}`)
 
     const [deleted] = await db.update(users)
       .set({

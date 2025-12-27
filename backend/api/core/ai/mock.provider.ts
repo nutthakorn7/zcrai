@@ -9,7 +9,6 @@ export class MockAIProvider implements AIProvider {
 
         if (prompt.includes('Which playbook')) {
              // Mock JSON response
-             // Try to find a playbook ID in the prompt to "recommend"
              const match = prompt.match(/ID: ([a-f0-9-]+)/);
              const recommendedId = match ? match[1] : null;
 
@@ -34,5 +33,14 @@ Based on the alert data provided, this case appears to be a **Simulation**. The 
 - Review the alert logs manually.
 - Run the "Block IP" playbook if suspicious traffic continues.
 `;
+    }
+
+    async streamText(prompt: string, callback: (chunk: string) => void): Promise<void> {
+        const fullText = await this.generateText(prompt);
+        const words = fullText.split(' ');
+        for (const word of words) {
+            callback(word + ' ');
+            await new Promise(resolve => setTimeout(resolve, 30));
+        }
     }
 }

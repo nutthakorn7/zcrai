@@ -35,59 +35,50 @@ export function Sidebar() {
   const [expandedGroups, setExpandedGroups] = React.useState<Set<string>>(new Set());
 
   const navConfig: NavEntry[] = [
-    // Direct Links
-    { icon: Icon.Dashboard, label: 'Dashboard', path: '/dashboard' },
-    { icon: Icon.Chart, label: 'Reports', path: '/reports' },
-
-    // Security Operations Group
+    // 1. Operations Group
     {
       icon: Icon.Shield,
-      label: 'Security Ops',
+      label: 'Operations',
       children: [
-        { label: 'Alerts', path: '/alerts' },
+        { label: '🚀 AI Command Center', path: '/ai-command' },
+        { label: 'AI Autopilot', path: '/autopilot' },
+        { label: 'Dashboard', path: '/dashboard' },
+        { label: 'Detection Engine', path: '/rules' }, // Merged: Rules + Detections
         { label: 'Cases', path: '/cases' },
+        { label: 'Playbooks', path: '/playbooks' },
+        { label: 'Approvals', path: '/approvals' },
+      ],
+    },
+
+    // 2. Analysis Group
+    {
+      icon: Icon.Search, 
+      label: 'Analysis',
+      children: [
+        { label: 'Log Viewer', path: '/logs' },
+        { label: 'Threat Intel', path: '/threat-intel' },
+        { label: 'Investigations', path: '/investigations' },
         { label: 'Observables', path: '/observables' },
       ],
     },
 
-    // Threat Intelligence Group
-    {
-      icon: Icon.Eye,
-      label: 'Threat Intel',
-      children: [
-        { label: 'Intel Feeds', path: '/threat-intel' },
-        { label: 'Detection Rules', path: '/settings/detection-rules' },
-      ],
-    },
-
-    // Automation Group
-    {
-      icon: Icon.Terminal,
-      label: 'Automation',
-      children: [
-        { label: 'Playbooks', path: '/playbooks' },
-        { label: 'Actions', path: '/approvals' },
-      ],
-    },
-
-    // Logs - Direct Link
-    { icon: Icon.Document, label: 'Logs', path: '/logs' },
-
-    // Settings Group
+    // 3. Settings Group
     {
       icon: Icon.Settings,
       label: 'Settings',
       children: [
-        { label: 'Profile', path: '/settings/profile' },
-        { label: 'Subscription', path: '/settings/subscription' },
-        { label: 'System', path: '/settings/system' },
         { label: 'Integrations', path: '/settings/integrations' },
-        { label: 'Notifications', path: '/settings/notifications' },
+        { label: 'EDR Actions', path: '/settings/edr-actions' },
+        { label: 'Users & Access', path: '/settings/users' },
+        { label: 'Tenant & Billing', path: '/settings/tenants' },
+        { label: 'Security (SSO/MFA)', path: '/settings/sso' },
+        { label: 'Audit & Retention', path: '/settings/audit-logs' },
+        { label: 'System', path: '/settings/system' },
       ],
     },
 
-    // Admin - Superadmin Only
-    { icon: Icon.Users, label: 'Admin', path: '/admin', adminOnly: true },
+    // Admin - Superadmin Only (kept for fallback)
+    { icon: Icon.Users, label: 'Admin Panel', path: '/admin', adminOnly: true },
   ];
 
   const toggleGroup = (label: string) => {
@@ -148,8 +139,8 @@ export function Sidebar() {
             ${isExpanded ? 'w-auto opacity-100' : 'w-0 opacity-0'}
           `}
         >
-          <span className="text-lg font-semibold text-foreground whitespace-nowrap">
-            zcrAI
+          <span className="text-xl font-bold font-display text-foreground tracking-tight whitespace-nowrap">
+            zcr<span className="text-primary italic">AI</span>
           </span>
         </div>
       </div>
@@ -209,7 +200,7 @@ export function Sidebar() {
                         ${isExpanded ? 'w-auto opacity-100' : 'w-0 opacity-0'}
                       `}
                     >
-                      <span className="text-sm font-medium whitespace-nowrap">
+                      <span className="text-sm font-semibold font-display tracking-tight whitespace-nowrap">
                         {entry.label}
                       </span>
                       <svg
@@ -228,10 +219,12 @@ export function Sidebar() {
                 <div
                   className={`
                     overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]
-                    ${isOpen && isExpanded ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}
+                    ${isOpen && isExpanded 
+                      ? 'max-h-96 opacity-100 pointer-events-auto' 
+                      : 'max-h-0 opacity-0 pointer-events-none'}
                   `}
                 >
-                  <div className="ml-4 pl-4 border-l border-white/10 mt-1 space-y-1">
+                  <div className="ml-4 pl-4 border-l border-white/10 mt-1 space-y-1 relative z-10">
                     {entry.children.map((child) => {
                       const active = isActive(child.path);
                       return (
@@ -240,6 +233,7 @@ export function Sidebar() {
                           onClick={() => navigate(child.path)}
                           className={`
                             w-full p-2 rounded-lg text-left text-sm transition-all duration-200
+                            relative z-10
                             ${active
                               ? 'bg-content2 text-foreground font-medium'
                               : 'text-foreground/60 hover:text-foreground hover:bg-content2/50'

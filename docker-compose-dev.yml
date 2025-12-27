@@ -68,11 +68,8 @@ services:
       CLICKHOUSE_PORT: 9000
       CLICKHOUSE_USER: default
       CLICKHOUSE_PASSWORD: clickhouse
-    entrypoint: ["/bin/sh", "-c"]
-    command:
-      [
-        "cp /migrate.sh /tmp/migrate.sh && chmod +x /tmp/migrate.sh && /tmp/migrate.sh",
-      ]
+    entrypoint: ["/bin/sh"]
+    command: ["/migrate.sh"]
     networks:
       - zcrai-net
     depends_on:

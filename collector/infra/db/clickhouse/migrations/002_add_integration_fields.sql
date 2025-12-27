@@ -2,14 +2,16 @@
 -- เพิ่ม columns สำหรับเก็บ Integration info และ S1 Account/Site/Group IDs
 
 -- Add Integration fields (zcrAI)
-ALTER TABLE zcrai.security_events ADD COLUMN IF NOT EXISTS integration_id String DEFAULT '' AFTER tenant_id;
-ALTER TABLE zcrai.security_events ADD COLUMN IF NOT EXISTS integration_name String DEFAULT '' AFTER integration_id;
+ALTER TABLE zcrai.security_events ADD COLUMN IF NOT EXISTS integration_id String DEFAULT '';
+ALTER TABLE zcrai.security_events ADD COLUMN IF NOT EXISTS integration_name String DEFAULT '';
 
 -- Add S1 Account/Site/Group ID fields
-ALTER TABLE zcrai.security_events ADD COLUMN IF NOT EXISTS host_account_id String DEFAULT '' AFTER host_agent_id;
-ALTER TABLE zcrai.security_events ADD COLUMN IF NOT EXISTS host_account_name String DEFAULT '' AFTER host_account_id;
-ALTER TABLE zcrai.security_events ADD COLUMN IF NOT EXISTS host_site_id String DEFAULT '' AFTER host_account_name;
-ALTER TABLE zcrai.security_events ADD COLUMN IF NOT EXISTS host_group_id String DEFAULT '' AFTER host_site_name;
+ALTER TABLE zcrai.security_events ADD COLUMN IF NOT EXISTS host_account_id String DEFAULT '';
+ALTER TABLE zcrai.security_events ADD COLUMN IF NOT EXISTS host_account_name String DEFAULT '';
+ALTER TABLE zcrai.security_events ADD COLUMN IF NOT EXISTS host_site_id String DEFAULT '';
+ALTER TABLE zcrai.security_events ADD COLUMN IF NOT EXISTS host_site_name String DEFAULT '';
+ALTER TABLE zcrai.security_events ADD COLUMN IF NOT EXISTS host_group_id String DEFAULT '';
+ALTER TABLE zcrai.security_events ADD COLUMN IF NOT EXISTS host_group_name String DEFAULT '';
 
 -- Create Materialized View for Integration summary
 CREATE MATERIALIZED VIEW IF NOT EXISTS zcrai.security_events_integration_mv

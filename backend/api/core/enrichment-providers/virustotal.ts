@@ -22,6 +22,10 @@ export class VirusTotalProvider {
     this.apiKey = process.env.VIRUSTOTAL_API_KEY || '';
   }
 
+  setApiKey(key: string) {
+    this.apiKey = key;
+  }
+
   private canMakeRequest(): boolean {
     const now = Date.now();
     this.rateLimiter.requests = this.rateLimiter.requests.filter(

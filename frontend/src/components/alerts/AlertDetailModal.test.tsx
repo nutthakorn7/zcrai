@@ -1,7 +1,7 @@
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { AlertDetailModal } from './AlertDetailModal';
-import { AlertsAPI } from '../../shared/api/alerts';
+import { AlertsAPI } from '@/shared/api';
 
 // Mock API
 vi.mock('../../shared/api/alerts', () => ({

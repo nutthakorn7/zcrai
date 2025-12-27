@@ -39,26 +39,33 @@ export const AuthService = {
 
   // ==================== LOGIN ====================
   async login(body: { email: string; password: string }) {
+    console.log(`[AuthService] Login attempt for: ${body.email}`);
     try {
+      console.log(`[AuthService] Checking lockout...`);
       const lockout = await this.checkLockout(body.email)
       if (lockout.locked) {
         throw new Error(`Account locked. Try again in ${lockout.remainingTime} seconds`)
       }
 
+      console.log(`[AuthService] Querying user from DB...`);
       const [user] = await db.select().from(users).where(eq(users.email, body.email))
       
       if (!user) {
+        console.log(`[AuthService] User not found.`);
         await this.incrementFailedAttempts(body.email)
         throw new Error('Invalid credentials')
       }
 
+      console.log(`[AuthService] Verifying password...`);
       const isValid = await verifyPassword(body.password, user.passwordHash);
 
       if (!isValid) {
+        console.log(`[AuthService] Invalid password.`);
         await this.incrementFailedAttempts(body.email)
         throw new Error('Invalid credentials')
       }
 
+      console.log(`[AuthService] Login successful.`);
       await this.resetFailedAttempts(body.email)
       return user
     } catch (error: any) {
@@ -194,6 +201,22 @@ export const AuthService = {
 
     await this.revokeAllUserSessions(userId)
     return { message: 'Password reset successful' }
+  },
+
+  async changePassword(userId: string, current: string, newPass: string) {
+    const [user] = await db.select().from(users).where(eq(users.id, userId))
+    if (!user) throw new Error('User not found')
+
+    const isValid = await verifyPassword(current, user.passwordHash)
+    if (!isValid) throw new Error('Invalid current password')
+
+    const newHash = await hashPassword(newPass)
+    await db.update(users).set({ passwordHash: newHash }).where(eq(users.id, userId))
+    
+    // Optional: Revoke other sessions
+    // await this.revokeAllUserSessions(userId)
+    
+    return true
   },
 
   // ==================== GET USER ====================

@@ -6,40 +6,145 @@ import (
 	"time"
 
 	"github.com/go-resty/resty/v2"
+	"github.com/zrd4y/zcrAI/collector/internal/clickhouse"
 	"github.com/zrd4y/zcrAI/collector/pkg/models"
 	"go.uber.org/zap"
 )
 
-// Publisher ส่ง events ไปยัง Vector pipeline
+// Publisher sends events to ClickHouse (with Vector fallback)
 type Publisher struct {
 	vectorURL string
 	client    *resty.Client
+	chClient  *clickhouse.Client
 	logger    *zap.Logger
+	useCH     bool // Use ClickHouse directly instead of Vector
 }
 
-// NewPublisher สร้าง Publisher ใหม่
-func NewPublisher(vectorURL string, logger *zap.Logger) *Publisher {
+// NewPublisher creates a new Publisher with optional ClickHouse client
+func NewPublisher(vectorURL string, chClient *clickhouse.Client, logger *zap.Logger) *Publisher {
 	client := resty.New().
 		SetTimeout(30 * time.Second).
 		SetRetryCount(3).
 		SetRetryWaitTime(2 * time.Second)
 
+	// Use ClickHouse directly if client is provided
+	useCH := chClient != nil
+
 	return &Publisher{
 		vectorURL: vectorURL,
 		client:    client,
+		chClient:  chClient,
 		logger:    logger,
+		useCH:     useCH,
 	}
 }
 
-// Publish ส่ง events ไปยัง Vector (batch)
+// Publish sends events to ClickHouse directly or Vector
 func (p *Publisher) Publish(events []models.UnifiedEvent) error {
 	if len(events) == 0 {
 		return nil
 	}
 
+	// Use ClickHouse directly if available
+	if p.useCH && p.chClient != nil {
+		return p.publishToCH(events)
+	}
+
+	// Fallback to Vector
+	return p.publishToVector(events)
+}
+
+// publishToCH writes events directly to ClickHouse
+func (p *Publisher) publishToCH(events []models.UnifiedEvent) error {
+	p.logger.Info("Publishing events directly to ClickHouse", zap.Int("count", len(events)))
+
+	// Convert UnifiedEvent to map for ClickHouse insert
+	chEvents := make([]map[string]interface{}, len(events))
+	for i, event := range events {
+		rawJSON, _ := json.Marshal(event.Raw)
+		metadataJSON, _ := json.Marshal(event.Metadata)
+
+		chEvents[i] = map[string]interface{}{
+			"id":              event.ID,
+			"tenant_id":       event.TenantID,
+			"timestamp":       event.Timestamp,
+			"severity":        event.Severity,
+			"source":          event.Source,
+			"event_type":      event.EventType,
+			"title":           event.Title,
+			"description":     event.Description,
+			"mitre_tactic":    event.MitreTactic,
+			"mitre_technique": event.MitreTechnique,
+
+			// Host Info
+			"host_name":       event.Host.Name,
+			"host_ip":         event.Host.IP,
+			"host_os":         event.Host.OS,
+			"host_os_version": event.Host.OSVersion,
+			"host_agent_id":   event.Host.AgentID,
+			"host_site_name":  event.Host.SiteName,
+			"host_group_name": event.Host.GroupName,
+
+			// User Info
+			"user_name":   event.User.Name,
+			"user_domain": event.User.Domain,
+			"user_email":  event.User.Email,
+
+			// Process Info
+			"process_name":   event.Process.Name,
+			"process_path":   event.Process.Path,
+			"process_cmd":    event.Process.CommandLine,
+			"process_pid":    event.Process.PID,
+			"process_ppid":   event.Process.ParentPID,
+			"process_sha256": event.Process.SHA256,
+
+			// File Info
+			"file_name":   event.File.Name,
+			"file_path":   event.File.Path,
+			"file_hash":   event.File.Hash,
+			"file_sha256": event.File.SHA256,
+			"file_md5":    event.File.MD5,
+			"file_size":   event.File.Size,
+
+			// Network Info
+			"network_src_ip":     event.Network.SrcIP,
+			"network_dst_ip":     event.Network.DstIP,
+			"network_src_port":   event.Network.SrcPort,
+			"network_dst_port":   event.Network.DstPort,
+			"network_protocol":   event.Network.Protocol,
+			"network_direction":  event.Network.Direction,
+			"network_bytes_sent": event.Network.BytesSent,
+			"network_bytes_recv": event.Network.BytesRecv,
+
+			// Raw & Metadata
+			"raw":      string(rawJSON),
+			"metadata": string(metadataJSON),
+
+			// Integration Info
+			"integration_id":   event.IntegrationID,
+			"integration_name": event.IntegrationName,
+
+			// Extended Host Context
+			"host_account_id":   event.Host.AccountID,
+			"host_account_name": event.Host.AccountName,
+			"host_site_id":      event.Host.SiteID,
+			"host_group_id":     event.Host.GroupID,
+			"url_hash":          event.URLHash,
+		}
+	}
+
+	if err := p.chClient.InsertEvents(chEvents); err != nil {
+		return fmt.Errorf("failed to insert to ClickHouse: %w", err)
+	}
+
+	p.logger.Info("Published events to ClickHouse successfully", zap.Int("count", len(events)))
+	return nil
+}
+
+// publishToVector sends events to Vector pipeline (NDJSON)
+func (p *Publisher) publishToVector(events []models.UnifiedEvent) error {
 	p.logger.Info("Publishing events to Vector", zap.Int("count", len(events)))
 
-	// Vector รับ NDJSON (newline-delimited JSON)
 	var ndjson []byte
 	for _, event := range events {
 		line, err := json.Marshal(event)
@@ -68,10 +173,10 @@ func (p *Publisher) Publish(events []models.UnifiedEvent) error {
 	return nil
 }
 
-// PublishBatch ส่ง events แบบ batch (แบ่งเป็นชุดย่อย)
+// PublishBatch sends events in batches
 func (p *Publisher) PublishBatch(events []models.UnifiedEvent, batchSize int) error {
 	if batchSize <= 0 {
-		batchSize = 500
+		batchSize = 50000
 	}
 
 	for i := 0; i < len(events); i += batchSize {
@@ -88,3 +193,4 @@ func (p *Publisher) PublishBatch(events []models.UnifiedEvent, batchSize int) er
 
 	return nil
 }
+

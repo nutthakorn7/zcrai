@@ -1,5 +1,6 @@
 import { Elysia } from 'elysia'
 import { TenantService } from '../core/services/tenant.service'
+import { AuditService } from '../core/services/audit.service'
 import { superAdminOnly } from '../middlewares/auth.middleware'
 import { HTTP_STATUS } from '../config/constants'
 import { CreateTenantSchema, UpdateTenantSchema, TenantQuerySchema } from '../validators/tenant.validator'
@@ -25,7 +26,14 @@ export const tenantController = new Elysia({ prefix: '/tenants' })
       page: page ? parseInt(page) : 1,
       limit: limit ? parseInt(limit) : 20,
     })
-  }, { query: TenantQuerySchema })
+  }, { 
+    query: TenantQuerySchema,
+    detail: {
+        tags: ['Tenants'],
+        summary: 'List Tenants',
+        description: 'Get all tenants (Super Admin only).'
+    }
+  })
 
   /**
    * Get tenant details and statistics
@@ -36,6 +44,11 @@ export const tenantController = new Elysia({ prefix: '/tenants' })
    */
   .get('/:id', async ({ params }: any) => {
     return await TenantService.getStats(params.id)
+  }, {
+      detail: {
+          tags: ['Tenants'],
+          summary: 'Get Tenant Details'
+      }
   })
 
   /**
@@ -50,7 +63,14 @@ export const tenantController = new Elysia({ prefix: '/tenants' })
     const tenant = await TenantService.create(body)
     set.status = HTTP_STATUS.CREATED
     return { message: 'Tenant created successfully', tenant }
-  }, { body: CreateTenantSchema })
+  }, { 
+    body: CreateTenantSchema,
+    detail: {
+        tags: ['Tenants'],
+        summary: 'Create Tenant',
+        description: 'Create a new tenant organization.'
+    }
+  })
 
   /**
    * Update tenant information
@@ -61,10 +81,34 @@ export const tenantController = new Elysia({ prefix: '/tenants' })
    * @body {string} status - Updated status (optional)
    * @returns {Object} Updated tenant
    */
-  .put('/:id', async ({ params, body }: any) => {
+  .put('/:id', async ({ params, body, user }: any) => {
     const tenant = await TenantService.update(params.id, body)
+
+    // Audit Log for Tensor/Quota Update
+    if (body.maxUsers || body.maxEvents || body.maxStorage) {
+         await AuditService.log({
+            tenantId: user?.tenantId,
+            userId: user?.id,
+            action: 'UPDATE_TENANT_QUOTA',
+            resource: 'tenant',
+            resourceId: params.id,
+            details: { 
+                maxUsers: body.maxUsers,
+                maxEvents: body.maxEvents,
+                maxStorage: body.maxStorage 
+            },
+            status: 'SUCCESS'
+         })
+    }
     return { message: 'Tenant updated successfully', tenant }
-  }, { body: UpdateTenantSchema })
+  }, { 
+    body: UpdateTenantSchema,
+    detail: {
+        tags: ['Tenants'],
+        summary: 'Update Tenant',
+        description: 'Update tenant details or quotas.'
+    }
+  })
 
   /**
    * Suspend/delete a tenant
@@ -76,4 +120,9 @@ export const tenantController = new Elysia({ prefix: '/tenants' })
   .delete('/:id', async ({ params }: any) => {
     await TenantService.delete(params.id)
     return { message: 'Tenant suspended successfully' }
+  }, {
+      detail: {
+          tags: ['Tenants'],
+          summary: 'Delete Tenant'
+      }
   })

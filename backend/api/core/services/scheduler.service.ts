@@ -19,11 +19,12 @@ export const SchedulerService = {
     const weeklyReportJob = new CronJob(
       '0 0 9 * * 1', // 9:00:00 AM every Monday
       async () => {
-        console.log('🤖 Running Weekly Executive Report Job...');
+        console.log('🤖 Running Weekly Smart Digest Job...');
         try {
-          await this.generateAndSendWeeklyReport();
+          const { digestJob } = await import('../scheduler/jobs/digest.job');
+          await digestJob();
         } catch (error) {
-          console.error('❌ Weekly Report Job Failed:', error);
+          console.error('❌ Weekly Digest Job Failed:', error);
         }
       },
       null,
@@ -86,6 +87,64 @@ export const SchedulerService = {
     );
     this.jobs.push(reportJob);
 
+    // Integration Sync Job (Every 15 minutes)
+    // Triggers Collector to sync CrowdStrike/SentinelOne data
+    const integrationSyncJob = new CronJob(
+        '*/15 * * * *', // Every 15 minutes
+        async () => {
+             console.log('🔄 Triggering Integration Sync...');
+             try {
+                 const collectorUrl = process.env.COLLECTOR_URL || 'http://localhost:8001';
+                 await fetch(`${collectorUrl}/collect/all`, { method: 'POST' });
+                 console.log('✅ Integration sync triggered');
+             } catch (error) {
+                 console.error('❌ Integration Sync Failed:', error);
+             }
+        },
+        null,
+        true,
+        'Asia/Bangkok'
+    );
+    this.jobs.push(integrationSyncJob);
+
+    // Integration Health Check (Every 2 minutes - Fast Recovery)
+    const healthCheckJob = new CronJob(
+        '*/2 * * * *', // Every 2 minutes
+        async () => {
+            console.log('💓 Running Integration Health Heartbeat...');
+            try {
+                const { IntegrationService } = await import('./integration.service');
+                await IntegrationService.checkAllHealth();
+            } catch (error) {
+                console.error('❌ Health Check Job Failed:', error);
+            }
+        },
+        null,
+        true,
+        'Asia/Bangkok'
+    );
+    this.jobs.push(healthCheckJob);
+
+    // Token Expiry Check (Every 6 hours)
+    // Sends email alerts for tokens expiring within 7 days or 1 day (urgent)
+    const tokenExpiryJob = new CronJob(
+        '0 0 */6 * * *', // Every 6 hours
+        async () => {
+            console.log('⏰ Running Token Expiry Check...');
+            try {
+                const { IntegrationService } = await import('./integration.service');
+                const result = await IntegrationService.checkExpiringTokens(7);
+                console.log(`✅ Token Expiry Check completed:`, result);
+            } catch (error) {
+                console.error('❌ Token Expiry Job Failed:', error);
+            }
+        },
+        null,
+        true,
+        'Asia/Bangkok'
+    );
+    this.jobs.push(tokenExpiryJob);
+
     console.log(`✅ Scheduler started with ${this.jobs.length} jobs.`);
   },
 
@@ -126,7 +185,7 @@ export const SchedulerService = {
 
     // 4. Send Email
     // Hardcoded to admin for MVP. In real app, fetch admins from DB.
-    const recipient = 'admin@zcr.ai'; // Todo: fetch superadmin email or use env
+    const recipient = process.env.ADMIN_EMAIL || 'admin@zcr.ai';
     
     await EmailService.sendEmail({
       to: recipient,

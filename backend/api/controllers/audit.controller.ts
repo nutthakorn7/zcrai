@@ -1,9 +1,9 @@
 import { Elysia, t } from 'elysia';
-import { AuditLogService } from '../core/services/audit.service';
-import { tenantGuard } from '../middlewares/auth.middleware';
+import { AuditService } from '../core/services/audit.service';
+import { withAuth } from '../middleware/auth';
 
 export const auditController = new Elysia({ prefix: '/audit-logs' })
-  .use(tenantGuard)
+  .use(withAuth)
 
   /**
    * List audit logs with filtering
@@ -21,22 +21,32 @@ export const auditController = new Elysia({ prefix: '/audit-logs' })
    */
   .get('/', async (ctx: any) => {
       const { user, query } = ctx;
+      const limit = query.limit ? parseInt(query.limit) : 50;
+      const offset = query.offset ? parseInt(query.offset) : 0;
+
       const filters = {
           userId: query.userId,
           action: query.action,
           resource: query.resource,
+          resourceId: query.resourceId,
           startDate: query.startDate,
           endDate: query.endDate,
-          limit: query.limit ? parseInt(query.limit) : 50,
-          offset: query.offset ? parseInt(query.offset) : 0
+          limit,
+          offset
       };
 
-      return await AuditLogService.list(user.tenantId, filters);
+      const [logs, total] = await Promise.all([
+          AuditService.list(user?.tenantId, filters),
+          AuditService.count(user?.tenantId, filters)
+      ]);
+
+      return { success: true, data: { logs, total, limit, offset } };
   }, {
       query: t.Object({
           userId: t.Optional(t.String()),
           action: t.Optional(t.String()),
           resource: t.Optional(t.String()),
+          resourceId: t.Optional(t.String()),
           startDate: t.Optional(t.String()),
           endDate: t.Optional(t.String()),
           limit: t.Optional(t.String()),

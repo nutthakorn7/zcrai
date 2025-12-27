@@ -7,7 +7,7 @@ import { db } from '../../infra/db';
 import { alerts } from '../../infra/db/schema';
 import { sql, eq, and, gte, desc } from 'drizzle-orm';
 
-interface RiskScore {
+export interface RiskScore {
   overall: number; // 0-100
   level: 'low' | 'medium' | 'high' | 'critical';
   components: {
@@ -19,7 +19,7 @@ interface RiskScore {
   trend: 'increasing' | 'stable' | 'decreasing';
 }
 
-interface TrendPrediction {
+export interface TrendPrediction {
   historical: Array<{ date: string; count: number }>;
   predicted: Array<{ date: string; count: number; confidence: number }>;
   averageDaily: number;

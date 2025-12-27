@@ -4,6 +4,36 @@ import { eq, and, lte } from 'drizzle-orm';
 import { query } from '../../infra/clickhouse/client';
 import { AlertService } from './alert.service';
 
+const extractObservables = (text: string) => {
+    const observables: { type: string; value: string }[] = [];
+    
+    // IPv4
+    const ipRegex = /\b(?:\d{1,3}\.){3}\d{1,3}\b/g;
+    const ips = text.match(ipRegex) || [];
+    ips.forEach(ip => observables.push({ type: 'ip', value: ip }));
+
+    // Domains (Simplified)
+    const domainRegex = /\b((?!-)[A-Za-z0-9-]{1,63}(?<!-)\.)+[A-Za-z]{2,6}\b/g;
+    const domains = text.match(domainRegex) || [];
+    // Filter out common false positives if needed (e.g. .exe, .png in filenames might look like domains but context matters)
+    domains.forEach(d => {
+        if (!d.match(/^\d+(\.\d+)+$/)) // Avoid IP-like strings
+            observables.push({ type: 'domain', value: d });
+    });
+
+    // Hashes (MD5, SHA256)
+    const md5Regex = /\b[a-fA-F0-9]{32}\b/g;
+    const sha256Regex = /\b[a-fA-F0-9]{64}\b/g;
+    
+    (text.match(md5Regex) || []).forEach(h => observables.push({ type: 'md5', value: h }));
+    (text.match(sha256Regex) || []).forEach(h => observables.push({ type: 'sha256', value: h }));
+
+    // Dedup
+    const unique = new Map();
+    observables.forEach(o => unique.set(`${o.type}:${o.value}`, o));
+    return Array.from(unique.values());
+};
+
 export const DetectionService = {
   // Run all active rules that are due
   async runAllDueRules() {
@@ -52,37 +82,103 @@ export const DetectionService = {
 
         if (hits.length > 0) {
             console.log(`🚨 Rule "${rule.name}" triggered! Found ${hits.length} events.`);
-            
-            // Create Alert for each hit (or grouped? For now individual for simplicity, can group later)
-            // Let's create one alert per hit to be granular, utilizing AlertService dedupe
-            for (const hit of hits) {
-                const alert = await AlertService.create({
-                    tenantId: rule.tenantId,
-                    source: 'detection_engine',
-                    severity: rule.severity,
-                    title: `[Detection] ${rule.name}`,
-                    description: `Rule "${rule.name}" triggered.\n\nEvent: ${hit.title || 'Unknown Event'}\nDescription: ${hit.description || ''}\nTimestamp: ${hit.timestamp}`,
-                    rawData: hit,
-                    observables: [] // Todo: extract from hit
-                });
+            const actions = rule.actions as any;
+            const groupByFields = actions?.group_by as string[];
 
-                // Auto-Action: Create Case
-                const actions = rule.actions as any;
-                if (actions?.auto_case && alert) {
-                    // Create a case
-                     const [newCase] = await db.insert(cases).values({
+            if (groupByFields && groupByFields.length > 0) {
+                // --- AGGREGATED MODE ---
+                const groups: Record<string, any[]> = {};
+
+                // Group hits
+                for (const hit of hits) {
+                    // Create a composite key based on group_by fields
+                    // e.g. "192.168.1.1|john.doe"
+                    const keyParts = groupByFields.map(field => {
+                        // Support nested fields via dot notation (e.g. "user.name")
+                        return field.split('.').reduce((obj, key) => obj?.[key], hit) || 'N/A';
+                    });
+                    const groupKey = keyParts.join('|');
+                    
+                    if (!groups[groupKey]) {
+                        groups[groupKey] = [];
+                    }
+                    groups[groupKey].push(hit);
+                }
+
+                console.log(`📊 Aggregated into ${Object.keys(groups).length} incidents.`);
+
+                // Create 1 Alert per Group
+                for (const [groupKey, groupHits] of Object.entries(groups)) {
+                    const count = groupHits.length;
+                    const sample = groupHits[0];
+                    
+                    // Create summarized description
+                    let aggregatedDesc = `Rule "${rule.name}" triggered ${count} times.\n`;
+                    aggregatedDesc += `Aggregation Key: ${groupKey} (${groupByFields.join(', ')})\n\n`;
+                    aggregatedDesc += `Last Event: ${sample.title || 'Unknown Event'}\n`;
+                    aggregatedDesc += `Timestamp: ${sample.timestamp}\n`;
+                    
+                    const alert = await AlertService.create({
                         tenantId: rule.tenantId,
-                        title: actions.case_title_template || `[Auto] Investigation: ${rule.name}`,
-                        description: `Automatically created by detection rule "${rule.name}"\n\nAlert ID: ${alert.id}`,
-                        severity: actions.severity_override || rule.severity,
-                        status: 'open',
-                        priority: 'P2',
-                        tags: ['auto-generated', 'detection-rule'],
-                    }).returning();
+                        source: 'detection_engine',
+                        severity: rule.severity,
+                        title: `[Detection] ${rule.name} (x${count})`,
+                        description: aggregatedDesc,
+                        rawData: {
+                            aggregate_count: count,
+                            group_key: groupKey,
+                            samples: groupHits // Store all hits or subset
+                        },
+                        observables: extractObservables(JSON.stringify(groupHits))
+                    });
 
-                    // Link alert to case
-                    await AlertService.linkToCase(alert.id, rule.tenantId, newCase.id);
-                    console.log(`✅ Auto-created case ${newCase.id} for alert ${alert.id}`);
+                    // Auto-Action: Create Case (Per Group)
+                    if (actions?.auto_case && alert) {
+                        const [newCase] = await db.insert(cases).values({
+                            tenantId: rule.tenantId,
+                            title: actions.case_title_template || `[Auto] Investigation: ${rule.name} on ${groupKey}`,
+                            description: `Automatically created by detection rule "${rule.name}"\n\nAlert ID: ${alert.id}\nEvent Count: ${count}`,
+                            severity: actions.severity_override || rule.severity,
+                            status: 'open',
+                            priority: 'P2',
+                            tags: ['auto-generated', 'detection-rule', 'aggregated'],
+                        }).returning();
+
+                        await AlertService.linkToCase(alert.id, rule.tenantId, newCase.id);
+                        console.log(`✅ Auto-created aggregated case ${newCase.id} for alert ${alert.id}`);
+                    }
+                }
+
+            } else {
+                // --- INDIVIDUAL MODE (Legacy) ---
+                for (const hit of hits) {
+                    const alert = await AlertService.create({
+                        tenantId: rule.tenantId,
+                        source: 'detection_engine',
+                        severity: hit.severity ? hit.severity.toLowerCase() : rule.severity,
+                        title: `[Detection] ${rule.name}`,
+                        description: `Rule "${rule.name}" triggered.\n\nEvent: ${hit.title || 'Unknown Event'}\nDescription: ${hit.description || ''}\nTimestamp: ${hit.timestamp}`,
+                        rawData: hit,
+                        observables: extractObservables(JSON.stringify(hit))
+                    });
+
+                    // Auto-Action: Create Case
+                    if (actions?.auto_case && alert) {
+                        // Create a case
+                         const [newCase] = await db.insert(cases).values({
+                            tenantId: rule.tenantId,
+                            title: actions.case_title_template || `[Auto] Investigation: ${rule.name}`,
+                            description: `Automatically created by detection rule "${rule.name}"\n\nAlert ID: ${alert.id}`,
+                            severity: actions.severity_override || rule.severity,
+                            status: 'open',
+                            priority: 'P2',
+                            tags: ['auto-generated', 'detection-rule'],
+                        }).returning();
+
+                        // Link alert to case
+                        await AlertService.linkToCase(alert.id, rule.tenantId, newCase.id);
+                        console.log(`✅ Auto-created case ${newCase.id} for alert ${alert.id}`);
+                    }
                 }
             }
         }
@@ -106,5 +202,27 @@ export const DetectionService = {
   
   async getRules(tenantId: string) {
       return await db.select().from(detectionRules).where(eq(detectionRules.tenantId, tenantId));
+  },
+
+  // Test Rule (Dry Run)
+  async testRule(tenantId: string, queryStr: string, limit: number = 20) {
+    const finalQuery = `
+        SELECT *
+        FROM security_events
+        WHERE tenant_id = {tenantId:String}
+          AND (${queryStr})
+        ORDER BY timestamp DESC
+        LIMIT {limit:UInt32}
+    `;
+
+    try {
+        const hits = await query<any>(finalQuery, {
+            tenantId,
+            limit
+        });
+        return hits;
+    } catch (e: any) {
+        throw new Error(`ClickHouse Query Failed: ${e.message}`);
+    }
   }
 };

@@ -4,7 +4,7 @@ import {
   Chip, Dropdown, DropdownTrigger, DropdownMenu, DropdownItem, 
   Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure, Select, SelectItem
 } from "@heroui/react";
-import { api } from "../../shared/api/api";
+import { api } from "@/shared/api";
 import { useAuth } from "../../shared/store/useAuth";
 
 interface User {
@@ -19,6 +19,8 @@ export default function UserPage() {
   const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
+  const { isOpen: isEditOpen, onOpen: onEditOpen, onOpenChange: onEditOpenChange } = useDisclosure();
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   
   // Invite Form
@@ -27,10 +29,12 @@ export default function UserPage() {
 
   const fetchUsers = async () => {
     try {
-      const { data } = await api.get('/users');
-      setUsers(data.data);
+      const response = await api.get('/users');
+      // API returns: { success, data: { data: [...users], pagination: {...} } }
+      const users = response.data?.data?.data || response.data?.data || [];
+      setUsers(Array.isArray(users) ? users : []);
     } catch (error) {
-      console.error('Failed to fetch users');
+      console.error('Failed to fetch users', error);
     }
   };
 
@@ -45,8 +49,9 @@ export default function UserPage() {
       fetchUsers();
       onClose();
       setEmail('');
-    } catch (error: any) {
-      alert(error.response?.data?.error || 'Failed to invite user');
+    } catch (error) {
+       const err = error as { response?: { data?: { error?: string } } };
+      alert(err.response?.data?.error || 'Failed to invite user');
     } finally {
       setIsLoading(false);
     }
@@ -65,22 +70,43 @@ export default function UserPage() {
     }
   };
 
+  const openEditModal = (user: User) => {
+    setSelectedUser(user);
+    setRole(user.role);
+    onEditOpen();
+  };
+
+  const handleUpdateRole = async (onClose: () => void) => {
+    if (!selectedUser) return;
+    setIsLoading(true);
+    try {
+      await api.put(`/users/${selectedUser.id}`, { role });
+      fetchUsers();
+      onClose();
+    } catch (error) {
+       console.error(error);
+       alert('Failed to update role');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">User Management</h1>
-        <Button color="primary" onPress={onOpen}>Invite User</Button>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold font-display tracking-tight text-foreground">User Management</h1>
+        <Button color="primary" onPress={onOpen} className="font-bold">Invite User</Button>
       </div>
 
       <Card className="bg-content1">
         <CardBody>
           <Table aria-label="Users table">
             <TableHeader>
-              <TableColumn>EMAIL</TableColumn>
-              <TableColumn>ROLE</TableColumn>
-              <TableColumn>STATUS</TableColumn>
-              <TableColumn>MFA</TableColumn>
-              <TableColumn>ACTIONS</TableColumn>
+              <TableColumn className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">EMAIL</TableColumn>
+              <TableColumn className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">ROLE</TableColumn>
+              <TableColumn className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">STATUS</TableColumn>
+              <TableColumn className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">MFA</TableColumn>
+              <TableColumn className="text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em]">ACTIONS</TableColumn>
             </TableHeader>
             <TableBody emptyContent={"No users found."}>
               {users.map((user) => (
@@ -115,6 +141,7 @@ export default function UserPage() {
                         <Button size="sm" variant="light">Options</Button>
                       </DropdownTrigger>
                       <DropdownMenu aria-label="User Actions">
+                        <DropdownItem key="edit" onPress={() => openEditModal(user)}>Edit Role</DropdownItem>
                         <DropdownItem key="activate" onPress={() => handleStatusChange(user.id, 'active')}>Activate</DropdownItem>
                         <DropdownItem key="suspend" onPress={() => handleStatusChange(user.id, 'suspended')} className="text-danger" color="danger">Suspend</DropdownItem>
                       </DropdownMenu>
@@ -159,6 +186,44 @@ export default function UserPage() {
               <ModalFooter>
                 <Button color="danger" variant="light" onPress={onClose}>Cancel</Button>
                 <Button color="primary" onPress={() => handleInvite(onClose)} isLoading={isLoading}>Invite</Button>
+              </ModalFooter>
+            </>
+          )}
+        </ModalContent>
+      </Modal>
+
+      {/* Edit Role Modal */}
+      <Modal isOpen={isEditOpen} onOpenChange={onEditOpenChange}>
+        <ModalContent>
+          {(onClose) => (
+            <>
+              <ModalHeader>Edit User Role</ModalHeader>
+              <ModalBody>
+                <p className="text-sm text-default-500 mb-2">
+                  Updating role for <span className="font-semibold text-foreground">{selectedUser?.email}</span>
+                </p>
+                <Select 
+                  label="Role" 
+                  selectedKeys={[role]} 
+                  onChange={(e) => setRole(e.target.value)}
+                >
+                  {[
+                    { key: "soc_analyst", label: "SOC Analyst" },
+                    { key: "tenant_admin", label: "Tenant Admin" },
+                    { key: "customer", label: "Customer (Read-only)" },
+                    ...(currentUser?.role === 'superadmin' ? [{ key: "superadmin", label: "Super Admin (System-wide)", className: "text-danger" }] : [])
+                  ].map((item) => (
+                    <SelectItem key={item.key} className={item.className || ""}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </Select>
+              </ModalBody>
+              <ModalFooter>
+                <Button variant="light" onPress={onClose}>Cancel</Button>
+                <Button color="primary" onPress={() => handleUpdateRole(onClose)} isLoading={isLoading}>
+                  Update Role
+                </Button>
               </ModalFooter>
             </>
           )}

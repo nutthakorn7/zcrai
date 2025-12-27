@@ -4,22 +4,24 @@
  */
 
 import { db } from '../../infra/db';
-import { playbookExecutionSteps } from '../../infra/db/schema';
-import { eq } from 'drizzle-orm';
+import { playbookExecutionSteps, apiKeys } from '../../infra/db/schema';
+import { eq, and } from 'drizzle-orm';
+import { Encryption } from '../../utils/encryption';
 
-interface EDRActionResult {
+export interface EDRActionResult {
   success: boolean;
   message: string;
   data?: any;
   error?: string;
 }
 
-interface EDRActionRequest {
+export interface EDRActionRequest {
   provider: 'crowdstrike' | 'sentinelone';
   action: string;
   parameters: Record<string, any>;
   executionStepId: string;
   requiresApproval?: boolean;
+  tenantId?: string; // Optional for manual actions, required for integration lookup
 }
 
 export class EDRActionService {
@@ -41,7 +43,31 @@ export class EDRActionService {
         result = await CrowdStrikeActions.execute(request.action, request.parameters, this.mockMode);
       } else if (request.provider === 'sentinelone') {
         const { SentinelOneActions } = await import('../../integrations/sentinelone-actions');
-        result = await SentinelOneActions.execute(request.action, request.parameters, this.mockMode);
+        
+        // Fetch credentials from DB if tenantId is provided
+        let config;
+        if (request.tenantId) {
+          try {
+            const [integration] = await db
+              .select()
+              .from(apiKeys)
+              .where(and(
+                eq(apiKeys.tenantId, request.tenantId),
+                eq(apiKeys.provider, 'sentinelone')
+              ));
+
+            if (integration && integration.encryptedKey) {
+              const decrypted = JSON.parse(Encryption.decrypt(integration.encryptedKey));
+              if (decrypted.url && decrypted.token) {
+                config = { url: decrypted.url, token: decrypted.token };
+              }
+            }
+          } catch (error) {
+            console.error('Failed to fetch/decrypt SentinelOne credentials:', error);
+          }
+        }
+
+        result = await SentinelOneActions.execute(request.action, request.parameters, this.mockMode, config);
       } else {
         throw new Error(`Unsupported EDR provider: ${request.provider}`);
       }

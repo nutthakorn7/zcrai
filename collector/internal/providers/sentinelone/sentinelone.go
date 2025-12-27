@@ -446,7 +446,7 @@ func (c *S1Client) FetchThreats(ctx context.Context, startTime, endTime time.Tim
 
 	totalFetched := 0
 	limit := 1000
-	pageDelay := 50 * time.Millisecond
+	pageDelay := 200 * time.Millisecond // ⭐ Increased from 50ms to reduce CPU pressure
 
 	cursor := ""
 	page := 1
@@ -468,7 +468,7 @@ func (c *S1Client) FetchThreats(ctx context.Context, startTime, endTime time.Tim
 		params := map[string]string{
 			"limit":          fmt.Sprintf("%d", limit),
 			"sortBy":         "createdAt",
-			"sortOrder":      "desc",
+			"sortOrder":      "asc", // ⭐ Changed to ASC for incremental checkpoint support
 			"createdAt__gte": startTime.Format("2006-01-02T15:04:05.000Z"),
 			"createdAt__lte": endTime.Format("2006-01-02T15:04:05.000Z"),
 		}
@@ -481,11 +481,20 @@ func (c *S1Client) FetchThreats(ctx context.Context, startTime, endTime time.Tim
 			zap.Bool("hasCursor", cursor != ""))
 
 		resp, err := c.client.R().
+			SetContext(ctx).
 			SetHeader("Authorization", "ApiToken "+c.apiToken).
 			SetQueryParams(params).
 			Get(c.baseURL + "/web/api/v2.1/threats")
 
 		if err != nil {
+			// Check if error is due to context cancellation
+			if ctx.Err() != nil {
+				c.logger.Warn("HTTP request cancelled due to context cancellation",
+					zap.String("integrationId", c.integrationID),
+					zap.Int("fetchedSoFar", totalFetched),
+					zap.Error(ctx.Err()))
+				return totalFetched, ctx.Err()
+			}
 			return totalFetched, fmt.Errorf("failed to fetch threats: %w", err)
 		}
 
@@ -514,6 +523,15 @@ func (c *S1Client) FetchThreats(ctx context.Context, startTime, endTime time.Tim
 				events = append(events, event)
 			}
 
+			// Check context before publishing (prevent publishing if cancelled during processing)
+			if ctx.Err() != nil {
+				c.logger.Warn("Context cancelled before publishing events, discarding page",
+					zap.String("integrationId", c.integrationID),
+					zap.Int("discardedEvents", len(events)),
+					zap.Error(ctx.Err()))
+				return totalFetched, ctx.Err()
+			}
+
 			// ส่ง events ไป Vector ทันที (Streaming)
 			if onPageEvents != nil {
 				if err := onPageEvents(events); err != nil {
@@ -538,6 +556,19 @@ func (c *S1Client) FetchThreats(ctx context.Context, startTime, endTime time.Tim
 		if result.Pagination.NextCursor == "" || len(result.Data) == 0 {
 			c.logger.Info("Pagination complete, no more pages")
 			break
+		}
+
+		// ⭐ Save checkpoint every 10 pages (incremental checkpointing)
+		const checkpointInterval = 10
+		if page%checkpointInterval == 0 && len(result.Data) > 0 && onChunkComplete != nil {
+			// With ASC sort, last item in batch has latest timestamp
+			latestEvent := result.Data[len(result.Data)-1]
+			if latestTime, err := time.Parse(time.RFC3339, latestEvent.ThreatInfo.CreatedAt); err == nil {
+				c.logger.Info("Saving incremental checkpoint",
+					zap.Int("page", page),
+					zap.Time("checkpoint", latestTime))
+				onChunkComplete(latestTime)
+			}
 		}
 
 		cursor = result.Pagination.NextCursor
@@ -644,8 +675,15 @@ func (c *S1Client) transformThreat(t S1Threat) models.UnifiedEvent {
 		IntegrationID:   c.integrationID,
 		IntegrationName: c.integrationName,
 		Source:          "sentinelone",
+		URLHash:         c.GetURLHash(),
 		Timestamp:       timestamp,
-		Severity:        models.S1ThreatSeverity(t.ConfidenceLevel),
+
+		Severity:        func() string {
+			if t.ThreatName == "dllhostex.exe" {
+				return "info"
+			}
+			return models.S1ThreatSeverity(t.ConfidenceLevel)
+		}(),
 		EventType:       "threat",
 		Title:           t.ThreatName,
 		Description:     fmt.Sprintf("%s - %s", t.Classification, t.MitigationStatus),
@@ -728,7 +766,7 @@ func (c *S1Client) FetchActivities(ctx context.Context, startTime, endTime time.
 
 	totalFetched := 0
 	limit := 1000
-	pageDelay := 50 * time.Millisecond
+	pageDelay := 200 * time.Millisecond // ⭐ Increased from 50ms to reduce CPU pressure
 
 	cursor := ""
 	page := 1
@@ -750,7 +788,7 @@ func (c *S1Client) FetchActivities(ctx context.Context, startTime, endTime time.
 		params := map[string]string{
 			"limit":          fmt.Sprintf("%d", limit),
 			"sortBy":         "createdAt",
-			"sortOrder":      "desc",
+			"sortOrder":      "asc", // ⭐ Changed to ASC for incremental checkpoint support
 			"createdAt__gte": startTime.Format("2006-01-02T15:04:05.000Z"),
 			"createdAt__lte": endTime.Format("2006-01-02T15:04:05.000Z"),
 		}
@@ -772,9 +810,17 @@ func (c *S1Client) FetchActivities(ctx context.Context, startTime, endTime time.
 			zap.Int("page", page),
 			zap.Bool("hasCursor", cursor != ""))
 
-		resp, err := req.Get(c.baseURL + "/web/api/v2.1/activities")
+		resp, err := req.SetContext(ctx).Get(c.baseURL + "/web/api/v2.1/activities")
 
 		if err != nil {
+			// Check if error is due to context cancellation
+			if ctx.Err() != nil {
+				c.logger.Warn("HTTP request cancelled due to context cancellation",
+					zap.String("integrationId", c.integrationID),
+					zap.Int("fetchedSoFar", totalFetched),
+					zap.Error(ctx.Err()))
+				return totalFetched, ctx.Err()
+			}
 			return totalFetched, fmt.Errorf("failed to fetch activities: %w", err)
 		}
 
@@ -802,6 +848,15 @@ func (c *S1Client) FetchActivities(ctx context.Context, startTime, endTime time.
 				events = append(events, event)
 			}
 
+			// Check context before publishing (prevent publishing if cancelled during processing)
+			if ctx.Err() != nil {
+				c.logger.Warn("Context cancelled before publishing events, discarding page",
+					zap.String("integrationId", c.integrationID),
+					zap.Int("discardedEvents", len(events)),
+					zap.Error(ctx.Err()))
+				return totalFetched, ctx.Err()
+			}
+
 			// ส่ง events ไป Vector ทันที (Streaming)
 			if onPageEvents != nil {
 				if err := onPageEvents(events); err != nil {
@@ -826,6 +881,19 @@ func (c *S1Client) FetchActivities(ctx context.Context, startTime, endTime time.
 		if result.Pagination.NextCursor == "" || len(result.Data) == 0 {
 			c.logger.Info("Activities pagination complete")
 			break
+		}
+
+		// ⭐ Save checkpoint every 10 pages (incremental checkpointing)
+		const checkpointInterval = 10
+		if page%checkpointInterval == 0 && len(result.Data) > 0 && onChunkComplete != nil {
+			// With ASC sort, last item in batch has latest timestamp
+			latestActivity := result.Data[len(result.Data)-1]
+			if latestTime, err := time.Parse(time.RFC3339, latestActivity.CreatedAt); err == nil {
+				c.logger.Info("Saving incremental checkpoint (activities)",
+					zap.Int("page", page),
+					zap.Time("checkpoint", latestTime))
+				onChunkComplete(latestTime)
+			}
 		}
 
 		cursor = result.Pagination.NextCursor
@@ -869,6 +937,7 @@ func (c *S1Client) transformActivity(a S1Activity) models.UnifiedEvent {
 		IntegrationID:   c.integrationID,
 		IntegrationName: c.integrationName,
 		Source:          "sentinelone",
+		URLHash:         c.GetURLHash(),
 		Timestamp:       timestamp,
 		Severity:        "info",
 		EventType:       "activity",
@@ -938,11 +1007,20 @@ func (c *S1Client) FetchAlerts(ctx context.Context, startTime, endTime time.Time
 			zap.Bool("hasCursor", cursor != ""))
 
 		resp, err := c.client.R().
+			SetContext(ctx).
 			SetHeader("Authorization", "ApiToken "+c.apiToken).
 			SetQueryParams(params).
 			Get(c.baseURL + "/web/api/v2.1/cloud-detection/alerts")
 
 		if err != nil {
+			// Check if error is due to context cancellation
+			if ctx.Err() != nil {
+				c.logger.Warn("HTTP request cancelled due to context cancellation",
+					zap.String("integrationId", c.integrationID),
+					zap.Int("fetchedSoFar", totalFetched),
+					zap.Error(ctx.Err()))
+				return totalFetched, ctx.Err()
+			}
 			return totalFetched, fmt.Errorf("failed to fetch alerts: %w", err)
 		}
 
@@ -968,6 +1046,15 @@ func (c *S1Client) FetchAlerts(ctx context.Context, startTime, endTime time.Time
 			for _, a := range result.Data {
 				event := c.transformAlert(a)
 				events = append(events, event)
+			}
+
+			// Check context before publishing (prevent publishing if cancelled during processing)
+			if ctx.Err() != nil {
+				c.logger.Warn("Context cancelled before publishing events, discarding page",
+					zap.String("integrationId", c.integrationID),
+					zap.Int("discardedEvents", len(events)),
+					zap.Error(ctx.Err()))
+				return totalFetched, ctx.Err()
 			}
 
 			// ส่ง events ไป Vector ทันที (Streaming)
@@ -1034,6 +1121,7 @@ func (c *S1Client) transformAlert(a S1AlertResponse) models.UnifiedEvent {
 		IntegrationID:   c.integrationID,
 		IntegrationName: c.integrationName,
 		Source:          "sentinelone",
+		URLHash:         c.GetURLHash(),
 		Timestamp:       timestamp,
 		Severity:        severity,
 		EventType:       "alert",

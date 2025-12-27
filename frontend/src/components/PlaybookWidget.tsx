@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Card, CardBody, CardHeader, Button, Checkbox, Select, SelectItem, Progress, Chip } from "@heroui/react";
 import { PlaybooksAPI, Playbook, PlaybookExecution } from '../shared/api/playbooks';
 import { Icon } from '../shared/ui';
@@ -9,11 +9,7 @@ export function PlaybookWidget({ caseId }: { caseId: string }) {
   const [selectedPlaybookId, setSelectedPlaybookId] = useState<string>('');
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    loadData();
-  }, [caseId]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       const [playbooks, executions] = await Promise.all([
         PlaybooksAPI.list(),
@@ -24,7 +20,11 @@ export function PlaybookWidget({ caseId }: { caseId: string }) {
     } catch (e) {
       console.error(e);
     }
-  };
+  }, [caseId]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const handleRun = async () => {
     if (!selectedPlaybookId) return;
@@ -67,10 +67,10 @@ export function PlaybookWidget({ caseId }: { caseId: string }) {
       {/* Launcher */}
       <Card className="bg-content1 border border-white/10">
         <CardBody className="p-3">
-          <h4 className="text-sm font-semibold mb-2 flex items-center gap-2">
+          <h3 className="text-sm font-semibold mb-2 flex items-center gap-2">
             <Icon.Terminal className="w-4 h-4"/> 
             Run Playbook
-          </h4>
+          </h3>
           <div className="flex gap-2">
             <Select 
               placeholder="Select SOP..." 
@@ -105,7 +105,7 @@ export function PlaybookWidget({ caseId }: { caseId: string }) {
           <Card key={ex.id} className="bg-content1/50 border border-primary/20">
             <CardHeader className="pb-0 flex justify-between items-start">
                 <div>
-                     <h4 className="text-sm font-bold text-primary">{ex.playbook?.title || 'Unknown Playbook'}</h4>
+                     <h3 className="text-sm font-bold text-primary">{ex.playbook?.title || 'Unknown Playbook'}</h3>
                      <p className="text-tiny text-gray-400">Started {new Date(ex.startedAt).toLocaleTimeString()}</p>
                 </div>
                 <Chip size="sm" variant="flat" color={percent === 100 ? "success" : "warning"}>

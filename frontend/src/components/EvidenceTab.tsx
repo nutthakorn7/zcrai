@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardBody, Button, Chip, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure, Input, Select, SelectItem, Divider } from '@heroui/react';
-import { api } from '../shared/api/api';
+import { api } from '../shared/api';
 import { Icon } from '../shared/ui';
 import toast from 'react-hot-toast';
 
@@ -131,11 +131,8 @@ export function EvidenceTab({ caseId }: EvidenceTabProps) {
     notes: '',
   });
 
-  useEffect(() => {
-    fetchEvidence();
-  }, [caseId]);
-
-  const fetchEvidence = async () => {
+  // Wrap fetchEvidence in useCallback to satisfy exhaustive-deps
+  const fetchEvidence = useCallback(async () => {
     try {
       // Try to fetch from API, fallback to mock
       const response = await api.get(`/evidence/case/${caseId}`);
@@ -146,7 +143,11 @@ export function EvidenceTab({ caseId }: EvidenceTabProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [caseId]);
+
+  useEffect(() => {
+    fetchEvidence();
+  }, [fetchEvidence]);
 
   const handleViewDetails = (item: EvidenceItem) => {
     setSelectedEvidence(item);
@@ -410,7 +411,7 @@ export function EvidenceTab({ caseId }: EvidenceTabProps) {
 
                 {/* Hash Values */}
                 <div>
-                  <h4 className="font-medium mb-2">Integrity Hashes</h4>
+                  <h3 className="font-medium mb-2">Integrity Hashes</h3>
                   <div className="space-y-2 bg-content2/50 p-3 rounded-lg">
                     <div>
                       <span className="text-xs text-foreground/60">MD5: </span>
@@ -428,7 +429,7 @@ export function EvidenceTab({ caseId }: EvidenceTabProps) {
                 {/* Chain of Custody Timeline */}
                 <div>
                   <div className="flex justify-between items-center mb-4">
-                    <h4 className="font-medium">Chain of Custody</h4>
+                    <h3 className="font-medium">Chain of Custody</h3>
                     <Button size="sm" variant="flat" onPress={onAddOpen}>
                       Add Event
                     </Button>

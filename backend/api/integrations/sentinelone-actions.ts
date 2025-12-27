@@ -17,11 +17,19 @@ export class SentinelOneActions {
   /**
    * Execute action (router)
    */
-  static async execute(action: string, parameters: Record<string, any>, mockMode: boolean): Promise<ActionResult> {
+  /**
+   * Execute action (router)
+   */
+  static async execute(
+    action: string, 
+    parameters: Record<string, any>, 
+    mockMode: boolean,
+    config?: { url: string; token: string }
+  ): Promise<ActionResult> {
     if (mockMode) {
       return this.executeMock(action, parameters);
     }
-    return this.executeReal(action, parameters);
+    return this.executeReal(action, parameters, config);
   }
 
   /**
@@ -100,8 +108,19 @@ export class SentinelOneActions {
    * Real API implementations
    * Requires valid SentinelOne API token
    */
-  private static async executeReal(action: string, parameters: Record<string, any>): Promise<ActionResult> {
-    if (!this.apiToken) {
+  /**
+   * Real API implementations
+   * Requires valid SentinelOne API token
+   */
+  private static async executeReal(
+    action: string, 
+    parameters: Record<string, any>,
+    config?: { url: string; token: string }
+  ): Promise<ActionResult> {
+    const baseURL = config?.url || this.baseURL;
+    const apiToken = config?.token || this.apiToken;
+
+    if (!apiToken) {
       return {
         success: false,
         message: 'Authentication failed',
@@ -112,16 +131,16 @@ export class SentinelOneActions {
     try {
       switch (action) {
         case 'quarantine_host':
-          return await this.quarantineHostReal(parameters.agentId);
+          return await this.quarantineHostReal(parameters.agentId, baseURL, apiToken);
         
         case 'unquarantine_host':
-          return await this.unquarantineHostReal(parameters.agentId);
+          return await this.unquarantineHostReal(parameters.agentId, baseURL, apiToken);
         
         case 'blocklist_hash':
-          return await this.blocklistHashReal(parameters.hash, parameters.scope);
+          return await this.blocklistHashReal(parameters.hash, parameters.scope, baseURL, apiToken);
         
         case 'get_agent_details':
-          return await this.getAgentDetailsReal(parameters.agentId);
+          return await this.getAgentDetailsReal(parameters.agentId, baseURL, apiToken);
         
         default:
           return {
@@ -142,11 +161,11 @@ export class SentinelOneActions {
   /**
    * Quarantine host (Real API)
    */
-  private static async quarantineHostReal(agentId: string): Promise<ActionResult> {
-    const response = await fetch(`${this.baseURL}/web/api/v2.1/agents/actions/disconnect`, {
+  private static async quarantineHostReal(agentId: string, baseURL: string, apiToken: string): Promise<ActionResult> {
+    const response = await fetch(`${baseURL}/web/api/v2.1/agents/actions/disconnect`, {
       method: 'POST',
       headers: {
-        'Authorization': `ApiToken ${this.apiToken}`,
+        'Authorization': `ApiToken ${apiToken}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -176,11 +195,11 @@ export class SentinelOneActions {
   /**
    * Remove quarantine (Real API)
    */
-  private static async unquarantineHostReal(agentId: string): Promise<ActionResult> {
-    const response = await fetch(`${this.baseURL}/web/api/v2.1/agents/actions/connect`, {
+  private static async unquarantineHostReal(agentId: string, baseURL: string, apiToken: string): Promise<ActionResult> {
+    const response = await fetch(`${baseURL}/web/api/v2.1/agents/actions/connect`, {
       method: 'POST',
       headers: {
-        'Authorization': `ApiToken ${this.apiToken}`,
+        'Authorization': `ApiToken ${apiToken}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -210,11 +229,11 @@ export class SentinelOneActions {
   /**
    * Blocklist file hash (Real API)
    */
-  private static async blocklistHashReal(hash: string, scope: string = 'site'): Promise<ActionResult> {
-    const response = await fetch(`${this.baseURL}/web/api/v2.1/restrictions`, {
+  private static async blocklistHashReal(hash: string, scope: string = 'site', baseURL: string, apiToken: string): Promise<ActionResult> {
+    const response = await fetch(`${baseURL}/web/api/v2.1/restrictions`, {
       method: 'POST',
       headers: {
-        'Authorization': `ApiToken ${this.apiToken}`,
+        'Authorization': `ApiToken ${apiToken}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -251,11 +270,11 @@ export class SentinelOneActions {
   /**
    * Get agent details (Real API)
    */
-  private static async getAgentDetailsReal(agentId: string): Promise<ActionResult> {
-    const response = await fetch(`${this.baseURL}/web/api/v2.1/agents?ids=${agentId}`, {
+  private static async getAgentDetailsReal(agentId: string, baseURL: string, apiToken: string): Promise<ActionResult> {
+    const response = await fetch(`${baseURL}/web/api/v2.1/agents?ids=${agentId}`, {
       method: 'GET',
       headers: {
-        'Authorization': `ApiToken ${this.apiToken}`,
+        'Authorization': `ApiToken ${apiToken}`,
         'Content-Type': 'application/json',
       },
     });

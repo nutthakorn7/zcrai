@@ -65,12 +65,27 @@ export class NotificationChannelService {
       ? this.formatSlackMessage(notification)
       : channel.type === 'teams'
       ? this.formatTeamsMessage(notification)
+      : channel.type === 'line'
+      ? this.formatLineMessage(notification)
       : this.formatGenericWebhook(notification);
 
-    await axios.post(channel.webhookUrl, payload, {
-      headers: { 'Content-Type': 'application/json' },
-      timeout: 5000
-    });
+    if (channel.type === 'line') {
+        const formData = new URLSearchParams();
+        formData.append('message', (payload as any).message);
+        
+        await axios.post('https://notify-api.line.me/api/notify', formData, {
+            headers: { 
+                'Authorization': `Bearer ${channel.webhookUrl}`, // Store Token in webhookUrl field
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            timeout: 5000
+        });
+    } else {
+        await axios.post(channel.webhookUrl, payload, {
+            headers: { 'Content-Type': 'application/json' },
+            timeout: 5000
+        });
+    }
   }
 
   /**
@@ -180,27 +195,57 @@ export class NotificationChannelService {
   }
 
   /**
+   * Format message for Line Notify
+   */
+  private static formatLineMessage(notification: any) {
+    const emoji = this.getSeverityEmoji(notification.severity);
+    return {
+      message: `
+${emoji} ${notification.title}
+Severity: ${notification.severity?.toUpperCase() || 'N/A'}
+Type: ${notification.type}
+
+${notification.message}
+      `.trim()
+    };
+  }
+
+  /**
    * Test webhook connection
    */
-  static async testWebhook(webhookUrl: string, type: 'slack' | 'teams' | 'webhook'): Promise<boolean> {
+  static async testWebhook(webhookUrl: string, type: 'slack' | 'teams' | 'webhook' | 'line'): Promise<boolean> {
     try {
       const testMessage = {
-        title: '🔔 Test Notification',
-        message: 'This is a test notification from zcrAI. Connection successful!',
+        title: 'Checking Connection',
+        message: 'This is a test from zcrAI.',
         type: 'system' as const,
         severity: 'info'
       };
 
-      const payload = type === 'slack'
-        ? this.formatSlackMessage(testMessage)
-        : type === 'teams'
-        ? this.formatTeamsMessage(testMessage)
-        : this.formatGenericWebhook(testMessage);
+      if (type === 'line') {
+          const payload = this.formatLineMessage(testMessage);
+          const formData = new URLSearchParams();
+          formData.append('message', payload.message);
+          
+          await axios.post('https://notify-api.line.me/api/notify', formData, {
+            headers: { 
+                'Authorization': `Bearer ${webhookUrl}`,
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            timeout: 5000
+        });
+      } else {
+        const payload = type === 'slack'
+            ? this.formatSlackMessage(testMessage)
+            : type === 'teams'
+            ? this.formatTeamsMessage(testMessage)
+            : this.formatGenericWebhook(testMessage);
 
-      await axios.post(webhookUrl, payload, {
-        headers: { 'Content-Type': 'application/json' },
-        timeout: 5000
-      });
+        await axios.post(webhookUrl, payload, {
+            headers: { 'Content-Type': 'application/json' },
+            timeout: 5000
+        });
+      }
 
       return true;
     } catch (error) {

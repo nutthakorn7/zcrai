@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'bun:test';
-import { AuditLogService } from '../core/services/audit.service';
+import { AuditService } from '../core/services/audit.service';
 import { db } from '../infra/db';
 import { auditLogs, users } from '../infra/db/schema';
 import { eq } from 'drizzle-orm';
@@ -14,7 +14,7 @@ describe('Audit Log Service', () => {
     // Real query validation often requires a running DB.
 
     it('should be defined', () => {
-        expect(AuditLogService).toBeDefined();
+        expect(AuditService).toBeDefined();
     });
 
     it('should list audit logs', async () => {
@@ -32,7 +32,7 @@ describe('Audit Log Service', () => {
         try {
            // This will likely fail without a real DB or heavy mocking
            // So we wrap in try-catch to just ensure no syntax errors in the service itself
-           await AuditLogService.list(tenantId, filters);
+           await AuditService.list(tenantId, filters);
         } catch (e: any) {
            // Expected failure if DB not connected is fine, as long as it's a DB connection error
            // and not a logic error.

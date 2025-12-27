@@ -23,6 +23,7 @@ type Config struct {
 }
 
 func Run(cfg Config) error {
+	// Use Native protocol (port 9000)
 	dsn := fmt.Sprintf("clickhouse://%s:%s@%s:%s/%s?debug=false",
 		cfg.Username, cfg.Password, cfg.Host, cfg.Port, cfg.Database)
 

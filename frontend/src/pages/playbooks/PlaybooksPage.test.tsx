@@ -1,7 +1,7 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import PlaybooksPage from './PlaybooksPage';
-import { PlaybooksAPI } from '../../shared/api/playbooks';
+import { PlaybooksAPI } from '@/shared/api';
 
 // Mock API
 vi.mock('../../shared/api/playbooks', () => ({

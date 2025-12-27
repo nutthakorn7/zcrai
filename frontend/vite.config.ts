@@ -11,17 +11,31 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  define: {
+    global: "window",
+  },
   test: {
     globals: true,
     environment: 'jsdom',
     setupFiles: './src/test/setup.ts',
     css: true,
   },
+  optimizeDeps: {
+    include: ['react-force-graph-2d', 'force-graph', 'three']
+  },
   build: {
-    // Let Vite handle chunking automatically to avoid React initialization issues
     chunkSizeWarningLimit: 1000,
-    minify: false,
-    sourcemap: true,
+    minify: 'esbuild',
+    sourcemap: false,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+             return 'vendor';
+          }
+        }
+      }
+    }
   },
   server: {
     port: 5173,

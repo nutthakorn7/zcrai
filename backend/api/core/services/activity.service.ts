@@ -13,7 +13,8 @@ export class ActivityService {
     const recentAlerts = await db.query.alerts.findMany({
         where: (alerts, { eq, and, isNotNull }) => and(
             eq(alerts.tenantId, tenantId),
-            isNotNull(alerts.aiAnalysis) // Only show AI active alerts for now to highlight AI? Or all? Let's show all but highlight AI.
+            eq(alerts.tenantId, tenantId)
+            // isNotNull(alerts.aiAnalysis) // Removed to show all alerts
         ),
         orderBy: [desc(alerts.updatedAt)],
         limit: limit

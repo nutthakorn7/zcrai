@@ -1,10 +1,15 @@
 import { Elysia } from 'elysia'
 import { LogsService } from '../core/services/logs.service'
-import { tenantAdminOnly } from '../middlewares/auth.middleware'
+import { withAuth } from '../middleware/auth'
 import { Errors } from '../middleware/error'
 
 // Helper: Get effective tenantId (supports superadmin impersonation)
 const getEffectiveTenantId = (payload: any, selectedTenant: any): string => {
+  // Guard against undefined user (auth failure)
+  if (!payload) {
+    throw Errors.Unauthorized('Authentication required')
+  }
+  
   if (payload.role === 'superadmin' && selectedTenant?.value) {
     return selectedTenant.value
   }
@@ -15,7 +20,7 @@ const getEffectiveTenantId = (payload: any, selectedTenant: any): string => {
 }
 
 export const logsController = new Elysia({ prefix: '/logs' })
-  .use(tenantAdminOnly)
+  .use(withAuth)
 
   /**
    * Get available filter options for logs
@@ -66,6 +71,7 @@ export const logsController = new Elysia({ prefix: '/logs' })
       integrationId: query.integration_id as string | undefined,
       accountName: query.account_name as string | undefined,
       siteName: query.site_name as string | undefined,
+      technique: query.technique as string | undefined,
     }
 
     const pagination = {
@@ -76,6 +82,35 @@ export const logsController = new Elysia({ prefix: '/logs' })
     }
 
     return await LogsService.list(tenantId, filters, pagination)
+  })
+
+  /**
+   * Get log volume histogram
+   * @route GET /logs/histogram
+   */
+  .get('/histogram', async ({ user, cookie: { selected_tenant }, query }: any) => {
+    const tenantId = getEffectiveTenantId(user, selected_tenant)
+    const filters = {
+      startDate: query.startDate as string | undefined,
+      endDate: query.endDate as string | undefined,
+      severity: query.severity ? (query.severity as string).split(',') : undefined,
+      source: query.sources 
+        ? (typeof query.sources === 'string' ? query.sources.split(',').filter(Boolean) : query.sources)
+        : query.source 
+          ? (query.source as string).split(',') 
+          : undefined,
+      host: query.host as string | undefined,
+      user: query.user as string | undefined,
+      search: query.search as string | undefined,
+      eventType: query.eventType as string | undefined,
+      integrationId: query.integration_id as string | undefined,
+      accountName: query.account_name as string | undefined,
+      siteName: query.site_name as string | undefined,
+      technique: query.technique as string | undefined,
+    }
+    const intervalSeconds = parseInt(query.interval as string) || 3600
+    
+    return await LogsService.getHistogram(tenantId, filters, intervalSeconds)
   })
 
   /**

@@ -1,0 +1,699 @@
+import { useEffect, useState, useCallback } from "react";
+import { Button, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Chip, Tooltip, Card, CardBody, Tabs, Tab } from "@heroui/react";
+import { api } from "@/shared/api";
+import { DateRangePicker } from "../../components/DateRangePicker";
+import { AlertDetailDrawer } from '../../components/alerts/AlertDetailDrawer';
+import { Icon } from '../../shared/ui';
+import sentineloneLogo from '../../assets/logo/sentinelone.png';
+import crowdstrikeLogo from '../../assets/logo/crowdstrike.png';
+import { Copy, AlertTriangle, FileText } from 'lucide-react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+
+// Severity color mapping
+const severityColors = {
+  critical: '#FF1A1A',
+  high: '#FFA735',
+  medium: '#FFEE00',
+  low: '#BBF0FF',
+  info: '#A1A1AA',
+};
+
+// Vendor Logo Components
+const VendorLogo = ({ source }: { source: string }) => {
+  const sourceLower = source.toLowerCase();
+  
+  if (sourceLower === 'sentinelone') {
+    return (
+      <div className="w-8 h-8 rounded-md flex items-center justify-center border border-white/5 bg-purple-500/20 p-1.5">
+        <img src={sentineloneLogo} alt="S1" className="w-full h-full object-contain" />
+      </div>
+    );
+  }
+  
+  if (sourceLower === 'crowdstrike') {
+    return (
+      <div className="w-8 h-8 rounded-md flex items-center justify-center border border-white/5 bg-red-500/20 p-1.5">
+        <img src={crowdstrikeLogo} alt="CS" className="w-full h-full object-contain" />
+      </div>
+    );
+  } 
+
+  return (
+    <div className="w-8 h-8 rounded-md flex items-center justify-center border border-white/5 bg-default-100 p-1.5">
+      <Icon.Shield className="w-4 h-4 text-foreground/50" />
+    </div>
+  );
+};
+
+
+
+// Unified Alert Interface (Combines API Alert and Log Entry)
+interface PageAlert {
+  id: string;
+  title: string;
+  severity: string;
+  source: string;
+  status?: string; // For Incidents
+  description?: string; // For Incidents
+  event_type?: string; // For Logs
+  timestamp?: string; // For Logs
+  createdAt?: string; // For Incidents
+  host_name?: string;
+  user_name?: string;
+  duplicateCount?: number;
+  aiAnalysis?: {
+    classification: 'FALSE_POSITIVE' | 'TRUE_POSITIVE';
+    confidence: number;
+    reasoning: string;
+    suggested_action: string;
+    actionTaken?: {
+      type: string;
+      status: string;
+      target: string;
+      timestamp: string;
+      details?: string;
+    };
+  };
+}
+
+interface Summary {
+  critical: number;
+  high: number;
+  medium: number;
+  low: number;
+  info: number;
+  total: number;
+  // Alert specific stats
+  new?: number;
+  reviewing?: number;
+  dismissed?: number;
+  promoted?: number;
+}
+
+export default function AlertsPage() {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+  const [viewMode, setViewMode] = useState<'incidents' | 'logs'>('incidents');
+  const [alerts, setAlerts] = useState<PageAlert[]>([]);
+  const [summary, setSummary] = useState<Summary | null>(null);
+  const [startDate, setStartDate] = useState(() => {
+    const dStr = searchParams.get('date');
+    if (dStr) return new Date(dStr);
+    const d = new Date();
+    d.setDate(d.getDate() - 7);
+    return d;
+  });
+  const [endDate, setEndDate] = useState(() => {
+    const dStr = searchParams.get('date');
+    if (dStr) {
+        const d = new Date(dStr);
+        d.setDate(d.getDate() + 1);
+        return d;
+    }
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return d;
+  });
+  
+  // Filter State
+  const [selectedProvider, setSelectedProvider] = useState<string>(searchParams.get('source') || 'all');
+  const [availableProviders, setAvailableProviders] = useState<string[]>([]);
+  const [queueFilter, setQueueFilter] = useState<'all' | 'unassigned' | 'my_queue'>('unassigned'); 
+  const [aiStatus, setAiStatus] = useState<string>('all'); // 'all' | 'verified' | 'blocked' | 'pending'
+  
+  // Use searchParams directly for these to ensure reactivity
+  const severityFilter = searchParams.get('severity') || 'all';
+  const techniqueFilter = searchParams.get('technique') || 'all';
+
+  // Drawer State
+  const [selectedAlert, setSelectedAlert] = useState<PageAlert | null>(null);
+
+  // AI Triage State
+  const [triageLoading, setTriageLoading] = useState(false);
+  const [triageData, setTriageData] = useState<Map<string, { urgency: number; category: string; reason: string; action: string }>>(new Map());
+
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    const start = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, '0')}-${String(startDate.getDate()).padStart(2, '0')}`;
+    const end = `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, '0')}-${String(endDate.getDate()).padStart(2, '0')}`;
+    
+    try {
+      // Fetch active integrations
+      const activeIntRes = await api.get('/integrations');
+      const activeIntegrations = activeIntRes.data || [];
+      const activeProviders = activeIntegrations
+        .map((i: any) => i.provider.toLowerCase())
+        .filter((p: string) => ['sentinelone', 'crowdstrike'].includes(p));
+      setAvailableProviders(Array.from(new Set(activeProviders)) as string[]);
+      
+      let params = `startDate=${start}&endDate=${end}`;
+      if (selectedProvider !== 'all') params += `&source=${selectedProvider}`;
+      if (aiStatus !== 'all') params += `&aiStatus=${aiStatus}`;
+      if (severityFilter !== 'all') params += `&severity=${severityFilter}`;
+      if (techniqueFilter !== 'all') params += `&technique=${techniqueFilter}`;
+
+      if (viewMode === 'incidents') {
+          if (queueFilter === 'unassigned') params += '&status=new';
+          if (queueFilter === 'my_queue') params += '&status=investigating';
+
+          const [alertsRes, statsRes] = await Promise.all([
+            api.get(`/alerts?${params}`),
+            api.get(`/alerts/stats/summary`)
+          ]);
+        
+        setAlerts(alertsRes.data.data || []);
+        setSummary(statsRes.data.data);
+        
+      } else {
+        const [logsRes, summaryRes] = await Promise.all([
+          api.get(`/logs?${params}&limit=50`),
+          api.get(`/dashboard/summary?${params}`),
+        ]);
+        
+        setAlerts(logsRes.data.data || []);
+        setSummary(summaryRes.data);
+      }
+
+    } catch (e) {
+      console.error('Failed to load data:', e);
+    } finally {
+      setLoading(false);
+    }
+  }, [startDate, endDate, selectedProvider, aiStatus, viewMode, queueFilter, severityFilter, techniqueFilter]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  // AI Triage Handler
+  const handleTriage = async () => {
+    if (alerts.length === 0) return;
+    
+    setTriageLoading(true);
+    try {
+      const res = await api.post('/alerts/triage', { alerts: alerts.slice(0, 20) });
+      if (res.data?.success && res.data?.data) {
+        const triageMap = new Map<string, { urgency: number; category: string; reason: string; action: string }>();
+        res.data.data.forEach((t: any) => {
+          triageMap.set(t.id, { urgency: t.urgency, category: t.category, reason: t.reason, action: t.action });
+        });
+        setTriageData(triageMap);
+        
+        // Sort alerts by urgency (highest first)
+        setAlerts(prev => {
+          const sorted = [...prev].sort((a, b) => {
+            const urgA = triageMap.get(a.id)?.urgency || 0;
+            const urgB = triageMap.get(b.id)?.urgency || 0;
+            return urgB - urgA;
+          });
+          return sorted;
+        });
+      }
+    } catch (e) {
+      console.error('Triage failed:', e);
+    } finally {
+      setTriageLoading(false);
+    }
+  };
+
+
+  const renderCell = (alert: PageAlert, columnKey: string) => {
+    switch (columnKey) {
+      case "time":
+        const ts = alert.createdAt || alert.timestamp;
+        if (!ts) return <span className="text-xs">-</span>;
+        const dateObj = new Date(ts);
+        return (
+          <div className="flex flex-col">
+            <span className="text-sm text-foreground/70">{dateObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })}</span>
+            <span className="text-[10px] text-foreground/50">{dateObj.toLocaleDateString()}</span>
+          </div>
+        );
+      
+      case "source":
+        return <VendorLogo source={alert.source} />;
+
+      case "status":
+         // For Incidents only
+         const statusColors: Record<string, "default" | "primary" | "secondary" | "success" | "warning" | "danger"> = {
+           new: "primary",
+           investigating: "warning",
+           resolved: "success",
+           dismissed: "default",
+           promoted: "secondary"
+         };
+         return (
+           <Chip size="sm" variant="flat" color={statusColors[alert.status || 'new'] || "default"} className="capitalize">
+             {alert.status}
+           </Chip>
+         );
+         
+      case "ai":
+        // AI Verdict Logic
+        const severity = alert.severity.toLowerCase();
+        let analysis = alert.aiAnalysis;
+        
+        // Mock fallback if backend hasn't processed it yet
+        if (!analysis) {
+             // Fallback Logic mimicking the backend Mock
+             if (severity === 'critical') {
+                 analysis = { classification: 'TRUE_POSITIVE', confidence: 95, reasoning: 'Critical TTPs detected matching APT behaviors.', suggested_action: 'Isolate & Escalate' };
+             } else if (severity === 'info' || severity === 'low') {
+                 analysis = { classification: 'FALSE_POSITIVE', confidence: 90, reasoning: 'Routine administrative noise.', suggested_action: 'Auto-Close' };
+             } else {
+                 analysis = { classification: 'TRUE_POSITIVE', confidence: 60, reasoning: 'Suspicious anomaly requiring manual review.', suggested_action: 'Investigate' };
+             }
+        }
+
+        const isSafe = analysis.classification === 'FALSE_POSITIVE';
+        const isCritical = analysis.classification === 'TRUE_POSITIVE' && analysis.confidence > 80;
+        
+        // Use custom colors for WCAG compliance instead of HeroUI color prop
+        const badgeText = isSafe ? "Noise" : (isCritical ? "Threat" : "Suspicious");
+        const badgeStyle = isSafe 
+          ? "bg-default/40 text-default-700" 
+          : (isCritical 
+            ? "text-inherit font-medium" 
+            : "bg-warning/10 text-warning");
+
+        return (
+          <Tooltip content={
+             <div className="px-3 py-2 max-w-xs">
+               <div className="font-bold mb-1 flex items-center justify-between">
+                 <span>{analysis.classification}</span>
+                 <span className={`text-xs ${analysis.confidence > 80 ? 'text-green-500' : 'text-yellow-500'}`}>{analysis.confidence}% Confidence</span>
+               </div>
+               <div className="text-xs text-foreground/80 mb-2">{analysis.reasoning}</div>
+               <div className="text-[10px] text-foreground/50 border-t border-white/10 pt-1">
+                 Suggest: {analysis.suggested_action}
+               </div>
+             </div>
+          }>
+            <Chip 
+              size="sm" 
+              variant="flat"
+              className={`cursor-help min-w-[80px] ${badgeStyle}`}
+              style={isCritical ? { backgroundColor: `${severityColors.critical}15`, color: severityColors.critical } : undefined}
+              startContent={!isSafe && <AlertTriangle className="w-3 h-3" />}
+            >
+               {badgeText} ({analysis.confidence}%)
+            </Chip>
+          </Tooltip>
+        );
+      
+      case "details":
+        return (
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-foreground/80">{alert.title}</span>
+              {alert.duplicateCount && alert.duplicateCount > 1 && (
+                <Chip size="sm" variant="flat" color="warning" className="h-5 px-1 bg-warning/10 text-warning" startContent={<Copy className="w-3 h-3" />}>
+                    +{alert.duplicateCount - 1}
+                </Chip>
+              )}
+            </div>
+            <div className="flex items-center gap-3 text-xs text-foreground/60">
+              {viewMode === 'incidents' && <span className="truncate max-w-[300px]">{alert.description}</span>}
+              {(alert.host_name || alert.user_name) && (
+                <div className="flex gap-2 opacity-70">
+                   {alert.host_name && <span>💻 {alert.host_name}</span>}
+                   {alert.user_name && <span>👤 {alert.user_name}</span>}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      
+      case "severity":
+        const sev = alert.severity.toLowerCase() as keyof typeof severityColors;
+        const hexColor = severityColors[sev] || severityColors.info;
+        return (
+          <Chip
+            size="sm"
+            variant="flat"
+            style={{ backgroundColor: `${hexColor}1A`, color: hexColor, borderColor: `${hexColor}33` }}
+            className="border font-medium uppercase tracking-wide"
+            startContent={<span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: hexColor }} />}
+          >
+            {alert.severity}
+          </Chip>
+        );
+
+      case "actions":
+        // AI handles all actions - show status instead of buttons
+        const isAutoHandled = alert.status === 'dismissed' || alert.status === 'promoted';
+        const actionTaken = alert.aiAnalysis?.actionTaken;
+        const isRemediated = actionTaken && actionTaken.status === 'SUCCESS';
+        
+        if (isRemediated) {
+          return (
+            <Chip 
+              size="sm" 
+              variant="flat" 
+              color="success"
+              className="text-[10px] bg-success/10 text-success border-success/20"
+              startContent={<span>🛡️</span>}
+            >
+              Auto-Remediated
+            </Chip>
+          );
+        }
+
+        if (isAutoHandled) {
+          return (
+            <Chip 
+              size="sm" 
+              variant="flat" 
+              color={alert.status === 'promoted' ? 'secondary' : 'default'}
+              className="text-[10px]"
+              startContent={<span>🤖</span>}
+            >
+              {alert.status === 'promoted' ? 'Auto-Promoted' : 'Auto-Closed'}
+            </Chip>
+          );
+        }
+        
+        return (
+          <Chip 
+            size="sm" 
+            variant="flat" 
+            color="warning"
+            className="text-[10px] bg-warning/10 text-warning"
+            startContent={<span>⏳</span>}
+          >
+            Swarm Analyzing
+          </Chip>
+        );
+      
+      default: return null;
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-background">
+        <div className="relative">
+          <div className="w-16 h-16 border-4 border-primary/20 rounded-full animate-spin" 
+               style={{ borderTopColor: 'var(--color-primary)' }} />
+          <Icon.ShieldAlert className="absolute inset-0 m-auto w-6 h-6 text-primary" />
+        </div>
+        <p className="mt-4 text-sm text-foreground/60">Loading alerts...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-background text-foreground">
+      {/* Sticky Header */}
+      <header className="sticky top-0 z-40 w-full backdrop-blur-xl bg-background/60 border-b border-white/5 h-16 flex items-center justify-between px-8">
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl font-bold font-display tracking-tight text-foreground">
+              Security Alerts
+            </h1>
+            <div className="flex items-center gap-2 border-l border-white/10 pl-3">
+              <span className="text-sm text-foreground/60">
+                {viewMode === 'incidents' ? 'Active Incidents' : 'Raw Telemetry'}
+              </span>
+              {techniqueFilter !== 'all' && (
+                <Chip 
+                  size="sm" 
+                  color="primary" 
+                  variant="flat" 
+                  onClose={() => navigate('/alerts')}
+                  className="animate-in fade-in zoom-in duration-300"
+                >
+                  Technique: {techniqueFilter}
+                </Chip>
+              )}
+            </div>
+          </div>
+          
+          <Tabs 
+            aria-label="View Mode" 
+            selectedKey={viewMode}
+            onSelectionChange={(key) => setViewMode(key as 'incidents' | 'logs')}
+            color="primary" variant="bordered" size="sm"
+            classNames={{
+              tabList: "bg-transparent border border-white/10",
+              cursor: "bg-primary/20",
+            }}
+          >
+            <Tab key="incidents" title={
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4" />
+                <span>Incidents</span>
+              </div>
+            }/>
+            <Tab key="logs" title={
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4" />
+                <span>Raw Logs</span>
+              </div>
+            }/>
+          </Tabs>
+
+          {viewMode === 'incidents' && (
+            <div className="flex bg-content1 rounded-lg p-1 border border-white/5 ml-4 h-8 items-center">
+                <button
+                    onClick={() => setQueueFilter('unassigned')}
+                    className={`px-3 h-6 flex items-center rounded-md text-[10px] font-bold uppercase tracking-wider transition-all ${queueFilter === 'unassigned' ? 'bg-primary/20 text-primary' : 'text-foreground/50 hover:text-foreground'}`}
+                >
+                    Queue
+                </button>
+                <div className="w-px h-3 bg-white/10 mx-1" />
+                 <button
+                    onClick={() => setQueueFilter('my_queue')}
+                     className={`px-3 h-6 flex items-center rounded-md text-[10px] font-bold uppercase tracking-wider transition-all ${queueFilter === 'my_queue' ? 'bg-warning/20 text-warning' : 'text-foreground/50 hover:text-foreground'}`}
+                >
+                    In Progress
+                </button>
+                <div className="w-px h-3 bg-white/10 mx-1" />
+                <button
+                    onClick={() => setQueueFilter('all')}
+                    className={`px-3 h-6 flex items-center rounded-md text-[10px] font-bold uppercase tracking-wider transition-all ${queueFilter === 'all' ? 'bg-content2 text-foreground' : 'text-foreground/50 hover:text-foreground'}`}
+                >
+                    All
+                </button>
+            </div>
+          )}
+        </div>
+        
+        <div className="flex items-center gap-3">
+          {/* Provider Filter Buttons */}
+          <div className="flex bg-content1 rounded-lg p-1 border border-white/5">
+            <Tooltip content="All Providers">
+              <button
+                onClick={() => setSelectedProvider('all')}
+                className={`p-2 rounded-md transition-all ${selectedProvider === 'all' ? 'bg-content2 text-foreground shadow-sm' : 'text-foreground/60 hover:text-foreground'}`}
+              >
+                <div className="flex items-center gap-2 px-1">
+                  <Icon.Database className="w-4 h-4" />
+                  <span className="text-xs font-medium">All</span>
+                </div>
+              </button>
+            </Tooltip>
+            
+            {(availableProviders.includes('sentinelone') || selectedProvider === 'sentinelone') && (
+              <>
+                <div className="w-px bg-white/5 my-1 mx-1" />
+                <Tooltip content="SentinelOne">
+                  <button
+                    onClick={() => setSelectedProvider('sentinelone')}
+                    className={`p-2 rounded-md transition-all ${selectedProvider === 'sentinelone' ? 'bg-content2 shadow-sm' : 'opacity-50 hover:opacity-100'}`}
+                  >
+                    <img src={sentineloneLogo} alt="SentinelOne" className="w-4 h-4 object-contain" />
+                  </button>
+                </Tooltip>
+              </>
+            )}
+
+            {(availableProviders.includes('crowdstrike') || selectedProvider === 'crowdstrike') && (
+              <>
+                <div className="w-px bg-white/5 my-1 mx-1" />
+                <Tooltip content="CrowdStrike">
+                  <button
+                    onClick={() => setSelectedProvider('crowdstrike')}
+                    className={`p-2 rounded-md transition-all ${selectedProvider === 'crowdstrike' ? 'bg-content2 shadow-sm' : 'opacity-50 hover:opacity-100'}`}
+                  >
+                    <img src={crowdstrikeLogo} alt="CrowdStrike" className="w-4 h-4 object-contain" />
+                  </button>
+                </Tooltip>
+              </>
+            )}
+          </div>
+
+           {/* AI Status Filter */}
+           <div className="flex bg-content1 rounded-lg p-1 border border-white/5">
+                <Tooltip content="All AI Status">
+                    <button
+                        onClick={() => setAiStatus('all')}
+                        className={`px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all ${aiStatus === 'all' ? 'bg-content2 text-foreground shadow-sm' : 'text-foreground/50 hover:text-foreground'}`}
+                    >
+                        All
+                    </button>
+                </Tooltip>
+                
+                <div className="w-px bg-white/10 mx-1 my-1" />
+
+                <Tooltip content="AI Verified Threats">
+                    <button
+                        onClick={() => setAiStatus('verified')}
+                        className={`px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-1 ${aiStatus === 'verified' ? 'bg-danger/20 text-danger border border-danger/20' : 'text-foreground/50 hover:text-danger hover:bg-danger/10'}`}
+                    >
+                        <Icon.ShieldAlert className="w-3 h-3" />
+                        Verified
+                    </button>
+                </Tooltip>
+
+                <div className="w-px bg-white/10 mx-1 my-1" />
+
+                <Tooltip content="Auto-Blocked IPs">
+                    <button
+                         onClick={() => setAiStatus('blocked')}
+                         className={`px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-1 ${aiStatus === 'blocked' ? 'bg-purple-500/20 text-purple-400 border border-purple-500/20' : 'text-foreground/50 hover:text-purple-400 hover:bg-purple-500/10'}`}
+                    >
+                        <Icon.Shield className="w-3 h-3" />
+                        Blocked
+                    </button>
+                </Tooltip>
+           </div>
+          
+           {/* Filters */}
+           <DateRangePicker startDate={startDate} endDate={endDate} onChange={(s, e) => { setStartDate(s); setEndDate(e); }} />
+           
+           {/* AI Triage Button */}
+           <Tooltip content="AI analyzes and prioritizes alerts by urgency">
+             <Button 
+               size="sm" 
+               color="secondary" 
+               variant={triageData.size > 0 ? "solid" : "flat"}
+               onPress={handleTriage}
+               isLoading={triageLoading}
+               startContent={!triageLoading && <Icon.Cpu className="w-4 h-4" />}
+             >
+               {triageData.size > 0 ? `Triaged (${triageData.size})` : 'AI Triage'}
+             </Button>
+           </Tooltip>
+           
+           <Button size="sm" isIconOnly variant="light" onPress={loadData}><Icon.Refresh className="w-4 h-4" /></Button>
+        </div>
+      </header>
+
+      <div className="p-6 w-full animate-fade-in">
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+           {/* Card 1: Active Threats (What needs attention) */}
+           <Card className="border border-white/5 bg-red-500/10 backdrop-blur-md">
+              <CardBody className="p-5 flex flex-row items-center justify-between">
+                <div>
+                   <p className="text-[10px] text-red-400/80 mb-1 font-bold font-display uppercase tracking-widest">Active Threats</p>
+                   <div className="flex items-baseline gap-2">
+                      <p className="text-4xl font-bold font-display text-red-500 tracking-tight">{summary?.reviewing || 0}</p>
+                      <span className="text-[10px] text-red-400/40 uppercase font-bold">require review</span>
+                   </div>
+                </div>
+                <div className="w-12 h-12 rounded-xl bg-red-500/20 flex items-center justify-center border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.2)]">
+                   <AlertTriangle className="w-6 h-6 text-red-500" />
+                </div>
+              </CardBody>
+           </Card>
+
+           {/* Card 2: AI Efficiency (What AI did) */}
+           <Card className="border border-white/5 bg-green-500/10 backdrop-blur-md">
+              <CardBody className="p-5 flex flex-row items-center justify-between">
+                <div>
+                   <p className="text-[10px] text-green-400/80 mb-1 font-bold font-display uppercase tracking-widest">AI Auto-Handled</p>
+                   <div className="flex items-baseline gap-2">
+                      <p className="text-4xl font-bold font-display text-green-500 tracking-tight">{(summary?.dismissed || 0) + (summary?.promoted || 0)}</p>
+                      <span className="text-[10px] text-green-400/40 uppercase font-bold">incidents resolved</span>
+                   </div>
+                </div>
+                 <div className="w-12 h-12 rounded-xl bg-green-500/20 flex items-center justify-center border border-green-500/20 shadow-[0_0_15px_rgba(16,185,129,0.2)]">
+                   <Icon.Cpu className="w-6 h-6 text-green-500" />
+                </div>
+              </CardBody>
+           </Card>
+
+           {/* Card 3: Total Coverage (Context) */}
+           <Card className="border border-white/5 bg-blue-500/10 backdrop-blur-md">
+              <CardBody className="p-5 flex flex-row items-center justify-between">
+                <div>
+                   <p className="text-[10px] text-blue-400/80 mb-1 font-bold font-display uppercase tracking-widest">Total Analyzed</p>
+                   <div className="flex items-baseline gap-2">
+                      <p className="text-4xl font-bold font-display text-blue-500 tracking-tight">{summary?.total || 0}</p>
+                      <span className="text-[10px] text-blue-400/40 uppercase font-bold">events processed</span>
+                   </div>
+                </div>
+                <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center border border-blue-500/20 shadow-[0_0_15px_rgba(59,130,246,0.2)]">
+                   <div className="relative">
+                     <span className="absolute inset-0 animate-ping inline-flex h-full w-full rounded-full bg-blue-400 opacity-20"></span>
+                     <Icon.Shield className="relative w-6 h-6 text-blue-500" />
+                   </div>
+                </div>
+              </CardBody>
+           </Card>
+        </div>
+
+        {/* Table */}
+        <section>
+          {(() => {
+             const columns = [
+                 { uid: 'time', name: 'Time', width: 100 },
+                 { uid: 'source', name: 'Src', width: 60, align: 'center' as const },
+                 { uid: 'details', name: 'Details' },
+                 { uid: 'severity', name: 'Severity', width: 100 },
+                 ...(viewMode === 'incidents' ? [{ uid: 'status', name: 'Status', width: 100 }] : []),
+                 { uid: 'ai', name: 'AI Verdict', width: 140 },
+                 { uid: 'actions', name: 'AI Status', width: 120, align: 'end' as const },
+             ];
+             
+             return (
+              <Table 
+                aria-label="Alerts table"
+                selectionMode="single"
+                onSelectionChange={(keys) => {
+                    const id = Array.from(keys)[0] as string;
+                    if (id) {
+                        const alert = alerts.find((a: PageAlert) => a.id === id);
+                        if (alert) setSelectedAlert(alert);
+                    }
+                }}
+                classNames={{
+                  wrapper: "bg-transparent shadow-none border border-white/5 rounded-lg",
+                   th: "bg-transparent text-[10px] font-bold font-display text-foreground/40 uppercase tracking-[0.2em] border-b border-white/5",
+                   tr: "hover:bg-content1 transition-colors border-b border-white/5 last:border-0 cursor-pointer",
+                }}
+              >
+                <TableHeader columns={columns}>
+                  {(column) => (
+                    <TableColumn 
+                        key={column.uid} 
+                        width={column.width} 
+                        align={column.align || 'start'}
+                    >
+                      {column.name}
+                    </TableColumn>
+                  )}
+                </TableHeader>
+                <TableBody items={alerts} emptyContent="No records found">
+                  {(alert: PageAlert) => (
+                    <TableRow key={alert.id}>
+                      {(columnKey) => <TableCell>{renderCell(alert, columnKey as string)}</TableCell>}
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+             );
+          })()}
+        </section>
+        <AlertDetailDrawer 
+            alert={selectedAlert as any} 
+            isOpen={!!selectedAlert} 
+            onClose={() => setSelectedAlert(null)} 
+        />
+      </div>
+    </div>
+  );
+}

@@ -1,5 +1,5 @@
 import { relations, sql } from 'drizzle-orm'
-import { pgTable, uuid, text, varchar, timestamp, boolean, jsonb, integer, real, index } from 'drizzle-orm/pg-core'
+import { pgTable, uuid, text, varchar, timestamp, boolean, jsonb, integer, real, index, vector, pgEnum } from 'drizzle-orm/pg-core'
 
 // Tenants
 export const tenants = pgTable('tenants', {
@@ -8,6 +8,21 @@ export const tenants = pgTable('tenants', {
   status: text('status').default('active').notNull(),
   apiUsage: integer('api_usage').default(0).notNull(),
   apiLimit: integer('api_limit').default(10000).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  autopilotMode: boolean('autopilot_mode').default(true).notNull(), // Global ON/OFF
+  autopilotThreshold: integer('autopilot_threshold').default(90).notNull(), // Confidence threshold
+})
+
+// Learned Patterns (Auto-Dismiss)
+export const learnedPatterns = pgTable('learned_patterns', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  tenantId: uuid('tenant_id').references(() => tenants.id).notNull(),
+  pattern: text('pattern').notNull(), // Regex or Exact String, e.g. "Backup Service .*"
+  patternType: text('pattern_type').default('title').notNull(), // 'title', 'source', 'ip'
+  confidence: integer('confidence').default(100),
+  status: text('status').default('pending').notNull(), // 'active', 'pending', 'rejected'
+  source: text('source').default('auto_learning'), // 'auto_learning', 'manual'
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 })
@@ -32,6 +47,11 @@ export const users = pgTable('users', {
   ssoId: text('sso_id'), // Provider's User ID
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => {
+  return {
+    tenantIdx: index('users_tenant_idx').on(table.tenantId),
+    roleIdx: index('users_role_idx').on(table.role),
+  }
 })
 
 // ... relations ...
@@ -91,6 +111,27 @@ export const loginHistoryRelations = relations(loginHistory, ({ one }) => ({
   }),
 }))
 
+// Passkeys (WebAuthn)
+export const userPasskeys = pgTable('user_passkeys', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  credentialId: text('credential_id').notNull().unique(),
+  publicKey: text('public_key').notNull(),
+  counter: integer('counter').default(0).notNull(),
+  deviceType: text('device_type'), // 'platform' | 'cross-platform'
+  transports: text('transports'), // JSON array: ['internal', 'usb', 'ble', 'nfc']
+  name: text('name'), // User-friendly name like "MacBook Pro TouchID"
+  lastUsedAt: timestamp('last_used_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+})
+
+export const userPasskeysRelations = relations(userPasskeys, ({ one }) => ({
+  user: one(users, {
+    fields: [userPasskeys.userId],
+    references: [users.id],
+  }),
+}))
+
 // API Keys
 export const apiKeys = pgTable('api_keys', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -103,20 +144,18 @@ export const apiKeys = pgTable('api_keys', {
   lastSyncStatus: text('last_sync_status'), // 'success' | 'error' | null
   lastSyncError: text('last_sync_error'),   // Error message ถ้า sync fail
   lastSyncAt: timestamp('last_sync_at'),    // เวลาที่ sync ล่าสุด
+  healthStatus: text('health_status').default('healthy'), // 'healthy', 'degraded', 'down'
+  failureCount: integer('failure_count').default(0),
+  lastHealthyAt: timestamp('last_healthy_at'),
+  isCircuitOpen: boolean('is_circuit_open').default(false),
+  // Token Expiry Monitoring
+  tokenExpiresAt: timestamp('token_expires_at'), // When the API key/token expires
+  tokenExpiryAlertSent: boolean('token_expiry_alert_sent').default(false), // Prevent duplicate alerts
   createdAt: timestamp('created_at').defaultNow().notNull(),
 })
 
 // Audit Logs
-export const auditLogs = pgTable('audit_logs', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  tenantId: uuid('tenant_id').references(() => tenants.id),
-  userId: uuid('user_id').references(() => users.id),
-  action: text('action').notNull(),
-  resource: text('resource'),
-  details: jsonb('details'),
-  ipAddress: text('ip_address'),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-})
+// Removed duplicate auditLogs definition
 
 // Collector States - เก็บ state ของ Collector (checkpoint, full sync status)
 export const collectorStates = pgTable('collector_states', {
@@ -148,7 +187,15 @@ export const cases = pgTable('cases', {
   tags: jsonb('tags'), // ['ransomware', 'phishing']
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  acknowledgedAt: timestamp('acknowledged_at'),
   resolvedAt: timestamp('resolved_at'),
+}, (table) => {
+  return {
+    tenantIdx: index('cases_tenant_idx').on(table.tenantId),
+    statusIdx: index('cases_status_idx').on(table.status),
+    assigneeIdx: index('cases_assignee_idx').on(table.assigneeId),
+    createdIdx: index('cases_created_idx').on(table.createdAt),
+  }
 })
 
 // Case Comments
@@ -215,6 +262,12 @@ export const notifications = pgTable('notifications', {
   metadata: jsonb('metadata'), // { caseId, severity, etc. }
   isRead: boolean('is_read').default(false).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => {
+  return {
+    tenantIdx: index('notifications_tenant_idx').on(table.tenantId),
+    userIdIdx: index('notifications_user_id_idx').on(table.userId),
+    isReadIdx: index('notifications_is_read_idx').on(table.isRead),
+  }
 })
 
 export const notificationsRelations = relations(notifications, ({ one }) => ({
@@ -287,6 +340,13 @@ export const alerts = pgTable('alerts', {
   caseId: uuid('case_id').references(() => cases.id), // Link to case if escalated
   rawData: jsonb('raw_data'), // Original event from source
   
+  // Missing columns restored to prevent data loss
+  correlationId: text('correlation_id'),
+  reviewedBy: uuid('reviewed_by').references(() => users.id),
+  reviewedAt: timestamp('reviewed_at'),
+  dismissReason: text('dismiss_reason'),
+  promotedCaseId: uuid('promoted_case_id').references(() => cases.id),
+  
   // Deduplication fields
   fingerprint: varchar('fingerprint', { length: 64 }).notNull(), // SHA256 hash for deduplication
   duplicateCount: integer('duplicate_count').default(1).notNull(), // Number of occurrences
@@ -296,6 +356,12 @@ export const alerts = pgTable('alerts', {
   // AI Auto-Triage
   aiAnalysis: jsonb('ai_analysis'), // { score: number, classification: string, reasoning: string }
   aiTriageStatus: text('ai_triage_status').default('pending'), // 'pending', 'processed', 'failed'
+  
+  // Phase 4: Analyst Feedback Loop
+  userFeedback: text('user_feedback'), // 'correct', 'incorrect'
+  feedbackReason: text('feedback_reason'), // Reason for 'incorrect' verdict
+  feedbackBy: uuid('feedback_by').references(() => users.id), // User who provided feedback
+  feedbackAt: timestamp('feedback_at'),
   
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -309,7 +375,7 @@ export const alerts = pgTable('alerts', {
   }
 })
 
-export const alertsRelations = relations(alerts, ({ one }) => ({
+export const alertsRelations = relations(alerts, ({ one, many }) => ({
   tenant: one(tenants, {
     fields: [alerts.tenantId],
     references: [tenants.id],
@@ -318,6 +384,10 @@ export const alertsRelations = relations(alerts, ({ one }) => ({
     fields: [alerts.caseId],
     references: [cases.id],
   }),
+  observables: many(observables),
+  soarActions: many(soarActions),
+  aiFeedback: many(aiFeedback),
+  embeddings: many(alertEmbeddings),
 }))
 
 // Alert Correlations
@@ -353,13 +423,22 @@ export const observables = pgTable('observables', {
   isMalicious: boolean('is_malicious'), // null = unknown
   tlpLevel: text('tlp_level').default('amber').notNull(), // 'white', 'green', 'amber', 'red'
   tags: jsonb('tags'), // Array of tags
+  source: text('source').default('manual').notNull(), // 'manual', 'system', 'ai'
   firstSeen: timestamp('first_seen').defaultNow().notNull(),
   lastSeen: timestamp('last_seen').defaultNow().notNull(),
-  sightingCount: text('sighting_count').default('1').notNull(), // Store as text to avoid int type
+  sightingCount: varchar('sighting_count', { length: 32 }).default('1').notNull(),
   enrichmentData: jsonb('enrichment_data'),
   enrichedAt: timestamp('enriched_at'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => {
+  return {
+    tenantIdx: index('observables_tenant_idx').on(table.tenantId),
+    caseIdx: index('observables_case_idx').on(table.caseId),
+    alertIdx: index('observables_alert_idx').on(table.alertId),
+    typeIdx: index('observables_type_idx').on(table.type),
+    valueIdx: index('observables_value_idx').on(table.value),
+  }
 })
 
 export const observablesRelations = relations(observables, ({ one }) => ({
@@ -408,17 +487,13 @@ export const playbookSteps = pgTable('playbook_steps', {
   id: uuid('id').defaultRandom().primaryKey(),
   playbookId: uuid('playbook_id').references(() => playbooks.id, { onDelete: 'cascade' }).notNull(),
   order: integer('order').notNull(),
-  // Wait, I used integer in the plan. Let's stick to integer if possible, but schema.ts has `drizzle-orm/pg-core`.
-  // Checking imports... `integer` is NOT imported in line 1. I need to add it or use text.
-  // Existing schema uses text for 'retry_count' and 'sighting_count'. I will use text for order to be safe/consistent with this project's quirks, or add integer import.
-  // Let's check line 1 imports: `pgTable, uuid, text, timestamp, boolean, jsonb`.
-  // I will add `integer` to imports or just use text and parse it.
-  // Actually, better to add `integer` import.
   type: text('type').notNull(), // 'manual', 'automation'
   name: text('name').notNull(),
   description: text('description'),
   actionId: text('action_id'), // 'block_ip', 'enrich_ip'
   config: jsonb('config'), // Action parameters
+  positionX: integer('position_x'), // Visual position
+  positionY: integer('position_y'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 })
@@ -429,9 +504,16 @@ export const playbookExecutions = pgTable('playbook_executions', {
   playbookId: uuid('playbook_id').references(() => playbooks.id).notNull(),
   caseId: uuid('case_id').references(() => cases.id, { onDelete: 'cascade' }).notNull(),
   status: text('status').default('running').notNull(), // 'running', 'completed', 'failed', 'cancelled'
+  mode: text('mode').default('run').notNull(), // 'run', 'dry_run'
   startedBy: uuid('started_by').references(() => users.id),
   startedAt: timestamp('started_at').defaultNow().notNull(),
   completedAt: timestamp('completed_at'),
+}, (table) => {
+  return {
+    tenantIdx: index('playbook_executions_tenant_idx').on(table.tenantId),
+    caseIdx: index('playbook_executions_case_idx').on(table.caseId),
+    statusIdx: index('playbook_executions_status_idx').on(table.status),
+  }
 })
 
 export const playbookExecutionSteps = pgTable('playbook_execution_steps', {
@@ -597,6 +679,7 @@ export const detectionRules = pgTable('detection_rules', {
   isEnabled: boolean('is_enabled').default(true).notNull(),
   runIntervalSeconds: integer('run_interval_seconds').default(60).notNull(),
   lastRunAt: timestamp('last_run_at'),
+  mitreTactic: text('mitre_tactic'), // e.g., 'Initial Access'
   mitreTechnique: text('mitre_technique'), // e.g., 'T1059.001'
   createdBy: uuid('created_by').references(() => users.id),
   createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -719,3 +802,171 @@ export const subscriptionsRelations = relations(subscriptions, ({ one }) => ({
   }),
 }))
 
+
+// ==================== AI FEEDBACK ====================
+export const aiFeedback = pgTable('ai_feedback', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  tenantId: uuid('tenant_id').references(() => tenants.id).notNull(),
+  alertId: uuid('alert_id').references(() => alerts.id).notNull(),
+  userId: uuid('user_id').references(() => users.id).notNull(),
+  rating: integer('rating').notNull(), // 1 (helpful), 0 (neutral), -1 (unhelpful)
+  comment: text('comment'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+})
+
+// Audit Logs for Governance (Immutable)
+export const auditLogs = pgTable('audit_logs', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  tenantId: uuid('tenant_id').references(() => tenants.id), // Optional for system-wide events
+  userId: uuid('user_id').references(() => users.id),
+  action: text('action').notNull(), // e.g., 'CREATE_USER', 'DELETE_ALERT'
+  resource: text('resource').notNull(), // e.g., 'user', 'alert'
+  resourceId: text('resource_id'),
+  details: jsonb('details'), // Changed values, metadata
+  ipAddress: text('ip_address'),
+  userAgent: text('user_agent'),
+  status: text('status').default('SUCCESS'), // SUCCESS, FAILURE
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => {
+  return {
+    tenantIdx: index('audit_logs_tenant_idx').on(table.tenantId),
+    userIdIdx: index('audit_logs_user_id_idx').on(table.userId),
+    actionIdx: index('audit_logs_action_idx').on(table.action),
+    resourceIdx: index('audit_logs_resource_idx').on(table.resource),
+    createdIdx: index('audit_logs_created_idx').on(table.createdAt),
+  }
+});
+
+export const aiFeedbackRelations = relations(aiFeedback, ({ one }) => ({
+  tenant: one(tenants, {
+    fields: [aiFeedback.tenantId],
+    references: [tenants.id],
+  }),
+  alert: one(alerts, {
+    fields: [aiFeedback.alertId],
+    references: [alerts.id],
+  }),
+  user: one(users, {
+    fields: [aiFeedback.userId],
+    references: [users.id],
+  }),
+}))
+
+
+// ==================== VECTOR STORE (RAG) ====================
+// Note: Requires 'vector' extension in Postgres
+// CREATE EXTENSION IF NOT EXISTS vector;
+
+export const alertEmbeddings = pgTable('alert_embeddings', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  alertId: uuid('alert_id').references(() => alerts.id).notNull(),
+  tenantId: uuid('tenant_id').references(() => tenants.id).notNull(),
+  content: text('content').notNull(), // The text used for embedding
+  vector: vector('vector', { dimensions: 768 }), // Gemini text-embedding-004
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+})
+
+export const alertEmbeddingsRelations = relations(alertEmbeddings, ({ one }) => ({
+  alert: one(alerts, {
+    fields: [alertEmbeddings.alertId],
+    references: [alerts.id],
+  }),
+}))
+
+// ==================== SOAR & AUTOMATION ====================
+
+export const soarActions = pgTable('soar_actions', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  tenantId: uuid('tenant_id').references(() => tenants.id).notNull(),
+  caseId: uuid('case_id').references(() => cases.id, { onDelete: 'cascade' }),
+  alertId: uuid('alert_id').references(() => alerts.id),
+  actionType: text('action_type').notNull(), // 'BLOCK_IP', 'ISOLATE_HOST', 'QUARANTINE_FILE', 'KILL_PROCESS'
+  provider: text('provider').notNull(), // 'sentinelone', 'crowdstrike', 'fortigate'
+  target: text('target').notNull(), // IP, HostID, Hash, etc.
+  status: text('status').default('pending').notNull(), // 'pending', 'in_progress', 'completed', 'failed'
+  result: jsonb('result'), // Raw API response
+  error: text('error'),
+  triggeredBy: text('triggered_by').default('ai').notNull(), // 'ai', 'user', 'playbook'
+  userId: uuid('user_id').references(() => users.id), // If manual
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+})
+
+export const soarActionsRelations = relations(soarActions, ({ one }) => ({
+  tenant: one(tenants, {
+    fields: [soarActions.tenantId],
+    references: [tenants.id],
+  }),
+  case: one(cases, {
+    fields: [soarActions.caseId],
+    references: [cases.id],
+  }),
+  alert: one(alerts, {
+    fields: [soarActions.alertId],
+    references: [alerts.id],
+  }),
+  user: one(users, {
+    fields: [soarActions.userId],
+    references: [users.id],
+  }),
+}))
+
+// ==================== SOAR SECRETS ====================
+
+export const integrationSecrets = pgTable('integration_secrets', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  tenantId: uuid('tenant_id').references(() => tenants.id).notNull(),
+  provider: text('provider').notNull(), // 'crowdstrike', 'sentinelone', 'fortigate', etc.
+  credentials: text('credentials').notNull(), // Encrypted JSON string (AES-256-GCM)
+  isActive: boolean('is_active').default(true).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => {
+  return {
+    tenantIdx: index('integration_secrets_tenant_idx').on(table.tenantId),
+    providerIdx: index('integration_secrets_provider_idx').on(table.provider),
+  }
+})
+
+export const integrationSecretsRelations = relations(integrationSecrets, ({ one }) => ({
+  tenant: one(tenants, {
+    fields: [integrationSecrets.tenantId],
+    references: [tenants.id],
+  }),
+}))
+
+// ==================== AI OBSERVABILITY & TRACING ====================
+
+export const aiAgentTraces = pgTable('ai_agent_traces', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  tenantId: uuid('tenant_id').references(() => tenants.id).notNull(),
+  alertId: uuid('alert_id').references(() => alerts.id),
+  caseId: uuid('case_id').references(() => cases.id),
+  agentName: text('agent_name').notNull(), // 'ManagerAgent', 'ThreatHuntingAgent', etc.
+  thought: text('thought'), // The "reasoning" or "plan"
+  action: jsonb('action'), // The tool call details
+  observation: jsonb('observation'), // The tool result details
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => {
+  return {
+    tenantIdx: index('ai_agent_traces_tenant_idx').on(table.tenantId),
+    alertIdx: index('ai_agent_traces_alert_idx').on(table.alertId),
+    caseIdx: index('ai_agent_traces_case_idx').on(table.caseId),
+    agentIdx: index('ai_agent_traces_agent_idx').on(table.agentName),
+  }
+})
+
+export const aiAgentTracesRelations = relations(aiAgentTraces, ({ one }) => ({
+  tenant: one(tenants, {
+    fields: [aiAgentTraces.tenantId],
+    references: [tenants.id],
+  }),
+  alert: one(alerts, {
+    fields: [aiAgentTraces.alertId],
+    references: [alerts.id],
+  }),
+  case: one(cases, {
+    fields: [aiAgentTraces.caseId],
+    references: [cases.id],
+  }),
+}))

@@ -15,6 +15,8 @@ export interface DetectionRule {
     auto_case?: boolean;
     case_title_template?: string;
     severity_override?: string;
+    group_by?: string[];
+    playbook_id?: string;
   };
   createdAt: string;
   updatedAt: string;
@@ -43,6 +45,21 @@ export const DetectionRulesAPI = {
 
   runNow: async (id: string) => {
     const response = await api.post(`/detection-rules/${id}/run`);
+    return response.data;
+  },
+
+  test: async (query: string) => {
+    const response = await api.post('/detection-rules/test', { query });
+    return response.data;
+  },
+
+  generateQuery: async (prompt: string) => {
+    const response = await api.post<{success: boolean, data: { sql: string, explanation: string }}>('/ai/query', { prompt });
+    return response.data;
+  },
+
+  generateRule: async (description: string) => {
+    const response = await api.post<{success: boolean, data: Partial<DetectionRule> & { explanation: string }}>('/ai/generate-rule', { description });
     return response.data;
   }
 };
