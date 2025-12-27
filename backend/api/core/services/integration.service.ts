@@ -253,6 +253,42 @@ export const IntegrationService = {
               },
             }
             break
+          case 'splunk':
+            config = {
+              host: parsed.host,
+              port: parsed.port || 8088,
+              ssl: parsed.ssl !== false,
+              token: parsed.token,
+              fetchSettings: parsed.fetchSettings || {
+                events: { enabled: true, days: 30 },
+                alerts: { enabled: true, days: 365 },
+              },
+            }
+            break
+          case 'elastic':
+            config = {
+              cloudId: parsed.cloudId,
+              apiKey: parsed.apiKey,
+              url: parsed.url,
+              username: parsed.username,
+              password: parsed.password,
+              fetchSettings: parsed.fetchSettings || {
+                alerts: { enabled: true, days: 365 },
+                events: { enabled: true, days: 30 },
+              },
+            }
+            break
+          case 'wazuh':
+            config = {
+              url: parsed.url,
+              user: parsed.user,
+              password: parsed.password,
+              fetchSettings: parsed.fetchSettings || {
+                alerts: { enabled: true, days: 365 },
+                agents: { enabled: true },
+              },
+            }
+            break
           default:
             config = parsed
         }
@@ -263,7 +299,7 @@ export const IntegrationService = {
       return {
         id: integration.id,
         tenantId: integration.tenantId,
-        type: integration.provider === 'sentinelone' || integration.provider === 'crowdstrike' 
+        type: ['sentinelone', 'crowdstrike', 'splunk', 'elastic', 'wazuh'].includes(integration.provider)
           ? integration.provider 
           : 'ai',
         provider: integration.provider,
@@ -1324,5 +1360,310 @@ export const IntegrationService = {
       console.error('[Token Expiry] Error checking expiring tokens:', e);
       return { error: (e as Error).message };
     }
-  }
+  },
+
+  // ==================== ADD SPLUNK ====================
+  async addSplunk(tenantId: string, data: { 
+    host: string; 
+    token: string; 
+    port?: number;
+    ssl?: boolean;
+    label?: string;
+    fetchSettings?: {
+      events?: { enabled: boolean; days: number };
+      alerts?: { enabled: boolean; days: number };
+    };
+  }) {
+    let host = data.host.trim()
+    if (host.endsWith('/')) host = host.slice(0, -1)
+    
+    const port = data.port || 8088
+    const ssl = data.ssl !== false  // Default to true
+    
+    const fetchSettings = {
+      events: { enabled: true, days: 30, ...(data.fetchSettings?.events || {}) },
+      alerts: { enabled: true, days: 365, ...(data.fetchSettings?.alerts || {}) },
+    }
+
+    // Check for duplicate host
+    const existingKeys = await db.select().from(apiKeys)
+      .where(and(eq(apiKeys.tenantId, tenantId), eq(apiKeys.provider, 'splunk')))
+    
+    let existingIntegration = null
+    for (const existing of existingKeys) {
+      try {
+        const config = JSON.parse(Encryption.decrypt(existing.encryptedKey))
+        if (config.host === host) {
+          existingIntegration = existing
+          break
+        }
+      } catch (e) { /* ignore */ }
+    }
+
+    // Test Connection
+    await this.testSplunkConnection(host, data.token, port, ssl)
+
+    // Encrypt and save
+    const encryptedKey = Encryption.encrypt(JSON.stringify({
+      host,
+      token: data.token,
+      port,
+      ssl,
+      fetchSettings,
+    }))
+
+    let integration
+    if (existingIntegration) {
+      const [updated] = await db.update(apiKeys)
+        .set({
+          encryptedKey,
+          label: data.label || existingIntegration.label,
+          lastSyncStatus: 'pending',
+          lastSyncError: null,
+        })
+        .where(eq(apiKeys.id, existingIntegration.id))
+        .returning()
+      integration = updated
+    } else {
+      const [inserted] = await db.insert(apiKeys).values({
+        tenantId,
+        provider: 'splunk',
+        encryptedKey,
+        label: data.label || 'Splunk Integration',
+        lastSyncStatus: 'pending',
+      }).returning()
+      integration = inserted
+    }
+
+    this.triggerCollectorSync('splunk')
+    return integration
+  },
+
+  // ==================== TEST SPLUNK CONNECTION ====================
+  async testSplunkConnection(host: string, token: string, port: number = 8088, ssl: boolean = true) {
+    try {
+      const protocol = ssl ? 'https' : 'http'
+      const url = `${protocol}://${host}:${port}/services/collector/health`
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: { 'Authorization': `Splunk ${token}` },
+      })
+      
+      if (!response.ok && response.status !== 400) {
+        throw new Error(`Splunk HEC health check failed: ${response.status}`)
+      }
+      
+      return true
+    } catch (e: any) {
+      throw new Error(`Splunk Connection Failed: ${e.message}`)
+    }
+  },
+
+  // ==================== ADD ELASTIC ====================
+  async addElastic(tenantId: string, data: { 
+    cloudId?: string;
+    apiKey?: string;
+    url?: string;
+    username?: string;
+    password?: string;
+    label?: string;
+    fetchSettings?: {
+      alerts?: { enabled: boolean; days: number };
+      events?: { enabled: boolean; days: number };
+    };
+  }) {
+    // Validate: either cloudId+apiKey OR url+username+password
+    if (!data.cloudId && !data.url) {
+      throw new Error('Either Cloud ID or Elasticsearch URL is required')
+    }
+
+    const fetchSettings = {
+      alerts: { enabled: true, days: 365, ...(data.fetchSettings?.alerts || {}) },
+      events: { enabled: true, days: 30, ...(data.fetchSettings?.events || {}) },
+    }
+
+    // Check for duplicate
+    const existingKeys = await db.select().from(apiKeys)
+      .where(and(eq(apiKeys.tenantId, tenantId), eq(apiKeys.provider, 'elastic')))
+    
+    let existingIntegration = null
+    for (const existing of existingKeys) {
+      try {
+        const config = JSON.parse(Encryption.decrypt(existing.encryptedKey))
+        if ((config.cloudId && config.cloudId === data.cloudId) || 
+            (config.url && config.url === data.url)) {
+          existingIntegration = existing
+          break
+        }
+      } catch (e) { /* ignore */ }
+    }
+
+    // Test Connection
+    await this.testElasticConnection(data)
+
+    // Encrypt and save
+    const encryptedKey = Encryption.encrypt(JSON.stringify({
+      cloudId: data.cloudId,
+      apiKey: data.apiKey,
+      url: data.url,
+      username: data.username,
+      password: data.password,
+      fetchSettings,
+    }))
+
+    let integration
+    if (existingIntegration) {
+      const [updated] = await db.update(apiKeys)
+        .set({
+          encryptedKey,
+          label: data.label || existingIntegration.label,
+          lastSyncStatus: 'pending',
+          lastSyncError: null,
+        })
+        .where(eq(apiKeys.id, existingIntegration.id))
+        .returning()
+      integration = updated
+    } else {
+      const [inserted] = await db.insert(apiKeys).values({
+        tenantId,
+        provider: 'elastic',
+        encryptedKey,
+        keyId: data.cloudId?.slice(-8) || data.url?.split('//')[1]?.split('.')[0],
+        label: data.label || 'Elastic SIEM Integration',
+        lastSyncStatus: 'pending',
+      }).returning()
+      integration = inserted
+    }
+
+    this.triggerCollectorSync('elastic')
+    return integration
+  },
+
+  // ==================== TEST ELASTIC CONNECTION ====================
+  async testElasticConnection(data: { cloudId?: string; apiKey?: string; url?: string; username?: string; password?: string }) {
+    try {
+      let url: string
+      let headers: Record<string, string> = {}
+
+      if (data.cloudId && data.apiKey) {
+        // Elastic Cloud - decode cloud ID to get URL
+        const decoded = Buffer.from(data.cloudId.split(':')[1] || data.cloudId, 'base64').toString()
+        const [_, esHost] = decoded.split('$')
+        url = `https://${esHost}/_cluster/health`
+        headers['Authorization'] = `ApiKey ${data.apiKey}`
+      } else if (data.url) {
+        url = `${data.url}/_cluster/health`
+        if (data.username && data.password) {
+          headers['Authorization'] = `Basic ${Buffer.from(`${data.username}:${data.password}`).toString('base64')}`
+        }
+      } else {
+        throw new Error('Invalid Elastic config')
+      }
+
+      const response = await fetch(url, { headers })
+      
+      if (!response.ok) {
+        throw new Error(`Elastic cluster health check failed: ${response.status}`)
+      }
+      
+      return true
+    } catch (e: any) {
+      throw new Error(`Elastic Connection Failed: ${e.message}`)
+    }
+  },
+
+  // ==================== ADD WAZUH ====================
+  async addWazuh(tenantId: string, data: { 
+    url: string; 
+    user: string;
+    password: string;
+    label?: string;
+    fetchSettings?: {
+      alerts?: { enabled: boolean; days: number };
+      agents?: { enabled: boolean };
+    };
+  }) {
+    let url = data.url.trim()
+    if (url.endsWith('/')) url = url.slice(0, -1)
+    
+    const fetchSettings = {
+      alerts: { enabled: true, days: 365, ...(data.fetchSettings?.alerts || {}) },
+      agents: { enabled: true, ...(data.fetchSettings?.agents || {}) },
+    }
+
+    // Check for duplicate URL
+    const existingKeys = await db.select().from(apiKeys)
+      .where(and(eq(apiKeys.tenantId, tenantId), eq(apiKeys.provider, 'wazuh')))
+    
+    let existingIntegration = null
+    for (const existing of existingKeys) {
+      try {
+        const config = JSON.parse(Encryption.decrypt(existing.encryptedKey))
+        if (config.url === url) {
+          existingIntegration = existing
+          break
+        }
+      } catch (e) { /* ignore */ }
+    }
+
+    // Test Connection
+    await this.testWazuhConnection(url, data.user, data.password)
+
+    // Encrypt and save
+    const encryptedKey = Encryption.encrypt(JSON.stringify({
+      url,
+      user: data.user,
+      password: data.password,
+      fetchSettings,
+    }))
+
+    let integration
+    if (existingIntegration) {
+      const [updated] = await db.update(apiKeys)
+        .set({
+          encryptedKey,
+          label: data.label || existingIntegration.label,
+          lastSyncStatus: 'pending',
+          lastSyncError: null,
+        })
+        .where(eq(apiKeys.id, existingIntegration.id))
+        .returning()
+      integration = updated
+    } else {
+      const [inserted] = await db.insert(apiKeys).values({
+        tenantId,
+        provider: 'wazuh',
+        encryptedKey,
+        label: data.label || 'Wazuh Integration',
+        lastSyncStatus: 'pending',
+      }).returning()
+      integration = inserted
+    }
+
+    this.triggerCollectorSync('wazuh')
+    return integration
+  },
+
+  // ==================== TEST WAZUH CONNECTION ====================
+  async testWazuhConnection(url: string, user: string, password: string) {
+    try {
+      const auth = Buffer.from(`${user}:${password}`).toString('base64')
+      const response = await fetch(`${url}/security/user/authenticate`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Basic ${auth}`,
+          'Content-Type': 'application/json',
+        },
+      })
+      
+      if (!response.ok) {
+        throw new Error(`Wazuh auth failed: ${response.status}`)
+      }
+      
+      return true
+    } catch (e: any) {
+      throw new Error(`Wazuh Connection Failed: ${e.message}`)
+    }
+  },
 }

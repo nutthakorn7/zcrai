@@ -410,6 +410,105 @@ export const integrationController = new Elysia({ prefix: '/integrations' })
   })
 
   /**
+   * Add Splunk SIEM integration
+   * @route POST /integrations/splunk
+   * @access Protected - Admin only  
+   * @body {string} host - Splunk host
+   * @body {string} token - HEC token
+   * @body {number} port - HEC port (default: 8088)
+   * @body {boolean} ssl - Use SSL (default: true)
+   * @returns {Object} Created integration
+   */
+  .post('/splunk', async ({ body, user, set }: any) => {
+    try {
+      if (!user?.tenantId) throw new Error('Unauthorized')
+      const integration = await IntegrationService.addSplunk(user.tenantId as string, body)
+      
+      await AuditService.log({
+        tenantId: user.tenantId,
+        userId: user.userId || user.id,
+        action: 'CREATE_INTEGRATION',
+        resource: 'integration',
+        resourceId: integration.id,
+        details: { provider: 'splunk', host: body.host },
+        status: 'SUCCESS'
+      })
+
+      set.status = 201
+      return { message: 'Splunk integration added successfully', integration }
+    } catch (e: any) {
+      set.status = 400
+      return { error: e.message }
+    }
+  })
+
+  /**
+   * Add Elastic SIEM integration
+   * @route POST /integrations/elastic
+   * @access Protected - Admin only
+   * @body {string} cloudId - Elastic Cloud ID (optional)
+   * @body {string} apiKey - Elastic API Key (optional)
+   * @body {string} url - Self-hosted URL (optional)
+   * @body {string} username - Username (optional)
+   * @body {string} password - Password (optional)
+   * @returns {Object} Created integration
+   */
+  .post('/elastic', async ({ body, user, set }: any) => {
+    try {
+      if (!user?.tenantId) throw new Error('Unauthorized')
+      const integration = await IntegrationService.addElastic(user.tenantId as string, body)
+      
+      await AuditService.log({
+        tenantId: user.tenantId,
+        userId: user.userId || user.id,
+        action: 'CREATE_INTEGRATION',
+        resource: 'integration',
+        resourceId: integration.id,
+        details: { provider: 'elastic', cloudId: body.cloudId?.slice(-8) },
+        status: 'SUCCESS'
+      })
+
+      set.status = 201
+      return { message: 'Elastic SIEM integration added successfully', integration }
+    } catch (e: any) {
+      set.status = 400
+      return { error: e.message }
+    }
+  })
+
+  /**
+   * Add Wazuh SIEM integration
+   * @route POST /integrations/wazuh
+   * @access Protected - Admin only
+   * @body {string} url - Wazuh API URL
+   * @body {string} user - Username
+   * @body {string} password - Password
+   * @returns {Object} Created integration
+   */
+  .post('/wazuh', async ({ body, user, set }: any) => {
+    try {
+      if (!user?.tenantId) throw new Error('Unauthorized')
+      const integration = await IntegrationService.addWazuh(user.tenantId as string, body)
+      
+      await AuditService.log({
+        tenantId: user.tenantId,
+        userId: user.userId || user.id,
+        action: 'CREATE_INTEGRATION',
+        resource: 'integration',
+        resourceId: integration.id,
+        details: { provider: 'wazuh', url: body.url },
+        status: 'SUCCESS'
+      })
+
+      set.status = 201
+      return { message: 'Wazuh integration added successfully', integration }
+    } catch (e: any) {
+      set.status = 400
+      return { error: e.message }
+    }
+  })
+
+  /**
    * Get integration configuration (for editing)
    * @route GET /integrations/:id/config
    * @access Protected - Admin only

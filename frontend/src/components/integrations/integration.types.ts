@@ -14,6 +14,9 @@ export const PROVIDER_LOGOS: Record<string, string> = {
   claude: ClaudeLogo,
   gemini: GeminiLogo,
   'aws-cloudtrail': AWSLogo,
+  splunk: '', // Placeholder - add actual logo
+  elastic: '', // Placeholder - add actual logo
+  wazuh: '', // Placeholder - add actual logo
 };
 
 // ⭐ Provider Config
@@ -110,6 +113,27 @@ export const PROVIDER_CONFIG: Record<string, ProviderConfig> = {
     description: 'Exchange, SharePoint, Teams Audit Logs',
     category: 'SaaS'
   },
+  splunk: {
+    name: 'Splunk',
+    color: 'success',
+    gradient: 'from-green-500/20 to-emerald-500/10',
+    description: 'Enterprise Log Management & SIEM',
+    category: 'SIEM'
+  },
+  elastic: {
+    name: 'Elastic SIEM',
+    color: 'warning',
+    gradient: 'from-yellow-500/20 to-amber-500/10',
+    description: 'Elastic Stack Security Solution',
+    category: 'SIEM'
+  },
+  wazuh: {
+    name: 'Wazuh',
+    color: 'primary',
+    gradient: 'from-blue-500/20 to-indigo-500/10',
+    description: 'Open Source Security Monitoring',
+    category: 'SIEM'
+  },
 };
 
 // ⭐ Fetch Settings Types
@@ -159,7 +183,7 @@ export interface Integration {
 }
 
 // Modal Types
-export type ModalType = 's1' | 'cs' | 'ai' | 'enrichment' | 'aws' | 'm365';
+export type ModalType = 's1' | 'cs' | 'ai' | 'enrichment' | 'aws' | 'm365' | 'siem';
 
 // Popular AI Models
 export const POPULAR_MODELS: Record<string, string[]> = {

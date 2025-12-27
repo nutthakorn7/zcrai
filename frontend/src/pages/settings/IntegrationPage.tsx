@@ -206,6 +206,36 @@ const PROVIDER_CONFIG: Record<string, ProviderConfigItem> = {
     description: 'IT Service Management (ITSM)',
     category: 'Ticketing'
   },
+  splunk: { 
+    name: 'Splunk', 
+    color: 'success',
+    gradient: 'from-green-500/10 via-emerald-500/5 to-transparent',
+    border: 'border-green-500/20 group-hover:border-green-500/50',
+    iconBg: 'bg-green-500/10',
+    iconColor: 'text-green-400',
+    description: 'Enterprise Log Management & SIEM',
+    category: 'SIEM'
+  },
+  elastic: { 
+    name: 'Elastic SIEM', 
+    color: 'warning',
+    gradient: 'from-yellow-500/10 via-amber-500/5 to-transparent',
+    border: 'border-yellow-500/20 group-hover:border-yellow-500/50',
+    iconBg: 'bg-yellow-500/10',
+    iconColor: 'text-yellow-400',
+    description: 'Elastic Stack Security Solution',
+    category: 'SIEM'
+  },
+  wazuh: { 
+    name: 'Wazuh', 
+    color: 'primary',
+    gradient: 'from-blue-500/10 via-indigo-500/5 to-transparent',
+    border: 'border-blue-500/20 group-hover:border-blue-500/50',
+    iconBg: 'bg-blue-500/10',
+    iconColor: 'text-blue-400',
+    description: 'Open Source Security Monitoring',
+    category: 'SIEM'
+  },
 };
 
 // ⭐ Type สำหรับ Fetch Settings
@@ -278,7 +308,7 @@ export default function IntegrationPage() {
   // Mode: 'add' | 'edit'
   const [mode, setMode] = useState<'add' | 'edit'>('add');
   // Selected Provider for Add
-  const [modalType, setModalType] = useState<'s1' | 'cs' | 'ai' | 'enrichment' | 'aws' | 'm365' | 'ticketing'>('s1');
+  const [modalType, setModalType] = useState<'s1' | 'cs' | 'ai' | 'enrichment' | 'aws' | 'm365' | 'ticketing' | 'siem'>('s1');
   // Selected Integration for Edit
   const [selectedIntegration, setSelectedIntegration] = useState<Integration | null>(null);
 
@@ -318,6 +348,24 @@ export default function IntegrationPage() {
   const [ticketingToken, setTicketingToken] = useState(''); // API Token or Password
   const [ticketingProjectKey, setTicketingProjectKey] = useState(''); // Jira Project Key
   const [autoSync, setAutoSync] = useState(false);
+
+  // ⭐ SIEM State
+  const [siemProvider, setSiemProvider] = useState<'splunk' | 'elastic' | 'wazuh'>('splunk');
+  // Splunk
+  const [splunkHost, setSplunkHost] = useState('');
+  const [splunkToken, setSplunkToken] = useState('');
+  const [splunkPort, setSplunkPort] = useState('8088');
+  const [splunkSsl, setSplunkSsl] = useState(true);
+  // Elastic
+  const [elasticCloudId, setElasticCloudId] = useState('');
+  const [elasticApiKey, setElasticApiKey] = useState('');
+  const [elasticUrl, setElasticUrl] = useState('');
+  const [elasticUsername, setElasticUsername] = useState('');
+  const [elasticPassword, setElasticPassword] = useState('');
+  // Wazuh
+  const [wazuhUrl, setWazuhUrl] = useState('');
+  const [wazuhUser, setWazuhUser] = useState('');
+  const [wazuhPassword, setWazuhPassword] = useState('');
 
   // ⏰ Token Expiry State
   const [tokenExpiresAt, setTokenExpiresAt] = useState(''); // ISO Date string YYYY-MM-DD
@@ -471,7 +519,7 @@ export default function IntegrationPage() {
   }, [fetchIntegrations]);
 
   // ⭐ handleOpenAdd
-  const handleOpenAdd = (type: 's1' | 'cs' | 'ai' | 'enrichment' | 'aws' | 'm365' | 'ticketing', providerOverride?: string) => {
+  const handleOpenAdd = (type: 's1' | 'cs' | 'ai' | 'enrichment' | 'aws' | 'm365' | 'ticketing' | 'siem', providerOverride?: string) => {
     setMode('add');
     setModalType(type);
     resetForm();
@@ -495,6 +543,12 @@ export default function IntegrationPage() {
     } else if (type === 'ticketing' && providerOverride) {
         setTicketingProvider(providerOverride as 'jira' | 'servicenow');
         setLabel(providerOverride === 'jira' ? 'Jira Software' : 'ServiceNow');
+    } else if (type === 'siem' && providerOverride) {
+        setSiemProvider(providerOverride as 'splunk' | 'elastic' | 'wazuh');
+        setLabel(
+          providerOverride === 'splunk' ? 'Splunk' : 
+          providerOverride === 'elastic' ? 'Elastic SIEM' : 'Wazuh'
+        );
     }
     onOpen();
   };
@@ -670,6 +724,33 @@ export default function IntegrationPage() {
                 projectKey: ticketingProvider === 'jira' ? ticketingProjectKey : undefined,
                 autoSync: autoSync
             });
+        } else if (modalType === 'siem') {
+            // SIEM Integrations (Splunk, Elastic, Wazuh)
+            if (siemProvider === 'splunk') {
+              await api.post('/integrations/splunk', {
+                host: splunkHost,
+                token: splunkToken,
+                port: parseInt(splunkPort) || 8088,
+                ssl: splunkSsl,
+                label: label || 'Splunk',
+              });
+            } else if (siemProvider === 'elastic') {
+              await api.post('/integrations/elastic', {
+                cloudId: elasticCloudId || undefined,
+                apiKey: elasticApiKey || undefined,
+                url: elasticUrl || undefined,
+                username: elasticUsername || undefined,
+                password: elasticPassword || undefined,
+                label: label || 'Elastic SIEM',
+              });
+            } else if (siemProvider === 'wazuh') {
+              await api.post('/integrations/wazuh', {
+                url: wazuhUrl,
+                user: wazuhUser,
+                password: wazuhPassword,
+                label: label || 'Wazuh',
+              });
+            }
         }
       } else {
         // Edit Mode
@@ -1735,6 +1816,122 @@ export default function IntegrationPage() {
                                 </p>
                             </div>
                          </div>
+                    </>
+                )}
+
+                {/* ⭐ SIEM Form - Add Mode */}
+                {modalType === 'siem' && (
+                    <>
+                        {siemProvider === 'splunk' && (
+                            <>
+                                <Input
+                                    label="Splunk Host"
+                                    placeholder="splunk.example.com"
+                                    value={splunkHost}
+                                    onValueChange={setSplunkHost}
+                                    description="Your Splunk HEC endpoint hostname"
+                                />
+                                <Input
+                                    label="HEC Token"
+                                    placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                                    value={splunkToken}
+                                    onValueChange={setSplunkToken}
+                                    type="password"
+                                    description="HTTP Event Collector token"
+                                />
+                                <div className="flex gap-4">
+                                    <Input
+                                        label="Port"
+                                        placeholder="8088"
+                                        value={splunkPort}
+                                        onValueChange={setSplunkPort}
+                                        className="w-32"
+                                    />
+                                    <div className="flex items-center gap-3 p-3 bg-default-100 rounded-lg flex-1">
+                                        <Switch 
+                                            isSelected={splunkSsl}
+                                            onValueChange={setSplunkSsl}
+                                        />
+                                        <div>
+                                            <p className="text-sm font-medium">Use SSL</p>
+                                            <p className="text-xs text-default-500">HTTPS connection</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </>
+                        )}
+
+                        {siemProvider === 'elastic' && (
+                            <>
+                                <div className="text-sm text-default-500 mb-2">
+                                    Connect via Elastic Cloud or Self-Hosted URL
+                                </div>
+                                <Input
+                                    label="Cloud ID (Elastic Cloud)"
+                                    placeholder="deployment:base64encoded..."
+                                    value={elasticCloudId}
+                                    onValueChange={setElasticCloudId}
+                                    description="Find this in Kibana → Management → Cloud"
+                                />
+                                <Input
+                                    label="API Key"
+                                    placeholder="API Key for authentication"
+                                    value={elasticApiKey}
+                                    onValueChange={setElasticApiKey}
+                                    type="password"
+                                />
+                                <Divider className="my-2" />
+                                <p className="text-xs text-default-400">Or connect to self-hosted cluster:</p>
+                                <Input
+                                    label="Elasticsearch URL"
+                                    placeholder="https://elasticsearch.example.com:9200"
+                                    value={elasticUrl}
+                                    onValueChange={setElasticUrl}
+                                />
+                                <div className="flex gap-2">
+                                    <Input
+                                        label="Username"
+                                        placeholder="elastic"
+                                        value={elasticUsername}
+                                        onValueChange={setElasticUsername}
+                                        className="flex-1"
+                                    />
+                                    <Input
+                                        label="Password"
+                                        placeholder="••••••••"
+                                        value={elasticPassword}
+                                        onValueChange={setElasticPassword}
+                                        type="password"
+                                        className="flex-1"
+                                    />
+                                </div>
+                            </>
+                        )}
+
+                        {siemProvider === 'wazuh' && (
+                            <>
+                                <Input
+                                    label="Wazuh API URL"
+                                    placeholder="https://wazuh.example.com:55000"
+                                    value={wazuhUrl}
+                                    onValueChange={setWazuhUrl}
+                                    description="Wazuh Manager API endpoint"
+                                />
+                                <Input
+                                    label="Username"
+                                    placeholder="wazuh-wui"
+                                    value={wazuhUser}
+                                    onValueChange={setWazuhUser}
+                                />
+                                <Input
+                                    label="Password"
+                                    placeholder="Enter password"
+                                    value={wazuhPassword}
+                                    onValueChange={setWazuhPassword}
+                                    type="password"
+                                />
+                            </>
+                        )}
                     </>
                 )}
 
